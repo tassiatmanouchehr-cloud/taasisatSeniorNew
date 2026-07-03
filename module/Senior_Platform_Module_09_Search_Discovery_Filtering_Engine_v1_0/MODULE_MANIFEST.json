@@ -1,0 +1,38 @@
+{
+  "module_id": "module_09_search_discovery_filtering_engine",
+  "version": "1.0.0",
+  "package": "Senior_Platform_Module_09_Search_Discovery_Filtering_Engine_v1_0",
+  "domain_posture": "generic_zero_domain_leakage",
+  "owns": [
+    "search_sessions",
+    "search_queries",
+    "saved_searches",
+    "search_index_operations",
+    "discovery_surfaces",
+    "facet_definitions",
+    "ranking_profiles",
+    "search_telemetry_policy"
+  ],
+  "does_not_own": [
+    "canonical_requests",
+    "canonical_bookings",
+    "canonical_assignments",
+    "canonical_financial_ledgers",
+    "canonical_profiles",
+    "canonical_compliance_decisions"
+  ],
+  "dependencies": [
+    "module_01_request_engine",
+    "module_02_matching_engine",
+    "module_03_booking_assignment_activation",
+    "module_04_service_execution",
+    "module_05_financial_operations",
+    "module_06_trust_safety_dispute_compliance",
+    "module_07_communication_notification_support",
+    "module_08_identity_roles_profiles_access"
+  ],
+  "event_prefix": "search.",
+  "config_prefix": "search_discovery_filtering.",
+  "tenant_boundary": "all search documents, queries, saved searches and telemetry are tenant scoped unless explicitly configured as platform-global by Module 08 permissions",
+  "pii_policy": "no raw sensitive profile fields in index unless explicitly whitelisted and redacted by projection contracts"
+}

@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Module 09 CCS Configuration Schema",
+  "type": "object",
+  "properties": {
+    "search_discovery_filtering.index.strategy": {
+      "type": "string",
+      "enum": [
+        "per_tenant",
+        "shared_partitioned",
+        "hybrid"
+      ],
+      "default": "shared_partitioned"
+    },
+    "search_discovery_filtering.cross_tenant.enabled": {
+      "type": "boolean",
+      "default": false
+    },
+    "search_discovery_filtering.query.max_page_size": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 500,
+      "default": 50
+    },
+    "search_discovery_filtering.query.default_page_size": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100,
+      "default": 20
+    },
+    "search_discovery_filtering.query.max_filter_depth": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 20,
+      "default": 5
+    },
+    "search_discovery_filtering.query.raw_text_logging_enabled": {
+      "type": "boolean",
+      "default": false
+    },
+    "search_discovery_filtering.facets.enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "search_discovery_filtering.facets.min_bucket_count": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 3
+    },
+    "search_discovery_filtering.ranking.default_profile_id": {
+      "type": "string",
+      "default": "generic_default_v1"
+    },
+    "search_discovery_filtering.autocomplete.enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "search_discovery_filtering.saved_search.enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "search_discovery_filtering.indexing.retry_max_attempts": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 8
+    },
+    "search_discovery_filtering.indexing.critical_suppression_sla_seconds": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 30
+    },
+    "search_discovery_filtering.abuse.rate_limit_per_actor_per_minute": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 60
+    },
+    "search_discovery_filtering.privacy.redaction_fail_closed": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "additionalProperties": true
+}

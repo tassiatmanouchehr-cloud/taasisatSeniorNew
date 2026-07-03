@@ -1,0 +1,190 @@
+{
+  "package": "Senior_Platform_Module_09_Search_Discovery_Filtering_Engine_v1_0",
+  "files": [
+    {
+      "path": "MODULE_MANIFEST.json",
+      "sha256": "e94f43a0837a7150f49f8b1fc04c8819efc6eda58b7827ee89a87de2da0250fa",
+      "bytes": 1382
+    },
+    {
+      "path": "README.md",
+      "sha256": "1b4aebfb0253739931ab55e2bc585e92890cecd625bdfee80629e54ae9b7f148",
+      "bytes": 4748
+    },
+    {
+      "path": "VERSION.md",
+      "sha256": "d9a3421b9c1335f7ebc9fd409f54d78c5a9a978a7e243a0b35967c70eaeb3338",
+      "bytes": 548
+    },
+    {
+      "path": "audit/Audit_Event_Model.md",
+      "sha256": "dfa81396de8b551ef0e51bdd2c3d270f628d83bb9239681e8f21d5de3fc66529",
+      "bytes": 931
+    },
+    {
+      "path": "configs/CCS_Module_09_Configuration_Catalog.md",
+      "sha256": "6d2d0ab63be5676363b8bcdfc836c140d2c25eb8a84922f2b326bfe5305e5528",
+      "bytes": 4859
+    },
+    {
+      "path": "configs/ccs_module_09_config.schema.json",
+      "sha256": "7038fd2609b8a62a4952e042ad3030986dbfc1ac1f3f077ef0446767643bab8f",
+      "bytes": 2231
+    },
+    {
+      "path": "contracts/API_Contracts.md",
+      "sha256": "750c3d2be6047c3adf052fc90d4cabd5a4a842474556a2ccb0e9ff6e1464e454",
+      "bytes": 2258
+    },
+    {
+      "path": "contracts/Cross_Module_Contracts.md",
+      "sha256": "d347f49480d4f19e185944dafa1f2aa122a80e322d55b6601b8cae8f873073b6",
+      "bytes": 3048
+    },
+    {
+      "path": "contracts/Projection_Contracts.md",
+      "sha256": "d8fe1476b083c1d77a8f0e9098f05126a1cc228ee7de3f9db7f231b46792f1a3",
+      "bytes": 2133
+    },
+    {
+      "path": "docs/01_Enterprise_Architecture.md",
+      "sha256": "a0d43e971da658a31799bf2d683294a15970f1028d8752d3caf99180457b85d0",
+      "bytes": 4263
+    },
+    {
+      "path": "docs/02_Domain_Model.md",
+      "sha256": "842c1e5ca18727dd9b31c0e310e5a93b5b5bc83a868866cfa8b0c4f261d5af6d",
+      "bytes": 3809
+    },
+    {
+      "path": "docs/03_Search_Index_Model.md",
+      "sha256": "0f6e6abe0e9d9a8874abcb17ae20e56a627caa070c5b4227369348f2e9cc8935",
+      "bytes": 3533
+    },
+    {
+      "path": "docs/04_Query_Filter_Facet_Model.md",
+      "sha256": "9c51e7c375c0a0320043dc024c7273d8c9cd5ee6d74ff530304561700d13c85f",
+      "bytes": 2844
+    },
+    {
+      "path": "docs/05_Ranking_Discovery_Model.md",
+      "sha256": "643a78c64a465798be09e1c45b7f2cd06ef066a2a5c601c9fa2c893bcaa30838",
+      "bytes": 3618
+    },
+    {
+      "path": "docs/06_Access_Control_Privacy_Model.md",
+      "sha256": "12ec4c2e91688e4f4a749ed12ac51b9d8a4e1d9ec962f8d5cdb56cb1d24e2458",
+      "bytes": 2526
+    },
+    {
+      "path": "docs/07_Multi_Tenant_Boundaries.md",
+      "sha256": "ee0f91c24e08f4632f15e21543715ebb30f1c3351119e20bee933b2350038d2c",
+      "bytes": 2197
+    },
+    {
+      "path": "docs/08_Event_Driven_Indexing.md",
+      "sha256": "fcee436aa130f4b069f833e334395925bc5f2faf42c26728b5b1c70e6023b89e",
+      "bytes": 2496
+    },
+    {
+      "path": "docs/09_Auditability_Observability.md",
+      "sha256": "e64f48a2aa8344881c57fa33aef0a3fb4ffa0842b8d37e6295f65953c1625253",
+      "bytes": 2111
+    },
+    {
+      "path": "docs/10_Failure_Recovery_Degradation.md",
+      "sha256": "6bbab3e94a063deaa66c1a2dc2d652a267bd3934ed23d836d0eecf36fc27ba1d",
+      "bytes": 1910
+    },
+    {
+      "path": "docs/11_Extensibility_Model.md",
+      "sha256": "2ade1eac4728575cd68b69462cbde23088d4e9826a58dd61b5730d465dceb2ce",
+      "bytes": 1715
+    },
+    {
+      "path": "docs/12_Operational_Runbook.md",
+      "sha256": "dd20e57fdfbcd13167a0d9f042addeed76bd9efcc90d15fd1f4f9507044e83e4",
+      "bytes": 1869
+    },
+    {
+      "path": "docs/13_Acceptance_Criteria.md",
+      "sha256": "4e2873592fb1d422097298dfecee4675f240bc6fb3db9acc40459374fd03d494",
+      "bytes": 2154
+    },
+    {
+      "path": "events/CES_Module_09_Event_Catalog.md",
+      "sha256": "96982674bd231674f73e1aa8874d2d894063d1f3bae2c88ce9166b8b4140cd5d",
+      "bytes": 4381
+    },
+    {
+      "path": "events/ces_module_09_events.json",
+      "sha256": "0014bb8a51383669faa6457737344a741b849a7856b8a9766ae39b6cf1af61dc",
+      "bytes": 2398
+    },
+    {
+      "path": "examples/generic_search_request.example.json",
+      "sha256": "36c6962b0f60957e71a758f1b56a6e6d0ed1ae5522d68c2875c49b0f2d4beb78",
+      "bytes": 552
+    },
+    {
+      "path": "examples/generic_search_result.example.json",
+      "sha256": "43e5654e7cc5fe162072939387e98174507a0bd9894fb60f5e26a32477e46c54",
+      "bytes": 1010
+    },
+    {
+      "path": "operations/Reindexing_Backfill_Runbook.md",
+      "sha256": "0b01fdf504ddf4d20fe3cacd5c1204ff32987971e752dce4dc2992080cc4b066",
+      "bytes": 1089
+    },
+    {
+      "path": "schemas/index_operation.schema.json",
+      "sha256": "8c810e553b2fe720fb146289230c311fccac422a9a58ec6fc124843cb8269c38",
+      "bytes": 1002
+    },
+    {
+      "path": "schemas/saved_search.schema.json",
+      "sha256": "d4d1eacb6da07ac65372ba3dd4a642d23d2c5a3f233c18271694963f0b03405f",
+      "bytes": 782
+    },
+    {
+      "path": "schemas/search_query.schema.json",
+      "sha256": "98bae5e450f9c649b49a68e1316ff83fcbf54f331f0a8231f57d73285d72a5be",
+      "bytes": 879
+    },
+    {
+      "path": "schemas/search_result.schema.json",
+      "sha256": "a35fbecac4c7f6a1c5d6137299b2bb776d0d5a1ac5b4c0c470e985db8378d3fb",
+      "bytes": 1175
+    },
+    {
+      "path": "schemas/searchable_document.schema.json",
+      "sha256": "298146d2e9540ddd061b417faca66cda257f3a0c07779d2b49f1fc6beac90d19",
+      "bytes": 1463
+    },
+    {
+      "path": "security/Abuse_Protection_Model.md",
+      "sha256": "505f0be11c746b8ac9cb77526e398466e81549750e7a41e2cb97867d1b1f2feb",
+      "bytes": 878
+    },
+    {
+      "path": "security/Permission_Matrix.md",
+      "sha256": "0519ab1c159096860dfd76e3620c00d4e84e0aa837371db429ca10af6d7f38ff",
+      "bytes": 1143
+    },
+    {
+      "path": "security/Privacy_Redaction_Model.md",
+      "sha256": "1d9e4617177c1f535ce931e1fb906a4cde07e1837c5fed445c88cbfb67ba1d8e",
+      "bytes": 822
+    },
+    {
+      "path": "testing/Acceptance_Test_Checklist.md",
+      "sha256": "01115c04a92993035b79f41717f030b70db1400e44df5162f201358593423f57",
+      "bytes": 1204
+    },
+    {
+      "path": "testing/Test_Strategy.md",
+      "sha256": "0aca96ce3535e0ebfa9664f3a7094f105b83360a7314e4d96a7b9a47506cc8dd",
+      "bytes": 1339
+    }
+  ]
+}

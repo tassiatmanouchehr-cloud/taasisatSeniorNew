@@ -1,0 +1,106 @@
+{
+  "event_prefix": "search.",
+  "version": "1.0",
+  "events": [
+    {
+      "event_type": "search.query_executed",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.query_denied",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.zero_results_returned",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.autocomplete_executed",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.document_index_requested",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.document_indexed",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.document_index_failed",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.document_suppressed",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.document_restored",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.document_deleted",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.index_drift_detected",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.index_reconciliation_started",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.index_document_reconciled",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.index_reconciliation_completed",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.reindex_started",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.reindex_completed",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.reindex_failed",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.saved_search_created",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.saved_search_updated",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.saved_search_disabled",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.saved_search_deleted",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.saved_search_evaluated",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.saved_search_match_found",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.abuse_signal_detected",
+      "event_version": "1.0"
+    },
+    {
+      "event_type": "search.tenant_search_data_purged",
+      "event_version": "1.0"
+    }
+  ]
+}

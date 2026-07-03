@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IndexOperation",
+  "type": "object",
+  "required": [
+    "index_operation_id",
+    "tenant_id",
+    "operation_type",
+    "source_module",
+    "source_entity_type",
+    "source_entity_id",
+    "idempotency_key",
+    "status"
+  ],
+  "properties": {
+    "index_operation_id": {
+      "type": "string"
+    },
+    "tenant_id": {
+      "type": "string"
+    },
+    "source_event_id": {
+      "type": "string"
+    },
+    "operation_type": {
+      "type": "string"
+    },
+    "source_module": {
+      "type": "string"
+    },
+    "source_entity_type": {
+      "type": "string"
+    },
+    "source_entity_id": {
+      "type": "string"
+    },
+    "target_index": {
+      "type": "string"
+    },
+    "idempotency_key": {
+      "type": "string"
+    },
+    "attempt_count": {
+      "type": "integer"
+    },
+    "status": {
+      "type": "string"
+    },
+    "error_code": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

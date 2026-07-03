@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SearchableDocument",
+  "type": "object",
+  "required": [
+    "search_document_id",
+    "tenant_id",
+    "source_module",
+    "source_entity_type",
+    "source_entity_id",
+    "source_entity_version",
+    "projection_version",
+    "permission_tags",
+    "redaction_profile_id"
+  ],
+  "properties": {
+    "search_document_id": {
+      "type": "string"
+    },
+    "tenant_id": {
+      "type": "string"
+    },
+    "source_module": {
+      "type": "string"
+    },
+    "source_entity_type": {
+      "type": "string"
+    },
+    "source_entity_id": {
+      "type": "string"
+    },
+    "source_entity_version": {
+      "type": "integer"
+    },
+    "projection_version": {
+      "type": "string"
+    },
+    "lifecycle_state": {
+      "type": "string"
+    },
+    "visibility_state": {
+      "type": "string"
+    },
+    "searchable_text": {
+      "type": "object"
+    },
+    "structured_fields": {
+      "type": "object"
+    },
+    "location_fields": {
+      "type": "object"
+    },
+    "availability_fields": {
+      "type": "object"
+    },
+    "pricing_fields": {
+      "type": "object"
+    },
+    "ranking_signals": {
+      "type": "object"
+    },
+    "permission_tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "redaction_profile_id": {
+      "type": "string"
+    },
+    "indexed_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

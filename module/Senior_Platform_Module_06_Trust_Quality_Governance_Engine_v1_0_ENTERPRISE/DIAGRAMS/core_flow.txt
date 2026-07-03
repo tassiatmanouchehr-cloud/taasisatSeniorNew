@@ -1,0 +1,15 @@
+Signal
+  ↓
+TrustCase
+  ↓
+Evidence
+  ↓
+DecisionRecommendation
+  ↓
+CaseDecision
+  ↓
+EnforcementAction
+  ↓
+Appeal / Reopen
+  ↓
+Audit / Reporting

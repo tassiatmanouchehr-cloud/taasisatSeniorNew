@@ -1,0 +1,22 @@
+# Acceptance Test Checklist
+
+- [ ] Query without tenant context is rejected.
+- [ ] Query without actor context for private surface is rejected.
+- [ ] Public discovery returns only public permission-tagged documents.
+- [ ] Provider request discovery returns only eligible request documents.
+- [ ] Tenant A cannot discover Tenant B private documents.
+- [ ] Cross-tenant search is denied unless explicitly enabled and permitted.
+- [ ] Facets exclude hidden documents.
+- [ ] Facets enforce minimum bucket count.
+- [ ] Redaction removes precise location for public users.
+- [ ] Redaction failure denies response.
+- [ ] Compliance block suppresses document within SLA.
+- [ ] Older source events cannot overwrite newer indexed document.
+- [ ] Reindex can rebuild tenant index and rotate alias.
+- [ ] Saved search emits match event without sending notification directly.
+- [ ] Abuse pattern emits search.abuse_signal_detected.
+- [ ] Autocomplete does not leak private entity names.
+- [ ] Raw query text is not logged by default.
+- [ ] Zero-result query emits search.zero_results_returned.
+- [ ] Index drift emits drift and reconciliation events.
+- [ ] No vertical-specific vocabulary exists in module documents.

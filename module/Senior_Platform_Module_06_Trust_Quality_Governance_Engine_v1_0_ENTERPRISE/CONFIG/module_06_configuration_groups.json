@@ -1,0 +1,16 @@
+{
+  "module": "module_06_trust_quality_governance",
+  "configuration_standard": "CCS_v1.0",
+  "groups": [
+    "review_settings",
+    "reputation_settings",
+    "complaint_settings",
+    "dispute_settings",
+    "violation_settings",
+    "enforcement_settings",
+    "compliance_settings",
+    "risk_settings",
+    "audit_settings",
+    "analytics_settings"
+  ]
+}

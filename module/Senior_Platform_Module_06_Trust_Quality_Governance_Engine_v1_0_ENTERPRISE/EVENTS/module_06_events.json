@@ -1,0 +1,16 @@
+{
+  "module": "module_06_trust_quality_governance",
+  "event_standard": "CES_v1.0",
+  "events": [
+    "ReviewSubmitted",
+    "ComplaintOpened",
+    "DisputeCreated",
+    "RiskSignalGenerated",
+    "CaseDecisionCreated",
+    "RestrictionApplied",
+    "SuspensionStarted",
+    "AppealSubmitted",
+    "ComplianceExpired",
+    "MarketplaceHealthUpdated"
+  ]
+}
