@@ -4,9 +4,16 @@ Testing settings for the Enterprise Service Marketplace Platform.
 Optimized for fast test execution.
 """
 
+import os
+
 from .base import *  # noqa: F401, F403
 
 DEBUG = False
+
+# Test database — use same engine, different name
+DATABASES["default"]["TEST"] = {  # noqa: F405
+    "NAME": os.environ.get("DATABASE_TEST_NAME", "test_marketplace"),
+}
 
 # Use a faster password hasher in tests
 PASSWORD_HASHERS = [

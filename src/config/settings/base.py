@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.gis",
 ]
 
 MIDDLEWARE = [
@@ -59,11 +60,19 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-# Database — placeholder, configured in environment-specific settings
+# Database — PostgreSQL with PostGIS
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.contrib.gis.db.backends.postgis",
+        "NAME": os.environ.get("DATABASE_NAME", "marketplace"),
+        "USER": os.environ.get("DATABASE_USER", "marketplace"),
+        "PASSWORD": os.environ.get("DATABASE_PASSWORD", "marketplace"),
+        "HOST": os.environ.get("DATABASE_HOST", "localhost"),
+        "PORT": os.environ.get("DATABASE_PORT", "5432"),
+        "OPTIONS": {
+            "connect_timeout": 5,
+        },
+        "CONN_MAX_AGE": 60,
     }
 }
 
