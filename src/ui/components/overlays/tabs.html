@@ -1,0 +1,67 @@
+{# Tabs Component
+   Usage:
+     <div x-data="{ tab: 'info' }">
+       {% include "ui/components/overlays/tabs.html" with tabs=tab_list active_model="tab" %}
+       <div x-show="tab === 'info'">محتوای اطلاعات</div>
+       <div x-show="tab === 'settings'">محتوای تنظیمات</div>
+     </div>
+
+   Props:
+     tabs         — list of {id, label, icon?, disabled?, badge?} dicts
+     active_model — Alpine variable for active tab (default: "tab")
+     variant      — underline|pills|enclosed (default: underline)
+     size         — sm|md (default: md)
+     full_width   — true/false (tabs stretch to fill width)
+#}
+{% with variant=variant|default:"underline" size=size|default:"md" active_model=active_model|default:"tab" %}
+<div class="{% if variant == 'enclosed' %}bg-background-alt rounded-lg p-1{% endif %}"
+     role="tablist"
+     aria-orientation="horizontal">
+  <nav class="flex {% if full_width %}w-full{% endif %}
+              {% if variant == 'underline' %}border-b border-border gap-inline-6
+              {% elif variant == 'pills' %}gap-inline-2
+              {% elif variant == 'enclosed' %}gap-inline-1
+              {% endif %}">
+    {% for t in tabs %}
+    <button @click="{{ active_model }} = '{{ t.id }}'"
+            :class="{
+              {% if variant == 'underline' %}
+              'border-b-2 border-primary text-primary': {{ active_model }} === '{{ t.id }}',
+              'border-b-2 border-transparent text-text-muted hover:text-text hover:border-border': {{ active_model }} !== '{{ t.id }}'
+              {% elif variant == 'pills' %}
+              'bg-primary text-text-inverse shadow-sm': {{ active_model }} === '{{ t.id }}',
+              'text-text-muted hover:text-text hover:bg-background-alt': {{ active_model }} !== '{{ t.id }}'
+              {% elif variant == 'enclosed' %}
+              'bg-surface text-text shadow-sm rounded-md': {{ active_model }} === '{{ t.id }}',
+              'text-text-muted hover:text-text': {{ active_model }} !== '{{ t.id }}'
+              {% endif %}
+            }"
+            class="inline-flex items-center gap-inline-2 font-medium transition-all duration-fast
+                   whitespace-nowrap
+                   {% if full_width %}flex-1 justify-center{% endif %}
+                   {% if size == 'sm' %}px-3 py-1.5 text-xs
+                   {% elif size == 'md' %}px-4 py-2.5 text-sm
+                   {% endif %}
+                   {% if variant == 'pills' %}rounded-lg
+                   {% elif variant == 'enclosed' %}rounded-md
+                   {% endif %}
+                   focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-inset
+                   {% if t.disabled %}opacity-50 pointer-events-none{% endif %}"
+            type="button"
+            role="tab"
+            :aria-selected="{{ active_model }} === '{{ t.id }}'"
+            aria-controls="panel-{{ t.id }}"
+            {% if t.disabled %}disabled tabindex="-1"{% endif %}>
+      {% if t.icon %}<span aria-hidden="true">{{ t.icon }}</span>{% endif %}
+      <span>{{ t.label }}</span>
+      {% if t.badge %}
+      <span class="inline-flex items-center justify-center px-1.5 py-0.5 text-xs rounded-full
+                   bg-primary-100 text-primary-700 dark:bg-primary-50 dark:text-primary-600">
+        {{ t.badge }}
+      </span>
+      {% endif %}
+    </button>
+    {% endfor %}
+  </nav>
+</div>
+{% endwith %}

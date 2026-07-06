@@ -1,0 +1,25 @@
+{# Dropdown Menu Item
+   Usage (inside dropdown):
+     {% include "ui/components/overlays/dropdown_item.html" with label="ویرایش" icon="✏️" %}
+     {% include "ui/components/overlays/dropdown_item.html" with label="حذف" variant="danger" %}
+     {% include "ui/components/overlays/dropdown_item.html" with divider=True %}
+
+   Props:
+     label, href, icon, variant (default|danger), disabled, divider, attrs
+#}
+{% if divider %}
+<div class="border-t border-border my-1" role="separator"></div>
+{% else %}
+<{% if href %}a href="{{ href }}"{% else %}button type="button"{% endif %}
+   class="flex items-center w-full gap-inline-2 px-4 py-2 text-sm transition-colors
+          {% if variant == 'danger' %}text-danger hover:bg-danger-50 dark:hover:bg-danger-50
+          {% else %}text-text hover:bg-background-alt{% endif %}
+          {% if disabled %}opacity-50 pointer-events-none{% endif %}
+          no-underline"
+   role="menuitem"
+   {% if disabled %}aria-disabled="true" tabindex="-1"{% endif %}
+   {{ attrs|default:"" }}>
+  {% if icon %}<span class="w-5 text-center shrink-0" aria-hidden="true">{{ icon }}</span>{% endif %}
+  <span>{{ label }}</span>
+</{% if href %}a{% else %}button{% endif %}>
+{% endif %}

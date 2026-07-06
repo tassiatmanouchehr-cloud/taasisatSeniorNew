@@ -1,0 +1,36 @@
+{# Dropdown Menu Component
+   Usage:
+     <div x-data="{ open: false }" class="relative">
+       <button @click="open = !open">منو</button>
+       {% include "ui/components/overlays/dropdown.html" with align="start" %}
+     </div>
+
+   Props:
+     align — start|end (default: start — aligns to inline-start)
+     width — w-48|w-56|w-64|w-72 (default: w-56)
+
+   Items are placed inside the component via block/slot.
+#}
+{% with align=align|default:"start" width=width|default:"w-56" %}
+<div x-show="open"
+     x-transition:enter="transition ease-out duration-150"
+     x-transition:enter-start="opacity-0 scale-95"
+     x-transition:enter-end="opacity-100 scale-100"
+     x-transition:leave="transition ease-in duration-100"
+     x-transition:leave-start="opacity-100 scale-100"
+     x-transition:leave-end="opacity-0 scale-95"
+     @click.away="open = false"
+     @keydown.escape.window="open = false"
+     class="absolute z-dropdown mt-2 {{ width }} rounded-lg bg-surface border border-border
+            shadow-lg overflow-hidden
+            {% if align == 'start' %}inset-inline-start-0
+            {% else %}inset-inline-end-0
+            {% endif %}"
+     role="menu"
+     aria-orientation="vertical">
+
+  <div class="py-1">
+    {% block dropdown_items %}{{ items|default:"" }}{% endblock %}
+  </div>
+</div>
+{% endwith %}

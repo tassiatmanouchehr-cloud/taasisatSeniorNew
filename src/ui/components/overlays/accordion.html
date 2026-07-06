@@ -1,0 +1,51 @@
+{# Accordion Component
+   Usage:
+     <div x-data="{ active: null }">
+       {% include "ui/components/overlays/accordion.html" with id="faq1" title="سوال اول" %}
+       {% include "ui/components/overlays/accordion.html" with id="faq2" title="سوال دوم" %}
+     </div>
+
+   For single-open behavior: use active === 'id' check
+   For multi-open: use separate boolean per item
+
+   Props:
+     id      — Unique ID for this item (required)
+     title   — Accordion header text (required)
+     content — Body content
+     icon    — Optional icon before title
+     model   — Alpine expression for open state (default: active === 'id')
+#}
+{% with model=model|default:"active === '" %}
+<div class="border-b border-border">
+  <!-- Header / Trigger -->
+  <button @click="active = active === '{{ id }}' ? null : '{{ id }}'"
+          class="flex items-center justify-between w-full px-4 py-3 text-start
+                 text-sm font-medium text-text hover:bg-background-alt transition-colors
+                 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50"
+          :aria-expanded="active === '{{ id }}'"
+          aria-controls="accordion-body-{{ id }}"
+          type="button">
+    <span class="flex items-center gap-inline-2">
+      {% if icon %}<span aria-hidden="true">{{ icon }}</span>{% endif %}
+      {{ title }}
+    </span>
+    <!-- Chevron (rotates when open) -->
+    <svg class="w-4 h-4 text-text-muted transition-transform duration-200"
+         :class="{ 'rotate-180': active === '{{ id }}' }"
+         fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+    </svg>
+  </button>
+
+  <!-- Body / Content -->
+  <div x-show="active === '{{ id }}'"
+       x-collapse
+       id="accordion-body-{{ id }}"
+       role="region"
+       :aria-hidden="active !== '{{ id }}'">
+    <div class="px-4 pb-4 text-sm text-text-muted">
+      {{ content|default:"" }}
+    </div>
+  </div>
+</div>
+{% endwith %}
