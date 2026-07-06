@@ -114,6 +114,9 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Custom user model — per ADR-001.01 (Person separate from UserAccount)
+AUTH_USER_MODEL = "kernel.UserAccount"
+
 # Celery — Task queue with Redis broker
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
