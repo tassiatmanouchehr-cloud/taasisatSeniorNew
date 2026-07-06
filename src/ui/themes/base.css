@@ -1,0 +1,56 @@
+/*
+ * Theme Base — Shared foundation imported by all themes
+ *
+ * Contains:
+ * - CSS variable structure declarations
+ * - Transition for smooth theme switching
+ * - Reduced motion support
+ * - Theme-agnostic structural variables
+ */
+
+/* Smooth theme transitions */
+*,
+*::before,
+*::after {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Disable transitions for users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* Theme-agnostic structural variables */
+:root {
+  /* Sidebar width */
+  --sidebar-width: 16rem;
+  --sidebar-collapsed-width: 4.5rem;
+
+  /* Navbar height */
+  --navbar-height: 4rem;
+
+  /* Content max-width */
+  --content-max-width: 80rem;
+
+  /* Input heights */
+  --input-height-sm: 2rem;
+  --input-height-md: 2.5rem;
+  --input-height-lg: 3rem;
+
+  /* Border widths */
+  --border-width-thin: 1px;
+  --border-width-medium: 2px;
+  --border-width-thick: 4px;
+
+  /* Focus ring */
+  --ring-width: 3px;
+  --ring-offset-width: 2px;
+}

@@ -1,32 +1,96 @@
 /*
  * Enterprise Service Marketplace Platform — Main CSS Entry Point
  *
- * This file is the Tailwind CSS source. It imports:
- * 1. Tailwind base (reset/normalize)
- * 2. Tailwind components
- * 3. Tailwind utilities
- * 4. Custom layers (design tokens, themes, RTL, accessibility)
+ * Build: npx tailwindcss -i ui/css/main.css -o static/css/output.css --watch
  *
- * Build with: npx tailwindcss -i ui/css/main.css -o static/css/output.css --watch
+ * Import order:
+ * 1. Tailwind base (reset/normalize)
+ * 2. Theme system (CSS variables for all colors/shadows)
+ * 3. Tailwind components
+ * 4. Tailwind utilities
+ * 5. Custom layers
  */
 
 @tailwind base;
+
+/* === Theme System === */
+/* Base theme variables (structural, non-color) */
+@import '../themes/base.css';
+/* Light theme (default) — sets :root CSS variables */
+@import '../themes/light.css';
+/* Dark theme — overrides via .dark class */
+@import '../themes/dark.css';
+
 @tailwind components;
 @tailwind utilities;
 
-/* Custom base layer — loaded after Tailwind base */
+/* === Custom Base Layer === */
 @layer base {
-  /* Theme CSS variables are injected here by the theme system */
-  /* Typography defaults are set here */
-  /* RTL logical properties base is here */
+  /* HTML root: Persian, RTL */
+  html {
+    direction: rtl;
+    font-feature-settings: "ss01", "ss02";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Body defaults */
+  body {
+    font-family: theme('fontFamily.sans');
+    font-size: theme('fontSize.base[0]');
+    line-height: theme('fontSize.base[1].lineHeight');
+    color: var(--color-text);
+    background-color: var(--color-background);
+  }
+
+  /* Headings */
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: theme('fontWeight.bold');
+    color: var(--color-text);
+  }
+
+  /* Links */
+  a {
+    color: var(--color-text-link);
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+
+  /* Focus visible (accessibility) */
+  :focus-visible {
+    outline: var(--ring-width) solid var(--ring-color);
+    outline-offset: var(--ring-offset-width);
+  }
 }
 
-/* Custom component layer — reusable component styles */
+/* === Custom Component Layer === */
 @layer components {
-  /* Component-specific styles that can't be expressed as utilities */
+  /* Component styles will be added in Commits 7-10 */
 }
 
-/* Custom utilities layer */
+/* === Custom Utilities Layer === */
 @layer utilities {
-  /* Custom utility classes beyond Tailwind defaults */
+  /* Persian digit display */
+  .digits-fa {
+    font-feature-settings: "numr";
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Force LTR for numbers/code in RTL context */
+  .ltr-nums {
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
