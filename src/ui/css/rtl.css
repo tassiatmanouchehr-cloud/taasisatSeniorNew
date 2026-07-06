@@ -1,0 +1,232 @@
+/*
+ * RTL Foundation
+ * Enterprise Service Marketplace Platform
+ *
+ * Persian-first, logical CSS only.
+ * NO left/right physical properties anywhere.
+ * All positioning uses inline-start/inline-end (logical).
+ *
+ * Principles:
+ * 1. html dir="rtl" is the default — no flip needed
+ * 2. Use CSS logical properties exclusively:
+ *    - margin-inline-start (not margin-left)
+ *    - padding-inline-end (not padding-right)
+ *    - inset-inline-start (not left)
+ *    - border-inline-start (not border-left)
+ *    - text-align: start (not text-align: right)
+ * 3. Icons that indicate direction get mirrored via .icon-mirror
+ * 4. Embedded LTR content (code, URLs, numbers) uses dir="ltr" attribute
+ * 5. BiDi isolation for mixed content
+ *
+ * Tailwind already supports logical properties via:
+ *   ms-* (margin-inline-start), me-* (margin-inline-end)
+ *   ps-* (padding-inline-start), pe-* (padding-inline-end)
+ *   start-* / end-* for positioning
+ *   text-start / text-end for alignment
+ *
+ * This file adds additional RTL utilities not covered by Tailwind defaults.
+ */
+
+@layer base {
+  /* === Document Direction === */
+  html {
+    direction: rtl;
+    unicode-bidi: isolate;
+  }
+
+  /* === Logical text alignment (override any physical) === */
+  /* Default text alignment is start (right in RTL, left in LTR) */
+  body {
+    text-align: start;
+  }
+
+  /* === Input/form elements inherit direction === */
+  input,
+  textarea,
+  select {
+    text-align: start;
+  }
+
+  /* === Tables === */
+  table {
+    direction: rtl;
+  }
+  th {
+    text-align: start;
+  }
+
+  /* === Lists === */
+  ul, ol {
+    padding-inline-start: 1.5em;
+    padding-inline-end: 0;
+  }
+
+  /* === Blockquote === */
+  blockquote {
+    border-inline-start: 4px solid var(--color-border-strong);
+    padding-inline-start: 1rem;
+    margin-inline-start: 0;
+    margin-inline-end: 0;
+  }
+}
+
+@layer utilities {
+  /* === Directional Icon Mirroring === */
+  /* Apply to icons that indicate direction (arrows, chevrons, etc.) */
+  .icon-mirror {
+    transform: scaleX(-1);
+  }
+
+  /* RTL-aware icon — auto-mirrors in RTL context */
+  [dir="rtl"] .icon-directional,
+  .icon-directional {
+    transform: scaleX(-1);
+  }
+  [dir="ltr"] .icon-directional {
+    transform: scaleX(1);
+  }
+
+  /* === Embedded LTR Content === */
+  /* For code blocks, URLs, email addresses, phone numbers in RTL text */
+  .embed-ltr {
+    direction: ltr;
+    unicode-bidi: embed;
+  }
+
+  /* Isolate LTR content without affecting surrounding RTL */
+  .isolate-ltr {
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  /* Force RTL for elements that may inherit wrong direction */
+  .force-rtl {
+    direction: rtl;
+    unicode-bidi: isolate;
+  }
+
+  /* === Logical Float Alternatives === */
+  /* Tailwind has float-start/float-end but adding for clarity */
+  .float-inline-start {
+    float: inline-start;
+  }
+  .float-inline-end {
+    float: inline-end;
+  }
+
+  /* === Logical Scroll === */
+  .scroll-snap-inline-start {
+    scroll-snap-align: start;
+  }
+  .scroll-snap-inline-end {
+    scroll-snap-align: end;
+  }
+
+  /* === Logical Resize === */
+  .resize-inline {
+    resize: inline;
+  }
+  .resize-block {
+    resize: block;
+  }
+
+  /* === Logical Overflow === */
+  .overflow-inline-auto {
+    overflow-inline: auto;
+  }
+  .overflow-inline-hidden {
+    overflow-inline: hidden;
+  }
+
+  /* === Logical Border Radius === */
+  /* For when you need only one logical corner rounded */
+  .rounded-start-top {
+    border-start-start-radius: theme('borderRadius.DEFAULT');
+    border-end-start-radius: 0;
+    border-start-end-radius: 0;
+    border-end-end-radius: 0;
+  }
+  .rounded-start-bottom {
+    border-end-start-radius: theme('borderRadius.DEFAULT');
+    border-start-start-radius: 0;
+    border-start-end-radius: 0;
+    border-end-end-radius: 0;
+  }
+  .rounded-end-top {
+    border-start-end-radius: theme('borderRadius.DEFAULT');
+    border-start-start-radius: 0;
+    border-end-start-radius: 0;
+    border-end-end-radius: 0;
+  }
+  .rounded-end-bottom {
+    border-end-end-radius: theme('borderRadius.DEFAULT');
+    border-start-start-radius: 0;
+    border-end-start-radius: 0;
+    border-start-end-radius: 0;
+  }
+
+  /* Rounded on start side (both corners) */
+  .rounded-s {
+    border-start-start-radius: theme('borderRadius.DEFAULT');
+    border-end-start-radius: theme('borderRadius.DEFAULT');
+  }
+  /* Rounded on end side (both corners) */
+  .rounded-e {
+    border-start-end-radius: theme('borderRadius.DEFAULT');
+    border-end-end-radius: theme('borderRadius.DEFAULT');
+  }
+
+  /* === Logical Border === */
+  .border-s {
+    border-inline-start-width: 1px;
+  }
+  .border-e {
+    border-inline-end-width: 1px;
+  }
+  .border-s-2 {
+    border-inline-start-width: 2px;
+  }
+  .border-e-2 {
+    border-inline-end-width: 2px;
+  }
+  .border-s-4 {
+    border-inline-start-width: 4px;
+  }
+  .border-e-4 {
+    border-inline-end-width: 4px;
+  }
+
+  /* === Spacing Helpers (logical shorthands) === */
+  /* Gap with logical alignment */
+  .gap-inline-2 {
+    column-gap: 0.5rem;
+  }
+  .gap-inline-4 {
+    column-gap: 1rem;
+  }
+  .gap-inline-6 {
+    column-gap: 1.5rem;
+  }
+
+  /* === Mixed Content Support === */
+  /* For text that contains both Persian and English */
+  .mixed-bidi {
+    unicode-bidi: plaintext;
+  }
+
+  /* Phone numbers, prices — always LTR display */
+  .ltr-value {
+    direction: ltr;
+    unicode-bidi: isolate;
+    display: inline-block;
+  }
+
+  /* === Horizontal Scrolling (RTL-aware) === */
+  .scroll-rtl {
+    direction: rtl;
+    overflow-x: auto;
+  }
+  .scroll-rtl > * {
+    direction: rtl;
+  }
+}

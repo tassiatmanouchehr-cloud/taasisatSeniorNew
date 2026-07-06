@@ -22,15 +22,16 @@
 @import '../themes/dark.css';
 /* Typography system (font-face, base styles, fluid type) */
 @import './typography.css';
+/* RTL foundation (logical CSS, Persian-first, no left/right) */
+@import './rtl.css';
 
 @tailwind components;
 @tailwind utilities;
 
 /* === Custom Base Layer === */
 @layer base {
-  /* HTML root: Persian, RTL */
+  /* HTML root: Persian font smoothing */
   html {
-    direction: rtl;
     font-feature-settings: "ss01", "ss02";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
