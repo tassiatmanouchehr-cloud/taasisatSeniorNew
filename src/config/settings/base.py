@@ -84,6 +84,19 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
+# Cache — Redis
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": os.environ.get("REDIS_URL", "redis://localhost:6379/0"),
+        "OPTIONS": {
+            "db": 0,
+        },
+        "KEY_PREFIX": "mkt",
+        "TIMEOUT": 300,
+    }
+}
+
 # Internationalization
 LANGUAGE_CODE = "fa-ir"
 TIME_ZONE = "UTC"
