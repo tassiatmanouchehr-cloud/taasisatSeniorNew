@@ -1,5 +1,6 @@
 """Kernel models — Platform Kernel (Module 25)."""
 
+from .event_outbox import AuditClass, EventOutbox, EventStatus, PrivacyClass
 from .rbac import Permission, Role, RoleAssignment
 from .tenant import Tenant, TenantStatus
 from .user import Person, PersonStatus, UserAccount
@@ -13,4 +14,8 @@ __all__ = [
     "Role",
     "Permission",
     "RoleAssignment",
+    "EventOutbox",
+    "EventStatus",
+    "PrivacyClass",
+    "AuditClass",
 ]
