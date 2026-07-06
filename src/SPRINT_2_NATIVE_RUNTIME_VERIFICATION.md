@@ -259,7 +259,45 @@ python manage.py check
 # Expected: System check identified no issues.
 ```
 
-### Issue 2: `db_table` with Schema Prefix
+### Issue 2: Migration Ordering — UserAccount Not Resolved (FIXED)
+
+**Problem:** `python manage.py migrate` failed with:
+```
+ValueError: Related model 'kernel.useraccount' cannot be resolved
+```
+at `Applying admin.0001_initial...`
+
+**Root cause:** Django's `admin.0001_initial` migration depends on `swappable_dependency(settings.AUTH_USER_MODEL)` which resolves to `("kernel", "__first__")`. The `__first__` pseudo-dependency resolves to all migrations in the kernel app that have `initial = True`.
+
+Previously, `0001_create_schemas.py` was marked `initial = True` but it only creates PostgreSQL schemas — NOT the UserAccount model. The UserAccount model is created in `0003_person_useraccount.py`. So when admin ran, it expected the user model to exist (from `__first__` = 0001), but it didn't.
+
+**Fix applied:**
+- Removed `initial = True` from `0001_create_schemas.py` (it's not the app's true initial — it doesn't create the primary models)
+- Added `initial = True` to `0003_person_useraccount.py` (this creates AUTH_USER_MODEL)
+
+Now Django resolves `("kernel", "__first__")` to `0003_person_useraccount`, which depends on `0002_tenant` → `0001_create_schemas`. The admin migration runs AFTER the full kernel chain.
+
+**Files changed:** `apps/kernel/migrations/0001_create_schemas.py`, `apps/kernel/migrations/0003_person_useraccount.py`
+
+**Verification:**
+```bash
+# Drop and recreate database, then:
+python manage.py migrate
+# Expected: All migrations apply successfully, no ValueError
+```
+
+**Migration execution order after fix:**
+```
+kernel.0001_create_schemas (schemas only)
+kernel.0002_tenant (Tenant table)
+kernel.0003_person_useraccount (Person + UserAccount — initial=True, satisfies AUTH_USER_MODEL)
+auth.0001_initial (depends on nothing)
+admin.0001_initial (depends on kernel.__first__ = 0003, and auth)
+kernel.0004_rbac (Role, Permission, RoleAssignment)
+...remaining kernel migrations...
+```
+
+### Issue 3: `db_table` with Schema Prefix
 
 Django uses `db_table = 'kernel"."table_name'` to create tables in the `kernel` schema. This requires the schema to exist first (created by migration 0001).
 
@@ -268,7 +306,7 @@ Django uses `db_table = 'kernel"."table_name'` to create tables in the `kernel` 
 GRANT CREATE ON DATABASE marketplace TO marketplace;
 ```
 
-### Issue 2: Hand-Written Migrations vs. makemigrations
+### Issue 4: Hand-Written Migrations vs. makemigrations
 
 The Sprint 2 migrations (0005-0010) were hand-written to match the model definitions. Django's `makemigrations` may generate slightly different migration code (field ordering, manager references, etc.).
 
@@ -278,13 +316,13 @@ The Sprint 2 migrations (0005-0010) were hand-written to match the model definit
 3. Verify the generated migrations create the correct tables
 4. Commit the corrected migrations
 
-### Issue 3: UserAccountManager in Migration
+### Issue 5: UserAccountManager in Migration
 
 The migration for UserAccount (0003) references `django.contrib.auth.models.UserManager` instead of the custom `UserAccountManager`. This may cause a warning but should not prevent migration.
 
 **Fix if needed:** Update migration 0003 to reference the correct manager path.
 
-### Issue 4: PostGIS Not Available
+### Issue 6: PostGIS Not Available
 
 If PostGIS extension is not installed on the PostgreSQL server:
 
@@ -297,7 +335,7 @@ And remove `"django.contrib.gis"` from `INSTALLED_APPS` in `config/settings/base
 
 This is a temporary fix for validation only. PostGIS will be required for Module 10 (Geospatial).
 
-### Issue 5: Celery Import on Startup
+### Issue 7: Celery Import on Startup
 
 `config/__init__.py` imports `celery_app` from `config/celery.py`. If Celery fails to import (e.g., broker connection error), Django won't start.
 

@@ -50,8 +50,6 @@ DROP_SQL = "\n".join(
 
 class Migration(migrations.Migration):
 
-    initial = True
-
     dependencies = []
 
     operations = [
