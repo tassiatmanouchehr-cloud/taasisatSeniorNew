@@ -26,6 +26,7 @@
 13. [Implementation Phases](#13-implementation-phases)
 14. [Risks and Missing Information](#14-risks-and-missing-information)
 15. [Questions Requiring Human Approval](#15-questions-requiring-human-approval)
+16. [Supplier Abstraction and Marketplace Model Variants](#16-supplier-abstraction-and-marketplace-model-variants)
 
 ---
 
@@ -295,6 +296,14 @@ All 25 module specification packages and the Framework Architecture Correction P
 | TrustedAccessGrant | Delegated access grant |
 
 
+### Platform Kernel — Service Supplier Abstraction (Cross-Module)
+| Entity | Description |
+|--------|-------------|
+| ServiceSupplier | Universal abstraction for any entity that can receive, accept, fulfill, or be financially credited for an order. Links to Independent Provider, Organization, or Organization Provider. |
+| SupplierCapability | Supplier's declared/verified service capabilities (JSONB, schema-validated) |
+
+> **See Section 16 for complete supplier entity model, lifecycle, and cross-module integration details.**
+
 ### Module 09 — Search, Discovery & Filtering Engine
 | Entity | Description |
 |--------|-------------|
@@ -363,7 +372,8 @@ Module 25 (Platform Kernel) ← ALL modules depend on this
     ├── API Contract Conventions
     ├── Audit Envelope
     ├── Tenant Boundary Standard
-    └── Dependency Governance Rules
+    ├── Dependency Governance Rules
+    └── ServiceSupplier Abstraction (cross-module entity)
 ```
 
 ### Module Ownership Matrix (from Correction Package)
@@ -382,6 +392,10 @@ Module 25 (Platform Kernel) ← ALL modules depend on this
 ### Dependency Flow (Corrected)
 
 ```
+                        ServiceSupplier Abstraction (Kernel)
+                                    ↑
+                    Used by all modules referencing provider-side actors
+                                    ↑
 Request (01) → Matching (02) → Booking (03) → Execution (04) → Financial (05)
                                                                       ↓
                                                               Trust/Governance (06)
@@ -389,17 +403,18 @@ Request (01) → Matching (02) → Booking (03) → Execution (04) → Financial
 All Modules → [CES Events] → Communication Orchestration (07) → Communication Delivery (12)
                                                                       
 Identity/Access (08) ← All modules (permission evaluation)
+                    ← Creates supplier records on profile/org activation
 
-Search (09) ← Indexes from: 01, 02, 03, 04, 08, 11
-Geospatial (10) ← Used by: 01, 02, 03, 04, 09
-Incentives (11) ← Consumes from: 01, 03, 04, 05; Produces to: 05
+Search (09) ← Indexes from: 01, 02, 03, 04, 08, 11; indexes ServiceSupplier with type facet
+Geospatial (10) ← Used by: 01, 02, 03, 04, 09; service areas linked to ServiceSupplier
+Incentives (11) ← Consumes from: 01, 03, 04, 05; Produces to: 05; commission by supplier_type
 Document/Media (13) ← Used by: 01, 04, 06, 08
-Review/Rating (14) ← Consumes from: 04, 06
+Review/Rating (14) ← Consumes from: 04, 06; reviews target ServiceSupplier
 CMS/Content (15) ← Platform-wide content
 Workflow (16) ← Orchestrates cross-module workflows
 Analytics (17) ← Consumes events from all modules
 Integration (18) ← External adapters for all modules
-Config/Feature Flags (19) ← Used by all modules
+Config/Feature Flags (19) ← Used by all modules; owns marketplace.supplier_model config
 AI/Recommendation (20) ← Consumes from: 02, 09, 11, 14, 17
 Subscription (21) ← Consumed by: 05, 08, 19
 Background Jobs (22) ← Used by all modules for async
@@ -407,7 +422,7 @@ Observability (23) ← Monitors all modules
 i18n/Localization (24) ← Used by all modules for display
 ```
 
-### Forbidden Dependencies (from Correction Package)
+### Forbidden Dependencies (from Correction Package + Supplier Abstraction)
 1. Business modules (01-06) must NOT send communications directly
 2. Business modules must NOT duplicate access decisions locally
 3. Financial state must NOT drive identity state directly
@@ -415,6 +430,8 @@ i18n/Localization (24) ← Used by all modules for display
 5. No circular dependencies between modules
 6. No shared mutable database tables across module boundaries
 7. No direct imports of another module's internal services
+8. **No business module may directly reference Organization or IndependentProvider for order/matching/financial logic — must use ServiceSupplier abstraction**
+9. **No `if company:` / `if provider.company:` / `if independent_provider:` conditional logic in business modules**
 
 
 ---
@@ -541,7 +558,19 @@ All modules 12–24 emit a standard set of lifecycle events plus domain-specific
 - `Platform.ModuleRegistered.v1`, `Platform.ModuleFrozen.v1`
 - `Platform.SharedTypePublished.v1`, `Platform.SharedErrorCodePublished.v1`
 
-**Total extracted events: ~250+ unique event types across all modules.**
+### Supplier Abstraction Events (Kernel-level, cross-module)
+- `Supplier.Created.v1`, `Supplier.Activated.v1`, `Supplier.Suspended.v1`
+- `Supplier.Deactivated.v1`, `Supplier.Restored.v1`
+- `Supplier.CapabilityUpdated.v1`, `Supplier.VerificationLevelChanged.v1`
+- `Supplier.AvailabilityChanged.v1`
+- `Order.SupplierAssigned.v1`, `Order.ExecutionProviderAssigned.v1`
+- `Matching.SupplierCandidateGenerated.v1`
+- `Financial.SupplierPayableCreated.v1`
+- `Review.SupplierReviewed.v1`
+
+> See Section 16.15 for full supplier event specification.
+
+**Total extracted events: ~270+ unique event types across all modules (including supplier abstraction).**
 
 
 ---
@@ -630,6 +659,22 @@ All modules 12–24 emit a standard set of lifecycle events plus domain-specific
 - `platform.kernel.error_contract.strict_mode`
 
 **Total extracted configuration keys: ~120+ across all modules.**
+
+### Marketplace / Supplier Configuration Keys (Cross-Module, owned by Module 19)
+- `marketplace.supplier_model` — enum: `independent_only` | `organization_only` | `hybrid` (tenant-scoped)
+- `marketplace.allow_independent_providers` — boolean (tenant-scoped)
+- `marketplace.allow_organizations` — boolean (tenant-scoped)
+- `marketplace.allow_direct_organization_provider_matching` — boolean (tenant-scoped)
+- `marketplace.organization_requires_internal_assignment` — boolean (tenant-scoped)
+- `marketplace.independent_provider_self_acceptance_enabled` — boolean (tenant-scoped)
+- `marketplace.organization_auto_accepts_orders` — boolean (tenant-scoped)
+- `marketplace.organization_provider_direct_payout_enabled` — boolean (tenant-scoped)
+- `marketplace.customer_can_choose_supplier_type` — boolean (tenant-scoped)
+- `marketplace.search_show_supplier_type_filter` — boolean (tenant-scoped)
+
+> See Section 16.14 for full specification of these keys.
+
+**Updated total extracted configuration keys: ~130+ across all modules (including supplier abstraction).**
 
 
 ---
@@ -735,6 +780,20 @@ Module 08 owns permission **evaluation**. Every other module only **defines** pr
 13. Compliance User
 14. Read-Only Auditor
 
+### Supplier Abstraction — Protected Operations (Cross-Module)
+- `supplier.view` — Platform Team, Organization Owner (own), Provider (self)
+- `supplier.search` — Customer, Platform Team (filtered by marketplace model config)
+- `supplier.receive_order` — Active supplier (status=active, matching config permits)
+- `supplier.accept_order` — Independent Provider (self), Organization Owner/Staff
+- `supplier.assign_execution_provider` — Organization Owner, Organization Staff
+- `supplier.update_availability` — Independent Provider (self), Organization Staff (for org)
+- `supplier.manage_pricing` — Independent Provider (self), Organization Owner/Staff
+- `supplier.receive_payout` — Active supplier (financial clearance)
+- `supplier.view_financials` — Independent Provider (own), Organization Owner/Staff (org), Finance User
+- `supplier.respond_to_review` — Reviewed supplier (owner)
+
+> See Section 16.13 for full permission context details.
+
 
 ---
 
@@ -787,8 +846,12 @@ All major business rules must be implemented as **versioned policies** with: pol
 | Job Retry Policy | 22 | Retry count, backoff, dead-letter rules |
 | SLO Policy | 23 | Service level objectives and alerting |
 | Locale Fallback Policy | 24 | Language fallback chain |
+| **Supplier Assignment Policy** | **03, Kernel** | **Rules for which supplier types can receive orders per marketplace model** |
+| **Supplier Matching Policy** | **02, Kernel** | **Which supplier types participate in matching per tenant config** |
+| **Supplier Payout Policy** | **05, Kernel** | **Payment routing rules based on supplier type (org vs. independent vs. split)** |
+| **Organization Internal Assignment Policy** | **03** | **Whether/when organizations must assign execution providers** |
 
-**Total identified policy domains: 40+**
+**Total identified policy domains: 44+**
 
 
 ---
@@ -999,7 +1062,7 @@ Three options under consideration:
 
 ```
 Schema Groups:
-├── kernel/          — Tenant, configuration, feature flag, audit, event outbox
+├── kernel/          — Tenant, configuration, feature flag, audit, event outbox, SERVICE SUPPLIER
 ├── identity/        — User, account, role, permission, org, membership, profile
 ├── request/         — Request, service need, draft, submission
 ├── matching/        — Match round, candidate, ranking, response, selection
@@ -1020,6 +1083,8 @@ Schema Groups:
 ├── scheduler/       — Job, schedule, execution log, dead letter
 └── observability/   — Health check, alert, incident, SLO
 ```
+
+> **Note:** `kernel.service_supplier` is a cross-module entity referenced by matching, assignment, financial, search, and review modules. See Section 16.16 for full DDL.
 
 ### Global Identifier Standard (Every Table)
 Every entity table must include:
@@ -1091,6 +1156,8 @@ CREATE TABLE kernel.event_outbox (
 - Configuration foundation (CCS envelope, config resolution)
 - Feature flag foundation
 - Policy versioning base classes
+- **ServiceSupplier abstraction model, resolver service, lifecycle state machine**
+- **Marketplace model configuration keys (`marketplace.supplier_model`, etc.)**
 - Shared service patterns (base service, base repository)
 - Shared API patterns (base viewset, pagination, filtering, error handling)
 - Shared UI kernel / design system (tokens, base templates, components)
@@ -1103,23 +1170,25 @@ CREATE TABLE kernel.event_outbox (
 ### Phase 2 — Identity, Access, and Configuration Foundation
 **Scope:**
 - Module 08: Full identity system (registration, login, JWT, MFA-ready, profiles, organizations, memberships, roles, permissions, verification)
+- **Module 08: Supplier record creation on profile/org activation; supplier RBAC context**
 - Module 19: Configuration system (config keys, tenant overrides, feature flags, experiments, kill switches)
+- **Module 19: Marketplace supplier model config keys seeded and tenant-configurable**
 - Module 24: i18n/Localization (locale resolution, translation catalog, Jalali/Persian formatting, number/currency formatting)
 - **Duration estimate:** 3-4 sprints
 
 ### Phase 3 — Core Marketplace Transaction Loop
 **Scope:**
 - Module 01: Request Engine (full lifecycle: draft → submit → approve → publish)
-- Module 02: Matching Engine (eligibility, ranking, candidate presentation, response handling)
-- Module 03: Booking/Assignment (booking confirmation, provider assignment, scheduling, activation)
-- Module 04: Service Execution (10 sub-engines: session, presence, checklist, activity, observation, evidence, interaction, exception, extension, completion/handover)
+- Module 02: Matching Engine (eligibility, ranking, **supplier-based candidate generation**, response handling; respects `marketplace.supplier_model` config)
+- Module 03: Booking/Assignment (**two-level assignment: commercial → supplier, execution → provider**; scheduling, activation)
+- Module 04: Service Execution (10 sub-engines: session, presence, checklist, activity, observation, evidence, interaction, exception, extension, completion/handover; resolves execution actor from supplier)
 - **Duration estimate:** 5-6 sprints
 
 ### Phase 4 — Financial and Trust Layer
 **Scope:**
-- Module 05: Financial Operations (wallet, ledger, invoice, payment, escrow, commission, settlement, refund)
-- Module 06: Trust/Governance (reviews, ratings, complaints, disputes, risk scoring, enforcement, appeals)
-- Module 11: Incentives/Referrals/Promotions/Commission (campaigns, referrals, rewards, promotions)
+- Module 05: Financial Operations (wallet, ledger, invoice, payment, escrow, **supplier-type-aware commission**, settlement, refund; payable resolved through ServiceSupplier)
+- Module 06: Trust/Governance (reviews, ratings, complaints, disputes, risk scoring, enforcement, appeals; **review targets = ServiceSupplier**)
+- Module 11: Incentives/Referrals/Promotions/Commission (campaigns, referrals, rewards, promotions; **commission policies per supplier_type**)
 - **Duration estimate:** 4-5 sprints
 
 ### Phase 5 — Communication, Search, Location, Content
@@ -1146,6 +1215,7 @@ CREATE TABLE kernel.event_outbox (
 ### Phase 7 — Hardening and Final Report
 **Scope:**
 - Full test suite completion
+- **Supplier abstraction test groups (A: independent-only, B: organization-only, C: hybrid) — all must pass**
 - Security audit and hardening
 - Tenant isolation verification
 - Permission matrix verification
@@ -1189,6 +1259,9 @@ For an initial sellable MVP: Phases 0–5 deliver a fully functional marketplace
 | R11 | Persian/Jalali edge cases | Date calculations, leap years, range queries may have subtle bugs | Comprehensive date-handling test suite; use battle-tested libraries |
 | R12 | Policy versioning complexity | Versioned policies create complex query patterns | Clear version resolution algorithm; indexed version lookups |
 | R13 | Performance at scale | 250+ events, complex matching, full-text search, geospatial | Performance testing from Phase 3; database query optimization |
+| R14 | **Supplier abstraction leakage** | Business modules may accidentally bypass supplier abstraction and reference Organization/Provider directly | Code review checklist enforcing supplier pattern; automated lint rule; dedicated tests per marketplace model |
+| R15 | **Three-model configuration drift** | Config combinations may create untested edge cases (e.g., hybrid with org auto-accept + independent self-accept) | Combinatorial test matrix for marketplace model configs; document valid combinations |
+| R16 | **Two-level assignment complexity** | Commercial vs. execution assignment introduces state management complexity | Clear state machine documentation; explicit assignment_mode enum; dedicated integration tests |
 
 ### Missing Information
 
@@ -1270,17 +1343,503 @@ For an initial sellable MVP: Phases 0–5 deliver a fully functional marketplace
 
 ---
 
+## 16. Supplier Abstraction and Marketplace Model Variants
+
+> **Status:** Approved architecture requirement. The platform must not be built as only a company-based marketplace or only an independent-provider marketplace. It must support all three models by configuration only — never code changes.
+
+### 16.1 Core Business Requirement
+
+The platform must support these marketplace models by tenant-level configuration:
+
+| Model | Description | Example Verticals |
+|-------|-------------|-------------------|
+| `independent_only` | No organizations required. Customers request services directly from independent providers. | Freelance tutoring, individual beauty services |
+| `organization_only` | No independent providers active. All service delivery through organizations. | Hospital home-care agencies, corporate cleaning companies |
+| `hybrid` | Both independent providers and organizations coexist. | General home services, multi-model senior care |
+
+This is domain-neutral. No hard-coded references to nursing, companies, caregivers, technicians, etc.
+
+### 16.2 Service Supplier — The Core Abstraction
+
+**Definition:** A `ServiceSupplier` is the entity that can receive, accept, fulfill, or be financially credited for a service order.
+
+A Service Supplier may be one of:
+
+| Supplier Type | Description |
+|---------------|-------------|
+| `INDEPENDENT_PROVIDER` | A provider who works directly, not affiliated with an organization |
+| `ORGANIZATION` | A company, agency, clinic, studio, contractor group, or any provider-side business entity |
+| `ORGANIZATION_PROVIDER` | A provider affiliated with an organization after approval |
+
+**Non-negotiable rule:** The rest of the platform depends on the `ServiceSupplier` abstraction, not directly on `Company`, `Organization`, or `Provider` for any business logic.
+
+### 16.3 Supplier Entity Model
+
+```
+ServiceSupplier (Kernel-level cross-module entity)
+├── id                    UUID (Global Identifier Standard)
+├── tenant_id             UUID NOT NULL
+├── supplier_type         ENUM(INDEPENDENT_PROVIDER, ORGANIZATION, ORGANIZATION_PROVIDER)
+├── linked_entity_id      UUID NOT NULL
+├── linked_entity_type    VARCHAR(100) NOT NULL
+├── display_name          VARCHAR(255) NOT NULL
+├── status                ENUM(pending, active, suspended, deactivated)
+├── capabilities          JSONB (validated, schema-versioned)
+├── service_categories    JSONB (linked service taxonomy IDs)
+├── availability_status   ENUM(available, busy, offline, on_leave)
+├── verification_level    ENUM(unverified, basic, advanced, premium)
+├── financial_party_id    UUID NULL (link to Module 05 FinancialParty)
+├── reputation_score      DECIMAL NULL (cached from Module 14)
+├── metadata              JSONB NULL
+├── created_at            TIMESTAMPTZ NOT NULL
+├── updated_at            TIMESTAMPTZ NOT NULL
+├── version               INTEGER NOT NULL DEFAULT 1
+├── created_by            UUID NULL
+├── updated_by            UUID NULL
+└── module_id             VARCHAR(10) DEFAULT 'M25'
+```
+
+Where `linked_entity_type` resolves to:
+- `identity.independent_provider_profile` (Module 08)
+- `identity.organization` (Module 08)
+- `identity.organization_provider_profile` (Module 08)
+
+### 16.4 Supplier Lifecycle State Machine
+
+```
+                    ┌─────────────┐
+                    │   pending   │
+                    └──────┬──────┘
+                           │ verify / approve
+                           ▼
+                    ┌─────────────┐
+         ┌─────────│   active    │─────────┐
+         │         └──────┬──────┘         │
+         │ suspend        │ deactivate     │ capability_update
+         ▼                ▼                ▼
+  ┌─────────────┐  ┌──────────────┐  ┌─────────────┐
+  │  suspended  │  │ deactivated  │  │   active    │
+  └──────┬──────┘  └──────────────┘  └─────────────┘
+         │ restore
+         ▼
+  ┌─────────────┐
+  │   active    │
+  └─────────────┘
+```
+
+Transitions are driven by:
+- Module 08 (identity verification, organization approval)
+- Module 06 (trust enforcement → suspension)
+- Module 19 (feature flag / configuration changes)
+- Admin operations (platform team)
+
+### 16.5 Supplier Resolution Pattern
+
+Business modules must **never** contain logic like:
+
+```python
+# ❌ FORBIDDEN
+if company:
+    ...
+if provider.company:
+    ...
+if independent_provider:
+    ...
+```
+
+Instead, business logic depends on supplier capabilities, type, configuration, and policy:
+
+```python
+# ✅ REQUIRED PATTERN
+supplier = SupplierResolver.resolve(candidate)
+AssignmentService.assign_order(order, supplier)
+```
+
+The `SupplierResolver` is a kernel-level service that:
+1. Accepts a candidate reference (from matching, manual selection, etc.)
+2. Resolves it to a `ServiceSupplier` entity
+3. Validates supplier status, capabilities, and tenant configuration
+4. Returns the supplier abstraction for use by business modules
+
+### 16.6 Order/Request Engine Impact
+
+Orders must be designed independently of supplier type:
+
+```
+ServiceCase / Order
+├── id
+├── tenant_id
+├── customer_id
+├── service_category_id
+├── status
+├── supplier_id              UUID NULLABLE → ServiceSupplier
+├── execution_provider_id    UUID NULLABLE → Actor (actual person)
+├── assignment_mode          ENUM(unassigned, supplier_assigned, execution_assigned)
+└── ...
+```
+
+Where:
+- `supplier_id` = who commercially owns/receives the order
+- `execution_provider_id` = actual person performing the service (when applicable)
+
+**Model-specific behavior:**
+
+| Model | supplier_id | execution_provider_id |
+|-------|-------------|----------------------|
+| Independent Provider | → Independent Provider Supplier | = same provider |
+| Organization (direct) | → Organization Supplier | NULL until org assigns |
+| Organization Provider | → Organization Supplier | → Org-assigned provider |
+
+### 16.7 Matching Engine Impact
+
+The Matching Engine matches against `ServiceSupplier` candidates:
+
+```
+MatchCandidate
+├── ...existing fields...
+├── supplier_id          UUID → ServiceSupplier
+├── supplier_type        ENUM(INDEPENDENT_PROVIDER, ORGANIZATION, ORGANIZATION_PROVIDER)
+└── ...
+```
+
+Matching policies are configurable per tenant:
+
+| Config Key | Type | Effect |
+|-----------|------|--------|
+| `matching.allow_independent_providers` | boolean | Include independent providers in match runs |
+| `matching.allow_organizations` | boolean | Include organizations in match runs |
+| `matching.allow_organization_providers_direct_match` | boolean | Allow org providers to be directly matched (bypassing org acceptance) |
+
+**Resulting behavior:**
+
+| Marketplace Model | Independent Providers | Organizations | Org Providers Direct |
+|-------------------|----------------------|---------------|---------------------|
+| `independent_only` | ✅ | ❌ | ❌ |
+| `organization_only` | ❌ | ✅ | configurable |
+| `hybrid` | ✅ | ✅ | configurable |
+
+### 16.8 Assignment Engine Impact — Two-Level Assignment
+
+**Level 1 — Commercial Assignment:**
+The order is assigned to a `ServiceSupplier`.
+
+```
+Order → Independent Provider Supplier    (independent model)
+Order → Organization Supplier            (organization model)
+```
+
+**Level 2 — Execution Assignment:**
+If the supplier is an organization, the organization may internally assign an execution provider.
+
+```
+Order → Organization Supplier → Organization Provider
+```
+
+Key rules:
+- Do NOT force execution provider assignment at order creation time
+- Organizations receive orders first, then assign internally (if policy allows)
+- `marketplace.organization_requires_internal_assignment` controls whether execution provider is mandatory before service start
+
+### 16.9 Financial Engine Impact
+
+Financial logic is supplier-based — "pay supplier," not "pay provider":
+
+| Scenario | Payment Flow |
+|----------|-------------|
+| Independent Provider | Customer → Platform Ledger → Independent Provider payable |
+| Organization | Customer → Platform Ledger → Organization payable |
+| Organization + Internal Provider | Customer → Platform Ledger → Organization payable (org handles internal compensation) |
+| Organization Provider direct payout | Customer → Platform Ledger → Organization payable + Provider payable (policy-driven split) |
+
+Configuration key: `marketplace.organization_provider_direct_payout_enabled`
+
+The system must support future policies where organization providers receive direct payouts, but this is policy-driven, never hard-coded.
+
+### 16.10 Search & Discovery Impact
+
+Search must support filtering by supplier model:
+
+| Filter | Backend Value | Persian Display Label (reference impl) |
+|--------|--------------|----------------------------------------|
+| Independent providers only | `supplier_type=INDEPENDENT_PROVIDER` | نیروهای آزاد |
+| Organizations only | `supplier_type=ORGANIZATION` | شرکت‌ها |
+| Both | no filter | همه |
+
+Controlled by: `marketplace.search_show_supplier_type_filter` and `marketplace.customer_can_choose_supplier_type`
+
+### 16.11 Review & Reputation Impact
+
+Reviews support multiple levels:
+
+| Scenario | Review Target(s) |
+|----------|-----------------|
+| Independent Provider | Supplier review (= provider review) |
+| Organization | Supplier review (= organization review) + optional execution provider review |
+| Organization Provider | Supplier review (= organization) + execution provider review |
+
+The review system must NOT assume every order has both an organization and a provider.
+
+### 16.12 Notification Impact
+
+Notifications are supplier-aware (resolved by Module 07 Communication Orchestration):
+
+| Supplier Type | Notification Recipient |
+|---------------|----------------------|
+| Independent Provider | Provider directly |
+| Organization | Organization owner/admin/operator (per org notification policy) |
+| Organization Provider | Execution provider only when assigned and policy permits |
+
+Business modules emit CES events only. Module 07 resolves recipients using supplier type, permissions, and policy.
+
+### 16.13 Permission / RBAC Impact
+
+Module 08 evaluates access using supplier context. New protected operations:
+
+```
+supplier.view
+supplier.search
+supplier.receive_order
+supplier.accept_order
+supplier.assign_execution_provider
+supplier.update_availability
+supplier.manage_pricing
+supplier.receive_payout
+supplier.view_financials
+supplier.respond_to_review
+```
+
+Permission contexts:
+- Independent Provider acting for self
+- Organization Owner acting for organization
+- Organization Staff acting within organization scope
+- Organization Provider acting within approved organization relationship
+
+### 16.14 Configuration Keys (CCS)
+
+```yaml
+# Core marketplace model
+marketplace.supplier_model:
+  scope: tenant
+  owner_module: Module19
+  type: enum
+  allowed_values: [independent_only, organization_only, hybrid]
+  default_value: hybrid
+
+# Supplier type toggles
+marketplace.allow_independent_providers:
+  scope: tenant
+  type: boolean
+  default_value: true
+
+marketplace.allow_organizations:
+  scope: tenant
+  type: boolean
+  default_value: true
+
+marketplace.allow_direct_organization_provider_matching:
+  scope: tenant
+  type: boolean
+  default_value: false
+
+# Assignment behavior
+marketplace.organization_requires_internal_assignment:
+  scope: tenant
+  type: boolean
+  default_value: false
+
+marketplace.independent_provider_self_acceptance_enabled:
+  scope: tenant
+  type: boolean
+  default_value: true
+
+marketplace.organization_auto_accepts_orders:
+  scope: tenant
+  type: boolean
+  default_value: false
+
+# Financial behavior
+marketplace.organization_provider_direct_payout_enabled:
+  scope: tenant
+  type: boolean
+  default_value: false
+
+# UI/Search behavior
+marketplace.customer_can_choose_supplier_type:
+  scope: tenant
+  type: boolean
+  default_value: true
+
+marketplace.search_show_supplier_type_filter:
+  scope: tenant
+  type: boolean
+  default_value: true
+```
+
+### 16.15 CES Events (Supplier Domain)
+
+New events emitted by the supplier abstraction layer:
+
+```
+Supplier.Created.v1
+Supplier.Activated.v1
+Supplier.Suspended.v1
+Supplier.Deactivated.v1
+Supplier.Restored.v1
+Supplier.CapabilityUpdated.v1
+Supplier.VerificationLevelChanged.v1
+Supplier.AvailabilityChanged.v1
+Order.SupplierAssigned.v1
+Order.ExecutionProviderAssigned.v1
+Matching.SupplierCandidateGenerated.v1
+Financial.SupplierPayableCreated.v1
+Review.SupplierReviewed.v1
+```
+
+These extend (not replace) existing module event catalogs.
+
+### 16.16 Database Schema Addition
+
+```sql
+-- Kernel-level supplier abstraction table
+CREATE TABLE kernel.service_supplier (
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id               UUID NOT NULL REFERENCES kernel.tenant(id),
+    module_id               VARCHAR(10) NOT NULL DEFAULT 'M25',
+    entity_type             VARCHAR(100) NOT NULL DEFAULT 'ServiceSupplier',
+    supplier_type           VARCHAR(30) NOT NULL CHECK (supplier_type IN (
+                                'INDEPENDENT_PROVIDER', 'ORGANIZATION', 'ORGANIZATION_PROVIDER'
+                            )),
+    linked_entity_id        UUID NOT NULL,
+    linked_entity_type      VARCHAR(100) NOT NULL,
+    display_name            VARCHAR(255) NOT NULL,
+    status                  VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN (
+                                'pending', 'active', 'suspended', 'deactivated'
+                            )),
+    capabilities            JSONB NOT NULL DEFAULT '{}',
+    service_categories      JSONB NOT NULL DEFAULT '[]',
+    availability_status     VARCHAR(20) NOT NULL DEFAULT 'offline' CHECK (availability_status IN (
+                                'available', 'busy', 'offline', 'on_leave'
+                            )),
+    verification_level      VARCHAR(20) NOT NULL DEFAULT 'unverified' CHECK (verification_level IN (
+                                'unverified', 'basic', 'advanced', 'premium'
+                            )),
+    financial_party_id      UUID NULL,
+    reputation_score        DECIMAL(5,2) NULL,
+    metadata                JSONB NULL,
+    external_ref            VARCHAR(255) NULL,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    version                 INTEGER NOT NULL DEFAULT 1,
+    created_by              UUID NULL,
+    updated_by              UUID NULL
+);
+
+-- Indexes
+CREATE INDEX idx_supplier_tenant ON kernel.service_supplier(tenant_id);
+CREATE INDEX idx_supplier_type ON kernel.service_supplier(tenant_id, supplier_type);
+CREATE INDEX idx_supplier_status ON kernel.service_supplier(tenant_id, status);
+CREATE INDEX idx_supplier_linked ON kernel.service_supplier(linked_entity_id, linked_entity_type);
+CREATE INDEX idx_supplier_categories ON kernel.service_supplier USING GIN (service_categories);
+CREATE INDEX idx_supplier_capabilities ON kernel.service_supplier USING GIN (capabilities);
+```
+
+### 16.17 Cross-Module Integration Map
+
+```
+Module 01 (Request)     → References supplier_id on published requests (optional, for targeted requests)
+Module 02 (Matching)    → Queries ServiceSupplier for candidates; filters by supplier_type per config
+Module 03 (Assignment)  → Assigns order to ServiceSupplier (Level 1) + execution_provider (Level 2)
+Module 04 (Execution)   → Resolves execution actor from supplier; presence/evidence linked to execution_provider
+Module 05 (Financial)   → Resolves payable party from supplier; commission split by supplier_type
+Module 06 (Trust)       → Reviews target ServiceSupplier; reputation aggregated per supplier
+Module 07 (Comms)       → Resolves notification recipients from supplier_type + org notification policy
+Module 08 (Identity)    → Creates/manages linked entities; supplier record created on profile activation
+Module 09 (Search)      → Indexes ServiceSupplier; facets include supplier_type filter
+Module 10 (Geo)         → Service areas linked to ServiceSupplier
+Module 11 (Incentives)  → Commission policies reference supplier_type
+Module 14 (Reviews)     → Review targets are ServiceSupplier entities
+```
+
+### 16.18 Required Automated Tests
+
+**Test Group A — Independent-Only Marketplace:**
+```
+Config: marketplace.supplier_model = independent_only
+Assertions:
+  ✓ Independent providers can register and be activated as suppliers
+  ✓ Organizations are disabled/hidden in UI and matching
+  ✓ Matching returns only INDEPENDENT_PROVIDER suppliers
+  ✓ Orders assigned to independent provider suppliers
+  ✓ Financial payable goes to independent provider
+  ✓ Search does not show organization filter
+```
+
+**Test Group B — Organization-Only Marketplace:**
+```
+Config: marketplace.supplier_model = organization_only
+Assertions:
+  ✓ Independent provider marketplace flow is disabled/hidden
+  ✓ Organizations can receive orders as suppliers
+  ✓ Organization can internally assign execution provider
+  ✓ Matching returns only ORGANIZATION suppliers
+  ✓ Financial payable goes to organization
+  ✓ Execution provider assignment is optional at booking time
+```
+
+**Test Group C — Hybrid Marketplace:**
+```
+Config: marketplace.supplier_model = hybrid
+Assertions:
+  ✓ Both independent providers and organizations are available
+  ✓ Search can filter by supplier_type
+  ✓ Matching can return both supplier types
+  ✓ Orders can be assigned to either supplier type
+  ✓ Financial payable resolves correctly per supplier_type
+  ✓ Reviews target correct supplier entity
+  ✓ Notifications route correctly per supplier_type
+```
+
+**No supplier-dependent module is complete until all three test groups pass.**
+
+### 16.19 Migration / Implementation Plan
+
+The `ServiceSupplier` abstraction is a **Phase 1 (Platform Kernel) deliverable** because it is a foundational cross-module entity:
+
+| Phase | Supplier-Related Work |
+|-------|----------------------|
+| Phase 1 | `ServiceSupplier` model, resolver service, base schema, config keys, supplier lifecycle |
+| Phase 2 | Module 08 creates supplier records on profile/org activation; supplier RBAC context |
+| Phase 3 | Matching queries suppliers; assignment uses two-level model; request references supplier |
+| Phase 4 | Financial payable resolves through supplier; commission by supplier_type |
+| Phase 5 | Search indexes supplier; reviews target supplier; notifications route by supplier |
+| Phase 7 | Full three-model test suite; supplier isolation verification |
+
+### 16.20 Non-Negotiable Design Rules Summary
+
+1. No business module may assume a company/organization always exists
+2. No business module may assume an independent provider always exists
+3. No business module may assume both exist
+4. No `if company:` or `if provider.company:` patterns in business logic
+5. Business logic depends on supplier capabilities, type, configuration, and policy
+6. Display labels come from the localization/domain mapping layer, never from code
+7. All three marketplace models must work without code changes — configuration only
+8. The `ServiceSupplier` entity is the universal reference point for orders, matching, assignment, financial, reviews, and notifications
+
+---
+
 ## Conclusion
 
 This Architecture Intake Report confirms that all 25 module specifications and the Framework Architecture Correction Package have been thoroughly reviewed. The platform architecture is well-defined, comprehensive, and enterprise-grade.
 
-**Three blocking decisions must be made before implementation can proceed:**
+**The Supplier Abstraction Layer (Section 16) is now an approved, mandatory architectural requirement.** The platform will be built as a configurable supplier-based marketplace supporting `independent_only`, `organization_only`, and `hybrid` models from the beginning.
+
+**Three blocking decisions must still be made before implementation can proceed:**
 1. Module 07 identity conflict resolution
 2. Module 07/12 communication boundary confirmation
 3. Frontend technology stack selection
 
-Once these decisions are confirmed by the project owner, Phase 1 (Platform Kernel) implementation can begin immediately.
+Once these decisions are confirmed by the project owner, Phase 1 (Platform Kernel) implementation — including the ServiceSupplier abstraction — can begin immediately.
 
 ---
 
-*End of Architecture Intake Report v1.0*
+*End of Architecture Intake Report v1.0 (Updated with Supplier Abstraction Layer)*
