@@ -13,6 +13,7 @@ from .event_outbox import AuditClass, EventOutbox, EventStatus, PrivacyClass
 from .feature_flag import FeatureFlag, FlagStatus, FlagType
 from .policy import PolicyDefinition, PolicyStatus, PolicyVersion, PolicyVersionStatus
 from .rbac import Permission, Role, RoleAssignment
+from .supplier import AvailabilityStatus, ServiceSupplier, SupplierStatus, SupplierType, VerificationLevel
 from .tenant import Tenant, TenantStatus
 from .user import Person, PersonStatus, UserAccount
 
@@ -44,4 +45,9 @@ __all__ = [
     "PolicyStatus",
     "PolicyVersion",
     "PolicyVersionStatus",
+    "ServiceSupplier",
+    "SupplierType",
+    "SupplierStatus",
+    "AvailabilityStatus",
+    "VerificationLevel",
 ]
