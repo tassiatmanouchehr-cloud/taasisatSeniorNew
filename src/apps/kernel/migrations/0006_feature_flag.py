@@ -12,7 +12,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("kernel", "0007_configuration"),
+        ("kernel", "0005_configuration"),
     ]
 
     operations = [

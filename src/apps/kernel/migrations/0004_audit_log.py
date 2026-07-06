@@ -13,7 +13,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("kernel", "0005_event_outbox"),
+        ("kernel", "0003_event_outbox"),
     ]
 
     operations = [

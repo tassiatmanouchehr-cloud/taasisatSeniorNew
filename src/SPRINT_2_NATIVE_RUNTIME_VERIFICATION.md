@@ -259,7 +259,7 @@ python manage.py check
 # Expected: System check identified no issues.
 ```
 
-### Issue 2: Migration Ordering — UserAccount Not Resolved (FIXED)
+### Issue 2: Migration Ordering — UserAccount Not Resolved (FIXED — Take 2)
 
 **Problem:** `python manage.py migrate` failed with:
 ```
@@ -267,34 +267,47 @@ ValueError: Related model 'kernel.useraccount' cannot be resolved
 ```
 at `Applying admin.0001_initial...`
 
-**Root cause:** Django's `admin.0001_initial` migration depends on `swappable_dependency(settings.AUTH_USER_MODEL)` which resolves to `("kernel", "__first__")`. The `__first__` pseudo-dependency resolves to all migrations in the kernel app that have `initial = True`.
+**Why the first fix attempt failed:**
+The first fix tried adding `initial = True` to `0003_person_useraccount.py` while keeping `0001_create_schemas.py` and `0002_tenant.py` as separate migrations. This did NOT work because Django's `__first__` resolution for swappable dependencies requires the user model to be created in a migration that can be reached as the app's entry point. With multiple numbered migrations, Django's resolution was still broken.
 
-Previously, `0001_create_schemas.py` was marked `initial = True` but it only creates PostgreSQL schemas — NOT the UserAccount model. The UserAccount model is created in `0003_person_useraccount.py`. So when admin ran, it expected the user model to exist (from `__first__` = 0001), but it didn't.
+**Root cause:** Django's `admin.0001_initial` depends on `swappable_dependency(settings.AUTH_USER_MODEL)` which resolves to `("kernel", "__first__")`. For custom user models, Django requires the model to exist in the app's first migration. Having schemas in 0001, Tenant in 0002, and UserAccount in 0003 meant admin could not resolve the model because the migration graph entry point didn't contain it.
 
-**Fix applied:**
-- Removed `initial = True` from `0001_create_schemas.py` (it's not the app's true initial — it doesn't create the primary models)
-- Added `initial = True` to `0003_person_useraccount.py` (this creates AUTH_USER_MODEL)
+**Correct fix:** Consolidated into a single `0001_initial.py`:
+```
+0001_initial.py (initial=True)
+  ├── RunSQL: Create all 23 PostgreSQL schemas
+  ├── CreateModel: Tenant
+  ├── CreateModel: Person
+  └── CreateModel: UserAccount  ← AUTH_USER_MODEL satisfied here
+```
 
-Now Django resolves `("kernel", "__first__")` to `0003_person_useraccount`, which depends on `0002_tenant` → `0001_create_schemas`. The admin migration runs AFTER the full kernel chain.
+**Final migration structure:**
+```
+0001_initial.py          — schemas + Tenant + Person + UserAccount (initial=True)
+0002_rbac.py             — Role + Permission + RoleAssignment
+0003_event_outbox.py     — EventOutbox
+0004_audit_log.py        — AuditLog
+0005_configuration.py    — ConfigurationKey + ConfigurationValue
+0006_feature_flag.py     — FeatureFlag
+0007_policy.py           — PolicyDefinition + PolicyVersion
+0008_service_supplier.py — ServiceSupplier
+```
 
-**Files changed:** `apps/kernel/migrations/0001_create_schemas.py`, `apps/kernel/migrations/0003_person_useraccount.py`
+**Deleted files:**
+- `0001_create_schemas.py` (merged into 0001_initial)
+- `0002_tenant.py` (merged into 0001_initial)
+- `0003_person_useraccount.py` (merged into 0001_initial)
 
 **Verification:**
 ```bash
-# Drop and recreate database, then:
-python manage.py migrate
-# Expected: All migrations apply successfully, no ValueError
-```
+# Drop and recreate fresh database:
+psql -U postgres -p 5433 -c "DROP DATABASE IF EXISTS marketplace;"
+psql -U postgres -p 5433 -c "CREATE DATABASE marketplace OWNER marketplace;"
 
-**Migration execution order after fix:**
-```
-kernel.0001_create_schemas (schemas only)
-kernel.0002_tenant (Tenant table)
-kernel.0003_person_useraccount (Person + UserAccount — initial=True, satisfies AUTH_USER_MODEL)
-auth.0001_initial (depends on nothing)
-admin.0001_initial (depends on kernel.__first__ = 0003, and auth)
-kernel.0004_rbac (Role, Permission, RoleAssignment)
-...remaining kernel migrations...
+# Run migrations:
+python manage.py migrate
+
+# Expected: All migrations apply successfully, no ValueError
 ```
 
 ### Issue 3: `db_table` with Schema Prefix

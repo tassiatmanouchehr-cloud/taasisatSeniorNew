@@ -1,12 +1,26 @@
 """
-Create Person and UserAccount models.
+Initial kernel migration — creates PostgreSQL schemas, Tenant, Person, UserAccount.
 
-Tables:
-- kernel.person (stable identity)
-- kernel.user_account (authentication, extends AbstractBaseUser)
+This MUST be the first migration in the kernel app because Django's admin
+requires AUTH_USER_MODEL to be created in the app's initial migration.
 
-Per ADR-001.01: Person is separate from UserAccount.
-Per ADR-001.02: User is not Provider.
+AUTH_USER_MODEL = "kernel.UserAccount"
+
+Django's admin.0001_initial depends on:
+  migrations.swappable_dependency(settings.AUTH_USER_MODEL)
+  → resolves to ("kernel", "__first__")
+  → which means the first migration(s) with initial=True
+
+This migration creates (in order):
+1. All 23 PostgreSQL schemas (RunSQL)
+2. Tenant model (root of multi-tenancy)
+3. Person model (stable identity)
+4. UserAccount model (authentication, extends AbstractBaseUser)
+
+References:
+- ADR-001.01 (Person separate from UserAccount)
+- ADR-001.12 (Tenant isolation mandatory)
+- ADR-001.18 (PostgreSQL schemas separated by domain)
 """
 
 import uuid
@@ -15,17 +29,121 @@ import django.contrib.auth.models
 import django.db.models.deletion
 from django.db import migrations, models
 
+# --- PostgreSQL Schema Creation ---
+# All 23 schemas per PHASE_0_5_ENTERPRISE_DOMAIN_MODEL_FREEZE.md Deliverable 15
+SCHEMAS = [
+    "kernel",
+    "identity",
+    "organizations",
+    "catalog",
+    "availability",
+    "pricing",
+    "marketplace",
+    "orders",
+    "execution",
+    "financial",
+    "communication",
+    "trust",
+    "documents",
+    "incentives",
+    "search",
+    "geospatial",
+    "analytics",
+    "integration",
+    "workflow",
+    "jobs",
+    "observability",
+    "localization",
+    "audit",
+]
+
+CREATE_SCHEMAS_SQL = "\n".join(
+    f"CREATE SCHEMA IF NOT EXISTS {schema};" for schema in SCHEMAS
+)
+
+DROP_SCHEMAS_SQL = "\n".join(
+    f"DROP SCHEMA IF EXISTS {schema} CASCADE;" for schema in reversed(SCHEMAS)
+)
+
 
 class Migration(migrations.Migration):
 
     initial = True
 
     dependencies = [
-        ("kernel", "0002_tenant"),
         ("auth", "0012_alter_user_first_name_max_length"),
     ]
 
     operations = [
+        # Step 1: Create all PostgreSQL schemas
+        migrations.RunSQL(
+            sql=CREATE_SCHEMAS_SQL,
+            reverse_sql=DROP_SCHEMAS_SQL,
+        ),
+        # Step 2: Create Tenant model
+        migrations.CreateModel(
+            name="Tenant",
+            fields=[
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("name", models.CharField(max_length=255)),
+                ("slug", models.SlugField(max_length=100, unique=True)),
+                (
+                    "domain",
+                    models.CharField(
+                        blank=True,
+                        help_text="Optional custom domain for this tenant",
+                        max_length=255,
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("active", "Active"),
+                            ("suspended", "Suspended"),
+                            ("archived", "Archived"),
+                        ],
+                        db_index=True,
+                        default="active",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "settings",
+                    models.JSONField(
+                        blank=True,
+                        default=dict,
+                        help_text="Tenant-level configuration overrides (JSONB)",
+                    ),
+                ),
+                (
+                    "metadata",
+                    models.JSONField(
+                        blank=True,
+                        default=dict,
+                        help_text="Additional tenant metadata",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("version", models.IntegerField(default=1)),
+            ],
+            options={
+                "verbose_name": "Tenant",
+                "verbose_name_plural": "Tenants",
+                "db_table": 'kernel"."tenant',
+                "ordering": ["name"],
+            },
+        ),
+        # Step 3: Create Person model
         migrations.CreateModel(
             name="Person",
             fields=[
@@ -67,6 +185,7 @@ class Migration(migrations.Migration):
                 "db_table": 'kernel"."person',
             },
         ),
+        # Step 4: Create UserAccount model (AUTH_USER_MODEL)
         migrations.CreateModel(
             name="UserAccount",
             fields=[

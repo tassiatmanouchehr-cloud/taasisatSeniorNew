@@ -13,7 +13,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("kernel", "0008_feature_flag"),
+        ("kernel", "0006_feature_flag"),
     ]
 
     operations = [

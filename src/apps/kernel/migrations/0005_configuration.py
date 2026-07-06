@@ -13,7 +13,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("kernel", "0006_audit_log"),
+        ("kernel", "0004_audit_log"),
     ]
 
     operations = [
