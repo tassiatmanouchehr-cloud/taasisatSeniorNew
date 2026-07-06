@@ -1,0 +1,32 @@
+/*
+ * Enterprise Service Marketplace Platform — Main CSS Entry Point
+ *
+ * This file is the Tailwind CSS source. It imports:
+ * 1. Tailwind base (reset/normalize)
+ * 2. Tailwind components
+ * 3. Tailwind utilities
+ * 4. Custom layers (design tokens, themes, RTL, accessibility)
+ *
+ * Build with: npx tailwindcss -i ui/css/main.css -o static/css/output.css --watch
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom base layer — loaded after Tailwind base */
+@layer base {
+  /* Theme CSS variables are injected here by the theme system */
+  /* Typography defaults are set here */
+  /* RTL logical properties base is here */
+}
+
+/* Custom component layer — reusable component styles */
+@layer components {
+  /* Component-specific styles that can't be expressed as utilities */
+}
+
+/* Custom utilities layer */
+@layer utilities {
+  /* Custom utility classes beyond Tailwind defaults */
+}
