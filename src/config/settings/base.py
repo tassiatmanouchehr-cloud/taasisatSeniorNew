@@ -141,6 +141,24 @@ CELERY_TASK_SOFT_TIME_LIMIT = 240  # 4 minutes soft limit
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # Fair scheduling
 CELERY_TASK_ACKS_LATE = True  # Acknowledge after execution (crash safety)
 
+# Celery Beat schedule — periodic tasks
+CELERY_BEAT_SCHEDULE = {
+    "publish-outbox-events": {
+        "task": "kernel.publish_outbox_events",
+        "schedule": 5.0,  # Every 5 seconds
+        "kwargs": {"batch_size": 100},
+    },
+    "cleanup-dead-letter-events": {
+        "task": "kernel.cleanup_dead_letter_events",
+        "schedule": 86400.0,  # Daily (24 hours)
+        "kwargs": {"days_old": 30},
+    },
+    "refresh-config-cache": {
+        "task": "kernel.refresh_config_cache",
+        "schedule": 300.0,  # Every 5 minutes
+    },
+}
+
 # Logging — structured logging with correlation ID support
 LOGGING = {
     "version": 1,
