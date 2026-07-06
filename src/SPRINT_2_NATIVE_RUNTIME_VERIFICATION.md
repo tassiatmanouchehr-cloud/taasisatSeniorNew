@@ -56,6 +56,20 @@ pip install -r requirements/dev.txt
 
 ### Step 2 — Django Validation
 
+Set environment variables for native mode:
+```bash
+# Linux/Mac:
+export GIS_ENABLED=false
+export DJANGO_SETTINGS_MODULE=config.settings.development
+export SECRET_KEY=dev-runtime-validation-key
+
+# Windows PowerShell:
+$env:GIS_ENABLED="false"
+$env:DJANGO_SETTINGS_MODULE="config.settings.development"
+$env:SECRET_KEY="dev-runtime-validation-key"
+```
+
+Then run:
 ```bash
 python manage.py check
 ```
@@ -64,8 +78,6 @@ python manage.py check
 ```
 System check identified no issues.
 ```
-
-**Known issue to fix first:** The `config/celery.py` imports `celery` — if Celery is not installed or there's an import issue, you may need to temporarily comment out the celery import in `config/__init__.py` for the initial check.
 
 ---
 
@@ -86,6 +98,7 @@ psql -U postgres -d marketplace -c "CREATE EXTENSION IF NOT EXISTS postgis;"
 Set environment variables:
 ```bash
 export DJANGO_SETTINGS_MODULE=config.settings.development
+export GIS_ENABLED=false
 export DATABASE_NAME=marketplace
 export DATABASE_USER=marketplace
 export DATABASE_PASSWORD=marketplace
@@ -218,7 +231,35 @@ Login with:
 
 ## Known Issues & Fixes
 
-### Issue 1: `db_table` with Schema Prefix
+### Issue 1: GDAL/PostGIS Not Available on Native Windows (FIXED)
+
+**Problem:** Even with `DATABASE_ENGINE=django.db.backends.postgresql`, Django still loaded `django.contrib.gis` from `INSTALLED_APPS`, which requires the GDAL library. On native Windows development, GDAL is not typically installed.
+
+**Root cause:** `django.contrib.gis` was unconditionally included in `INSTALLED_APPS` regardless of the database engine setting.
+
+**Fix applied:** Added `GIS_ENABLED` environment variable flag:
+- `GIS_ENABLED=false` (default for native dev): `django.contrib.gis` NOT in `INSTALLED_APPS`, database engine defaults to `django.db.backends.postgresql`
+- `GIS_ENABLED=true` (Docker/production): `django.contrib.gis` added to `INSTALLED_APPS`, database engine defaults to `django.contrib.gis.db.backends.postgis`
+
+**Files changed:** `config/settings/base.py`, `.env.example`
+
+**Validation commands (PowerShell):**
+```powershell
+$env:GIS_ENABLED="false"
+$env:DATABASE_ENGINE="django.db.backends.postgresql"
+python manage.py check
+# Expected: System check identified no issues.
+```
+
+**Validation commands (bash):**
+```bash
+export GIS_ENABLED=false
+export DATABASE_ENGINE=django.db.backends.postgresql
+python manage.py check
+# Expected: System check identified no issues.
+```
+
+### Issue 2: `db_table` with Schema Prefix
 
 Django uses `db_table = 'kernel"."table_name'` to create tables in the `kernel` schema. This requires the schema to exist first (created by migration 0001).
 

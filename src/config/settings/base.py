@@ -19,6 +19,11 @@ DEBUG = False
 
 ALLOWED_HOSTS = []
 
+# GIS/PostGIS support — optional for native development
+# Set GIS_ENABLED=false on Windows/native dev where GDAL is not available.
+# Production and Docker default to GIS_ENABLED=true.
+GIS_ENABLED = os.environ.get("GIS_ENABLED", "false").lower() in ("true", "1", "yes")
+
 # Application definition
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -27,10 +32,13 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "django.contrib.gis",
     # Platform apps
     "apps.kernel",
 ]
+
+# Conditionally add GIS support (requires GDAL + PostGIS)
+if GIS_ENABLED:
+    INSTALLED_APPS.insert(-1, "django.contrib.gis")  # Before apps.kernel
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -63,11 +71,16 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-# Database — PostgreSQL with PostGIS (default), configurable via env
-# Use DATABASE_ENGINE env var to override (e.g., 'django.db.backends.postgresql' without GIS)
+# Database — PostgreSQL (with optional PostGIS when GIS_ENABLED=true)
+# Native dev (Windows): GIS_ENABLED=false → django.db.backends.postgresql
+# Docker/production: GIS_ENABLED=true → django.contrib.gis.db.backends.postgis
+_default_db_engine = (
+    "django.contrib.gis.db.backends.postgis" if GIS_ENABLED
+    else "django.db.backends.postgresql"
+)
 DATABASES = {
     "default": {
-        "ENGINE": os.environ.get("DATABASE_ENGINE", "django.contrib.gis.db.backends.postgis"),
+        "ENGINE": os.environ.get("DATABASE_ENGINE", _default_db_engine),
         "NAME": os.environ.get("DATABASE_NAME", "marketplace"),
         "USER": os.environ.get("DATABASE_USER", "marketplace"),
         "PASSWORD": os.environ.get("DATABASE_PASSWORD", "marketplace"),
