@@ -1,0 +1,47 @@
+{% extends "ui/layouts/base.html" %}
+{# Auth layout — login, register, forgot password, MFA, verify #}
+{# Centered card on a clean background. No sidebar, no navigation. #}
+
+{% block body_class %}layout-auth{% endblock %}
+
+{% block body %}
+<div class="min-h-screen flex flex-col items-center justify-center p-4
+            bg-background">
+
+  <!-- Brand -->
+  <div class="mb-8 text-center">
+    {% block auth_brand %}
+    <a href="/" class="inline-flex items-center gap-2 text-2xl font-bold text-primary no-underline">
+      {% block auth_logo %}{% endblock %}
+      <span>{% block auth_brand_name %}پلتفرم{% endblock %}</span>
+    </a>
+    {% endblock %}
+  </div>
+
+  <!-- Auth Card -->
+  <div class="w-full max-w-md bg-surface rounded-xl shadow-lg p-6 sm:p-8
+              border border-border">
+    <!-- Card Header -->
+    {% block auth_header %}
+    <div class="text-center mb-6">
+      <h1 class="text-xl font-bold text-text">{% block auth_title %}{% endblock %}</h1>
+      {% block auth_subtitle %}{% endblock %}
+    </div>
+    {% endblock %}
+
+    <!-- Card Content (form) -->
+    <div id="main-content">
+      {% block auth_content %}{% endblock %}
+    </div>
+
+    <!-- Card Footer (links) -->
+    {% block auth_footer %}{% endblock %}
+  </div>
+
+  <!-- Below card (optional legal text) -->
+  <div class="mt-6 text-center text-sm text-text-muted">
+    {% block auth_below %}{% endblock %}
+  </div>
+
+</div>
+{% endblock %}

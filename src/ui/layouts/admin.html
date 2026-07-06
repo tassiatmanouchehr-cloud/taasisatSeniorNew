@@ -1,0 +1,38 @@
+{% extends "ui/layouts/portal.html" %}
+{# Admin layout — extends portal for platform admin/operator panels #}
+{# Adds: admin-specific header badge, broader content area #}
+
+{% block body_class %}layout-admin{% endblock %}
+
+{% block sidebar_title %}پنل مدیریت{% endblock %}
+
+{% block topbar_start %}
+<div class="flex items-center gap-inline-3">
+  <!-- Admin badge -->
+  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+               bg-danger-100 text-danger-700 dark:bg-danger-50 dark:text-danger-600">
+    مدیریت
+  </span>
+  {% block admin_breadcrumb %}{% endblock %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <!-- Admin Page Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-bold text-text">
+        {% block page_title %}{% endblock %}
+      </h1>
+      {% block page_description %}{% endblock %}
+    </div>
+    <div class="flex items-center gap-inline-3">
+      {% block page_actions %}{% endblock %}
+    </div>
+  </div>
+
+  <!-- Admin Content -->
+  {% block admin_content %}{% endblock %}
+</div>
+{% endblock %}

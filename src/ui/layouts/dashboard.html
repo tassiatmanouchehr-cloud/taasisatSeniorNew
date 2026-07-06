@@ -1,0 +1,26 @@
+{% extends "ui/layouts/portal.html" %}
+{# Dashboard layout — extends portal with dashboard-specific defaults #}
+{# Used for: customer dashboard, provider dashboard, org dashboard #}
+{# Adds: page header with title + actions, content grid area #}
+
+{% block body_class %}layout-dashboard{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <!-- Page Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-bold text-text">
+        {% block page_title %}{% endblock %}
+      </h1>
+      {% block page_description %}{% endblock %}
+    </div>
+    <div class="flex items-center gap-inline-3">
+      {% block page_actions %}{% endblock %}
+    </div>
+  </div>
+
+  <!-- Dashboard Content -->
+  {% block dashboard_content %}{% endblock %}
+</div>
+{% endblock %}

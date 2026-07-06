@@ -1,0 +1,56 @@
+{% extends "ui/layouts/base.html" %}
+{# Error layout — 400, 403, 404, 500, maintenance pages #}
+{# Centered content with illustration space. No navigation. #}
+
+{% block body_class %}layout-error{% endblock %}
+
+{% block body %}
+<div class="min-h-screen flex flex-col items-center justify-center p-4
+            bg-background text-center">
+
+  <!-- Error Illustration/Icon -->
+  <div class="mb-6">
+    {% block error_illustration %}
+    <div class="w-24 h-24 mx-auto rounded-full bg-danger-100 dark:bg-danger-50
+                flex items-center justify-center">
+      <span class="text-4xl text-danger">{% block error_icon %}⚠{% endblock %}</span>
+    </div>
+    {% endblock %}
+  </div>
+
+  <!-- Error Code -->
+  <h1 class="text-6xl font-black text-text mb-2">
+    {% block error_code %}{% endblock %}
+  </h1>
+
+  <!-- Error Title -->
+  <h2 class="text-xl font-semibold text-text mb-4">
+    {% block error_title %}خطایی رخ داده است{% endblock %}
+  </h2>
+
+  <!-- Error Description -->
+  <p class="text-text-muted max-w-md mb-8">
+    {% block error_description %}
+    متأسفانه مشکلی پیش آمده است. لطفاً دوباره تلاش کنید.
+    {% endblock %}
+  </p>
+
+  <!-- Error Actions -->
+  <div class="flex flex-col sm:flex-row items-center gap-4">
+    {% block error_actions %}
+    <a href="/"
+       class="inline-flex items-center px-6 py-3 bg-primary text-text-inverse
+              rounded-lg font-semibold hover:bg-primary-700 transition-colors
+              no-underline">
+      بازگشت به صفحه اصلی
+    </a>
+    {% endblock %}
+  </div>
+
+  <!-- Support info -->
+  <div class="mt-12 text-sm text-text-muted">
+    {% block error_support %}{% endblock %}
+  </div>
+
+</div>
+{% endblock %}

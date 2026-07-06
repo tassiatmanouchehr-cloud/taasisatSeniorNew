@@ -1,0 +1,110 @@
+{% extends "ui/layouts/base.html" %}
+{# Portal layout — authenticated users (customer, provider, org staff) #}
+{# Sidebar (inline-start) + topbar + main content area. #}
+{# Sidebar collapses on mobile to a drawer. #}
+
+{% block body_class %}layout-portal{% endblock %}
+
+{% block body_attrs %}x-data="{ sidebarOpen: false }"{% endblock %}
+
+{% block body %}
+<div class="flex min-h-screen">
+
+  <!-- Sidebar (inline-start = right side in RTL) -->
+  <aside class="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 lg:inset-inline-start-0
+                bg-surface border-e border-border z-sticky overflow-y-auto"
+         aria-label="ناوبری جانبی">
+    <!-- Sidebar Header (Brand) -->
+    <div class="flex items-center h-16 px-4 border-b border-border">
+      {% block sidebar_brand %}
+      <a href="/" class="flex items-center gap-2 text-lg font-bold text-primary no-underline">
+        {% block sidebar_logo %}{% endblock %}
+        <span>{% block sidebar_title %}پلتفرم{% endblock %}</span>
+      </a>
+      {% endblock %}
+    </div>
+
+    <!-- Sidebar Navigation -->
+    <nav class="flex-1 py-4 px-3 space-y-1" aria-label="منوی اصلی">
+      {% block sidebar_nav %}{% endblock %}
+    </nav>
+
+    <!-- Sidebar Footer -->
+    <div class="border-t border-border p-4">
+      {% block sidebar_footer %}{% endblock %}
+    </div>
+  </aside>
+
+  <!-- Mobile Sidebar Overlay -->
+  <div x-show="sidebarOpen"
+       x-transition:enter="transition-opacity duration-300"
+       x-transition:enter-start="opacity-0"
+       x-transition:enter-end="opacity-100"
+       x-transition:leave="transition-opacity duration-200"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0"
+       class="fixed inset-0 bg-black/50 z-overlay lg:hidden"
+       @click="sidebarOpen = false"
+       aria-hidden="true">
+  </div>
+
+  <!-- Mobile Sidebar Drawer -->
+  <aside x-show="sidebarOpen"
+         x-transition:enter="transition-transform duration-300"
+         x-transition:enter-start="translate-x-full"
+         x-transition:enter-end="translate-x-0"
+         x-transition:leave="transition-transform duration-200"
+         x-transition:leave-start="translate-x-0"
+         x-transition:leave-end="translate-x-full"
+         class="fixed inset-y-0 inset-inline-start-0 w-72 bg-surface z-modal lg:hidden
+                overflow-y-auto shadow-xl"
+         aria-label="ناوبری جانبی">
+    <div class="flex items-center justify-between h-16 px-4 border-b border-border">
+      {% block mobile_sidebar_brand %}
+      <span class="text-lg font-bold text-primary">پلتفرم</span>
+      {% endblock %}
+      <button @click="sidebarOpen = false" class="p-2 rounded text-text-muted hover:bg-background"
+              aria-label="بستن منو">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <nav class="py-4 px-3 space-y-1">
+      {% block mobile_sidebar_nav %}{% block sidebar_nav %}{% endblock %}{% endblock %}
+    </nav>
+  </aside>
+
+  <!-- Main Area (offset by sidebar width on desktop) -->
+  <div class="flex flex-col flex-1 lg:ps-64">
+
+    <!-- Top Bar -->
+    <header class="sticky top-0 z-sticky bg-surface border-b border-border h-16 flex items-center px-4 sm:px-6">
+      <!-- Mobile menu toggle -->
+      <button @click="sidebarOpen = true"
+              class="lg:hidden p-2 rounded text-text-muted hover:bg-background me-3"
+              aria-label="باز کردن منو">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+      </button>
+
+      <!-- Page title / breadcrumb area -->
+      <div class="flex-1">
+        {% block topbar_start %}{% endblock %}
+      </div>
+
+      <!-- Topbar actions (notifications, profile, theme) -->
+      <div class="flex items-center gap-inline-4">
+        {% block topbar_actions %}{% endblock %}
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <main id="main-content" class="flex-1 p-4 sm:p-6 lg:p-8">
+      {% block content %}{% endblock %}
+    </main>
+
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "ui/layouts/base.html" %}
+{# Public layout — marketing pages, service catalog, registration #}
+{# No sidebar. Top navbar with brand + navigation + auth actions. #}
+
+{% block body_class %}layout-public{% endblock %}
+
+{% block body %}
+<div class="flex flex-col min-h-screen">
+
+  <!-- Top Navigation Bar -->
+  <header class="sticky top-0 z-sticky bg-surface border-b border-border">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav class="flex items-center justify-between h-16" aria-label="ناوبری اصلی">
+        <!-- Brand -->
+        <div class="flex items-center gap-inline-4">
+          {% block nav_brand %}
+          <a href="/" class="flex items-center gap-2 text-xl font-bold text-primary no-underline">
+            {% block brand_logo %}{% endblock %}
+            <span>{% block brand_name %}پلتفرم{% endblock %}</span>
+          </a>
+          {% endblock %}
+        </div>
+
+        <!-- Navigation Links -->
+        <div class="hidden md:flex items-center gap-inline-6">
+          {% block nav_links %}{% endblock %}
+        </div>
+
+        <!-- Actions (auth buttons, theme toggle) -->
+        <div class="flex items-center gap-inline-4">
+          {% block nav_actions %}{% endblock %}
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main id="main-content" class="flex-1">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-surface border-t border-border py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {% block footer %}
+      <p class="text-sm text-text-muted text-center">
+        {% block copyright %}© ۱۴۰۵ پلتفرم — تمامی حقوق محفوظ است.{% endblock %}
+      </p>
+      {% endblock %}
+    </div>
+  </footer>
+
+</div>
+{% endblock %}
