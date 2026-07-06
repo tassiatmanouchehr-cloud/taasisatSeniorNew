@@ -1,0 +1,73 @@
+{# Button Component
+   Usage:
+     {% include "ui/components/forms/button.html" with label="ذخیره" variant="primary" %}
+     {% include "ui/components/forms/button.html" with label="حذف" variant="danger" size="sm" %}
+     {% include "ui/components/forms/button.html" with label="بیشتر" variant="ghost" icon_end="→" %}
+
+   Props:
+     label     — Button text (required)
+     variant   — primary|secondary|danger|success|ghost|outline (default: primary)
+     size      — xs|sm|md|lg|xl (default: md)
+     type      — button|submit|reset (default: button)
+     disabled  — true/false
+     loading   — true/false (shows spinner)
+     icon_start — Icon before text
+     icon_end  — Icon after text
+     full_width — true/false (w-full)
+     href      — If set, renders as <a> instead of <button>
+     attrs     — Extra attributes string
+#}
+{% with variant=variant|default:"primary" size=size|default:"md" type=type|default:"button" %}
+
+{% if href %}
+<a href="{{ href }}"
+{% else %}
+<{{ "button" }} type="{{ type }}"
+{% endif %}
+   class="inline-flex items-center justify-center gap-2 font-semibold rounded-lg
+          transition-all duration-fast
+          focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/50
+          focus-visible:ring-offset-2 focus-visible:ring-offset-surface
+          disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none
+          no-underline
+          {% if variant == 'primary' %}
+            bg-primary text-text-inverse hover:bg-primary-700 active:bg-primary-800
+            dark:bg-primary-500 dark:hover:bg-primary-400
+          {% elif variant == 'secondary' %}
+            bg-secondary-100 text-secondary-800 hover:bg-secondary-200 active:bg-secondary-300
+            dark:bg-secondary-200 dark:text-secondary-900 dark:hover:bg-secondary-300
+          {% elif variant == 'danger' %}
+            bg-danger text-text-inverse hover:bg-danger-700 active:bg-danger-800
+          {% elif variant == 'success' %}
+            bg-success text-text-inverse hover:bg-success-700 active:bg-success-800
+          {% elif variant == 'ghost' %}
+            bg-transparent text-text hover:bg-background-alt active:bg-border-light
+          {% elif variant == 'outline' %}
+            bg-transparent text-primary border-2 border-primary hover:bg-primary-50
+            dark:hover:bg-primary-950
+          {% endif %}
+          {% if size == 'xs' %}px-2.5 py-1 text-xs
+          {% elif size == 'sm' %}px-3 py-1.5 text-sm
+          {% elif size == 'md' %}px-4 py-2 text-sm
+          {% elif size == 'lg' %}px-5 py-2.5 text-base
+          {% elif size == 'xl' %}px-6 py-3 text-lg
+          {% endif %}
+          {% if full_width %}w-full{% endif %}"
+   {% if disabled %}disabled aria-disabled="true"{% endif %}
+   {% if loading %}aria-busy="true"{% endif %}
+   {{ attrs|default:"" }}>
+  {% if loading %}
+  <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+  </svg>
+  {% elif icon_start %}
+  <span class="icon-directional" aria-hidden="true">{{ icon_start }}</span>
+  {% endif %}
+  <span>{{ label }}</span>
+  {% if icon_end and not loading %}
+  <span class="icon-directional" aria-hidden="true">{{ icon_end }}</span>
+  {% endif %}
+{% if href %}</a>{% else %}</button>{% endif %}
+
+{% endwith %}

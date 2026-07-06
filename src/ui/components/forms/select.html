@@ -1,0 +1,54 @@
+{# Select Component
+   Usage:
+     {% include "ui/components/forms/select.html" with name="city" label="شهر" options=cities %}
+
+   Props:
+     name, label, required, disabled, error, hint, size (sm|md|lg),
+     options — list of {value, label, selected?, disabled?} dicts
+     placeholder — first empty option text
+#}
+{% with size=size|default:"md" %}
+<div class="w-full">
+  {% if label %}
+  <label for="id_{{ name }}" class="block text-sm font-medium text-text mb-1.5">
+    {{ label }}
+    {% if required %}<span class="text-danger ms-0.5" aria-hidden="true">*</span>{% endif %}
+  </label>
+  {% endif %}
+
+  <select
+    id="id_{{ name }}"
+    name="{{ name }}"
+    {% if required %}required aria-required="true"{% endif %}
+    {% if disabled %}disabled{% endif %}
+    {% if error %}aria-invalid="true" aria-describedby="error_{{ name }}"{% endif %}
+    class="block w-full rounded-lg border appearance-none transition-colors duration-fast
+           bg-surface text-text pe-10 ps-3
+           focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary
+           disabled:bg-background-alt disabled:cursor-not-allowed disabled:opacity-60
+           {% if error %}border-danger{% else %}border-border hover:border-border-strong{% endif %}
+           {% if size == 'sm' %}py-1.5 text-sm
+           {% elif size == 'md' %}py-2 text-sm
+           {% elif size == 'lg' %}py-2.5 text-base
+           {% endif %}"
+    {{ attrs|default:"" }}>
+    {% if placeholder %}
+    <option value="" disabled selected>{{ placeholder }}</option>
+    {% endif %}
+    {% for opt in options %}
+    <option value="{{ opt.value }}"
+            {% if opt.selected %}selected{% endif %}
+            {% if opt.disabled %}disabled{% endif %}>
+      {{ opt.label }}
+    </option>
+    {% endfor %}
+  </select>
+
+  {% if error %}
+  <p id="error_{{ name }}" class="mt-1.5 text-sm text-danger" role="alert">{{ error }}</p>
+  {% endif %}
+  {% if hint and not error %}
+  <p id="hint_{{ name }}" class="mt-1.5 text-sm text-text-muted">{{ hint }}</p>
+  {% endif %}
+</div>
+{% endwith %}

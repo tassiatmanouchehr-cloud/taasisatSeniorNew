@@ -1,0 +1,48 @@
+{# Textarea Component
+   Usage:
+     {% include "ui/components/forms/textarea.html" with name="description" label="توضیحات" rows="4" %}
+
+   Props:
+     name, label, placeholder, value, required, disabled, readonly,
+     error, hint, rows (default: 3), maxlength, resize (none|vertical|both)
+#}
+{% with rows=rows|default:"3" resize=resize|default:"vertical" %}
+<div class="w-full">
+  {% if label %}
+  <label for="id_{{ name }}" class="block text-sm font-medium text-text mb-1.5">
+    {{ label }}
+    {% if required %}<span class="text-danger ms-0.5" aria-hidden="true">*</span>{% endif %}
+  </label>
+  {% endif %}
+
+  <textarea
+    id="id_{{ name }}"
+    name="{{ name }}"
+    rows="{{ rows }}"
+    {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+    {% if required %}required aria-required="true"{% endif %}
+    {% if disabled %}disabled{% endif %}
+    {% if readonly %}readonly{% endif %}
+    {% if maxlength %}maxlength="{{ maxlength }}"{% endif %}
+    {% if error %}aria-invalid="true" aria-describedby="error_{{ name }}"{% endif %}
+    {% if hint and not error %}aria-describedby="hint_{{ name }}"{% endif %}
+    class="block w-full rounded-lg border px-3 py-2 text-sm transition-colors duration-fast
+           bg-surface text-text placeholder:text-text-disabled
+           focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary
+           disabled:bg-background-alt disabled:cursor-not-allowed disabled:opacity-60
+           {% if error %}border-danger focus:ring-danger/50 focus:border-danger
+           {% else %}border-border hover:border-border-strong{% endif %}
+           {% if resize == 'none' %}resize-none
+           {% elif resize == 'vertical' %}resize-y
+           {% elif resize == 'both' %}resize
+           {% endif %}"
+    {{ attrs|default:"" }}>{{ value|default:"" }}</textarea>
+
+  {% if error %}
+  <p id="error_{{ name }}" class="mt-1.5 text-sm text-danger" role="alert">{{ error }}</p>
+  {% endif %}
+  {% if hint and not error %}
+  <p id="hint_{{ name }}" class="mt-1.5 text-sm text-text-muted">{{ hint }}</p>
+  {% endif %}
+</div>
+{% endwith %}

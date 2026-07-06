@@ -1,0 +1,33 @@
+{# Checkbox Component
+   Usage:
+     {% include "ui/components/forms/checkbox.html" with name="agree" label="شرایط را می‌پذیرم" %}
+
+   Props:
+     name, label (required), value, checked, disabled, error, hint
+#}
+<div class="flex items-start gap-inline-3">
+  <input
+    type="checkbox"
+    id="id_{{ name }}"
+    name="{{ name }}"
+    {% if value %}value="{{ value }}"{% endif %}
+    {% if checked %}checked{% endif %}
+    {% if disabled %}disabled{% endif %}
+    {% if error %}aria-invalid="true" aria-describedby="error_{{ name }}"{% endif %}
+    class="mt-0.5 h-4 w-4 rounded border-border text-primary
+           focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-surface
+           disabled:opacity-50 disabled:cursor-not-allowed
+           {% if error %}border-danger{% endif %}">
+  <div class="flex-1">
+    <label for="id_{{ name }}" class="text-sm text-text cursor-pointer select-none
+                                      {% if disabled %}opacity-60 cursor-not-allowed{% endif %}">
+      {{ label }}
+    </label>
+    {% if error %}
+    <p id="error_{{ name }}" class="mt-1 text-xs text-danger" role="alert">{{ error }}</p>
+    {% endif %}
+    {% if hint and not error %}
+    <p class="mt-1 text-xs text-text-muted">{{ hint }}</p>
+    {% endif %}
+  </div>
+</div>

@@ -1,0 +1,89 @@
+{# Input Component
+   Usage:
+     {% include "ui/components/forms/input.html" with name="email" label="ایمیل" type="email" %}
+     {% include "ui/components/forms/input.html" with name="phone" label="شماره تلفن" dir="ltr" %}
+
+   Props:
+     name      — Field name (required)
+     label     — Label text (required for accessibility)
+     type      — text|email|password|tel|number|url|search (default: text)
+     placeholder — Placeholder text
+     value     — Current value
+     required  — true/false
+     disabled  — true/false
+     readonly  — true/false
+     error     — Error message (shows red state)
+     hint      — Helper text below input
+     size      — sm|md|lg (default: md)
+     dir       — Override direction (ltr for phone/email)
+     icon_start — Icon inside input (start side)
+     icon_end  — Icon inside input (end side)
+     attrs     — Extra attributes
+#}
+{% with type=type|default:"text" size=size|default:"md" %}
+<div class="w-full">
+  <!-- Label -->
+  {% if label %}
+  <label for="id_{{ name }}" class="block text-sm font-medium text-text mb-1.5">
+    {{ label }}
+    {% if required %}<span class="text-danger ms-0.5" aria-hidden="true">*</span>{% endif %}
+  </label>
+  {% endif %}
+
+  <!-- Input wrapper (for icons) -->
+  <div class="relative">
+    {% if icon_start %}
+    <span class="absolute inset-y-0 inset-inline-start-0 flex items-center ps-3 text-text-muted pointer-events-none"
+          aria-hidden="true">
+      {{ icon_start }}
+    </span>
+    {% endif %}
+
+    <input
+      type="{{ type }}"
+      id="id_{{ name }}"
+      name="{{ name }}"
+      {% if value %}value="{{ value }}"{% endif %}
+      {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+      {% if required %}required aria-required="true"{% endif %}
+      {% if disabled %}disabled{% endif %}
+      {% if readonly %}readonly{% endif %}
+      {% if error %}aria-invalid="true" aria-describedby="error_{{ name }}"{% endif %}
+      {% if hint and not error %}aria-describedby="hint_{{ name }}"{% endif %}
+      {% if dir %}dir="{{ dir }}"{% endif %}
+      class="block w-full rounded-lg border transition-colors duration-fast
+             bg-surface text-text placeholder:text-text-disabled
+             focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary
+             disabled:bg-background-alt disabled:cursor-not-allowed disabled:opacity-60
+             {% if error %}
+               border-danger focus:ring-danger/50 focus:border-danger
+             {% else %}
+               border-border hover:border-border-strong
+             {% endif %}
+             {% if icon_start %}ps-10{% else %}ps-3{% endif %}
+             {% if icon_end %}pe-10{% else %}pe-3{% endif %}
+             {% if size == 'sm' %}py-1.5 text-sm
+             {% elif size == 'md' %}py-2 text-sm
+             {% elif size == 'lg' %}py-2.5 text-base
+             {% endif %}"
+      {{ attrs|default:"" }}>
+
+    {% if icon_end %}
+    <span class="absolute inset-y-0 inset-inline-end-0 flex items-center pe-3 text-text-muted pointer-events-none"
+          aria-hidden="true">
+      {{ icon_end }}
+    </span>
+    {% endif %}
+  </div>
+
+  <!-- Error message -->
+  {% if error %}
+  <p id="error_{{ name }}" class="mt-1.5 text-sm text-danger" role="alert">{{ error }}</p>
+  {% endif %}
+
+  <!-- Hint text -->
+  {% if hint and not error %}
+  <p id="hint_{{ name }}" class="mt-1.5 text-sm text-text-muted">{{ hint }}</p>
+  {% endif %}
+</div>
+{% endwith %}
