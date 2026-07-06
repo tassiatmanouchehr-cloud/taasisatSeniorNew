@@ -1,0 +1,273 @@
+/*
+ * Accessibility Foundation
+ * Enterprise Service Marketplace Platform
+ *
+ * WCAG AA compliant utilities and base styles:
+ * 1. Focus ring system (visible, consistent, theme-aware)
+ * 2. Screen reader utilities (sr-only, announce)
+ * 3. Keyboard navigation helpers
+ * 4. Color contrast enforcement
+ * 5. Reduced motion support
+ * 6. High contrast mode support
+ *
+ * Every interactive element must have:
+ * - Visible focus indicator
+ * - Keyboard operability
+ * - Accessible name (label, aria-label, aria-labelledby)
+ * - Sufficient color contrast (4.5:1 text, 3:1 UI components)
+ */
+
+/* ============================================================
+   1. FOCUS RING SYSTEM
+   ============================================================
+   Consistent focus indicators across all interactive elements.
+   Uses :focus-visible (only shows on keyboard navigation, not mouse clicks).
+*/
+
+@layer base {
+  /* Global focus-visible ring */
+  :focus-visible {
+    outline: var(--ring-width, 3px) solid var(--ring-color, rgba(59, 130, 246, 0.5));
+    outline-offset: var(--ring-offset-width, 2px);
+  }
+
+  /* Remove default outline (replaced by our ring) */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* Links within text — underline on focus for clarity */
+  p a:focus-visible,
+  li a:focus-visible {
+    outline: var(--ring-width, 3px) solid var(--ring-color);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+@layer utilities {
+  /* ============================================================
+     2. SCREEN READER UTILITIES
+     ============================================================ */
+
+  /* Visually hidden but accessible to screen readers */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  /* Undo sr-only (e.g., on focus for skip links) */
+  .not-sr-only {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+
+  /* Focus makes sr-only visible (for skip links) */
+  .sr-only-focusable:focus,
+  .sr-only-focusable:focus-visible {
+    position: fixed;
+    top: 1rem;
+    inset-inline-start: 1rem;
+    z-index: 9999;
+    width: auto;
+    height: auto;
+    padding: 0.75rem 1.5rem;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+    background-color: var(--color-primary-600);
+    color: white;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Live region for dynamic announcements */
+  .announce {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+
+  /* ============================================================
+     3. KEYBOARD NAVIGATION HELPERS
+     ============================================================ */
+
+  /* Focus trap indicator (visual outline for trapped areas) */
+  .focus-trap-active {
+    box-shadow: 0 0 0 3px var(--ring-color);
+  }
+
+  /* Keyboard-only focus ring (hides on mouse) */
+  .focus-ring-keyboard:focus:not(:focus-visible) {
+    outline: none;
+    box-shadow: none;
+  }
+  .focus-ring-keyboard:focus-visible {
+    outline: var(--ring-width) solid var(--ring-color);
+    outline-offset: var(--ring-offset-width);
+  }
+
+  /* Tab-navigable group indicator */
+  [role="toolbar"]:focus-within,
+  [role="tablist"]:focus-within,
+  [role="menu"]:focus-within {
+    outline: 1px dashed var(--color-border-strong);
+    outline-offset: 4px;
+  }
+
+  /* Disabled elements — prevent interaction */
+  [aria-disabled="true"],
+  [disabled] {
+    cursor: not-allowed;
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  /* ============================================================
+     4. COLOR CONTRAST ENFORCEMENT
+     ============================================================
+     Utility classes to ensure minimum contrast ratios.
+     WCAG AA: 4.5:1 for normal text, 3:1 for large text and UI components.
+  */
+
+  /* High contrast text (always meets 4.5:1 on surface) */
+  .text-high-contrast {
+    color: var(--color-text);
+  }
+
+  /* Ensure link contrast against background */
+  a:not([class]) {
+    color: var(--color-text-link);
+    text-decoration-color: currentColor;
+  }
+
+  /* Placeholder contrast (WCAG doesn't require 4.5:1 but we aim for readability) */
+  ::placeholder {
+    color: var(--color-text-disabled);
+    opacity: 1;
+  }
+
+  /* Selection colors (high contrast) */
+  ::selection {
+    background-color: var(--color-primary-200);
+    color: var(--color-primary-900);
+  }
+  .dark ::selection {
+    background-color: var(--color-primary-800);
+    color: var(--color-primary-100);
+  }
+
+  /* ============================================================
+     5. REDUCED MOTION
+     ============================================================
+     Already in themes/base.css but reinforced here for component animations.
+  */
+
+  @media (prefers-reduced-motion: reduce) {
+    /* Disable all transitions and animations for motion-sensitive users */
+    .animate-spin,
+    .animate-pulse,
+    .animate-bounce,
+    .animate-shimmer,
+    .animate-fade-in,
+    .animate-slide-up,
+    .animate-scale-in {
+      animation: none !important;
+    }
+
+    /* Collapse transitions to instant */
+    [x-transition],
+    [x-show] {
+      transition-duration: 0ms !important;
+    }
+  }
+
+  /* Opt-in motion (only animate if user allows) */
+  @media (prefers-reduced-motion: no-preference) {
+    .motion-safe\:animate-fade-in {
+      animation: fade-in 0.2s ease-out;
+    }
+    .motion-safe\:animate-slide-up {
+      animation: slide-up 0.2s ease-out;
+    }
+  }
+
+  /* ============================================================
+     6. HIGH CONTRAST MODE (Windows)
+     ============================================================ */
+
+  @media (forced-colors: active) {
+    /* Ensure borders are visible */
+    .border,
+    .border-border {
+      border-color: CanvasText;
+    }
+
+    /* Ensure focus ring is visible */
+    :focus-visible {
+      outline: 3px solid Highlight;
+    }
+
+    /* Buttons remain visible */
+    button,
+    [role="button"] {
+      border: 1px solid ButtonText;
+    }
+
+    /* Badges/chips remain visible */
+    .bg-primary-100,
+    .bg-success-100,
+    .bg-warning-100,
+    .bg-danger-100,
+    .bg-info-100 {
+      border: 1px solid CanvasText;
+    }
+  }
+
+  /* ============================================================
+     7. ARIA STATE STYLES
+     ============================================================ */
+
+  /* Invalid form fields */
+  [aria-invalid="true"] {
+    border-color: var(--color-danger-500) !important;
+  }
+  [aria-invalid="true"]:focus-visible {
+    outline-color: var(--color-danger-500);
+  }
+
+  /* Busy/loading states */
+  [aria-busy="true"] {
+    cursor: wait;
+  }
+
+  /* Expanded state indicator */
+  [aria-expanded="false"] .expand-icon {
+    transform: rotate(0deg);
+  }
+  [aria-expanded="true"] .expand-icon {
+    transform: rotate(180deg);
+  }
+
+  /* Current page indicator in nav */
+  [aria-current="page"] {
+    font-weight: 600;
+  }
+}

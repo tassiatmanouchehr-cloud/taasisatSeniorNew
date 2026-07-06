@@ -24,6 +24,8 @@
 @import './typography.css';
 /* RTL foundation (logical CSS, Persian-first, no left/right) */
 @import './rtl.css';
+/* Accessibility (focus ring, keyboard nav, screen reader, contrast) */
+@import './accessibility.css';
 
 @tailwind components;
 @tailwind utilities;
