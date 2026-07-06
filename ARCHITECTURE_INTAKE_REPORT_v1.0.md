@@ -4,7 +4,7 @@
 
 **Date:** July 6, 2026
 **Author:** Platform Architecture Team (AI-Assisted)
-**Status:** Pending Owner Approval
+**Status:** ✅ Approved — All Blocking Decisions Resolved
 **Scope:** Full review of all 25 module specifications + Framework Architecture Correction Package
 
 ---
@@ -119,56 +119,64 @@ All 25 module specification packages and the Framework Architecture Correction P
 
 ## 2. Discovered Modules & Discrepancies
 
-### 2.1 Module 07 Identity Conflict (CRITICAL — requires owner decision)
+### 2.1 Module 07 Identity Conflict — ✅ RESOLVED
 
-**Finding:** `MODULE_INDEX_COMPLETE_01_25.json` lists Module 7 as:
-> `"Business Roles & Platform Structure Engine"` — "Platform ownership model, operating teams, provider organizations, company operators, independent providers, customer-side trusted contacts, role relationships and organization-level boundaries."
+**Finding:** `MODULE_INDEX_COMPLETE_01_25.json` lists Module 7 as "Business Roles & Platform Structure Engine" but the actual folder implements "Communication Orchestration Engine."
 
-**Actual folder:** `Senior_Platform_Module_07_Communication_Orchestration_Engine_v1_0/`
+**Owner Decision (Approved):**
+> Module 07 is **Communication Orchestration Engine**. The "Business Roles & Platform Structure Engine" is not a separate module. Its relevant scope is merged into **Module 08 — Identity, Roles, Profiles & Access Engine**.
 
-**Actual content:** 28 detailed specification files covering communication orchestration — rule engine, audience resolution, channel resolution, templates, provider abstraction, delivery tracking, inbox, conversations, reminders, announcements, campaigns, retry/fallback/escalation, audit timeline, security/privacy, cross-module contracts, state machines, and freeze report.
+**Implementation Rule:** The JSON index entry for Module 7 is stale. All code, documentation, and references must treat Module 7 as Communication Orchestration Engine. Module 08 owns all organization structures, role relationships, platform structure, and business roles.
 
-**Correction Package confirmation:** `Dependency_Map.md` explicitly lists Module 07 as "Communication Orchestration Engine" with ownership of "Message orchestration, templates, channels, preferences, delivery logs."
+### 2.2 Module 07 / Module 12 Communication Boundary — ✅ RESOLVED
 
-**Conclusion:** The JSON index is stale/incorrect for Module 7. The actual folder content is comprehensive Communication Orchestration. **No content exists anywhere in the repository for "Business Roles & Platform Structure Engine."** Its described scope (organization structures, role relationships) appears to have been absorbed into Module 08 (Identity, Roles, Profiles & Access Engine).
+**Finding:** Both modules cover "communication."
 
-**⚠️ REQUIRES OWNER DECISION:** Confirm that "Business Roles & Platform Structure" was intentionally merged into Module 08, or identify if there is missing content that needs to be authored.
+**Owner Decision (Approved):**
 
-### 2.2 Module 07 / Module 12 Overlap (CRITICAL — requires boundary documentation)
-
-**Finding:** Both modules cover "communication":
-- **Module 07** (Communication Orchestration Engine): The decision brain — receives CES events, resolves audience/template/channel/preference/consent/provider, manages delivery lifecycle, retry/fallback/escalation. 28 detailed files.
-- **Module 12** (Communication & Notification Engine): Channel adapters, delivery infrastructure, notification preferences at the provider level.
-
-**Proposed Boundary Statement (hypothesis):**
-
-| Responsibility | Module 07 (Orchestration) | Module 12 (Delivery) |
+| Responsibility | Module 07 (Communication Orchestration) | Module 12 (Communication & Notification) |
 |---|---|---|
-| Event consumption | ✅ Consumes all business CES events | ❌ Does not consume business events |
-| Audience resolution | ✅ Determines who should be notified | ❌ |
-| Channel selection | ✅ Decides which channel(s) | ❌ |
-| Template resolution | ✅ Selects and renders templates | ❌ |
-| Preference/consent check | ✅ Evaluates user preferences | ❌ |
-| Delivery job creation | ✅ Creates delivery jobs | ❌ |
-| Provider abstraction | ❌ | ✅ Owns SMS/Email/Push provider adapters |
-| Actual delivery execution | ❌ | ✅ Sends via provider APIs |
-| Delivery status tracking | Shared (Module 07 orchestration view) | ✅ (raw delivery status) |
-| Retry at provider level | ❌ | ✅ Provider-level retries |
-| Escalation/fallback logic | ✅ Cross-channel escalation | ❌ |
+| Event consumption | ✅ Consumes all business CES events | ❌ Does not consume business events directly |
+| Decides WHO to notify | ✅ | ❌ |
+| Decides WHEN to notify | ✅ | ❌ |
+| Decides WHICH channels | ✅ (based on policy, consent, tenant config, actor context) | ❌ |
+| Resolves recipients | ✅ | ❌ |
+| Communication intent | ✅ | ❌ |
+| Delivery infrastructure | ❌ | ✅ Owns all provider adapters (SMS, email, push, in-app) |
+| Delivery attempts/retries | ❌ | ✅ |
+| Delivery status tracking | ❌ | ✅ |
+| Template rendering | Shared (Module 07 selects; Module 12 renders at delivery time) | ✅ |
+| Provider responses/failures | ❌ | ✅ |
+| Direct SMS/email/push sending | ❌ Never | ✅ Only when requested via orchestration/delivery contract |
 
-**⚠️ REQUIRES OWNER CONFIRMATION** of this boundary before implementation of either module.
+**Binding Rule:** Business modules must NOT call SMS/email providers directly. They emit CES events only. Module 07 orchestrates. Module 12 delivers.
 
-### 2.3 Frontend Stack Conflict (CRITICAL — requires explicit decision)
+### 2.3 Frontend Technology Stack — ✅ RESOLVED
 
-**Finding:** No frontend technology decision has been made. Three options exist:
+**Owner Decision (Approved):**
 
-| Option | Description | Pros | Cons |
-|--------|-------------|------|------|
-| (a) Vanilla CSS/JS | Consistent with existing RastiSaas codebase | Low dependency, team familiarity | Higher effort for complex UI, no component reuse framework |
-| (b) Django Templates + HTMX/Alpine.js + Tailwind CSS | Server-rendered with progressive enhancement | Fast development, SEO-friendly, low JS complexity | Less interactive for complex dashboards |
-| (c) Next.js/React + TypeScript + Tailwind CSS (SPA) | Separate frontend consuming API | Rich interactivity, component ecosystem, type safety | Higher complexity, separate deployment, more devs needed |
+**Django Templates + HTMX/Alpine.js + Tailwind CSS**
 
-**⚠️ REQUIRES OWNER DECISION** before Phase 2 begins. The UI Kernel design (Section 9) is stack-independent but implementation details differ materially.
+| Requirement | Implementation |
+|-------------|---------------|
+| Persian-first UI | ✅ All templates in Persian, `lang="fa-IR"` `dir="rtl"` |
+| Full RTL support | ✅ Tailwind CSS RTL plugin + logical properties |
+| Jalali/Shamsi dates | ✅ `jdatetime` backend + Jalali JS picker |
+| Shared UI Kernel | ✅ Design tokens via Tailwind config + Django template components |
+| Tenant-overridable tokens | ✅ CSS custom properties + CCS config resolution |
+| Reusable components | ✅ Django template includes/partials + Alpine.js components |
+| No duplicate page styling | ✅ Single Tailwind design system, shared base templates |
+| No separate SPA | ✅ Server-rendered with HTMX progressive enhancement |
+
+**Technology Stack Details:**
+- **Templates:** Django Template Language with `{% include %}` component pattern
+- **Interactivity:** HTMX for server-driven partial updates; Alpine.js for client-side state
+- **Styling:** Tailwind CSS 3.x with custom design tokens, RTL plugin, dark-mode ready
+- **Build:** Tailwind CLI or PostCSS build step (no webpack/vite complexity needed)
+- **Icons:** Heroicons or similar SVG icon system (RTL-mirror-aware)
+- **Date Picker:** Custom Jalali date picker (Alpine.js component)
+
+**No separate SPA, no React, no Next.js in this phase.** API endpoints still exist for future mobile/SPA consumption but are not the primary frontend delivery mechanism.
 
 ### 2.4 Additional Discrepancies Found
 
@@ -1015,11 +1023,27 @@ No other module should independently decide locale/format behavior.
 - OpenAPI/Swagger documentation
 - Idempotency keys for critical operations
 
-### Frontend (⚠️ PENDING OWNER DECISION — Section 2.3)
-Three options under consideration:
-- (a) Vanilla CSS/JS
-- (b) Django Templates + HTMX/Alpine.js + Tailwind CSS
-- (c) Next.js/React + TypeScript + Tailwind CSS (SPA)
+### Frontend (✅ CONFIRMED)
+**Django Templates + HTMX/Alpine.js + Tailwind CSS**
+
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| Django Templates | (built-in) | Server-side HTML rendering, component includes |
+| HTMX | 1.9+ | Server-driven partial updates, progressive enhancement |
+| Alpine.js | 3.x | Client-side reactivity, component state |
+| Tailwind CSS | 3.4+ | Utility-first styling, RTL plugin, design tokens |
+| Tailwind RTL Plugin | Latest | Automatic RTL class generation |
+| PostCSS | 8.x | CSS build pipeline for Tailwind |
+
+### Frontend Libraries (Planned)
+| Library | Purpose |
+|---------|---------|
+| `django-tailwind` or manual | Tailwind integration with Django |
+| `heroicons` | SVG icon system |
+| Custom Jalali picker | Alpine.js-based Jalali date picker component |
+| `jalali-moment` or `dayjs-jalali` | Client-side Jalali date formatting |
+| `htmx` | Partial page updates without full reload |
+| `alpinejs` | Lightweight client-side interactivity |
 
 ### Infrastructure (Planned)
 | Technology | Purpose |
@@ -1241,9 +1265,9 @@ For an initial sellable MVP: Phases 0–5 deliver a fully functional marketplace
 
 | # | Risk | Impact | Mitigation |
 |---|------|--------|------------|
-| R1 | Module 07/12 boundary unclear | Implementing either module incorrectly; duplicate work | Document boundary before Phase 5 (Section 2.2) |
-| R2 | Frontend stack undecided | Cannot begin UI implementation; architecture divergence | Owner decision required before Phase 2 (Section 2.3) |
-| R3 | Module 7 "Business Roles" content status unknown | May be missing critical business rules | Owner confirmation required (Section 2.1) |
+| R1 | ~~Module 07/12 boundary unclear~~ | ~~Implementing either module incorrectly~~ | ✅ RESOLVED — Boundary documented in Section 2.2 |
+| R2 | ~~Frontend stack undecided~~ | ~~Cannot begin UI implementation~~ | ✅ RESOLVED — Django+HTMX+Tailwind confirmed in Section 2.3 |
+| R3 | ~~Module 7 "Business Roles" content status unknown~~ | ~~May be missing critical business rules~~ | ✅ RESOLVED — Merged into Module 08, confirmed in Section 2.1 |
 | R4 | Modules 12-24 have templated/generic specs | May need domain-specific entity enrichment before implementation | Flag during implementation; propose extensions per the build prompt protocol |
 | R5 | Scale of Module 05 (41 documents) | Extremely complex financial domain; highest defect risk | Dedicated financial domain expertise; extra testing budget |
 | R6 | Module 04 complexity (10 sub-engines, 28 docs) | Largest single implementation effort | Break into sub-sprints per engine; frequent integration testing |
@@ -1267,9 +1291,9 @@ For an initial sellable MVP: Phases 0–5 deliver a fully functional marketplace
 
 | Item | Needed For | Blocking? |
 |------|-----------|-----------|
-| Frontend stack decision | Phase 2 UI implementation | ✅ Yes |
-| Module 7/12 boundary confirmation | Phase 5 communication modules | ✅ Yes (for Phase 5) |
-| Module 7 "Business Roles" status | Ensuring no missing domain | ✅ Yes |
+| ~~Frontend stack decision~~ | ~~Phase 2 UI implementation~~ | ✅ Resolved |
+| ~~Module 7/12 boundary confirmation~~ | ~~Phase 5 communication modules~~ | ✅ Resolved |
+| ~~Module 7 "Business Roles" status~~ | ~~Ensuring no missing domain~~ | ✅ Resolved |
 | Payment gateway selection (PSP) | Module 05 payment adapter | ❌ No (abstract adapter first) |
 | SMS provider selection | Module 12 SMS adapter | ❌ No (abstract adapter first) |
 | Email provider selection | Module 12 email adapter | ❌ No (abstract adapter first) |
@@ -1284,48 +1308,27 @@ For an initial sellable MVP: Phases 0–5 deliver a fully functional marketplace
 
 ## 15. Questions Requiring Human Approval
 
-### ⚠️ BLOCKING DECISION 1: Module 07 Identity Conflict
+### ~~BLOCKING DECISION 1: Module 07 Identity Conflict~~ — ✅ RESOLVED
 
-**Question:** The JSON index lists Module 7 as "Business Roles & Platform Structure Engine" but the actual folder and all its 28 documents implement "Communication Orchestration Engine." No content for "Business Roles & Platform Structure" exists anywhere in the repository.
-
-**Options:**
-- (A) Confirm that "Business Roles & Platform Structure" was intentionally merged into Module 08 (Identity, Roles, Profiles & Access Engine). Module 08's spec does cover organization membership, role relationships, and platform structure.
-- (B) Identify that there is missing content that needs to be authored as a separate module or addendum.
-
-**Recommended:** Option (A) — Module 08's existing specification comprehensively covers identity, roles, organization structures, memberships, and platform structure. This appears to be a deliberate architectural decision.
+**Decision:** Module 07 = Communication Orchestration Engine. "Business Roles & Platform Structure" merged into Module 08. See Section 2.1.
 
 ---
 
-### ⚠️ BLOCKING DECISION 2: Module 07 / Module 12 Communication Boundary
+### ~~BLOCKING DECISION 2: Module 07 / Module 12 Communication Boundary~~ — ✅ RESOLVED
 
-**Question:** Both Module 07 (Communication Orchestration Engine) and Module 12 (Communication & Notification Engine) deal with "communication." Their boundary must be explicitly documented before either is implemented.
-
-**Proposed boundary (Section 2.2 of this report):**
-- Module 07 = the decision brain (event consumption, audience resolution, channel selection, template rendering, delivery job creation, escalation logic)
-- Module 12 = the delivery infrastructure (provider adapters, actual sending, delivery status tracking, provider-level retries)
-
-**Required:** Confirm or correct this boundary statement.
+**Decision:** Module 07 = orchestration/decisioning brain. Module 12 = delivery infrastructure. Business modules emit CES events only. See Section 2.2.
 
 ---
 
-### ⚠️ BLOCKING DECISION 3: Frontend Technology Stack
+### ~~BLOCKING DECISION 3: Frontend Technology Stack~~ — ✅ RESOLVED
 
-**Question:** Which frontend approach should be used?
+**Decision:** Django Templates + HTMX/Alpine.js + Tailwind CSS. Persian-first, RTL, Jalali, server-rendered with progressive enhancement. See Section 2.3.
 
-| Option | Stack | Best For |
-|--------|-------|----------|
-| (a) | Vanilla CSS/JS | Consistency with RastiSaas, minimal dependencies |
-| (b) | Django Templates + HTMX/Alpine.js + Tailwind CSS | Fast development, server-rendered, progressive enhancement |
-| (c) | Next.js/React + TypeScript + Tailwind CSS | Maximum interactivity, component ecosystem, separate frontend team |
+---
 
-**Factors to consider:**
-- Team skill set and hiring plans
-- Development speed vs. long-term maintainability
-- Complexity of dashboards and real-time features
-- Budget for frontend infrastructure
-- Existing RastiSaas conventions
+### ✅ All Blocking Decisions Resolved — Implementation May Proceed
 
-**Required:** Explicit selection of (a), (b), or (c) before Phase 2 begins.
+All three critical blocking decisions have been answered by the project owner. Phase 1 implementation can now begin.
 
 ---
 
