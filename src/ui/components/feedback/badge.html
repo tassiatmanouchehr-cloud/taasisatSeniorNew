@@ -1,0 +1,39 @@
+{# Badge Component
+   Usage:
+     {% include "ui/components/feedback/badge.html" with label="جدید" variant="primary" %}
+     {% include "ui/components/feedback/badge.html" with label="۳" variant="danger" pill=True %}
+
+   Props:
+     label   — Badge text (required)
+     variant — primary|secondary|success|warning|danger|info|neutral (default: neutral)
+     size    — xs|sm|md (default: sm)
+     pill    — true/false (fully rounded)
+     dot     — true/false (show dot indicator before text)
+#}
+{% with variant=variant|default:"neutral" size=size|default:"sm" %}
+<span class="inline-flex items-center gap-1 font-medium
+             {% if pill %}rounded-full{% else %}rounded{% endif %}
+             {% if size == 'xs' %}px-1.5 py-0.5 text-xs
+             {% elif size == 'sm' %}px-2 py-0.5 text-xs
+             {% elif size == 'md' %}px-2.5 py-1 text-sm
+             {% endif %}
+             {% if variant == 'primary' %}bg-primary-100 text-primary-700 dark:bg-primary-50 dark:text-primary-600
+             {% elif variant == 'secondary' %}bg-secondary-100 text-secondary-700 dark:bg-secondary-200 dark:text-secondary-800
+             {% elif variant == 'success' %}bg-success-100 text-success-700 dark:bg-success-50 dark:text-success-600
+             {% elif variant == 'warning' %}bg-warning-100 text-warning-700 dark:bg-warning-50 dark:text-warning-600
+             {% elif variant == 'danger' %}bg-danger-100 text-danger-700 dark:bg-danger-50 dark:text-danger-600
+             {% elif variant == 'info' %}bg-info-100 text-info-700 dark:bg-info-50 dark:text-info-600
+             {% elif variant == 'neutral' %}bg-background-alt text-text-muted
+             {% endif %}">
+  {% if dot %}
+  <span class="w-1.5 h-1.5 rounded-full
+               {% if variant == 'primary' %}bg-primary
+               {% elif variant == 'success' %}bg-success
+               {% elif variant == 'warning' %}bg-warning
+               {% elif variant == 'danger' %}bg-danger
+               {% elif variant == 'info' %}bg-info
+               {% else %}bg-text-muted{% endif %}" aria-hidden="true"></span>
+  {% endif %}
+  {{ label }}
+</span>
+{% endwith %}

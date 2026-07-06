@@ -1,0 +1,62 @@
+{# Skeleton / Loading Placeholder Component
+   Usage:
+     {% include "ui/components/feedback/skeleton.html" with type="text" %}
+     {% include "ui/components/feedback/skeleton.html" with type="avatar" %}
+     {% include "ui/components/feedback/skeleton.html" with type="card" %}
+
+   Props:
+     type   — text|title|avatar|circle|card|image|button (default: text)
+     lines  — Number of text lines (for type=text, default: 3)
+     width  — Custom width class (e.g., "w-32")
+     height — Custom height class (e.g., "h-4")
+#}
+{% with type=type|default:"text" lines=lines|default:"3" %}
+
+{% if type == "text" %}
+<div class="space-y-2.5 animate-pulse" aria-hidden="true">
+  {% for i in "123"|make_list %}
+  {% if forloop.counter <= lines|add:"0" %}
+  <div class="h-3 bg-background-alt rounded {% if forloop.last %}w-3/4{% else %}w-full{% endif %}"></div>
+  {% endif %}
+  {% endfor %}
+</div>
+
+{% elif type == "title" %}
+<div class="animate-pulse" aria-hidden="true">
+  <div class="h-5 bg-background-alt rounded w-2/3"></div>
+</div>
+
+{% elif type == "avatar" %}
+<div class="animate-pulse" aria-hidden="true">
+  <div class="w-10 h-10 bg-background-alt rounded-full"></div>
+</div>
+
+{% elif type == "circle" %}
+<div class="animate-pulse" aria-hidden="true">
+  <div class="{{ width|default:'w-12' }} {{ height|default:'h-12' }} bg-background-alt rounded-full"></div>
+</div>
+
+{% elif type == "card" %}
+<div class="animate-pulse space-y-4 p-4 border border-border rounded-lg" aria-hidden="true">
+  <div class="h-32 bg-background-alt rounded"></div>
+  <div class="space-y-2">
+    <div class="h-4 bg-background-alt rounded w-3/4"></div>
+    <div class="h-3 bg-background-alt rounded w-full"></div>
+    <div class="h-3 bg-background-alt rounded w-5/6"></div>
+  </div>
+</div>
+
+{% elif type == "image" %}
+<div class="animate-pulse" aria-hidden="true">
+  <div class="{{ width|default:'w-full' }} {{ height|default:'h-48' }} bg-background-alt rounded-lg"></div>
+</div>
+
+{% elif type == "button" %}
+<div class="animate-pulse" aria-hidden="true">
+  <div class="h-9 bg-background-alt rounded-lg {{ width|default:'w-24' }}"></div>
+</div>
+
+{% endif %}
+
+<span class="sr-only">در حال بارگذاری...</span>
+{% endwith %}

@@ -1,0 +1,30 @@
+{# Loader / Spinner Component
+   Usage:
+     {% include "ui/components/feedback/loader.html" %}
+     {% include "ui/components/feedback/loader.html" with size="lg" label="در حال بارگذاری..." %}
+
+   Props:
+     size  — sm|md|lg|xl (default: md)
+     label — Screen reader text (default: "در حال بارگذاری")
+     variant — primary|secondary|white (default: primary)
+#}
+{% with size=size|default:"md" variant=variant|default:"primary" label=label|default:"در حال بارگذاری" %}
+<div class="inline-flex items-center gap-inline-2" role="status" aria-label="{{ label }}">
+  <svg class="animate-spin
+              {% if size == 'sm' %}w-4 h-4
+              {% elif size == 'md' %}w-5 h-5
+              {% elif size == 'lg' %}w-8 h-8
+              {% elif size == 'xl' %}w-12 h-12
+              {% endif %}
+              {% if variant == 'primary' %}text-primary
+              {% elif variant == 'secondary' %}text-text-muted
+              {% elif variant == 'white' %}text-white
+              {% endif %}"
+       xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+       aria-hidden="true">
+    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+  </svg>
+  <span class="sr-only">{{ label }}</span>
+</div>
+{% endwith %}
