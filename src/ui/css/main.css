@@ -20,6 +20,8 @@
 @import '../themes/light.css';
 /* Dark theme — overrides via .dark class */
 @import '../themes/dark.css';
+/* Typography system (font-face, base styles, fluid type) */
+@import './typography.css';
 
 @tailwind components;
 @tailwind utilities;

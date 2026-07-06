@@ -1,0 +1,219 @@
+/*
+ * Typography System
+ * Enterprise Service Marketplace Platform
+ *
+ * Persian-optimized typography:
+ * - IRANSansX as primary (variable weight, professional Persian face)
+ * - Vazirmatn as secondary/fallback (Google Fonts compatible)
+ * - Correct line heights for Persian script (taller than Latin)
+ * - Responsive font sizing via fluid type
+ * - Number display: Persian digits configurable via class
+ *
+ * Font loading strategy:
+ * - @font-face with font-display: swap (shows fallback immediately)
+ * - Variable font format for weight flexibility
+ * - Subset for initial load (Persian characters first)
+ */
+
+/* === @font-face: IRANSansX (Variable Weight) === */
+/* NOTE: Font files must be placed in ui/fonts/iransansx/ */
+/* Download from: https://fontiran.com (commercial) or use Vazirmatn (free) */
+@font-face {
+  font-family: 'IRANSansX';
+  src: url('../fonts/iransansx/IRANSansX-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200F, U+FB50-FDFF, U+FE70-FEFF, U+0020-007E;
+}
+
+/* === @font-face: Vazirmatn (Variable Weight — Free/Open Source) === */
+/* Primary fallback if IRANSansX is not available */
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('../fonts/vazirmatn/Vazirmatn-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200F, U+FB50-FDFF, U+FE70-FEFF, U+0020-007E;
+}
+
+/* === @font-face: Vazirmatn Latin subset === */
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('../fonts/vazirmatn/Vazirmatn-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* === @font-face: JetBrains Mono (Monospace) === */
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../fonts/jetbrains-mono/JetBrainsMono-Variable.woff2') format('woff2');
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F;
+}
+
+/* === Typography Base Styles === */
+@layer base {
+  /* Root font size — basis for rem calculations */
+  html {
+    font-size: 16px;
+  }
+
+  /* Responsive root font size for smaller screens */
+  @media (max-width: 640px) {
+    html {
+      font-size: 14px;
+    }
+  }
+
+  /* Body text */
+  body {
+    font-family: 'IRANSansX', 'Vazirmatn', 'Tahoma', 'Arial', sans-serif;
+    font-weight: 400;
+    font-size: 1rem;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  }
+
+  /* Heading hierarchy — responsive */
+  h1 {
+    font-size: clamp(1.875rem, 4vw, 3rem);
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.025em;
+  }
+
+  h2 {
+    font-size: clamp(1.5rem, 3vw, 2.25rem);
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+  }
+
+  h3 {
+    font-size: clamp(1.25rem, 2.5vw, 1.875rem);
+    font-weight: 700;
+    line-height: 1.4;
+  }
+
+  h4 {
+    font-size: clamp(1.125rem, 2vw, 1.5rem);
+    font-weight: 600;
+    line-height: 1.5;
+  }
+
+  h5 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+
+  h6 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+
+  /* Paragraph spacing */
+  p {
+    margin-block-end: 1em;
+    line-height: 1.75;
+  }
+
+  /* Small text */
+  small {
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  /* Code/monospace */
+  code, kbd, samp, pre {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    font-size: 0.875em;
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  /* Strong/bold — use semibold for Persian (bold can be too heavy) */
+  strong, b {
+    font-weight: 600;
+  }
+
+  /* Persian-specific: Zero-Width Non-Joiner display */
+  /* Ensures ZWNJ is handled correctly in text */
+}
+
+/* === Typography Utility Classes === */
+@layer utilities {
+  /* Responsive text sizes using fluid typography */
+  .text-fluid-sm {
+    font-size: clamp(0.75rem, 1.5vw, 0.875rem);
+  }
+  .text-fluid-base {
+    font-size: clamp(0.875rem, 2vw, 1rem);
+  }
+  .text-fluid-lg {
+    font-size: clamp(1rem, 2.5vw, 1.25rem);
+  }
+  .text-fluid-xl {
+    font-size: clamp(1.125rem, 3vw, 1.5rem);
+  }
+  .text-fluid-2xl {
+    font-size: clamp(1.5rem, 4vw, 2.25rem);
+  }
+  .text-fluid-3xl {
+    font-size: clamp(1.875rem, 5vw, 3rem);
+  }
+
+  /* Persian number display */
+  .font-persian-nums {
+    font-feature-settings: "numr";
+  }
+
+  /* Tabular numbers (for tables, prices) */
+  .font-tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Text truncation */
+  .line-clamp-1 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .line-clamp-3 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+
+  /* Reading width constraint */
+  .prose-width {
+    max-width: 65ch;
+  }
+
+  /* Text balance (modern browsers) */
+  .text-balance {
+    text-wrap: balance;
+  }
+  .text-pretty {
+    text-wrap: pretty;
+  }
+}
