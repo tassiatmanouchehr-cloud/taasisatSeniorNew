@@ -310,7 +310,67 @@ python manage.py migrate
 # Expected: All migrations apply successfully, no ValueError
 ```
 
-### Issue 3: `db_table` with Schema Prefix
+### Issue 3: Policy Activation Immutability Conflict (FIXED)
+
+**Problem:** `PolicyServiceTest.test_activate_version_supersedes_previous` failed:
+```
+ValueError: Cannot modify fields {'approved_at', 'approved_by'} on an active policy version.
+Create a new version instead.
+```
+
+**Root cause:** Contradiction between `PolicyService.activate_version()` and `PolicyVersion.save()`.
+
+The activation flow is:
+1. Set `version.status = ACTIVE` (in memory)
+2. Set `version.approved_by = actor_id` (in memory)
+3. Set `version.approved_at = timezone.now()` (in memory)
+4. Call `version.save(update_fields=["status", "approved_by", "approved_at"])`
+
+The save() guard checks `self.status` — which is NOW `ACTIVE` (just set in step 1). It then sees `approved_by` and `approved_at` in `update_fields` and rejects them because they weren't in the original allowed set `{status, superseded_by, effective_until}`.
+
+**Previous behavior:** The guard only allowed `{status, superseded_by, effective_until}` on active/superseded versions. This blocked the activation transition itself from recording who approved it and when.
+
+**Corrected lifecycle:**
+```
+Draft version exists
+  ↓
+PolicyService.activate_version() called
+  ↓
+Sets: status=ACTIVE, approved_by=actor, approved_at=now
+  ↓
+Saves with update_fields: {status, approved_by, approved_at}
+  ↓
+save() guard allows these fields (part of governance transition)
+  ↓
+Version is now ACTIVE and IMMUTABLE for business content
+```
+
+**Fix:** Expanded the `allowed_on_active` set in `PolicyVersion.save()`:
+```python
+allowed_on_active = {
+    "status",           # lifecycle transitions (active → superseded)
+    "superseded_by",    # records which version replaced this one
+    "effective_until",  # set when superseded
+    "approved_by",      # set during activation (draft → active)
+    "approved_at",      # set during activation (draft → active)
+}
+```
+
+**Why immutability is still protected:**
+- `rule_payload` (the actual policy rules) is NOT in `allowed_on_active`
+- `version_number`, `policy`, `validation_schema`, `effective_from`, `change_reason`, `created_by` — all still forbidden
+- Only governance/lifecycle metadata can be modified after activation
+- A test (`test_rule_payload_immutable_after_activation`) explicitly verifies that `rule_payload` modification raises `ValueError`
+
+**Files changed:** `apps/kernel/models/policy.py`, `apps/kernel/tests/test_policy.py`
+
+**Verification:**
+```bash
+python manage.py test apps.kernel.tests.test_policy --verbosity=2
+# Expected: 8 tests pass (7 original + 1 new immutability test)
+```
+
+### Issue 4: `db_table` with Schema Prefix
 
 Django uses `db_table = 'kernel"."table_name'` to create tables in the `kernel` schema. This requires the schema to exist first (created by migration 0001).
 
@@ -319,7 +379,7 @@ Django uses `db_table = 'kernel"."table_name'` to create tables in the `kernel` 
 GRANT CREATE ON DATABASE marketplace TO marketplace;
 ```
 
-### Issue 4: Hand-Written Migrations vs. makemigrations
+### Issue 5: Hand-Written Migrations vs. makemigrations
 
 The Sprint 2 migrations (0005-0010) were hand-written to match the model definitions. Django's `makemigrations` may generate slightly different migration code (field ordering, manager references, etc.).
 
@@ -329,13 +389,13 @@ The Sprint 2 migrations (0005-0010) were hand-written to match the model definit
 3. Verify the generated migrations create the correct tables
 4. Commit the corrected migrations
 
-### Issue 5: UserAccountManager in Migration
+### Issue 6: UserAccountManager in Migration
 
 The migration for UserAccount (0003) references `django.contrib.auth.models.UserManager` instead of the custom `UserAccountManager`. This may cause a warning but should not prevent migration.
 
 **Fix if needed:** Update migration 0003 to reference the correct manager path.
 
-### Issue 6: PostGIS Not Available
+### Issue 7: PostGIS Not Available
 
 If PostGIS extension is not installed on the PostgreSQL server:
 
@@ -348,7 +408,7 @@ And remove `"django.contrib.gis"` from `INSTALLED_APPS` in `config/settings/base
 
 This is a temporary fix for validation only. PostGIS will be required for Module 10 (Geospatial).
 
-### Issue 7: Celery Import on Startup
+### Issue 8: Celery Import on Startup
 
 `config/__init__.py` imports `celery_app` from `config/celery.py`. If Celery fails to import (e.g., broker connection error), Django won't start.
 

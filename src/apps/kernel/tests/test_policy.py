@@ -145,3 +145,22 @@ class PolicyServiceTest(TestCase):
         )
         with self.assertRaises(ValueError):
             PolicyService.activate_version(v.id)
+
+
+    def test_rule_payload_immutable_after_activation(self):
+        """Verify that rule_payload cannot be changed on an active version."""
+        v = PolicyService.create_policy(
+            tenant_id=self.tenant_id,
+            policy_type="immutable_test",
+            name="Immutable Test",
+            owner_module="M99",
+            rule_payload={"original": True},
+            auto_activate=True,
+        )
+        self.assertEqual(v.status, PolicyVersionStatus.ACTIVE)
+
+        # Attempt to modify rule_payload on active version
+        v.rule_payload = {"modified": True}
+        with self.assertRaises(ValueError) as ctx:
+            v.save(update_fields=["rule_payload"])
+        self.assertIn("rule_payload", str(ctx.exception))

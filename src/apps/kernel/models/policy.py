@@ -215,16 +215,33 @@ class PolicyVersion(models.Model):
         return f"{self.policy.name} v{self.version_number} [{self.status}]"
 
     def save(self, *args, **kwargs):
-        """Enforce immutability for active/superseded versions."""
+        """
+        Enforce immutability for active/superseded versions.
+
+        Allowed modifications on active/superseded versions (governance fields):
+        - status (for lifecycle transitions: active → superseded)
+        - superseded_by (records which version replaced this one)
+        - effective_until (set when superseded)
+        - approved_by (set during activation transition: draft → active)
+        - approved_at (set during activation transition: draft → active)
+
+        Forbidden modifications on active/superseded versions:
+        - rule_payload (the actual policy rules — immutable after activation)
+        - version_number, policy, validation_schema, effective_from, etc.
+        """
         if not self._state.adding:
-            # Allow status transitions but not payload changes on activated versions
             if self.status in (PolicyVersionStatus.ACTIVE, PolicyVersionStatus.SUPERSEDED):
-                # Only allow updating: status, superseded_by, effective_until
                 allowed_update_fields = kwargs.get("update_fields")
                 if allowed_update_fields:
-                    forbidden = set(allowed_update_fields) - {
-                        "status", "superseded_by", "effective_until",
+                    # These fields may be modified during lifecycle transitions
+                    allowed_on_active = {
+                        "status",
+                        "superseded_by",
+                        "effective_until",
+                        "approved_by",
+                        "approved_at",
                     }
+                    forbidden = set(allowed_update_fields) - allowed_on_active
                     if forbidden:
                         raise ValueError(
                             f"Cannot modify fields {forbidden} on an "
