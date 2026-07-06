@@ -1,0 +1,31 @@
+{# Breadcrumb Component
+   Usage:
+     {% include "ui/components/data/breadcrumb.html" with items=breadcrumbs %}
+
+   Props:
+     items — list of {label, href?, icon?} dicts (last item is current page, no link)
+#}
+<nav aria-label="مسیر ناوبری">
+  <ol class="flex items-center gap-inline-1.5 text-sm text-text-muted flex-wrap">
+    {% for item in items %}
+    <li class="inline-flex items-center">
+      {% if not forloop.last %}
+      <a href="{{ item.href|default:'#' }}"
+         class="inline-flex items-center gap-1 hover:text-text transition-colors no-underline text-text-muted">
+        {% if item.icon %}<span aria-hidden="true">{{ item.icon }}</span>{% endif %}
+        {{ item.label }}
+      </a>
+      <!-- Separator -->
+      <svg class="w-4 h-4 text-border-strong mx-1.5 icon-directional shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+      {% else %}
+      <span class="font-medium text-text" aria-current="page">
+        {% if item.icon %}<span aria-hidden="true">{{ item.icon }}</span>{% endif %}
+        {{ item.label }}
+      </span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+</nav>

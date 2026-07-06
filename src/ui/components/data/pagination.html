@@ -1,0 +1,66 @@
+{# Pagination Component
+   Usage:
+     {% include "ui/components/data/pagination.html" with current=3 total_pages=10 %}
+
+   Props:
+     current     — Current page number
+     total_pages — Total number of pages
+     base_url    — URL pattern (page num appended or replaced)
+     show_info   — true/false (show "صفحه X از Y")
+     size        — sm|md (default: md)
+#}
+{% with size=size|default:"md" %}
+<nav aria-label="صفحه‌بندی" class="flex items-center justify-between gap-4">
+  {% if show_info %}
+  <p class="text-sm text-text-muted">
+    صفحه <span class="font-medium text-text ltr-value">{{ current }}</span>
+    از <span class="font-medium text-text ltr-value">{{ total_pages }}</span>
+  </p>
+  {% endif %}
+
+  <div class="flex items-center gap-inline-1">
+    <!-- Previous -->
+    <a href="{% if current > 1 %}{{ base_url }}?page={{ current|add:'-1' }}{% else %}#{% endif %}"
+       class="inline-flex items-center justify-center rounded-lg border border-border
+              transition-colors no-underline
+              {% if size == 'sm' %}w-8 h-8 text-sm{% else %}w-9 h-9 text-sm{% endif %}
+              {% if current <= 1 %}opacity-50 pointer-events-none text-text-disabled
+              {% else %}text-text-muted hover:bg-background-alt hover:text-text{% endif %}"
+       {% if current <= 1 %}aria-disabled="true" tabindex="-1"{% endif %}
+       aria-label="صفحه قبل">
+      <svg class="w-4 h-4 icon-directional" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+      </svg>
+    </a>
+
+    <!-- Page numbers (simplified — shows current ± 2) -->
+    {% for page_num in page_range %}
+    <a href="{{ base_url }}?page={{ page_num }}"
+       class="inline-flex items-center justify-center rounded-lg transition-colors no-underline
+              {% if size == 'sm' %}w-8 h-8 text-xs{% else %}w-9 h-9 text-sm{% endif %}
+              {% if page_num == current %}
+                bg-primary text-text-inverse font-semibold
+              {% else %}
+                text-text-muted hover:bg-background-alt hover:text-text border border-transparent
+              {% endif %}"
+       {% if page_num == current %}aria-current="page"{% endif %}>
+      <span class="ltr-value">{{ page_num }}</span>
+    </a>
+    {% endfor %}
+
+    <!-- Next -->
+    <a href="{% if current < total_pages %}{{ base_url }}?page={{ current|add:'1' }}{% else %}#{% endif %}"
+       class="inline-flex items-center justify-center rounded-lg border border-border
+              transition-colors no-underline
+              {% if size == 'sm' %}w-8 h-8 text-sm{% else %}w-9 h-9 text-sm{% endif %}
+              {% if current >= total_pages %}opacity-50 pointer-events-none text-text-disabled
+              {% else %}text-text-muted hover:bg-background-alt hover:text-text{% endif %}"
+       {% if current >= total_pages %}aria-disabled="true" tabindex="-1"{% endif %}
+       aria-label="صفحه بعد">
+      <svg class="w-4 h-4 icon-directional" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+    </a>
+  </div>
+</nav>
+{% endwith %}

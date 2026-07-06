@@ -1,0 +1,67 @@
+{# Table Component
+   Usage:
+     {% include "ui/components/data/table.html" with columns=cols rows=rows %}
+
+   Props:
+     columns  — list of {key, label, sortable?, align?, width?} dicts
+     rows     — list of row dicts (keys match column.key)
+     striped  — true/false (alternating row colors)
+     hoverable — true/false (hover highlight)
+     compact  — true/false (smaller padding)
+     empty_message — Text when no rows
+     sort_key — Currently sorted column key
+     sort_dir — asc|desc
+#}
+{% with striped=striped|default:"false" hoverable=hoverable|default:"true" compact=compact|default:"false" %}
+<div class="w-full overflow-x-auto rounded-lg border border-border">
+  <table class="w-full text-sm text-text" role="table">
+    <!-- Table Head -->
+    <thead class="bg-background-alt text-text-muted text-xs uppercase tracking-wide">
+      <tr>
+        {% for col in columns %}
+        <th scope="col"
+            class="{% if compact == 'true' %}px-3 py-2{% else %}px-4 py-3{% endif %}
+                   text-start font-semibold whitespace-nowrap
+                   {% if col.width %}{{ col.width }}{% endif %}"
+            {% if col.sortable %}aria-sort="{% if sort_key == col.key %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}"{% endif %}>
+          {% if col.sortable %}
+          <button class="inline-flex items-center gap-inline-1 hover:text-text transition-colors"
+                  type="button"
+                  {{ col.sort_attrs|default:"" }}>
+            {{ col.label }}
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
+            </svg>
+          </button>
+          {% else %}
+          {{ col.label }}
+          {% endif %}
+        </th>
+        {% endfor %}
+      </tr>
+    </thead>
+
+    <!-- Table Body -->
+    <tbody class="divide-y divide-border">
+      {% for row in rows %}
+      <tr class="{% if striped == 'true' and forloop.counter|divisibleby:2 %}bg-background-alt/50{% endif %}
+                 {% if hoverable == 'true' %}hover:bg-background-alt transition-colors{% endif %}">
+        {% for col in columns %}
+        <td class="{% if compact == 'true' %}px-3 py-2{% else %}px-4 py-3{% endif %}
+                   {% if col.align == 'center' %}text-center{% elif col.align == 'end' %}text-end{% else %}text-start{% endif %}
+                   whitespace-nowrap">
+          {{ row|get_item:col.key|default:"—" }}
+        </td>
+        {% endfor %}
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="{{ columns|length }}" class="px-4 py-8 text-center text-text-muted">
+          {{ empty_message|default:"موردی یافت نشد." }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endwith %}

@@ -1,0 +1,37 @@
+{# Empty State Component
+   Usage:
+     {% include "ui/components/data/empty_state.html" with title="سفارشی یافت نشد" %}
+
+   Props:
+     title       — Main heading
+     description — Supporting text
+     icon        — SVG or emoji icon
+     action_label — Button text (optional)
+     action_href  — Button link
+     action_attrs — Extra attrs on button (e.g., hx-get)
+#}
+<div class="flex flex-col items-center justify-center py-12 px-4 text-center">
+  {% if icon %}
+  <div class="mb-4 text-text-muted" aria-hidden="true">
+    <div class="w-16 h-16 mx-auto flex items-center justify-center rounded-full
+                bg-background-alt text-3xl">
+      {{ icon }}
+    </div>
+  </div>
+  {% endif %}
+
+  <h3 class="text-lg font-semibold text-text mb-1">{{ title }}</h3>
+
+  {% if description %}
+  <p class="text-sm text-text-muted max-w-sm mb-6">{{ description }}</p>
+  {% endif %}
+
+  {% if action_label %}
+  <a {% if action_href %}href="{{ action_href }}"{% endif %}
+     class="inline-flex items-center px-4 py-2 bg-primary text-text-inverse rounded-lg
+            font-semibold text-sm hover:bg-primary-700 transition-colors no-underline"
+     {{ action_attrs|default:"" }}>
+    {{ action_label }}
+  </a>
+  {% endif %}
+</div>

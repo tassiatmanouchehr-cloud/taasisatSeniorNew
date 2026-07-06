@@ -1,0 +1,44 @@
+{# Timeline Component
+   Usage:
+     {% include "ui/components/data/timeline.html" with items=timeline_items %}
+
+   Props:
+     items — list of {title, description, time, icon?, variant?} dicts
+     variant color: primary|success|warning|danger|neutral
+#}
+<div class="relative" role="list" aria-label="خط زمانی">
+  <!-- Vertical line -->
+  <div class="absolute inset-inline-start-4 top-0 bottom-0 w-0.5 bg-border" aria-hidden="true"></div>
+
+  <div class="space-y-6">
+    {% for item in items %}
+    <div class="relative flex gap-inline-4 ps-4" role="listitem">
+      <!-- Dot -->
+      <div class="absolute inset-inline-start-0 mt-1.5 w-8 flex items-center justify-center" aria-hidden="true">
+        <div class="w-3 h-3 rounded-full border-2 border-surface
+                    {% if item.variant == 'success' %}bg-success
+                    {% elif item.variant == 'warning' %}bg-warning
+                    {% elif item.variant == 'danger' %}bg-danger
+                    {% elif item.variant == 'primary' %}bg-primary
+                    {% else %}bg-border-strong{% endif %}">
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="flex-1 min-w-0 ps-6">
+        <div class="flex items-center justify-between gap-2">
+          <p class="text-sm font-medium text-text">{{ item.title }}</p>
+          {% if item.time %}
+          <time class="shrink-0 text-xs text-text-muted ltr-value" {% if item.datetime %}datetime="{{ item.datetime }}"{% endif %}>
+            {{ item.time }}
+          </time>
+          {% endif %}
+        </div>
+        {% if item.description %}
+        <p class="mt-1 text-sm text-text-muted">{{ item.description }}</p>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>

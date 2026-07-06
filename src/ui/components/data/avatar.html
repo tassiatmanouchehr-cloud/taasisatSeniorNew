@@ -1,0 +1,43 @@
+{# Avatar Component
+   Usage:
+     {% include "ui/components/data/avatar.html" with src="/img/user.jpg" name="علی" %}
+     {% include "ui/components/data/avatar.html" with name="محمد" size="lg" %}
+
+   Props:
+     src    — Image URL (if not provided, shows initials)
+     name   — Full name (for alt text and initial fallback)
+     size   — xs|sm|md|lg|xl (default: md)
+     status — online|offline|busy|away (optional dot indicator)
+     ring   — true/false (show ring border)
+#}
+{% with size=size|default:"md" %}
+<div class="relative inline-flex items-center justify-center shrink-0
+            rounded-full bg-primary-100 text-primary-700 dark:bg-primary-50 dark:text-primary-400
+            font-semibold select-none overflow-hidden
+            {% if ring %}ring-2 ring-surface{% endif %}
+            {% if size == 'xs' %}w-6 h-6 text-xs
+            {% elif size == 'sm' %}w-8 h-8 text-sm
+            {% elif size == 'md' %}w-10 h-10 text-sm
+            {% elif size == 'lg' %}w-12 h-12 text-base
+            {% elif size == 'xl' %}w-16 h-16 text-lg
+            {% endif %}"
+     {% if name %}aria-label="{{ name }}"{% endif %}>
+  {% if src %}
+  <img src="{{ src }}" alt="{{ name|default:'' }}" class="w-full h-full object-cover" loading="lazy">
+  {% else %}
+  <span aria-hidden="true">{{ name|make_list|first|default:"?" }}</span>
+  {% endif %}
+
+  {% if status %}
+  <span class="absolute bottom-0 inset-inline-end-0 block rounded-full ring-2 ring-surface
+               {% if size == 'xs' or size == 'sm' %}w-2 h-2
+               {% else %}w-3 h-3{% endif %}
+               {% if status == 'online' %}bg-success
+               {% elif status == 'offline' %}bg-text-disabled
+               {% elif status == 'busy' %}bg-danger
+               {% elif status == 'away' %}bg-warning
+               {% endif %}" aria-label="{{ status }}">
+  </span>
+  {% endif %}
+</div>
+{% endwith %}
