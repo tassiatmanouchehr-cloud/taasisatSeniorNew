@@ -110,3 +110,17 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Celery — Task queue with Redis broker
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "UTC"
+CELERY_ENABLE_UTC = True
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 300  # 5 minutes hard limit
+CELERY_TASK_SOFT_TIME_LIMIT = 240  # 4 minutes soft limit
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # Fair scheduling
+CELERY_TASK_ACKS_LATE = True  # Acknowledge after execution (crash safety)
