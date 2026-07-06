@@ -63,10 +63,11 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-# Database — PostgreSQL with PostGIS
+# Database — PostgreSQL with PostGIS (default), configurable via env
+# Use DATABASE_ENGINE env var to override (e.g., 'django.db.backends.postgresql' without GIS)
 DATABASES = {
     "default": {
-        "ENGINE": "django.contrib.gis.db.backends.postgis",
+        "ENGINE": os.environ.get("DATABASE_ENGINE", "django.contrib.gis.db.backends.postgis"),
         "NAME": os.environ.get("DATABASE_NAME", "marketplace"),
         "USER": os.environ.get("DATABASE_USER", "marketplace"),
         "PASSWORD": os.environ.get("DATABASE_PASSWORD", "marketplace"),
@@ -87,18 +88,26 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-# Cache — Redis
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": os.environ.get("REDIS_URL", "redis://localhost:6379/0"),
-        "OPTIONS": {
-            "db": 0,
-        },
-        "KEY_PREFIX": "mkt",
-        "TIMEOUT": 300,
+# Cache — Redis (default), with fallback to local memory if REDIS_URL not set
+_redis_url = os.environ.get("REDIS_URL", "")
+if _redis_url:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": _redis_url,
+            "KEY_PREFIX": "mkt",
+            "TIMEOUT": 300,
+        }
     }
-}
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "marketplace-cache",
+            "KEY_PREFIX": "mkt",
+            "TIMEOUT": 300,
+        }
+    }
 
 # Internationalization
 LANGUAGE_CODE = "fa-ir"
@@ -118,6 +127,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "kernel.UserAccount"
 
 # Celery — Task queue with Redis broker
+# Falls back to synchronous execution if no broker configured
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
 CELERY_ACCEPT_CONTENT = ["json"]
