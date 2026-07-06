@@ -10,6 +10,7 @@ from .configuration import (
     ValueType,
 )
 from .event_outbox import AuditClass, EventOutbox, EventStatus, PrivacyClass
+from .feature_flag import FeatureFlag, FlagStatus, FlagType
 from .rbac import Permission, Role, RoleAssignment
 from .tenant import Tenant, TenantStatus
 from .user import Person, PersonStatus, UserAccount
@@ -35,4 +36,7 @@ __all__ = [
     "ValueType",
     "OverridePolicy",
     "ActivationMode",
+    "FeatureFlag",
+    "FlagType",
+    "FlagStatus",
 ]
