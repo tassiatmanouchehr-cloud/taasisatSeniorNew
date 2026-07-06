@@ -1,0 +1,16 @@
+# Core dependencies — Enterprise Service Marketplace Platform
+# Phase 1 Sprint 1
+
+django>=5.1,<5.3
+djangorestframework>=3.15,<4.0
+djangorestframework-simplejwt>=5.3,<6.0
+django-filter>=24.0,<25.0
+drf-spectacular>=0.27,<1.0
+psycopg[binary]>=3.1,<4.0
+django-redis>=5.4,<6.0
+celery[redis]>=5.4,<6.0
+django-celery-beat>=2.6,<3.0
+django-cors-headers>=4.3,<5.0
+python-decouple>=3.8,<4.0
+jdatetime>=5.0,<6.0
+gunicorn>=22.0,<23.0

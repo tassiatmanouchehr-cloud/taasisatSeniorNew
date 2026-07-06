@@ -1,0 +1,28 @@
+[project]
+name = "marketplace-platform"
+version = "0.1.0"
+description = "Enterprise Service Marketplace Platform — Generic Service Marketplace Framework"
+requires-python = ">=3.12"
+license = {text = "Proprietary"}
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "COM", "C4", "DJ", "T20", "SIM"]
+ignore = ["COM812", "E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "config"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.testing"
+python_files = ["tests.py", "test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
