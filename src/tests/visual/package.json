@@ -1,0 +1,19 @@
+{
+  "name": "marketplace-visual-tests",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Visual regression tests for the Enterprise Service Marketplace UI",
+  "scripts": {
+    "test": "playwright test",
+    "test:update": "playwright test --update-snapshots",
+    "test:ui": "playwright test --ui",
+    "test:report": "playwright show-report ./report",
+    "test:desktop": "playwright test --project='desktop-light-rtl'",
+    "test:dark": "playwright test --project='desktop-dark-rtl'",
+    "test:mobile": "playwright test --project='mobile-light-rtl'",
+    "install-browsers": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44"
+  }
+}

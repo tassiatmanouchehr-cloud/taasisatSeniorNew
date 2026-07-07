@@ -1,0 +1,7 @@
+# Visual test outputs (not committed)
+results/
+report/
+node_modules/
+
+# Baselines ARE committed (they are the reference)
+# !baselines/
