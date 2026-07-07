@@ -1,0 +1,83 @@
+{# Status Illustrations — for full-page feedback states
+   Usage:
+     {% include "ui/components/illustrations/status_svg.html" with variant="success" %}
+     {% include "ui/components/illustrations/status_svg.html" with variant="error_404" size="lg" %}
+
+   Props:
+     variant — success|error_generic|error_404|error_500|error_403|warning|info
+     size    — sm|md|lg (default: md)
+
+   These are larger, more expressive than empty_state illustrations.
+   Used for full-page status pages (not inline components).
+#}
+{% with size=size|default:"md" %}
+<svg class="{% if size == 'sm' %}w-32 h-32
+           {% elif size == 'md' %}w-48 h-48
+           {% elif size == 'lg' %}w-64 h-64
+           {% endif %}"
+     viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg"
+     aria-hidden="true">
+
+{% if variant == "success" %}
+{# Large success — circle with animated-ready checkmark #}
+<circle cx="100" cy="100" r="70" class="fill-success-100 dark:fill-success-50"/>
+<circle cx="100" cy="100" r="70" class="stroke-success" stroke-width="3" fill="none"/>
+<path d="M65 100l20 20 50-50" class="stroke-success" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<circle cx="100" cy="100" r="85" class="stroke-success opacity-20" stroke-width="1" fill="none" stroke-dasharray="8 4"/>
+
+{% elif variant == "error_generic" %}
+{# Generic error — broken circle with exclamation #}
+<circle cx="100" cy="100" r="70" class="fill-danger-100 dark:fill-danger-50"/>
+<circle cx="100" cy="100" r="70" class="stroke-danger" stroke-width="3" fill="none" stroke-dasharray="200 50"/>
+<line x1="100" y1="70" x2="100" y2="110" class="stroke-danger" stroke-width="6" stroke-linecap="round"/>
+<circle cx="100" cy="125" r="4" class="fill-danger"/>
+
+{% elif variant == "error_404" %}
+{# 404 — magnifying glass searching empty space #}
+<rect x="40" y="40" width="120" height="90" rx="8" class="fill-background-alt stroke-border" stroke-width="2"/>
+<path d="M40 55h120" class="stroke-border" stroke-width="2"/>
+<circle cx="48" cy="48" r="2.5" class="fill-danger"/>
+<circle cx="56" cy="48" r="2.5" class="fill-warning"/>
+<circle cx="64" cy="48" r="2.5" class="fill-success"/>
+<text x="70" y="100" class="fill-border" font-size="36" font-weight="bold" font-family="sans-serif">404</text>
+<circle cx="140" cy="145" r="20" class="stroke-primary" stroke-width="3" fill="none"/>
+<line x1="154" y1="159" x2="170" y2="175" class="stroke-primary" stroke-width="4" stroke-linecap="round"/>
+
+{% elif variant == "error_500" %}
+{# 500 — broken server/gear #}
+<rect x="60" y="35" width="80" height="110" rx="8" class="fill-background-alt stroke-border" stroke-width="2"/>
+<rect x="75" y="50" width="50" height="6" rx="3" class="fill-border"/>
+<rect x="75" y="62" width="40" height="6" rx="3" class="fill-border opacity-60"/>
+<rect x="75" y="74" width="45" height="6" rx="3" class="fill-border opacity-40"/>
+<line x1="50" y1="100" x2="150" y2="100" class="stroke-danger" stroke-width="3" stroke-linecap="round" stroke-dasharray="8 4"/>
+<text x="72" y="130" class="fill-danger" font-size="24" font-weight="bold" font-family="sans-serif">500</text>
+<path d="M85 155l30 0" class="stroke-border" stroke-width="2"/>
+
+{% elif variant == "error_403" %}
+{# 403 — shield with lock #}
+<path d="M100 30l55 25v40c0 35-22 55-55 70-33-15-55-35-55-70V55l55-25z" class="fill-background-alt stroke-border" stroke-width="2"/>
+<rect x="82" y="85" width="36" height="30" rx="4" class="fill-warning-100 stroke-warning" stroke-width="2"/>
+<path d="M90 85V75a10 10 0 0120 0v10" class="stroke-warning" stroke-width="3" fill="none" stroke-linecap="round"/>
+<circle cx="100" cy="98" r="3" class="fill-warning"/>
+<rect x="98" y="100" width="4" height="8" rx="2" class="fill-warning"/>
+
+{% elif variant == "warning" %}
+{# Warning — large triangle #}
+<path d="M100 40L35 155h130L100 40z" class="fill-warning-100 dark:fill-warning-50 stroke-warning" stroke-width="3"/>
+<line x1="100" y1="80" x2="100" y2="115" class="stroke-warning" stroke-width="5" stroke-linecap="round"/>
+<circle cx="100" cy="132" r="4" class="fill-warning"/>
+
+{% elif variant == "info" %}
+{# Info — speech bubble with "i" #}
+<path d="M40 60c0-11 9-20 20-20h80c11 0 20 9 20 20v60c0 11-9 20-20 20H85l-20 20v-20H60c-11 0-20-9-20-20V60z" class="fill-info-100 dark:fill-info-50 stroke-info" stroke-width="2"/>
+<circle cx="100" cy="75" r="5" class="fill-info"/>
+<rect x="96" y="88" width="8" height="30" rx="4" class="fill-info"/>
+
+{% else %}
+{# Fallback #}
+<circle cx="100" cy="100" r="60" class="fill-background-alt stroke-border" stroke-width="2"/>
+<text x="80" y="108" class="fill-text-muted" font-size="20" font-family="sans-serif">?</text>
+
+{% endif %}
+</svg>
+{% endwith %}
