@@ -2,41 +2,74 @@
    Usage:
      {% include "ui/components/data/avatar.html" with src="/img/user.jpg" name="علی" %}
      {% include "ui/components/data/avatar.html" with name="محمد" size="lg" %}
+     {% include "ui/components/data/avatar.html" with name="شرکت نوآوران" type="org" %}
+     {% include "ui/components/data/avatar.html" with type="placeholder" %}
 
    Props:
-     src    — Image URL (if not provided, shows initials)
+     src    — Image URL (if not provided, shows initials or placeholder)
      name   — Full name (for alt text and initial fallback)
      size   — xs|sm|md|lg|xl (default: md)
+     type   — user|org|placeholder (default: user)
+              user = circle, initials from name
+              org = rounded-lg (square-ish), initials from name
+              placeholder = generic icon silhouette
      status — online|offline|busy|away (optional dot indicator)
      ring   — true/false (show ring border)
+     color  — primary|secondary|success|warning|danger (default: primary)
+              changes background color for initials mode
 #}
-{% with size=size|default:"md" %}
+{% with size=size|default:"md" type=type|default:"user" color=color|default:"primary" %}
 <div class="relative inline-flex items-center justify-center shrink-0
-            rounded-full bg-primary-100 text-primary-700 dark:bg-primary-50 dark:text-primary-400
             font-semibold select-none overflow-hidden
+            {% if type == 'org' %}rounded-lg{% else %}rounded-full{% endif %}
             {% if ring %}ring-2 ring-surface{% endif %}
+            {% if color == 'primary' %}bg-primary-100 text-primary-700 dark:bg-primary-50 dark:text-primary-400
+            {% elif color == 'secondary' %}bg-secondary-100 text-secondary-700 dark:bg-secondary-200 dark:text-secondary-400
+            {% elif color == 'success' %}bg-success-100 text-success-700 dark:bg-success-50 dark:text-success-600
+            {% elif color == 'warning' %}bg-warning-100 text-warning-700 dark:bg-warning-50 dark:text-warning-600
+            {% elif color == 'danger' %}bg-danger-100 text-danger-700 dark:bg-danger-50 dark:text-danger-600
+            {% endif %}
             {% if size == 'xs' %}w-6 h-6 text-xs
-            {% elif size == 'sm' %}w-8 h-8 text-sm
+            {% elif size == 'sm' %}w-8 h-8 text-xs
             {% elif size == 'md' %}w-10 h-10 text-sm
             {% elif size == 'lg' %}w-12 h-12 text-base
             {% elif size == 'xl' %}w-16 h-16 text-lg
             {% endif %}"
-     {% if name %}aria-label="{{ name }}"{% endif %}>
+     {% if name %}aria-label="{{ name }}"{% endif %}
+     role="img">
+
   {% if src %}
-  <img src="{{ src }}" alt="{{ name|default:'' }}" class="w-full h-full object-cover" loading="lazy">
-  {% else %}
+  {# Image mode #}
+  <img src="{{ src }}" alt="{{ name|default:'' }}"
+       class="w-full h-full object-cover" loading="lazy">
+
+  {% elif type == 'placeholder' %}
+  {# Placeholder mode — generic silhouette SVG #}
+  <svg class="w-3/5 h-3/5 text-current opacity-60" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M7.5 6.5C7.5 8.981 9.519 11 12 11s4.5-2.019 4.5-4.5S14.481 2 12 2 7.5 4.019 7.5 6.5zM20 21h1v-1c0-3.859-3.141-7-7-7h-4c-3.86 0-7 3.141-7 7v1h17z"/>
+  </svg>
+
+  {% elif name %}
+  {# Initials mode — first character of name #}
   <span aria-hidden="true">{{ name|make_list|first|default:"?" }}</span>
+
+  {% else %}
+  {# Fallback — question mark #}
+  <span aria-hidden="true" class="opacity-50">?</span>
   {% endif %}
 
+  {# Status indicator dot #}
   {% if status %}
   <span class="absolute bottom-0 inset-inline-end-0 block rounded-full ring-2 ring-surface
                {% if size == 'xs' or size == 'sm' %}w-2 h-2
+               {% elif size == 'md' %}w-2.5 h-2.5
                {% else %}w-3 h-3{% endif %}
                {% if status == 'online' %}bg-success
                {% elif status == 'offline' %}bg-text-disabled
                {% elif status == 'busy' %}bg-danger
                {% elif status == 'away' %}bg-warning
-               {% endif %}" aria-label="{{ status }}">
+               {% endif %}"
+       aria-label="{% if status == 'online' %}آنلاین{% elif status == 'offline' %}آفلاین{% elif status == 'busy' %}مشغول{% elif status == 'away' %}دور{% endif %}">
   </span>
   {% endif %}
 </div>

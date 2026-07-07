@@ -1,0 +1,55 @@
+{# Avatar Group Component — stacked overlapping avatars
+   Usage:
+     {% include "ui/components/data/avatar_group.html" with avatars=user_list max=5 %}
+
+   Props:
+     avatars — list of {name, src?, status?} dicts
+     max     — Maximum visible avatars (default: 5, overflow shows "+N")
+     size    — xs|sm|md|lg (default: md)
+     overlap — Amount of overlap (default determined by size)
+
+   The component renders avatars overlapping with negative margin,
+   plus a "+N" counter if there are more than `max`.
+#}
+{% with size=size|default:"md" max=max|default:"5" %}
+<div class="flex items-center -space-x-2 rtl:space-x-reverse"
+     aria-label="گروه کاربران">
+  {% for avatar in avatars %}
+  {% if forloop.counter <= max %}
+  <div class="relative inline-flex items-center justify-center shrink-0
+              rounded-full ring-2 ring-surface font-semibold select-none overflow-hidden
+              bg-primary-100 text-primary-700 dark:bg-primary-50 dark:text-primary-400
+              {% if size == 'xs' %}w-6 h-6 text-xs
+              {% elif size == 'sm' %}w-8 h-8 text-xs
+              {% elif size == 'md' %}w-10 h-10 text-sm
+              {% elif size == 'lg' %}w-12 h-12 text-base
+              {% endif %}"
+       aria-label="{{ avatar.name|default:'کاربر' }}">
+    {% if avatar.src %}
+    <img src="{{ avatar.src }}" alt="{{ avatar.name|default:'' }}"
+         class="w-full h-full object-cover" loading="lazy">
+    {% else %}
+    <span aria-hidden="true">{{ avatar.name|make_list|first|default:"?" }}</span>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% endfor %}
+
+  {# Overflow counter #}
+  {% with total=avatars|length %}
+  {% if total > max %}
+  <div class="relative inline-flex items-center justify-center shrink-0
+              rounded-full ring-2 ring-surface font-semibold select-none
+              bg-background-alt text-text-muted
+              {% if size == 'xs' %}w-6 h-6 text-xs
+              {% elif size == 'sm' %}w-8 h-8 text-xs
+              {% elif size == 'md' %}w-10 h-10 text-xs
+              {% elif size == 'lg' %}w-12 h-12 text-sm
+              {% endif %}"
+       aria-label="{{ total|add:'-'|add:max }} کاربر دیگر">
+    <span class="ltr-value">+{{ total|add:"-"|add:max }}</span>
+  </div>
+  {% endif %}
+  {% endwith %}
+</div>
+{% endwith %}

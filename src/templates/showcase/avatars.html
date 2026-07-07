@@ -1,14 +1,19 @@
 {% extends "showcase/base.html" %}
+{% load ui_tags %}
 {% block title %}آواتارها{% endblock %}
+
 {% block content %}
 <div class="space-y-10">
   <div>
-    <h1 class="text-2xl font-bold text-text">آواتارها</h1>
-    <p class="mt-1 text-text-muted">نمایش تصویر کاربر با اندازه‌ها و حالات مختلف</p>
+    <h1 class="text-2xl font-bold text-text">سیستم آواتار</h1>
+    <p class="mt-1 text-text-muted">کاربر، سازمان، جای‌نگهدار، حروف اول</p>
   </div>
 
+  <!-- Sizes -->
   <section class="space-y-4">
-    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">اندازه‌ها</h2>
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">
+      اندازه‌ها (XS → XL)
+    </h2>
     <div class="flex items-end gap-4">
       {% include "ui/components/data/avatar.html" with name="علی" size="xs" %}
       {% include "ui/components/data/avatar.html" with name="مریم" size="sm" %}
@@ -16,23 +21,117 @@
       {% include "ui/components/data/avatar.html" with name="فاطمه" size="lg" %}
       {% include "ui/components/data/avatar.html" with name="محمد" size="xl" %}
     </div>
+    <p class="text-xs text-text-muted">XS(24) • SM(32) • MD(40) • LG(48) • XL(64)</p>
   </section>
 
+  <!-- Types -->
   <section class="space-y-4">
-    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">با وضعیت</h2>
-    <div class="flex items-center gap-4">
-      {% include "ui/components/data/avatar.html" with name="آنلاین" size="lg" status="online" %}
-      {% include "ui/components/data/avatar.html" with name="آفلاین" size="lg" status="offline" %}
-      {% include "ui/components/data/avatar.html" with name="مشغول" size="lg" status="busy" %}
-      {% include "ui/components/data/avatar.html" with name="دور" size="lg" status="away" %}
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">
+      انواع آواتار
+    </h2>
+    <div class="flex items-center gap-6">
+      <div class="text-center space-y-2">
+        {% include "ui/components/data/avatar.html" with name="علی رضایی" size="lg" type="user" %}
+        <p class="text-xs text-text-muted">کاربر</p>
+      </div>
+      <div class="text-center space-y-2">
+        {% include "ui/components/data/avatar.html" with name="شرکت نوآوران" size="lg" type="org" %}
+        <p class="text-xs text-text-muted">سازمان</p>
+      </div>
+      <div class="text-center space-y-2">
+        {% include "ui/components/data/avatar.html" with size="lg" type="placeholder" %}
+        <p class="text-xs text-text-muted">جای‌نگهدار</p>
+      </div>
+      <div class="text-center space-y-2">
+        {% include "ui/components/data/avatar.html" with name="احمد" size="lg" %}
+        <p class="text-xs text-text-muted">حروف اول</p>
+      </div>
     </div>
   </section>
 
+  <!-- Status -->
   <section class="space-y-4">
-    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">با حلقه (Ring)</h2>
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">
+      وضعیت (Status Badge)
+    </h2>
+    <div class="flex items-center gap-6">
+      <div class="text-center space-y-2">
+        {% include "ui/components/data/avatar.html" with name="آنلاین" size="lg" status="online" %}
+        <p class="text-xs text-success">آنلاین</p>
+      </div>
+      <div class="text-center space-y-2">
+        {% include "ui/components/data/avatar.html" with name="آفلاین" size="lg" status="offline" %}
+        <p class="text-xs text-text-muted">آفلاین</p>
+      </div>
+      <div class="text-center space-y-2">
+        {% include "ui/components/data/avatar.html" with name="مشغول" size="lg" status="busy" %}
+        <p class="text-xs text-danger">مشغول</p>
+      </div>
+      <div class="text-center space-y-2">
+        {% include "ui/components/data/avatar.html" with name="دور" size="lg" status="away" %}
+        <p class="text-xs text-warning">دور</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Colors -->
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">
+      رنگ‌ها
+    </h2>
+    <div class="flex items-center gap-4">
+      {% include "ui/components/data/avatar.html" with name="ا" size="lg" color="primary" %}
+      {% include "ui/components/data/avatar.html" with name="ب" size="lg" color="secondary" %}
+      {% include "ui/components/data/avatar.html" with name="پ" size="lg" color="success" %}
+      {% include "ui/components/data/avatar.html" with name="ت" size="lg" color="warning" %}
+      {% include "ui/components/data/avatar.html" with name="ث" size="lg" color="danger" %}
+    </div>
+  </section>
+
+  <!-- With Ring -->
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">
+      با حلقه (Ring)
+    </h2>
     <div class="flex items-center gap-4">
       {% include "ui/components/data/avatar.html" with name="VIP" size="lg" ring=True status="online" %}
-      {% include "ui/components/data/avatar.html" with name="ادمین" size="xl" ring=True %}
+      {% include "ui/components/data/avatar.html" with name="ادمین" size="xl" ring=True color="danger" %}
+      {% include "ui/components/data/avatar.html" with name="تأیید" size="lg" ring=True type="org" color="success" %}
+    </div>
+  </section>
+
+  <!-- Organization Avatars -->
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">
+      آواتار سازمان (مربع گرد)
+    </h2>
+    <div class="flex items-end gap-4">
+      {% include "ui/components/data/avatar.html" with name="شرکت الف" size="xs" type="org" %}
+      {% include "ui/components/data/avatar.html" with name="آژانس ب" size="sm" type="org" color="secondary" %}
+      {% include "ui/components/data/avatar.html" with name="مطب پ" size="md" type="org" color="success" %}
+      {% include "ui/components/data/avatar.html" with name="استودیو ت" size="lg" type="org" color="warning" %}
+      {% include "ui/components/data/avatar.html" with name="گروه ث" size="xl" type="org" color="danger" %}
+    </div>
+  </section>
+
+  <!-- Avatar Group -->
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">
+      گروه آواتار (Avatar Group)
+    </h2>
+    <p class="text-sm text-text-muted">
+      آواتارهای روی‌هم با شمارنده سرریز
+    </p>
+    <div class="flex items-center gap-4 -space-x-2 rtl:space-x-reverse">
+      {% include "ui/components/data/avatar.html" with name="علی" size="md" ring=True %}
+      {% include "ui/components/data/avatar.html" with name="مریم" size="md" ring=True color="success" %}
+      {% include "ui/components/data/avatar.html" with name="رضا" size="md" ring=True color="warning" %}
+      {% include "ui/components/data/avatar.html" with name="فاطمه" size="md" ring=True color="danger" %}
+      <div class="relative inline-flex items-center justify-center shrink-0 w-10 h-10
+                  rounded-full ring-2 ring-surface bg-background-alt text-text-muted
+                  text-xs font-semibold">
+        <span class="ltr-value">+۸</span>
+      </div>
     </div>
   </section>
 </div>
