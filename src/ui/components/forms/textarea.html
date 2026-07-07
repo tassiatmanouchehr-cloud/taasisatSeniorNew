@@ -1,11 +1,11 @@
-{# Textarea Component
+{% comment %} Textarea Component
    Usage:
      {% include "ui/components/forms/textarea.html" with name="description" label="توضیحات" rows="4" %}
 
    Props:
      name, label, placeholder, value, required, disabled, readonly,
      error, hint, rows (default: 3), maxlength, resize (none|vertical|both)
-#}
+{% endcomment %}
 {% with rows=rows|default:"3" resize=resize|default:"vertical" %}
 <div class="w-full">
   {% if label %}

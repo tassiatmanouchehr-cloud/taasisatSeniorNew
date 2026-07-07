@@ -1,4 +1,4 @@
-{# Toggle / Switch Component
+{% comment %} Toggle / Switch Component
    Usage:
      {% include "ui/components/forms/toggle.html" with name="notifications" label="اعلان‌ها" %}
      {% include "ui/components/forms/toggle.html" with name="darkmode" label="حالت تاریک" checked=True %}
@@ -7,7 +7,7 @@
      name, label (required), checked, disabled, size (sm|md|lg)
 
    Uses Alpine.js for toggle state if interactive without form submission.
-#}
+{% endcomment %}
 {% with size=size|default:"md" %}
 <label for="id_{{ name }}" class="inline-flex items-center gap-inline-3 cursor-pointer select-none
                                    {% if disabled %}opacity-60 cursor-not-allowed{% endif %}">

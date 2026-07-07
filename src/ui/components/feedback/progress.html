@@ -1,4 +1,4 @@
-{# Progress Bar Component
+{% comment %} Progress Bar Component
    Usage:
      {% include "ui/components/feedback/progress.html" with value=65 %}
      {% include "ui/components/feedback/progress.html" with value=30 variant="danger" label="آپلود" show_value=True %}
@@ -11,7 +11,7 @@
      label      — Accessible label (required for a11y)
      show_value — true/false (show percentage text)
      indeterminate — true/false (animated, no specific progress)
-#}
+{% endcomment %}
 {% with variant=variant|default:"primary" size=size|default:"md" max=max|default:"100" %}
 <div class="w-full">
   {% if label and show_value %}

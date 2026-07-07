@@ -1,4 +1,4 @@
-{# Loader / Spinner Component
+{% comment %} Loader / Spinner Component
    Usage:
      {% include "ui/components/feedback/loader.html" %}
      {% include "ui/components/feedback/loader.html" with size="lg" label="در حال بارگذاری..." %}
@@ -7,7 +7,7 @@
      size  — sm|md|lg|xl (default: md)
      label — Screen reader text (default: "در حال بارگذاری")
      variant — primary|secondary|white (default: primary)
-#}
+{% endcomment %}
 {% with size=size|default:"md" variant=variant|default:"primary" label=label|default:"در حال بارگذاری" %}
 <div class="inline-flex items-center gap-inline-2" role="status" aria-label="{{ label }}">
   <svg class="animate-spin

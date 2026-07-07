@@ -41,8 +41,13 @@ EXCLUDE_DIRS = ['templates/showcase/', 'node_modules/', '.venv/']
 # Patterns
 INLINE_STYLE = re.compile(r'style\s*=\s*["\'](?!{)', re.IGNORECASE)
 INCLUDE_TAG = re.compile(r'{%\s*include\s*["\']([^"\']+)["\']')
-COMMENT_BLOCK = re.compile(r'{#.*?#}', re.DOTALL)
+COMMENT_BLOCK = re.compile(r'({#.*?#}|{%\s*comment\s*%}.*?{%\s*endcomment\s*%})', re.DOTALL)
 PROPS_SECTION = re.compile(r'Props|Usage|Parameters|Arguments', re.IGNORECASE)
+
+
+def strip_template_comments(content: str) -> str:
+    """Remove Django comments before scanning executable includes."""
+    return COMMENT_BLOCK.sub('', content)
 
 
 def is_excluded(filepath: str) -> bool:
@@ -122,7 +127,7 @@ def build_dependency_graph(root: Path) -> dict:
             continue
         with open(filepath, 'r', encoding='utf-8') as f:
             content = f.read()
-        includes = INCLUDE_TAG.findall(content)
+        includes = INCLUDE_TAG.findall(strip_template_comments(content))
         for inc in includes:
             graph[rel].append(inc)
 

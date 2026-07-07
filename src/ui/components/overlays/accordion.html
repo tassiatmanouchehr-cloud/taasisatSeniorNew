@@ -1,4 +1,4 @@
-{# Accordion Component
+{% comment %} Accordion Component
    Usage:
      <div x-data="{ active: null }">
        {% include "ui/components/overlays/accordion.html" with id="faq1" title="سوال اول" %}
@@ -14,7 +14,7 @@
      content — Body content
      icon    — Optional icon before title
      model   — Alpine expression for open state (default: active === 'id')
-#}
+{% endcomment %}
 {% with model=model|default:"active === '" %}
 <div class="border-b border-border">
   <!-- Header / Trigger -->

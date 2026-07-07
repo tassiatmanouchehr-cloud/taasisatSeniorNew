@@ -1,4 +1,4 @@
-{# Empty State SVG Illustrations
+{% comment %} Empty State SVG Illustrations
    Renders theme-aware SVG illustrations for empty states.
 
    Props:
@@ -7,7 +7,7 @@
      size    — sm|md|lg (controls SVG dimensions)
 
    Colors use currentColor and CSS variables for theme adaptation.
-#}
+{% endcomment %}
 {% with size=size|default:"md" %}
 <svg class="{% if size == 'sm' %}w-24 h-24
            {% elif size == 'md' %}w-32 h-32

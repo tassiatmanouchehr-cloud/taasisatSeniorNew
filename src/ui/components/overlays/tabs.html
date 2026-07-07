@@ -1,4 +1,4 @@
-{# Tabs Component
+{% comment %} Tabs Component
    Usage:
      <div x-data="{ tab: 'info' }">
        {% include "ui/components/overlays/tabs.html" with tabs=tab_list active_model="tab" %}
@@ -12,7 +12,7 @@
      variant      — underline|pills|enclosed (default: underline)
      size         — sm|md (default: md)
      full_width   — true/false (tabs stretch to fill width)
-#}
+{% endcomment %}
 {% with variant=variant|default:"underline" size=size|default:"md" active_model=active_model|default:"tab" %}
 <div class="{% if variant == 'enclosed' %}bg-background-alt rounded-lg p-1{% endif %}"
      role="tablist"

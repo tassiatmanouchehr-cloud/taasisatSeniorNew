@@ -1,4 +1,4 @@
-{# Tooltip Component
+{% comment %} Tooltip Component
    Usage:
      <span x-data="{ show: false }" @mouseenter="show = true" @mouseleave="show = false"
            @focus="show = true" @blur="show = false" class="relative inline-block">
@@ -10,7 +10,7 @@
      text     — Tooltip text (required)
      position — top|bottom|start|end (default: top)
      model    — Alpine variable (default: show)
-#}
+{% endcomment %}
 {% with position=position|default:"top" model=model|default:"show" %}
 <div x-show="{{ model }}"
      x-transition:enter="transition ease-out duration-150"

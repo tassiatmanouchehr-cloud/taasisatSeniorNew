@@ -1,11 +1,11 @@
-{# Radio Component
+{% comment %} Radio Component
    Usage:
      {% include "ui/components/forms/radio.html" with name="gender" value="male" label="مرد" %}
      {% include "ui/components/forms/radio.html" with name="gender" value="female" label="زن" checked=True %}
 
    Props:
      name, value, label (required), checked, disabled, error, hint
-#}
+{% endcomment %}
 <div class="flex items-start gap-inline-3">
   <input
     type="radio"

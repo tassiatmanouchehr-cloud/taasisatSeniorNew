@@ -1,4 +1,4 @@
-{# Empty State Component
+{% comment %} Empty State Component
    Usage:
      {% include "ui/components/data/empty_state.html" with title="سفارشی یافت نشد" %}
      {% include "ui/components/data/empty_state.html" with preset="no_data" %}
@@ -18,7 +18,7 @@
      secondary_attrs  — Extra attrs on secondary button
      size             — sm|md|lg (default: md) — controls padding and illustration size
      preset           — Use a predefined empty state (sets title, desc, illustration)
-#}
+{% endcomment %}
 {% with size=size|default:"md" %}
 <div class="flex flex-col items-center justify-center text-center
             {% if size == 'sm' %}py-8 px-4

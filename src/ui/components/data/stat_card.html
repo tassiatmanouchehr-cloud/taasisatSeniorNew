@@ -1,4 +1,4 @@
-{# Stat Card Component (KPI / metric display)
+{% comment %} Stat Card Component (KPI / metric display)
    Usage:
      {% include "ui/components/data/stat_card.html" with label="سفارشات" value="۱٬۲۳۴" change="+۱۲%" trend="up" %}
 
@@ -9,7 +9,7 @@
      trend  — up|down|neutral (colors the change)
      icon   — Optional icon HTML
      href   — Optional link wrapper
-#}
+{% endcomment %}
 <div class="bg-surface border border-border rounded-lg p-4 sm:p-5">
   <div class="flex items-start justify-between">
     <div class="flex-1 min-w-0">

@@ -1,4 +1,4 @@
-{# Avatar Group Component — stacked overlapping avatars
+{% comment %} Avatar Group Component — stacked overlapping avatars
    Usage:
      {% include "ui/components/data/avatar_group.html" with avatars=user_list max=5 %}
 
@@ -10,7 +10,7 @@
 
    The component renders avatars overlapping with negative margin,
    plus a "+N" counter if there are more than `max`.
-#}
+{% endcomment %}
 {% with size=size|default:"md" max=max|default:"5" %}
 <div class="flex items-center -space-x-2 rtl:space-x-reverse"
      aria-label="گروه کاربران">

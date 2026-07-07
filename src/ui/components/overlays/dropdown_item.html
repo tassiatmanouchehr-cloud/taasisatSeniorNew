@@ -1,4 +1,4 @@
-{# Dropdown Menu Item
+{% comment %} Dropdown Menu Item
    Usage (inside dropdown):
      {% include "ui/components/overlays/dropdown_item.html" with label="ویرایش" icon="✏️" %}
      {% include "ui/components/overlays/dropdown_item.html" with label="حذف" variant="danger" %}
@@ -6,7 +6,7 @@
 
    Props:
      label, href, icon, variant (default|danger), disabled, divider, attrs
-#}
+{% endcomment %}
 {% if divider %}
 <div class="border-t border-border my-1" role="separator"></div>
 {% else %}

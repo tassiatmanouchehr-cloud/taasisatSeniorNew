@@ -1,4 +1,4 @@
-{# Status Illustrations — for full-page feedback states
+{% comment %} Status Illustrations — for full-page feedback states
    Usage:
      {% include "ui/components/illustrations/status_svg.html" with variant="success" %}
      {% include "ui/components/illustrations/status_svg.html" with variant="error_404" size="lg" %}
@@ -9,7 +9,7 @@
 
    These are larger, more expressive than empty_state illustrations.
    Used for full-page status pages (not inline components).
-#}
+{% endcomment %}
 {% with size=size|default:"md" %}
 <svg class="{% if size == 'sm' %}w-32 h-32
            {% elif size == 'md' %}w-48 h-48

@@ -1,4 +1,4 @@
-{# File Upload Component
+{% comment %} File Upload Component
    Usage:
      {% include "ui/components/forms/upload.html" with name="avatar" label="تصویر پروفایل" %}
      {% include "ui/components/forms/upload.html" with name="docs" label="مدارک" multiple=True %}
@@ -18,7 +18,7 @@
 
    This is UI ONLY — no actual upload logic.
    Backend integration happens in business modules.
-#}
+{% endcomment %}
 {% with variant=variant|default:"dropzone" %}
 
 {% if variant == "dropzone" %}

@@ -1,4 +1,4 @@
-{# Chip Component (removable tag)
+{% comment %} Chip Component (removable tag)
    Usage:
      {% include "ui/components/feedback/chip.html" with label="تهران" removable=True %}
      {% include "ui/components/feedback/chip.html" with label="فعال" variant="success" %}
@@ -6,7 +6,7 @@
    Props:
      label, variant (primary|success|neutral), removable, disabled
      remove_attrs — extra attrs on remove button (e.g., hx-delete="...")
-#}
+{% endcomment %}
 {% with variant=variant|default:"neutral" %}
 <span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium
              border transition-colors duration-fast

@@ -1,4 +1,4 @@
-{# Input Component
+{% comment %} Input Component
    Usage:
      {% include "ui/components/forms/input.html" with name="email" label="ایمیل" type="email" %}
      {% include "ui/components/forms/input.html" with name="phone" label="شماره تلفن" dir="ltr" %}
@@ -19,7 +19,7 @@
      icon_start — Icon inside input (start side)
      icon_end  — Icon inside input (end side)
      attrs     — Extra attributes
-#}
+{% endcomment %}
 {% with type=type|default:"text" size=size|default:"md" %}
 <div class="w-full">
   <!-- Label -->

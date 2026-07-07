@@ -1,4 +1,4 @@
-{# Pagination Component
+{% comment %} Pagination Component
    Usage:
      {% include "ui/components/data/pagination.html" with current=3 total_pages=10 %}
 
@@ -8,7 +8,7 @@
      base_url    — URL pattern (page num appended or replaced)
      show_info   — true/false (show "صفحه X از Y")
      size        — sm|md (default: md)
-#}
+{% endcomment %}
 {% with size=size|default:"md" %}
 <nav aria-label="صفحه‌بندی" class="flex items-center justify-between gap-4">
   {% if show_info %}

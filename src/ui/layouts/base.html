@@ -6,8 +6,7 @@
   <meta name="color-scheme" content="light dark">
   <title>{% block title %}{% endblock %}{% block title_suffix %} | پلتفرم{% endblock %}</title>
 
-  <!-- Preload Persian font for faster rendering -->
-  <link rel="preload" href="{% block font_preload %}/static/ui/fonts/vazirmatn/Vazirmatn-Variable.woff2{% endblock %}" as="font" type="font/woff2" crossorigin>
+  {% block font_preload %}{% endblock %}
 
   <!-- Compiled CSS (Tailwind + themes + typography + RTL) -->
   <link rel="stylesheet" href="/static/css/output.css">

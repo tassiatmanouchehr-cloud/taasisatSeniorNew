@@ -1,4 +1,4 @@
-{# Modal Component
+{% comment %} Modal Component
    Usage:
      <div x-data="{ open: false }">
        <button @click="open = true">باز کردن</button>
@@ -13,7 +13,7 @@
    Slots (via block-like pattern):
      Content goes between open/close includes OR use Alpine template injection.
      For Django templates, wrap the include in the x-data scope and put content after.
-#}
+{% endcomment %}
 {% with size=size|default:"md" closeable=closeable|default:"true" %}
 <!-- Backdrop -->
 <div x-show="open"

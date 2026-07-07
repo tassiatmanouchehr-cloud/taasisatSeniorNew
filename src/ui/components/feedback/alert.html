@@ -1,4 +1,4 @@
-{# Alert Component
+{% comment %} Alert Component
    Usage:
      {% include "ui/components/feedback/alert.html" with type="success" title="موفق" message="عملیات انجام شد." %}
      {% include "ui/components/feedback/alert.html" with type="danger" message="خطایی رخ داد." dismissible=True %}
@@ -9,7 +9,7 @@
      message    — Alert body text (required)
      dismissible — true/false (show close button)
      icon       — Custom icon HTML (optional, has default per type)
-#}
+{% endcomment %}
 {% with type=type|default:"info" %}
 <div role="alert"
      class="flex items-start gap-inline-3 p-4 rounded-lg border

@@ -4,6 +4,9 @@
   "private": true,
   "description": "Enterprise Service Marketplace Platform — UI Foundation",
   "scripts": {
+    "build": "npm run css:build",
+    "dev": "npm run css:dev",
+    "watch": "npm run css:watch",
     "css:build": "tailwindcss -i ui/css/main.css -o static/css/output.css --minify",
     "css:watch": "tailwindcss -i ui/css/main.css -o static/css/output.css --watch",
     "css:dev": "tailwindcss -i ui/css/main.css -o static/css/output.css"

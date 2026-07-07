@@ -1,0 +1,56 @@
+{% extends "public_site/base_public.html" %}
+{% block public_title %}نحوه کار{% endblock %}
+
+{% block content %}
+<section class="bg-background">
+  <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+    <div class="mx-auto max-w-3xl text-center">
+      <p class="text-sm font-black text-primary">نحوه کار</p>
+      <h1 class="mt-3 text-4xl font-black leading-tight text-text sm:text-5xl">از نیاز خانواده تا خدمت قابل پیگیری</h1>
+      <p class="mt-5 text-lg leading-9 text-text-muted">فرآیند عمومی سالمندیار برای ساده‌سازی تصمیم‌گیری، هماهنگی و کنترل کیفیت طراحی شده است.</p>
+    </div>
+
+    <div class="mt-14 grid gap-6 lg:grid-cols-4">
+      <article class="rounded-3xl border border-border bg-surface p-6 shadow-sm">
+        <span class="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-lg font-black text-white">۱</span>
+        <h2 class="mt-5 text-xl font-black text-text">ثبت نیاز</h2>
+        <p class="mt-3 text-sm leading-8 text-text-muted">خانواده نوع خدمت، زمان، محل، توضیحات و حساسیت‌های سالمند را مشخص می‌کند.</p>
+      </article>
+      <article class="rounded-3xl border border-border bg-surface p-6 shadow-sm">
+        <span class="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-lg font-black text-white">۲</span>
+        <h2 class="mt-5 text-xl font-black text-text">بررسی و هماهنگی</h2>
+        <p class="mt-3 text-sm leading-8 text-text-muted">در مراحل بعدی، سفارش توسط سیستم یا اپراتور بررسی و آماده تخصیص می‌شود.</p>
+      </article>
+      <article class="rounded-3xl border border-border bg-surface p-6 shadow-sm">
+        <span class="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-lg font-black text-white">۳</span>
+        <h2 class="mt-5 text-xl font-black text-text">ارائه خدمت</h2>
+        <p class="mt-3 text-sm leading-8 text-text-muted">مراقب مستقل یا سازمان ارائه‌دهنده، خدمت را طبق توافق انجام می‌دهد.</p>
+      </article>
+      <article class="rounded-3xl border border-border bg-surface p-6 shadow-sm">
+        <span class="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-lg font-black text-white">۴</span>
+        <h2 class="mt-5 text-xl font-black text-text">بازخورد و کیفیت</h2>
+        <p class="mt-3 text-sm leading-8 text-text-muted">پس از خدمت، مسیر امتیازدهی، گزارش، رسیدگی و بهبود کیفیت تکمیل می‌شود.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="border-t border-border bg-surface">
+  <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+    <div class="grid gap-8 lg:grid-cols-2 lg:items-center">
+      <div>
+        <p class="text-sm font-black text-primary">شفافیت عملیاتی</p>
+        <h2 class="mt-3 text-3xl font-black text-text">هر مرحله باید قابل فهم، قابل پیگیری و قابل کنترل باشد.</h2>
+        <p class="mt-5 leading-9 text-text-muted">هدف این طراحی این است که خانواده بداند چه اتفاقی افتاده، چه کسی مسئول است، وضعیت فعلی چیست و در صورت نیاز چگونه پیگیری انجام می‌شود.</p>
+      </div>
+      <div class="rounded-3xl border border-border bg-background p-6 shadow-sm">
+        <dl class="space-y-5">
+          <div class="flex gap-4"><dt class="font-black text-text">وضعیت سفارش</dt><dd class="text-text-muted">در آینده به صورت مرحله‌ای نمایش داده می‌شود.</dd></div>
+          <div class="flex gap-4"><dt class="font-black text-text">ارائه‌دهنده خدمت</dt><dd class="text-text-muted">می‌تواند مستقل، سازمانی یا ترکیبی باشد.</dd></div>
+          <div class="flex gap-4"><dt class="font-black text-text">کنترل کیفیت</dt><dd class="text-text-muted">از طریق گزارش، بازخورد و سیاست‌های پلتفرم.</dd></div>
+        </dl>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

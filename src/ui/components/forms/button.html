@@ -1,4 +1,4 @@
-{# Button Component
+{% comment %} Button Component
    Usage:
      {% include "ui/components/forms/button.html" with label="ذخیره" variant="primary" %}
      {% include "ui/components/forms/button.html" with label="حذف" variant="danger" size="sm" %}
@@ -16,7 +16,7 @@
      full_width — true/false (w-full)
      href      — If set, renders as <a> instead of <button>
      attrs     — Extra attributes string
-#}
+{% endcomment %}
 {% with variant=variant|default:"primary" size=size|default:"md" type=type|default:"button" %}
 
 {% if href %}

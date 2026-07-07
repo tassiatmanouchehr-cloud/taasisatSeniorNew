@@ -11,6 +11,31 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+
+def _load_local_env() -> None:
+    """Load KEY=VALUE pairs from BASE_DIR/.env for native development.
+
+    This keeps Windows/native runs simple: `python manage.py runserver`
+    reads the same .env file that Docker uses, without requiring users to
+    manually set PowerShell environment variables. Existing OS environment
+    variables still take priority.
+    """
+    env_file = BASE_DIR / ".env"
+    if not env_file.exists():
+        return
+
+    for raw_line in env_file.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        os.environ.setdefault(key, value)
+
+
+_load_local_env()
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-insecure-change-in-production")
 
@@ -35,6 +60,7 @@ INSTALLED_APPS = [
     # Platform apps
     "apps.kernel",
     "apps.showcase",
+    "apps.public_site",
 ]
 
 # Conditionally add GIS support (requires GDAL + PostGIS)
@@ -57,7 +83,10 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],
+        "DIRS": [
+            BASE_DIR / "templates",
+            BASE_DIR,
+        ],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -79,20 +108,30 @@ _default_db_engine = (
     "django.contrib.gis.db.backends.postgis" if GIS_ENABLED
     else "django.db.backends.postgresql"
 )
-DATABASES = {
-    "default": {
-        "ENGINE": os.environ.get("DATABASE_ENGINE", _default_db_engine),
-        "NAME": os.environ.get("DATABASE_NAME", "marketplace"),
-        "USER": os.environ.get("DATABASE_USER", "marketplace"),
-        "PASSWORD": os.environ.get("DATABASE_PASSWORD", "marketplace"),
-        "HOST": os.environ.get("DATABASE_HOST", "localhost"),
-        "PORT": os.environ.get("DATABASE_PORT", "5432"),
-        "OPTIONS": {
-            "connect_timeout": 5,
-        },
-        "CONN_MAX_AGE": 60,
+_database_engine = os.environ.get("DATABASE_ENGINE", _default_db_engine)
+
+if _database_engine in ("sqlite", "sqlite3", "django.db.backends.sqlite3"):
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": os.environ.get("SQLITE_NAME", str(BASE_DIR / "db.sqlite3")),
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": _database_engine,
+            "NAME": os.environ.get("DATABASE_NAME", "marketplace"),
+            "USER": os.environ.get("DATABASE_USER", "marketplace"),
+            "PASSWORD": os.environ.get("DATABASE_PASSWORD", "marketplace"),
+            "HOST": os.environ.get("DATABASE_HOST", "localhost"),
+            "PORT": os.environ.get("DATABASE_PORT", "5432"),
+            "OPTIONS": {
+                "connect_timeout": 5,
+            },
+            "CONN_MAX_AGE": 60,
+        }
+    }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -124,14 +163,17 @@ else:
     }
 
 # Internationalization
-LANGUAGE_CODE = "fa-ir"
-TIME_ZONE = "UTC"
+LANGUAGE_CODE = os.environ.get("LANGUAGE_CODE", "fa-ir")
+TIME_ZONE = os.environ.get("TIME_ZONE", "Asia/Tehran")
 USE_I18N = True
 USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = "static/"
-STATICFILES_DIRS = [BASE_DIR / "static"]
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+    ("ui", BASE_DIR / "ui"),
+]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Default primary key field type

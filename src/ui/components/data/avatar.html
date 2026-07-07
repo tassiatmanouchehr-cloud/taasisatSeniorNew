@@ -1,4 +1,4 @@
-{# Avatar Component
+{% comment %} Avatar Component
    Usage:
      {% include "ui/components/data/avatar.html" with src="/img/user.jpg" name="علی" %}
      {% include "ui/components/data/avatar.html" with name="محمد" size="lg" %}
@@ -17,7 +17,7 @@
      ring   — true/false (show ring border)
      color  — primary|secondary|success|warning|danger (default: primary)
               changes background color for initials mode
-#}
+{% endcomment %}
 {% with size=size|default:"md" type=type|default:"user" color=color|default:"primary" %}
 <div class="relative inline-flex items-center justify-center shrink-0
             font-semibold select-none overflow-hidden

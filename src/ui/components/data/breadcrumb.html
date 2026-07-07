@@ -1,10 +1,10 @@
-{# Breadcrumb Component
+{% comment %} Breadcrumb Component
    Usage:
      {% include "ui/components/data/breadcrumb.html" with items=breadcrumbs %}
 
    Props:
      items — list of {label, href?, icon?} dicts (last item is current page, no link)
-#}
+{% endcomment %}
 <nav aria-label="مسیر ناوبری">
   <ol class="flex items-center gap-inline-1.5 text-sm text-text-muted flex-wrap">
     {% for item in items %}

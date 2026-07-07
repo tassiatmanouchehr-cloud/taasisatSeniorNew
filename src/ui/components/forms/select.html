@@ -1,4 +1,4 @@
-{# Select Component
+{% comment %} Select Component
    Usage:
      {% include "ui/components/forms/select.html" with name="city" label="شهر" options=cities %}
 
@@ -6,7 +6,7 @@
      name, label, required, disabled, error, hint, size (sm|md|lg),
      options — list of {value, label, selected?, disabled?} dicts
      placeholder — first empty option text
-#}
+{% endcomment %}
 {% with size=size|default:"md" %}
 <div class="w-full">
   {% if label %}

@@ -1,11 +1,11 @@
-{# Timeline Component
+{% comment %} Timeline Component
    Usage:
      {% include "ui/components/data/timeline.html" with items=timeline_items %}
 
    Props:
      items — list of {title, description, time, icon?, variant?} dicts
      variant color: primary|success|warning|danger|neutral
-#}
+{% endcomment %}
 <div class="relative" role="list" aria-label="خط زمانی">
   <!-- Vertical line -->
   <div class="absolute inset-inline-start-4 top-0 bottom-0 w-0.5 bg-border" aria-hidden="true"></div>

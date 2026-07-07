@@ -1,4 +1,4 @@
-{# Card Component
+{% comment %} Card Component
    Usage:
      {% include "ui/components/data/card.html" with title="عنوان" %}
      {% include "ui/components/data/card.html" with title="محصول" image="/img/x.jpg" %}
@@ -7,7 +7,7 @@
      title, subtitle, image, footer, href (makes card clickable),
      padding — none|sm|md|lg (default: md)
      variant — default|bordered|elevated (default: default)
-#}
+{% endcomment %}
 {% with padding=padding|default:"md" variant=variant|default:"default" %}
 <{% if href %}a href="{{ href }}"{% else %}div{% endif %}
   class="block rounded-lg overflow-hidden transition-all duration-fast

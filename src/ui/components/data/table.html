@@ -1,4 +1,4 @@
-{# Table Component
+{% comment %} Table Component
    Usage:
      {% include "ui/components/data/table.html" with columns=cols rows=rows %}
 
@@ -11,7 +11,7 @@
      empty_message — Text when no rows
      sort_key — Currently sorted column key
      sort_dir — asc|desc
-#}
+{% endcomment %}
 {% with striped=striped|default:"false" hoverable=hoverable|default:"true" compact=compact|default:"false" %}
 <div class="w-full overflow-x-auto rounded-lg border border-border">
   <table class="w-full text-sm text-text" role="table">

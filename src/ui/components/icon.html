@@ -1,4 +1,4 @@
-{# Icon Component (include-based alternative to {% icon %} template tag)
+{% comment %} Icon Component (include-based alternative to {% icon %} template tag)
 
    Usage:
      {% include "ui/components/icon.html" with name="home" %}
@@ -16,6 +16,6 @@
      directional — If true, mirrors in RTL
 
    See apps/showcase/templatetags/ui_tags.py for full icon list.
-#}
+{% endcomment %}
 {% load ui_tags %}
 {% icon name size|default:"5" css_class=class|default:"" directional=directional|default:False %}

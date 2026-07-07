@@ -1,4 +1,4 @@
-{# Skeleton / Loading Placeholder Component
+{% comment %} Skeleton / Loading Placeholder Component
    Usage:
      {% include "ui/components/feedback/skeleton.html" with type="text" %}
      {% include "ui/components/feedback/skeleton.html" with type="card" %}
@@ -13,7 +13,7 @@
      width  — Custom width class (e.g., "w-32")
      height — Custom height class (e.g., "h-4")
      cols   — Number of table columns (default: 4)
-#}
+{% endcomment %}
 {% with type=type|default:"text" lines=lines|default:"3" rows=rows|default:"4" cols=cols|default:"4" %}
 
 {% if type == "text" %}

@@ -1,4 +1,4 @@
-{# Drawer Component (slide-in panel)
+{% comment %} Drawer Component (slide-in panel)
    Usage:
      <div x-data="{ drawerOpen: false }">
        <button @click="drawerOpen = true">فیلترها</button>
@@ -10,7 +10,7 @@
      position — start|end (default: start — inline-start in RTL = right side)
      size     — sm|md|lg (default: md)
      model    — Alpine variable name (default: drawerOpen)
-#}
+{% endcomment %}
 {% with position=position|default:"start" size=size|default:"md" model=model|default:"drawerOpen" %}
 <!-- Backdrop -->
 <div x-show="{{ model }}"

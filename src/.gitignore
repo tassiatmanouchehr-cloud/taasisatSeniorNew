@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local virtual environments - do not store venv inside the project
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Local runtime/static outputs
+staticfiles/
+db.sqlite3
+*.sqlite3
+
+# Local secrets
+.env.local

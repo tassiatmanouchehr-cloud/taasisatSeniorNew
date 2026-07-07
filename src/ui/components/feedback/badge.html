@@ -1,4 +1,4 @@
-{# Badge Component
+{% comment %} Badge Component
    Usage:
      {% include "ui/components/feedback/badge.html" with label="جدید" variant="primary" %}
      {% include "ui/components/feedback/badge.html" with label="۳" variant="danger" pill=True %}
@@ -9,7 +9,7 @@
      size    — xs|sm|md (default: sm)
      pill    — true/false (fully rounded)
      dot     — true/false (show dot indicator before text)
-#}
+{% endcomment %}
 {% with variant=variant|default:"neutral" size=size|default:"sm" %}
 <span class="inline-flex items-center gap-1 font-medium
              {% if pill %}rounded-full{% else %}rounded{% endif %}

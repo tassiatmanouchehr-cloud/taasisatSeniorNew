@@ -1,4 +1,4 @@
-{# Dropdown Menu Component
+{% comment %} Dropdown Menu Component
    Usage:
      <div x-data="{ open: false }" class="relative">
        <button @click="open = !open">منو</button>
@@ -10,7 +10,7 @@
      width — w-48|w-56|w-64|w-72 (default: w-56)
 
    Items are placed inside the component via block/slot.
-#}
+{% endcomment %}
 {% with align=align|default:"start" width=width|default:"w-56" %}
 <div x-show="open"
      x-transition:enter="transition ease-out duration-150"
