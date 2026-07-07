@@ -1,50 +1,103 @@
 {% extends "showcase/base.html" %}
+{% load ui_tags %}
 {% block title %}آیکون‌ها{% endblock %}
+
 {% block content %}
 <div class="space-y-10">
   <div>
     <h1 class="text-2xl font-bold text-text">سیستم آیکون</h1>
-    <p class="mt-1 text-text-muted">آیکون‌های SVG — Heroicons (Outline)</p>
+    <p class="mt-1 text-text-muted">
+      Heroicons (Outline, 24×24) — قابل استفاده مجدد با تگ
+      <code class="text-xs bg-background-alt px-1.5 py-0.5 rounded">{% templatetag openblock %} icon "name" {% templatetag closeblock %}</code>
+    </p>
   </div>
 
+  <!-- All Icons Grid -->
   <section class="space-y-4">
-    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">آیکون‌های پایه</h2>
-    <p class="text-sm text-text-muted mb-4">آیکون‌ها در بخش بعدی (Part 2) به‌صورت کامپوننت قابل استفاده مجدد پیاده‌سازی می‌شوند.</p>
-    <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-4">
-      {% for icon_name in "home,user,cog,bell,search,plus,trash,pencil,eye,heart,star,check,x-mark,arrow-right,arrow-left,chevron-down,chevron-up,document,folder,photo,phone,envelope,globe,clock"|split:"," %}
-      <div class="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-background-alt transition-colors">
-        <svg class="w-6 h-6 text-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v12m6-6H6"/>
-        </svg>
-        <span class="text-xs text-text-muted truncate w-full text-center">{{ icon_name }}</span>
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">
+      تمام آیکون‌ها ({% icon_names as names %}{{ names|length }} عدد)
+    </h2>
+    <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+      {% icon_names as all_icons %}
+      {% for name in all_icons %}
+      <div class="flex flex-col items-center gap-2 p-3 rounded-lg
+                  border border-transparent hover:border-border
+                  hover:bg-background-alt transition-colors cursor-default">
+        {% icon name size="6" %}
+        <span class="text-xs text-text-muted text-center truncate w-full ltr-value">{{ name }}</span>
       </div>
       {% endfor %}
     </div>
   </section>
 
+  <!-- Sizes -->
   <section class="space-y-4">
     <h2 class="text-lg font-semibold text-text border-b border-border pb-2">اندازه‌ها</h2>
-    <div class="flex items-end gap-6">
-      <div class="text-center">
-        <svg class="w-4 h-4 text-text mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"/></svg>
-        <span class="text-xs text-text-muted mt-1">16px</span>
+    <div class="flex items-end gap-8">
+      <div class="text-center space-y-1">
+        {% icon "star" size="4" %}
+        <p class="text-xs text-text-muted">w-4 (16px)</p>
       </div>
-      <div class="text-center">
-        <svg class="w-5 h-5 text-text mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"/></svg>
-        <span class="text-xs text-text-muted mt-1">20px</span>
+      <div class="text-center space-y-1">
+        {% icon "star" size="5" %}
+        <p class="text-xs text-text-muted">w-5 (20px)</p>
       </div>
-      <div class="text-center">
-        <svg class="w-6 h-6 text-text mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"/></svg>
-        <span class="text-xs text-text-muted mt-1">24px</span>
+      <div class="text-center space-y-1">
+        {% icon "star" size="6" %}
+        <p class="text-xs text-text-muted">w-6 (24px)</p>
       </div>
-      <div class="text-center">
-        <svg class="w-8 h-8 text-text mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"/></svg>
-        <span class="text-xs text-text-muted mt-1">32px</span>
+      <div class="text-center space-y-1">
+        {% icon "star" size="8" %}
+        <p class="text-xs text-text-muted">w-8 (32px)</p>
       </div>
-      <div class="text-center">
-        <svg class="w-12 h-12 text-text mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v12m6-6H6"/></svg>
-        <span class="text-xs text-text-muted mt-1">48px</span>
+      <div class="text-center space-y-1">
+        {% icon "star" size="10" %}
+        <p class="text-xs text-text-muted">w-10 (40px)</p>
       </div>
+      <div class="text-center space-y-1">
+        {% icon "star" size="12" %}
+        <p class="text-xs text-text-muted">w-12 (48px)</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Colors -->
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">رنگ‌ها</h2>
+    <div class="flex items-center gap-6">
+      {% icon "heart" size="6" css_class="text-text" %}
+      {% icon "heart" size="6" css_class="text-primary" %}
+      {% icon "heart" size="6" css_class="text-danger" %}
+      {% icon "heart" size="6" css_class="text-success" %}
+      {% icon "heart" size="6" css_class="text-warning" %}
+      {% icon "heart" size="6" css_class="text-info" %}
+      {% icon "heart" size="6" css_class="text-text-muted" %}
+    </div>
+  </section>
+
+  <!-- Directional -->
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">
+      آیکون‌های جهت‌دار (RTL-aware)
+    </h2>
+    <p class="text-sm text-text-muted">این آیکون‌ها در حالت RTL خودکار آینه می‌شوند:</p>
+    <div class="flex items-center gap-6">
+      {% icon "arrow-right" size="6" css_class="text-primary" %}
+      {% icon "arrow-left" size="6" css_class="text-primary" %}
+      {% icon "chevron-right" size="6" css_class="text-primary" %}
+      {% icon "chevron-left" size="6" css_class="text-primary" %}
+    </div>
+  </section>
+
+  <!-- Usage -->
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">نحوه استفاده</h2>
+    <div class="bg-background-alt rounded-lg p-4 text-sm font-mono ltr-value space-y-2">
+      <p class="text-text-muted">{# Template tag #}</p>
+      <p>{% templatetag openblock %} load ui_tags {% templatetag closeblock %}</p>
+      <p>{% templatetag openblock %} icon "home" {% templatetag closeblock %}</p>
+      <p>{% templatetag openblock %} icon "check" size="6" css_class="text-success" {% templatetag closeblock %}</p>
+      <p>{% templatetag openblock %} icon "arrow-right" directional=True {% templatetag closeblock %}</p>
     </div>
   </section>
 </div>

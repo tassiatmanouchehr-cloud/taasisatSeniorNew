@@ -1,0 +1,21 @@
+{# Icon Component (include-based alternative to {% icon %} template tag)
+
+   Usage:
+     {% include "ui/components/icon.html" with name="home" %}
+     {% include "ui/components/icon.html" with name="arrow-right" size="6" class="text-primary" %}
+
+   For most cases, prefer the template tag:
+     {% load ui_tags %}
+     {% icon "home" %}
+     {% icon "check" size="6" css_class="text-success" %}
+
+   Props:
+     name  — Icon name from Heroicons set
+     size  — Tailwind size (4/5/6/8/10/12) default: 5
+     class — Extra CSS classes
+     directional — If true, mirrors in RTL
+
+   See apps/showcase/templatetags/ui_tags.py for full icon list.
+#}
+{% load ui_tags %}
+{% icon name size|default:"5" css_class=class|default:"" directional=directional|default:False %}
