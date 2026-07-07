@@ -1,0 +1,99 @@
+{# Empty State SVG Illustrations
+   Renders theme-aware SVG illustrations for empty states.
+
+   Props:
+     variant — no_data|no_search|permission|offline|maintenance|
+               no_notifications|no_orders|no_messages|error|success
+     size    — sm|md|lg (controls SVG dimensions)
+
+   Colors use currentColor and CSS variables for theme adaptation.
+#}
+{% with size=size|default:"md" %}
+<svg class="{% if size == 'sm' %}w-24 h-24
+           {% elif size == 'md' %}w-32 h-32
+           {% elif size == 'lg' %}w-40 h-40
+           {% endif %}"
+     viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg"
+     aria-hidden="true">
+
+{% if variant == "no_data" %}
+{# Empty box / no data #}
+<rect x="25" y="35" width="70" height="55" rx="6" class="fill-background-alt stroke-border" stroke-width="2"/>
+<path d="M25 47h70" class="stroke-border" stroke-width="2"/>
+<circle cx="33" cy="41" r="2" class="fill-danger"/>
+<circle cx="40" cy="41" r="2" class="fill-warning"/>
+<circle cx="47" cy="41" r="2" class="fill-success"/>
+<rect x="40" y="58" width="40" height="4" rx="2" class="fill-border"/>
+<rect x="40" y="68" width="30" height="4" rx="2" class="fill-border opacity-60"/>
+<rect x="40" y="78" width="35" height="4" rx="2" class="fill-border opacity-40"/>
+
+{% elif variant == "no_search" %}
+{# Magnifying glass with X #}
+<circle cx="52" cy="52" r="22" class="stroke-border" stroke-width="3" fill="none"/>
+<line x1="68" y1="68" x2="90" y2="90" class="stroke-border" stroke-width="4" stroke-linecap="round"/>
+<line x1="44" y1="44" x2="60" y2="60" class="stroke-danger" stroke-width="3" stroke-linecap="round"/>
+<line x1="60" y1="44" x2="44" y2="60" class="stroke-danger" stroke-width="3" stroke-linecap="round"/>
+
+{% elif variant == "permission" %}
+{# Lock / shield #}
+<rect x="38" y="50" width="44" height="35" rx="6" class="fill-background-alt stroke-border" stroke-width="2"/>
+<path d="M48 50V42a12 12 0 0124 0v8" class="stroke-border" stroke-width="3" fill="none" stroke-linecap="round"/>
+<circle cx="60" cy="65" r="5" class="fill-warning"/>
+<rect x="58" y="68" width="4" height="8" rx="2" class="fill-warning"/>
+
+{% elif variant == "offline" %}
+{# Cloud with slash #}
+<path d="M30 70a15 15 0 010-30 20 20 0 0138-5 15 15 0 0112 30H30z" class="fill-background-alt stroke-border" stroke-width="2"/>
+<line x1="35" y1="85" x2="85" y2="35" class="stroke-danger" stroke-width="3" stroke-linecap="round"/>
+
+{% elif variant == "maintenance" %}
+{# Wrench + gear #}
+<circle cx="60" cy="55" r="18" class="stroke-border" stroke-width="2" fill="none"/>
+<circle cx="60" cy="55" r="6" class="fill-background-alt stroke-border" stroke-width="2"/>
+<path d="M60 37v-4M60 73v4M42 55h-4M78 55h4M47 42l-3-3M73 68l3 3M73 42l3-3M47 68l-3 3" class="stroke-border" stroke-width="2" stroke-linecap="round"/>
+<rect x="70" y="70" width="25" height="8" rx="4" transform="rotate(-45 70 70)" class="fill-primary opacity-60"/>
+
+{% elif variant == "no_notifications" %}
+{# Bell with Z's #}
+<path d="M60 30a20 20 0 00-20 20v10l-5 8h50l-5-8V50a20 20 0 00-20-20z" class="fill-background-alt stroke-border" stroke-width="2"/>
+<path d="M53 70a7 7 0 0014 0" class="stroke-border" stroke-width="2" fill="none" stroke-linecap="round"/>
+<text x="78" y="40" class="fill-text-muted text-xs" font-size="12" font-weight="bold">Z</text>
+<text x="85" y="32" class="fill-text-muted text-xs" font-size="10" font-weight="bold">z</text>
+<text x="90" y="26" class="fill-text-muted text-xs" font-size="8" font-weight="bold">z</text>
+
+{% elif variant == "no_orders" %}
+{# Empty clipboard #}
+<rect x="35" y="25" width="50" height="70" rx="6" class="fill-background-alt stroke-border" stroke-width="2"/>
+<rect x="47" y="20" width="26" height="12" rx="3" class="fill-surface stroke-border" stroke-width="2"/>
+<rect x="45" y="45" width="30" height="3" rx="1.5" class="fill-border"/>
+<rect x="45" y="55" width="25" height="3" rx="1.5" class="fill-border opacity-60"/>
+<rect x="45" y="65" width="28" height="3" rx="1.5" class="fill-border opacity-40"/>
+<rect x="45" y="75" width="20" height="3" rx="1.5" class="fill-border opacity-20"/>
+
+{% elif variant == "no_messages" %}
+{# Empty chat bubble #}
+<path d="M20 40c0-8.284 6.716-15 15-15h50c8.284 0 15 6.716 15 15v30c0 8.284-6.716 15-15 15H55l-15 15v-15H35c-8.284 0-15-6.716-15-15V40z" class="fill-background-alt stroke-border" stroke-width="2"/>
+<circle cx="50" cy="55" r="3" class="fill-border"/>
+<circle cx="65" cy="55" r="3" class="fill-border"/>
+<circle cx="80" cy="55" r="3" class="fill-border"/>
+
+{% elif variant == "error" %}
+{# Warning triangle #}
+<path d="M60 25L20 95h80L60 25z" class="fill-danger-100 stroke-danger" stroke-width="2"/>
+<line x1="60" y1="50" x2="60" y2="70" class="stroke-danger" stroke-width="4" stroke-linecap="round"/>
+<circle cx="60" cy="80" r="3" class="fill-danger"/>
+
+{% elif variant == "success" %}
+{# Checkmark circle #}
+<circle cx="60" cy="60" r="35" class="fill-success-100 stroke-success" stroke-width="2"/>
+<path d="M42 60l12 12 24-24" class="stroke-success" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+{% else %}
+{# Default fallback — generic empty state #}
+<rect x="30" y="30" width="60" height="60" rx="8" class="fill-background-alt stroke-border" stroke-width="2"/>
+<line x1="45" y1="55" x2="75" y2="55" class="stroke-border" stroke-width="3" stroke-linecap="round"/>
+<line x1="50" y1="65" x2="70" y2="65" class="stroke-border opacity-60" stroke-width="3" stroke-linecap="round"/>
+
+{% endif %}
+</svg>
+{% endwith %}

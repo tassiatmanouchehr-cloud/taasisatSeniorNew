@@ -1,30 +1,101 @@
 {% extends "showcase/base.html" %}
 {% block title %}حالات خالی{% endblock %}
+
 {% block content %}
 <div class="space-y-10">
   <div>
-    <h1 class="text-2xl font-bold text-text">حالات خالی</h1>
-    <p class="mt-1 text-text-muted">نمایش وضعیت‌های بدون داده</p>
+    <h1 class="text-2xl font-bold text-text">کتابخانه حالات خالی</h1>
+    <p class="mt-1 text-text-muted">۸ نوع حالت خالی سازمانی با تصویرسازی SVG</p>
   </div>
 
   <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <div class="border border-border rounded-lg">
-      {% include "ui/components/data/empty_state.html" with title="سفارشی وجود ندارد" description="هنوز هیچ سفارشی ثبت نشده است. اولین سفارش خود را ایجاد کنید." icon="📋" action_label="ثبت سفارش" action_href="#" %}
+    <!-- 1. No Data -->
+    <div class="border border-border rounded-xl overflow-hidden">
+      <div class="px-4 py-2 bg-background-alt border-b border-border">
+        <span class="text-xs font-medium text-text-muted">no_data</span>
+      </div>
+      {% include "ui/components/data/empty_state.html" with title="داده‌ای وجود ندارد" description="هنوز هیچ رکوردی ثبت نشده است. اولین مورد را ایجاد کنید." illustration="no_data" action_label="ایجاد مورد جدید" action_href="#" secondary_label="راهنما" secondary_href="#" %}
     </div>
-    <div class="border border-border rounded-lg">
-      {% include "ui/components/data/empty_state.html" with title="نتیجه‌ای یافت نشد" description="جستجوی شما نتیجه‌ای نداشت. عبارت دیگری را امتحان کنید." icon="🔍" action_label="پاک کردن فیلترها" action_href="#" %}
+
+    <!-- 2. No Search Results -->
+    <div class="border border-border rounded-xl overflow-hidden">
+      <div class="px-4 py-2 bg-background-alt border-b border-border">
+        <span class="text-xs font-medium text-text-muted">no_search</span>
+      </div>
+      {% include "ui/components/data/empty_state.html" with title="نتیجه‌ای یافت نشد" description="جستجوی شما نتیجه‌ای نداشت. عبارت دیگری را امتحان کنید یا فیلترها را تغییر دهید." illustration="no_search" action_label="پاک کردن فیلترها" action_href="#" %}
     </div>
-    <div class="border border-border rounded-lg">
-      {% include "ui/components/data/empty_state.html" with title="دسترسی محدود" description="شما اجازه مشاهده این بخش را ندارید." icon="🔒" %}
+
+    <!-- 3. Permission Denied -->
+    <div class="border border-border rounded-xl overflow-hidden">
+      <div class="px-4 py-2 bg-background-alt border-b border-border">
+        <span class="text-xs font-medium text-text-muted">permission</span>
+      </div>
+      {% include "ui/components/data/empty_state.html" with title="دسترسی محدود" description="شما مجوز مشاهده این بخش را ندارید. در صورت نیاز با مدیر سیستم تماس بگیرید." illustration="permission" action_label="بازگشت" action_href="#" secondary_label="تماس با پشتیبانی" secondary_href="#" %}
     </div>
-    <div class="border border-border rounded-lg">
-      {% include "ui/components/data/empty_state.html" with title="آفلاین هستید" description="اتصال اینترنت شما قطع شده است. لطفاً اتصال خود را بررسی کنید." icon="📡" action_label="تلاش مجدد" action_href="#" %}
+
+    <!-- 4. Offline -->
+    <div class="border border-border rounded-xl overflow-hidden">
+      <div class="px-4 py-2 bg-background-alt border-b border-border">
+        <span class="text-xs font-medium text-text-muted">offline</span>
+      </div>
+      {% include "ui/components/data/empty_state.html" with title="آفلاین هستید" description="اتصال اینترنت شما قطع شده است. لطفاً اتصال خود را بررسی و دوباره تلاش کنید." illustration="offline" action_label="تلاش مجدد" action_href="#" %}
     </div>
-    <div class="border border-border rounded-lg">
-      {% include "ui/components/data/empty_state.html" with title="اعلانی ندارید" description="هنوز هیچ اعلانی دریافت نکرده‌اید." icon="🔔" %}
+
+    <!-- 5. Maintenance -->
+    <div class="border border-border rounded-xl overflow-hidden">
+      <div class="px-4 py-2 bg-background-alt border-b border-border">
+        <span class="text-xs font-medium text-text-muted">maintenance</span>
+      </div>
+      {% include "ui/components/data/empty_state.html" with title="در حال به‌روزرسانی" description="سیستم در حال انجام عملیات نگهداری است. لطفاً چند دقیقه دیگر مراجعه کنید." illustration="maintenance" secondary_label="وضعیت سرویس" secondary_href="#" %}
     </div>
-    <div class="border border-border rounded-lg">
-      {% include "ui/components/data/empty_state.html" with title="پیامی ندارید" description="صندوق ورودی شما خالی است." icon="✉️" action_label="ارسال پیام" action_href="#" %}
+
+    <!-- 6. No Notifications -->
+    <div class="border border-border rounded-xl overflow-hidden">
+      <div class="px-4 py-2 bg-background-alt border-b border-border">
+        <span class="text-xs font-medium text-text-muted">no_notifications</span>
+      </div>
+      {% include "ui/components/data/empty_state.html" with title="اعلانی ندارید" description="هنوز هیچ اعلان جدیدی دریافت نکرده‌اید. هنگام رویداد مهم مطلع خواهید شد." illustration="no_notifications" %}
+    </div>
+
+    <!-- 7. No Orders -->
+    <div class="border border-border rounded-xl overflow-hidden">
+      <div class="px-4 py-2 bg-background-alt border-b border-border">
+        <span class="text-xs font-medium text-text-muted">no_orders</span>
+      </div>
+      {% include "ui/components/data/empty_state.html" with title="سفارشی وجود ندارد" description="هنوز هیچ سفارشی ثبت نشده است. برای شروع اولین درخواست خود را ایجاد کنید." illustration="no_orders" action_label="ثبت درخواست جدید" action_href="#" %}
+    </div>
+
+    <!-- 8. No Messages -->
+    <div class="border border-border rounded-xl overflow-hidden">
+      <div class="px-4 py-2 bg-background-alt border-b border-border">
+        <span class="text-xs font-medium text-text-muted">no_messages</span>
+      </div>
+      {% include "ui/components/data/empty_state.html" with title="پیامی ندارید" description="صندوق ورودی شما خالی است. پیام‌های جدید اینجا نمایش داده می‌شوند." illustration="no_messages" action_label="ارسال پیام" action_href="#" %}
+    </div>
+  </section>
+
+  <!-- Size Variants -->
+  <section class="space-y-4 mt-8">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">اندازه‌ها</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="border border-border rounded-lg">
+        <div class="px-3 py-1.5 bg-background-alt border-b border-border">
+          <span class="text-xs text-text-muted">size="sm"</span>
+        </div>
+        {% include "ui/components/data/empty_state.html" with title="کوچک" description="حالت خالی فشرده" illustration="no_data" size="sm" %}
+      </div>
+      <div class="border border-border rounded-lg">
+        <div class="px-3 py-1.5 bg-background-alt border-b border-border">
+          <span class="text-xs text-text-muted">size="md" (پیش‌فرض)</span>
+        </div>
+        {% include "ui/components/data/empty_state.html" with title="متوسط" description="حالت خالی پیش‌فرض" illustration="no_data" size="md" %}
+      </div>
+      <div class="border border-border rounded-lg">
+        <div class="px-3 py-1.5 bg-background-alt border-b border-border">
+          <span class="text-xs text-text-muted">size="lg"</span>
+        </div>
+        {% include "ui/components/data/empty_state.html" with title="بزرگ" description="حالت خالی تمام‌صفحه" illustration="no_data" size="lg" %}
+      </div>
     </div>
   </section>
 </div>

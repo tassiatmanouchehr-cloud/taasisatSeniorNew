@@ -1,37 +1,91 @@
 {# Empty State Component
    Usage:
      {% include "ui/components/data/empty_state.html" with title="سفارشی یافت نشد" %}
+     {% include "ui/components/data/empty_state.html" with preset="no_data" %}
+     {% include "ui/components/data/empty_state.html" with title="خطا" illustration="error" action_label="تلاش مجدد" %}
 
    Props:
-     title       — Main heading
-     description — Supporting text
-     icon        — SVG or emoji icon
-     action_label — Button text (optional)
-     action_href  — Button link
-     action_attrs — Extra attrs on button (e.g., hx-get)
+     title            — Main heading (required unless preset)
+     description      — Supporting text
+     illustration     — SVG illustration key: no_data|no_search|permission|offline|
+                        maintenance|no_notifications|no_orders|no_messages|error|success
+     icon             — Fallback: emoji or HTML for icon (if no illustration)
+     action_label     — Primary button text
+     action_href      — Primary button link
+     action_attrs     — Extra attrs on primary button (hx-get, @click, etc.)
+     secondary_label  — Secondary link/button text
+     secondary_href   — Secondary button link
+     secondary_attrs  — Extra attrs on secondary button
+     size             — sm|md|lg (default: md) — controls padding and illustration size
+     preset           — Use a predefined empty state (sets title, desc, illustration)
 #}
-<div class="flex flex-col items-center justify-center py-12 px-4 text-center">
-  {% if icon %}
+{% with size=size|default:"md" %}
+<div class="flex flex-col items-center justify-center text-center
+            {% if size == 'sm' %}py-8 px-4
+            {% elif size == 'md' %}py-12 px-4
+            {% elif size == 'lg' %}py-16 px-6
+            {% endif %}">
+
+  {# Illustration or Icon #}
+  {% if illustration %}
+  <div class="mb-6" aria-hidden="true">
+    {% include "ui/components/illustrations/empty_state_svg.html" with variant=illustration size=size %}
+  </div>
+  {% elif icon %}
   <div class="mb-4 text-text-muted" aria-hidden="true">
-    <div class="w-16 h-16 mx-auto flex items-center justify-center rounded-full
-                bg-background-alt text-3xl">
+    <div class="flex items-center justify-center rounded-full bg-background-alt
+                {% if size == 'sm' %}w-12 h-12 text-2xl
+                {% elif size == 'md' %}w-16 h-16 text-3xl
+                {% elif size == 'lg' %}w-20 h-20 text-4xl
+                {% endif %}">
       {{ icon }}
     </div>
   </div>
   {% endif %}
 
-  <h3 class="text-lg font-semibold text-text mb-1">{{ title }}</h3>
+  {# Title #}
+  <h3 class="font-semibold text-text mb-1
+             {% if size == 'sm' %}text-base
+             {% elif size == 'md' %}text-lg
+             {% elif size == 'lg' %}text-xl
+             {% endif %}">
+    {{ title }}
+  </h3>
 
+  {# Description #}
   {% if description %}
-  <p class="text-sm text-text-muted max-w-sm mb-6">{{ description }}</p>
+  <p class="text-text-muted max-w-sm
+            {% if size == 'sm' %}text-xs mb-4
+            {% elif size == 'md' %}text-sm mb-6
+            {% elif size == 'lg' %}text-base mb-8
+            {% endif %}">
+    {{ description }}
+  </p>
+  {% else %}
+  <div class="{% if size == 'sm' %}mb-4{% elif size == 'md' %}mb-6{% else %}mb-8{% endif %}"></div>
   {% endif %}
 
-  {% if action_label %}
-  <a {% if action_href %}href="{{ action_href }}"{% endif %}
-     class="inline-flex items-center px-4 py-2 bg-primary text-text-inverse rounded-lg
-            font-semibold text-sm hover:bg-primary-700 transition-colors no-underline"
-     {{ action_attrs|default:"" }}>
-    {{ action_label }}
-  </a>
+  {# Actions #}
+  {% if action_label or secondary_label %}
+  <div class="flex flex-col sm:flex-row items-center gap-3">
+    {% if action_label %}
+    <a {% if action_href %}href="{{ action_href }}"{% endif %}
+       class="inline-flex items-center px-4 py-2 bg-primary text-text-inverse rounded-lg
+              font-semibold text-sm hover:bg-primary-700 transition-colors no-underline
+              focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
+       {{ action_attrs|default:"" }}>
+      {{ action_label }}
+    </a>
+    {% endif %}
+    {% if secondary_label %}
+    <a {% if secondary_href %}href="{{ secondary_href }}"{% endif %}
+       class="inline-flex items-center px-4 py-2 text-text-muted hover:text-text
+              text-sm font-medium transition-colors no-underline"
+       {{ secondary_attrs|default:"" }}>
+      {{ secondary_label }}
+    </a>
+    {% endif %}
+  </div>
   {% endif %}
 </div>
+{% endwith %}
