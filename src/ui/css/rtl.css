@@ -201,8 +201,14 @@
   .gap-inline-2 {
     column-gap: 0.5rem;
   }
+  .gap-inline-3 {
+    column-gap: 0.75rem;
+  }
   .gap-inline-4 {
     column-gap: 1rem;
+  }
+  .gap-inline-5 {
+    column-gap: 1.25rem;
   }
   .gap-inline-6 {
     column-gap: 1.5rem;

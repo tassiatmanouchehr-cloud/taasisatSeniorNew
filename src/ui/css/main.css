@@ -32,6 +32,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* === Alpine.js x-cloak (hide elements until Alpine initializes) === */
+[x-cloak] {
+  display: none !important;
+}
+
 /* === Custom Base Layer === */
 @layer base {
   /* HTML root: Persian font smoothing */

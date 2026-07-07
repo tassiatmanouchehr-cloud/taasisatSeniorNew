@@ -4,27 +4,29 @@
 {% block brand_name %}سالمندیار{% endblock %}
 
 {% block nav_brand %}
-<a href="/" class="group flex items-center gap-3 text-xl font-black text-text no-underline" aria-label="بازگشت به صفحه اصلی سالمندیار">
-  <span class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-base font-black text-white shadow-md transition-transform duration-200 group-hover:-translate-y-0.5">س</span>
+<a href="/" class="group flex items-center gap-2 sm:gap-3 text-xl font-black text-text no-underline" aria-label="بازگشت به صفحه اصلی سالمندیار">
+  <span class="inline-flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-2xl bg-primary text-sm sm:text-base font-black text-white shadow-md transition-transform duration-200 group-hover:-translate-y-0.5">س</span>
   <span class="flex flex-col leading-none">
-    <span class="text-lg font-black text-text">سالمندیار</span>
-    <span class="mt-1 text-xs font-medium text-text-muted">بازار خدمات مراقبت سالمندان</span>
+    <span class="text-base sm:text-lg font-black text-text">سالمندیار</span>
+    <span class="mt-0.5 hidden sm:block text-xs font-medium text-text-muted">بازار خدمات مراقبت سالمندان</span>
   </span>
 </a>
 {% endblock %}
 
+{# Desktop navigation links with active state #}
 {% block nav_links %}
-<a href="/" class="text-sm font-semibold text-text-muted transition-colors hover:text-primary">خانه</a>
-<a href="/services/" class="text-sm font-semibold text-text-muted transition-colors hover:text-primary">خدمات</a>
-<a href="/how-it-works/" class="text-sm font-semibold text-text-muted transition-colors hover:text-primary">نحوه کار</a>
-<a href="/trust-safety/" class="text-sm font-semibold text-text-muted transition-colors hover:text-primary">اعتماد و امنیت</a>
-<a href="/pricing/" class="text-sm font-semibold text-text-muted transition-colors hover:text-primary">قیمت‌گذاری</a>
-<a href="/faq/" class="text-sm font-semibold text-text-muted transition-colors hover:text-primary">پرسش‌های متداول</a>
-<a href="/contact/" class="text-sm font-semibold text-text-muted transition-colors hover:text-primary">تماس با ما</a>
+<a href="/" class="text-sm font-semibold transition-colors {% if request.path == '/' %}text-primary{% else %}text-text-muted hover:text-primary{% endif %}">خانه</a>
+<a href="/services/" class="text-sm font-semibold transition-colors {% if '/services/' in request.path %}text-primary{% else %}text-text-muted hover:text-primary{% endif %}">خدمات</a>
+<a href="/how-it-works/" class="text-sm font-semibold transition-colors {% if '/how-it-works/' in request.path %}text-primary{% else %}text-text-muted hover:text-primary{% endif %}">نحوه کار</a>
+<a href="/trust-safety/" class="text-sm font-semibold transition-colors {% if '/trust-safety/' in request.path %}text-primary{% else %}text-text-muted hover:text-primary{% endif %}">اعتماد و امنیت</a>
+<a href="/pricing/" class="text-sm font-semibold transition-colors {% if '/pricing/' in request.path %}text-primary{% else %}text-text-muted hover:text-primary{% endif %}">قیمت‌گذاری</a>
+<a href="/faq/" class="text-sm font-semibold transition-colors {% if '/faq/' in request.path %}text-primary{% else %}text-text-muted hover:text-primary{% endif %}">پرسش‌ها</a>
+<a href="/contact/" class="text-sm font-semibold transition-colors {% if '/contact/' in request.path %}text-primary{% else %}text-text-muted hover:text-primary{% endif %}">تماس</a>
 {% endblock %}
 
+{# Desktop CTA actions #}
 {% block nav_actions %}
-<a href="/contact/" class="hidden items-center justify-center rounded-xl border border-border bg-surface px-4 py-2 text-sm font-bold text-text transition-all hover:border-border-strong hover:bg-background sm:inline-flex">
+<a href="/contact/" class="hidden lg:inline-flex items-center justify-center rounded-xl border border-border bg-surface px-4 py-2 text-sm font-bold text-text transition-all hover:border-border-strong hover:bg-background">
   مشاوره رایگان
 </a>
 <a href="/services/" class="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-primary-700 hover:shadow-lg">
@@ -32,10 +34,33 @@
 </a>
 {% endblock %}
 
+{# Mobile navigation links (shown in hamburger panel) #}
+{% block mobile_nav_links %}
+<a href="/" @click="mobileNav = false" class="block rounded-xl px-4 py-3 text-sm font-semibold transition-colors {% if request.path == '/' %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text hover:bg-background-alt{% endif %}">خانه</a>
+<a href="/services/" @click="mobileNav = false" class="block rounded-xl px-4 py-3 text-sm font-semibold transition-colors {% if '/services/' in request.path %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text hover:bg-background-alt{% endif %}">خدمات</a>
+<a href="/how-it-works/" @click="mobileNav = false" class="block rounded-xl px-4 py-3 text-sm font-semibold transition-colors {% if '/how-it-works/' in request.path %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text hover:bg-background-alt{% endif %}">نحوه کار</a>
+<a href="/trust-safety/" @click="mobileNav = false" class="block rounded-xl px-4 py-3 text-sm font-semibold transition-colors {% if '/trust-safety/' in request.path %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text hover:bg-background-alt{% endif %}">اعتماد و امنیت</a>
+<a href="/pricing/" @click="mobileNav = false" class="block rounded-xl px-4 py-3 text-sm font-semibold transition-colors {% if '/pricing/' in request.path %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text hover:bg-background-alt{% endif %}">قیمت‌گذاری</a>
+<a href="/faq/" @click="mobileNav = false" class="block rounded-xl px-4 py-3 text-sm font-semibold transition-colors {% if '/faq/' in request.path %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text hover:bg-background-alt{% endif %}">پرسش‌های متداول</a>
+<a href="/about/" @click="mobileNav = false" class="block rounded-xl px-4 py-3 text-sm font-semibold transition-colors {% if '/about/' in request.path %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text hover:bg-background-alt{% endif %}">درباره ما</a>
+<a href="/contact/" @click="mobileNav = false" class="block rounded-xl px-4 py-3 text-sm font-semibold transition-colors {% if '/contact/' in request.path %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text hover:bg-background-alt{% endif %}">تماس با ما</a>
+{% endblock %}
+
+{# Mobile CTA (inside hamburger panel) #}
+{% block mobile_nav_actions %}
+<a href="/services/" @click="mobileNav = false" class="block w-full rounded-xl bg-primary px-4 py-3 text-center text-sm font-bold text-white shadow-md transition-all hover:bg-primary-700">
+  شروع درخواست
+</a>
+<a href="/contact/" @click="mobileNav = false" class="block w-full rounded-xl border border-border bg-surface px-4 py-3 text-center text-sm font-bold text-text transition-all hover:bg-background-alt">
+  مشاوره رایگان
+</a>
+{% endblock %}
+
+{# Footer #}
 {% block footer %}
-<div class="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+<div class="grid gap-8 grid-cols-2 lg:grid-cols-4">
   <!-- Column 1: Brand -->
-  <div>
+  <div class="col-span-2 lg:col-span-1">
     <div class="flex items-center gap-3">
       <span class="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-base font-black text-white shadow-md">س</span>
       <div>
@@ -51,7 +76,7 @@
   <!-- Column 2: صفحات اصلی -->
   <div>
     <h3 class="text-sm font-black text-text">صفحات اصلی</h3>
-    <ul class="mt-4 space-y-3 text-sm text-text-muted">
+    <ul class="mt-4 space-y-2.5 text-sm text-text-muted">
       <li><a class="transition-colors hover:text-primary" href="/">خانه</a></li>
       <li><a class="transition-colors hover:text-primary" href="/services/">خدمات</a></li>
       <li><a class="transition-colors hover:text-primary" href="/how-it-works/">نحوه کار</a></li>
@@ -62,7 +87,7 @@
   <!-- Column 3: برای کاربران -->
   <div>
     <h3 class="text-sm font-black text-text">برای کاربران</h3>
-    <ul class="mt-4 space-y-3 text-sm text-text-muted">
+    <ul class="mt-4 space-y-2.5 text-sm text-text-muted">
       <li><a class="transition-colors hover:text-primary" href="/caregivers/">برای مراقبان</a></li>
       <li><a class="transition-colors hover:text-primary" href="/organizations/">برای سازمان‌ها</a></li>
       <li><a class="transition-colors hover:text-primary" href="/pricing/">قیمت‌گذاری</a></li>
@@ -71,9 +96,9 @@
   </div>
 
   <!-- Column 4: اعتماد و پشتیبانی -->
-  <div>
+  <div class="col-span-2 sm:col-span-1">
     <h3 class="text-sm font-black text-text">اعتماد و پشتیبانی</h3>
-    <ul class="mt-4 space-y-3 text-sm text-text-muted">
+    <ul class="mt-4 space-y-2.5 text-sm text-text-muted">
       <li><a class="transition-colors hover:text-primary" href="/trust-safety/">اعتماد و امنیت</a></li>
       <li><a class="transition-colors hover:text-primary" href="/support/">پشتیبانی</a></li>
       <li><a class="transition-colors hover:text-primary" href="/faq/">پرسش‌های متداول</a></li>
@@ -85,6 +110,6 @@
 </div>
 <div class="mt-10 flex flex-col gap-3 border-t border-border pt-6 text-sm text-text-muted sm:flex-row sm:items-center sm:justify-between">
   <p>© ۱۴۰۵ سالمندیار — تمامی حقوق محفوظ است.</p>
-  <p>نسخه آزمایشی زیرساخت عمومی سایت</p>
+  <p class="text-xs">نسخه آزمایشی زیرساخت عمومی سایت</p>
 </div>
 {% endblock %}
