@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Platform apps
     "apps.kernel",
+    "apps.accounts",
     "apps.showcase",
     "apps.public_site",
 ]

@@ -1,0 +1,204 @@
+{% extends "accounts/base_auth.html" %}
+
+{% block page_meta %}
+{% include "ui/components/public/seo_meta.html" with page_title="ثبت‌نام سازمان — سالمندیار" page_description="ثبت‌نام شرکت یا آژانس مراقبتی در سالمندیار برای مدیریت تیم مراقبان." page_url="/accounts/register/company/" %}
+{% endblock %}
+
+{% block auth_header %}
+<div class="mb-8">
+  <!-- Back link -->
+  <a href="/accounts/register/" class="inline-flex items-center gap-1 text-sm font-semibold text-text-muted transition-colors hover:text-primary mb-5">
+    <svg class="h-4 w-4 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+    بازگشت به انتخاب نوع حساب
+  </a>
+  <div class="flex items-center gap-3">
+    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-xl dark:bg-primary-950">🏢</div>
+    <div>
+      <h1 class="text-2xl font-black text-text">ثبت‌نام سازمان / شرکت</h1>
+      <p class="mt-1 text-sm text-text-muted">اطلاعات مدیر و سازمان را وارد کنید.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block auth_body %}
+<form method="post" action="#" class="space-y-6" x-data="{ loading: false }">
+  {% csrf_token %}
+  <input type="hidden" name="role" value="company_admin">
+
+  <!-- Section: Admin Info -->
+  <fieldset class="space-y-5">
+    <legend class="text-sm font-black text-primary mb-1">اطلاعات مدیر</legend>
+
+    <!-- Full Name -->
+    <div>
+      <label for="admin_name" class="block text-sm font-black text-text">نام و نام خانوادگی مدیر</label>
+      <input
+        id="admin_name"
+        name="admin_name"
+        type="text"
+        autocomplete="name"
+        required
+        class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm transition-colors placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2"
+        placeholder="مثلاً محمد کریمی"
+      >
+    </div>
+
+    <!-- Phone -->
+    <div>
+      <label for="phone" class="block text-sm font-black text-text">شماره موبایل مدیر</label>
+      <input
+        id="phone"
+        name="phone"
+        type="tel"
+        inputmode="numeric"
+        autocomplete="tel"
+        required
+        class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm transition-colors placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2"
+        placeholder="09xxxxxxxxx"
+        dir="ltr"
+      >
+    </div>
+
+    <!-- Admin Role in Org -->
+    <div>
+      <label for="admin_role" class="block text-sm font-black text-text">سمت شما در سازمان</label>
+      <select
+        id="admin_role"
+        name="admin_role"
+        required
+        class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-2"
+      >
+        <option value="" disabled selected>انتخاب سمت</option>
+        <option value="owner">مالک / مؤسس</option>
+        <option value="ceo">مدیرعامل</option>
+        <option value="operations_manager">مدیر عملیات</option>
+        <option value="branch_manager">مدیر شعبه</option>
+        <option value="other">سایر</option>
+      </select>
+    </div>
+  </fieldset>
+
+  <!-- Divider -->
+  <div class="border-t border-border"></div>
+
+  <!-- Section: Organization Info -->
+  <fieldset class="space-y-5">
+    <legend class="text-sm font-black text-primary mb-1">اطلاعات سازمان</legend>
+
+    <!-- Company Name -->
+    <div>
+      <label for="company_name" class="block text-sm font-black text-text">نام شرکت / آژانس</label>
+      <input
+        id="company_name"
+        name="company_name"
+        type="text"
+        required
+        class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm transition-colors placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2"
+        placeholder="نام رسمی سازمان"
+      >
+    </div>
+
+    <!-- Company Type -->
+    <div>
+      <label for="company_type" class="block text-sm font-black text-text">نوع سازمان</label>
+      <select
+        id="company_type"
+        name="company_type"
+        required
+        class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-2"
+      >
+        <option value="" disabled selected>انتخاب نوع</option>
+        <option value="care_agency">آژانس مراقبتی</option>
+        <option value="nursing_company">شرکت خدمات پرستاری</option>
+        <option value="rehab_center">مرکز توان‌بخشی</option>
+        <option value="home_care">شرکت مراقبت در منزل</option>
+        <option value="other">سایر</option>
+      </select>
+    </div>
+
+    <!-- City -->
+    <div>
+      <label for="city" class="block text-sm font-black text-text">شهر دفتر مرکزی</label>
+      <select
+        id="city"
+        name="city"
+        required
+        class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-2"
+      >
+        <option value="" disabled selected>انتخاب شهر</option>
+        <option value="tehran">تهران</option>
+        <option value="isfahan">اصفهان</option>
+        <option value="shiraz">شیراز</option>
+        <option value="mashhad">مشهد</option>
+        <option value="tabriz">تبریز</option>
+        <option value="other">سایر شهرها</option>
+      </select>
+    </div>
+
+    <!-- Team Size -->
+    <div>
+      <label for="team_size" class="block text-sm font-black text-text">تعداد تقریبی مراقبان</label>
+      <select
+        id="team_size"
+        name="team_size"
+        class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-2"
+      >
+        <option value="" disabled selected>انتخاب کنید</option>
+        <option value="1-5">۱ تا ۵ نفر</option>
+        <option value="6-20">۶ تا ۲۰ نفر</option>
+        <option value="21-50">۲۱ تا ۵۰ نفر</option>
+        <option value="50+">بیش از ۵۰ نفر</option>
+      </select>
+    </div>
+  </fieldset>
+
+  <!-- Info notice -->
+  <div class="rounded-xl bg-info-50 border border-info-200 p-3 dark:bg-info-50">
+    <p class="text-xs leading-6 text-text-muted">
+      <strong class="text-text">نکته:</strong>
+      پس از ثبت‌نام، می‌توانید اپراتورها و مراقبان تیم خود را از پنل سازمانی اضافه کنید. مراقبانی که کد سازمان شما را وارد کنند، درخواست وابستگی ارسال می‌کنند که باید توسط شما تأیید شود.
+    </p>
+  </div>
+
+  <!-- Terms -->
+  <div class="flex items-start gap-3">
+    <input
+      id="terms"
+      name="terms"
+      type="checkbox"
+      required
+      class="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-2"
+    >
+    <label for="terms" class="text-sm leading-6 text-text-muted">
+      <a href="/terms/" target="_blank" class="font-bold text-primary hover:text-primary-700">قوانین استفاده</a>
+      و
+      <a href="/privacy/" target="_blank" class="font-bold text-primary hover:text-primary-700">حریم خصوصی</a>
+      را مطالعه کرده و می‌پذیرم.
+    </label>
+  </div>
+
+  <!-- Submit -->
+  <button
+    type="button"
+    class="inline-flex w-full items-center justify-center rounded-2xl bg-primary px-6 py-4 text-base font-black text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary-700 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+    :disabled="loading"
+    @click="loading = true; setTimeout(() => { window.location.href = '/accounts/verify/?role=company_admin'; }, 800)"
+  >
+    <span x-show="!loading">ادامه و دریافت کد تأیید</span>
+    <span x-show="loading" x-cloak class="flex items-center gap-2">
+      <svg class="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+      در حال پردازش...
+    </span>
+  </button>
+</form>
+{% endblock %}
+
+{% block auth_footer %}
+<div class="mt-6 text-center">
+  <p class="text-sm text-text-muted">
+    قبلاً ثبت‌نام کرده‌اید؟
+    <a href="/accounts/login/" class="font-black text-primary transition-colors hover:text-primary-700">ورود به حساب</a>
+  </p>
+</div>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "ui/layouts/auth.html" %}
+{# Base auth template for سالمندیار — all auth pages extend this #}
+
+{% block extra_head %}
+{% block page_meta %}{% endblock %}
+{% endblock %}
+
+{% block auth_content %}
+<div class="rounded-3xl border border-border bg-surface p-8 shadow-xl">
+  {% block auth_header %}{% endblock %}
+  {% block auth_body %}{% endblock %}
+  {% block auth_footer %}{% endblock %}
+</div>
+{% block auth_below %}{% endblock %}
+{% endblock %}

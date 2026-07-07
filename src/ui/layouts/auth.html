@@ -1,47 +1,50 @@
 {% extends "ui/layouts/base.html" %}
-{# Auth layout — login, register, forgot password, MFA, verify #}
-{# Centered card on a clean background. No sidebar, no navigation. #}
+{# Auth layout — login, register, OTP verification, onboarding #}
+{# Centered card design with brand header and optional illustration #}
 
 {% block body_class %}layout-auth{% endblock %}
 
 {% block body %}
-<div class="min-h-screen flex flex-col items-center justify-center p-4
-            bg-background">
+<div class="flex flex-col min-h-screen">
 
-  <!-- Brand -->
-  <div class="mb-8 text-center">
-    {% block auth_brand %}
-    <a href="/" class="inline-flex items-center gap-2 text-2xl font-bold text-primary no-underline">
-      {% block auth_logo %}{% endblock %}
-      <span>{% block auth_brand_name %}پلتفرم{% endblock %}</span>
-    </a>
-    {% endblock %}
-  </div>
-
-  <!-- Auth Card -->
-  <div class="w-full max-w-md bg-surface rounded-xl shadow-lg p-6 sm:p-8
-              border border-border">
-    <!-- Card Header -->
-    {% block auth_header %}
-    <div class="text-center mb-6">
-      <h1 class="text-xl font-bold text-text">{% block auth_title %}{% endblock %}</h1>
-      {% block auth_subtitle %}{% endblock %}
+  <!-- Auth Header (minimal) -->
+  <header class="border-b border-border bg-surface py-4">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav class="flex items-center justify-between" aria-label="ناوبری احراز هویت">
+        <!-- Brand -->
+        <a href="/" class="group flex items-center gap-3 text-xl font-black text-text no-underline" aria-label="بازگشت به صفحه اصلی">
+          <span class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-base font-black text-white shadow-md transition-transform duration-200 group-hover:-translate-y-0.5">س</span>
+          <span class="flex flex-col leading-none">
+            <span class="text-lg font-black text-text">سالمندیار</span>
+            <span class="mt-0.5 hidden sm:inline-flex text-xs font-medium text-text-muted">بازار خدمات مراقبت سالمندان</span>
+          </span>
+        </a>
+        <!-- Help link -->
+        <a href="/support/" class="text-sm font-semibold text-text-muted transition-colors hover:text-primary">
+          نیاز به کمک دارید؟
+        </a>
+      </nav>
     </div>
-    {% endblock %}
+  </header>
 
-    <!-- Card Content (form) -->
-    <div id="main-content">
+  <!-- Main Content -->
+  <main id="main-content" class="flex-1 flex items-center justify-center py-12 px-4 sm:px-6">
+    <div class="w-full {% block auth_width %}max-w-md{% endblock %}">
       {% block auth_content %}{% endblock %}
     </div>
+  </main>
 
-    <!-- Card Footer (links) -->
-    {% block auth_footer %}{% endblock %}
-  </div>
-
-  <!-- Below card (optional legal text) -->
-  <div class="mt-6 text-center text-sm text-text-muted">
-    {% block auth_below %}{% endblock %}
-  </div>
+  <!-- Auth Footer (minimal) -->
+  <footer class="border-t border-border bg-surface py-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 text-center">
+      <div class="flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-6 text-sm text-text-muted">
+        <a href="/privacy/" class="transition-colors hover:text-primary">حریم خصوصی</a>
+        <a href="/terms/" class="transition-colors hover:text-primary">قوانین استفاده</a>
+        <a href="/support/" class="transition-colors hover:text-primary">پشتیبانی</a>
+      </div>
+      <p class="mt-4 text-xs text-text-muted">© ۱۴۰۵ سالمندیار — تمامی حقوق محفوظ است.</p>
+    </div>
+  </footer>
 
 </div>
 {% endblock %}
