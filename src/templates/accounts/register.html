@@ -22,7 +22,7 @@
 <div class="space-y-4">
 
   <!-- Path 1: Customer (Family) -->
-  <a href="/accounts/register/customer/"
+  <a href="{% url 'accounts:register-customer' %}"
      class="group block rounded-2xl border border-border bg-background p-5 transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-lg no-underline">
     <div class="flex items-start gap-4">
       <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-xl dark:bg-primary-950 transition-transform group-hover:scale-110">
@@ -45,7 +45,7 @@
   </div>
 
   <!-- Path 2: Non-Customer — Caregiver / Provider -->
-  <a href="/accounts/register/caregiver/"
+  <a href="{% url 'accounts:register-caregiver' %}"
      class="group block rounded-2xl border border-border bg-background p-5 transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-lg no-underline">
     <div class="flex items-start gap-4">
       <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-xl dark:bg-primary-950 transition-transform group-hover:scale-110">
@@ -62,7 +62,7 @@
   </a>
 
   <!-- Path 3: Non-Customer — Company Admin -->
-  <a href="/accounts/register/company/"
+  <a href="{% url 'accounts:register-company' %}"
      class="group block rounded-2xl border border-border bg-background p-5 transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-lg no-underline">
     <div class="flex items-start gap-4">
       <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-xl dark:bg-primary-950 transition-transform group-hover:scale-110">
@@ -85,7 +85,7 @@
 <div class="mt-6 text-center">
   <p class="text-sm text-text-muted">
     قبلاً ثبت‌نام کرده‌اید؟
-    <a href="/accounts/login/" class="font-black text-primary transition-colors hover:text-primary-700">ورود به حساب</a>
+    <a href="{% url 'accounts:login' %}" class="font-black text-primary transition-colors hover:text-primary-700">ورود به حساب</a>
   </p>
 </div>
 {% endblock %}
