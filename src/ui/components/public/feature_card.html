@@ -10,7 +10,7 @@
    %}
 #}
 {% with variant=variant|default:"default" %}
-<article class="group rounded-3xl border p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg {% if variant == 'highlighted' %}border-primary/30 bg-primary-50 dark:bg-primary-950{% else %}border-border bg-surface{% endif %}">
+<article class="group rounded-3xl border p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg {% if variant == 'highlighted' %}border-primary bg-primary-50 dark:bg-primary-950{% else %}border-border bg-surface{% endif %}">
   {% if icon %}
   <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl {% if variant == 'highlighted' %}bg-primary text-white{% else %}bg-primary-50 dark:bg-primary-950{% endif %} text-xl transition-transform group-hover:scale-110">{{ icon }}</div>
   {% endif %}

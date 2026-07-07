@@ -1,0 +1,143 @@
+/* Enterprise Public Experience — Supplementary Utilities
+ * Generated for classes used by ui/components/public/ and templates/public_site/
+ * that are not present in the Sprint 3A output.css build.
+ * TODO: Remove this file once npm run build works (it will regenerate output.css with all classes).
+ */
+
+/* === Spacing: padding === */
+.py-5{padding-top:1.25rem;padding-bottom:1.25rem}
+.py-12{padding-top:3rem;padding-bottom:3rem}
+.py-16{padding-top:4rem;padding-bottom:4rem}
+.py-20{padding-top:5rem;padding-bottom:5rem}
+.pt-5{padding-top:1.25rem}
+.pt-8{padding-top:2rem}
+.pb-5{padding-bottom:1.25rem}
+.pb-10{padding-bottom:2.5rem}
+.px-7{padding-left:1.75rem;padding-right:1.75rem}
+.px-8{padding-left:2rem;padding-right:2rem}
+
+/* === Spacing: margin === */
+.ms-1{margin-inline-start:.25rem}
+.mt-0\.5{margin-top:.125rem}
+
+/* === Sizing === */
+.h-0\.5{height:.125rem}
+.h-72{height:18rem}
+.h-14{height:3.5rem}
+.w-0\.5{width:.125rem}
+.w-14{width:3.5rem}
+
+/* === Position === */
+.inset-x-6{left:1.5rem;right:1.5rem}
+.start-6{inset-inline-start:1.5rem}
+.top-14{top:3.5rem}
+.end-4{inset-inline-end:1rem}
+
+/* === Typography === */
+.leading-6{line-height:1.5rem}
+.leading-7{line-height:1.75rem}
+.leading-8{line-height:2rem}
+.leading-9{line-height:2.25rem}
+.text-3xl{font-size:1.875rem;line-height:2.25rem}
+
+/* === Grid === */
+.grid-cols-1{grid-template-columns:repeat(1,minmax(0,1fr))}
+.space-y-0>:not([hidden])~:not([hidden]){--tw-space-y-reverse:0;margin-top:0;margin-bottom:0}
+
+/* === Opacity === */
+.opacity-5{opacity:.05}
+
+/* === Transitions === */
+.transition-shadow{transition-property:box-shadow;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:150ms}
+
+/* === Transform utilities === */
+.group:hover .group-hover\:scale-110{--tw-scale-x:1.1;--tw-scale-y:1.1;transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}
+.group:hover .group-hover\:opacity-100{opacity:1}
+.group:hover .group-hover\:-translate-x-1{--tw-translate-x:-.25rem;transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}
+.rtl\:rotate-180:where([dir=rtl],[dir=rtl] *){--tw-rotate:180deg;transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}
+.rtl\:group-hover\:translate-x-1:where([dir=rtl],[dir=rtl] *){--tw-translate-x:.25rem;transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}
+
+/* === Hover shadows === */
+.hover\:shadow-sm:hover{--tw-shadow:0 1px 2px 0 rgba(0,0,0,.05);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}
+.hover\:shadow-md:hover{--tw-shadow:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -2px rgba(0,0,0,.1);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}
+.hover\:shadow-lg:hover{--tw-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.1);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}
+.hover\:shadow-xl:hover{--tw-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}
+
+/* === Hover transforms === */
+.hover\:-translate-y-0\.5:hover{--tw-translate-y:-.125rem;transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}
+.hover\:-translate-y-1:hover{--tw-translate-y:-.25rem;transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}
+
+/* === Hover colors === */
+.hover\:bg-primary-700:hover{background-color:var(--color-primary-700)}
+.hover\:bg-background:hover{background-color:var(--color-background)}
+.hover\:bg-primary-50:hover{background-color:var(--color-primary-50)}
+.hover\:text-primary:hover{color:var(--color-primary-600)}
+.hover\:text-primary-700:hover{color:var(--color-primary-700)}
+.hover\:border-border-strong:hover{border-color:var(--color-border-strong)}
+
+/* === Focus utilities === */
+.focus\:border-primary:focus{border-color:var(--color-primary-600)}
+.focus\:outline-none:focus{outline:2px solid transparent;outline-offset:2px}
+.focus\:ring-2:focus{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow,0 0 #0000)}
+.focus\:ring-primary\/20:focus{--tw-ring-color:rgba(37,99,235,.2)}
+
+/* === Fill/Stroke === */
+.fill-primary-100{fill:var(--color-primary-100)}
+.fill-primary-50{fill:var(--color-primary-50)}
+.stroke-white{stroke:#fff}
+.text-primary-100{color:var(--color-primary-100)}
+
+/* === Dark mode additions === */
+.dark\:bg-success-100:is(.dark *){background-color:var(--color-success-100)}
+.dark\:bg-warning-100:is(.dark *){background-color:var(--color-warning-100)}
+.dark\:fill-primary-950:is(.dark *){fill:var(--color-primary-950)}
+.dark\:hover\:bg-primary-950:hover:is(.dark *){background-color:var(--color-primary-950)}
+.dark\:text-primary-950:is(.dark *){color:var(--color-primary-950)}
+
+/* === Prose (basic) === */
+.prose{max-width:65ch}
+.prose-lg{font-size:1.125rem;line-height:1.8}
+.max-w-none{max-width:none}
+
+/* === Responsive: sm (640px) === */
+@media(min-width:640px){
+  .sm\:col-span-2{grid-column:span 2/span 2}
+  .sm\:flex{display:flex}
+  .sm\:flex-row{flex-direction:row}
+  .sm\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sm\:inline-flex{display:inline-flex}
+  .sm\:items-center{align-items:center}
+  .sm\:justify-between{justify-content:space-between}
+  .sm\:px-6{padding-left:1.5rem;padding-right:1.5rem}
+  .sm\:text-2xl{font-size:1.5rem;line-height:2rem}
+  .sm\:text-3xl{font-size:1.875rem;line-height:2.25rem}
+  .sm\:text-4xl{font-size:2.25rem;line-height:2.5rem}
+  .sm\:text-5xl{font-size:3rem;line-height:1}
+}
+
+/* === Responsive: md (768px) === */
+@media(min-width:768px){
+  .md\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .md\:grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+
+/* === Responsive: lg (1024px) === */
+@media(min-width:1024px){
+  .lg\:col-span-1{grid-column:span 1/span 1}
+  .lg\:col-span-2{grid-column:span 2/span 2}
+  .lg\:flex{display:flex}
+  .lg\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .lg\:grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .lg\:grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .lg\:grid-cols-6{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .lg\:hidden{display:none}
+  .lg\:inline-flex{display:inline-flex}
+  .lg\:items-center{align-items:center}
+  .lg\:items-start{align-items:flex-start}
+  .lg\:px-8{padding-left:2rem;padding-right:2rem}
+  .lg\:py-16{padding-top:4rem;padding-bottom:4rem}
+  .lg\:py-24{padding-top:6rem;padding-bottom:6rem}
+  .lg\:py-28{padding-top:7rem;padding-bottom:7rem}
+  .lg\:text-5xl{font-size:3rem;line-height:1}
+  .lg\:text-6xl{font-size:3.75rem;line-height:1}
+}

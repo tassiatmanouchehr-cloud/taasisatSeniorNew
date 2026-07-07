@@ -5,13 +5,16 @@
      title="Plan name"
      description="Description"
      featured="false"
-     features_list="feature1|feature2|feature3"
+     detail_1="Feature line 1"
+     detail_2="Feature line 2"
+     detail_3="Feature line 3"
+     detail_4="Feature line 4"
      cta_text="Button"
      cta_url="/url/"
    %}
 #}
 {% with featured=featured|default:"false" %}
-<article class="rounded-3xl border p-7 shadow-sm transition-all hover:shadow-md {% if featured == 'true' %}border-primary/30 bg-primary-50 dark:bg-primary-950{% else %}border-border bg-surface{% endif %}">
+<article class="rounded-3xl border p-7 shadow-sm transition-all hover:shadow-md {% if featured == 'true' %}border-primary bg-primary-50 dark:bg-primary-950{% else %}border-border bg-surface{% endif %}">
   {% if icon %}
   <div class="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl {% if featured == 'true' %}bg-primary text-white{% else %}bg-primary-50 dark:bg-primary-950{% endif %} text-xl">{{ icon }}</div>
   {% endif %}
@@ -21,18 +24,36 @@
   {% if description %}
   <p class="mt-3 text-sm leading-8 text-text-muted">{{ description }}</p>
   {% endif %}
-  {% if features_list %}
+  {% if detail_1 or detail_2 or detail_3 or detail_4 %}
   <ul class="mt-5 space-y-3 text-sm text-text-muted">
-    {% for feature in features_list %}
+    {% if detail_1 %}
     <li class="flex items-start gap-2">
       <svg class="mt-1 h-4 w-4 shrink-0 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4.5 12.75l6 6 9-13.5"/></svg>
-      {{ feature }}
+      {{ detail_1 }}
     </li>
-    {% endfor %}
+    {% endif %}
+    {% if detail_2 %}
+    <li class="flex items-start gap-2">
+      <svg class="mt-1 h-4 w-4 shrink-0 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4.5 12.75l6 6 9-13.5"/></svg>
+      {{ detail_2 }}
+    </li>
+    {% endif %}
+    {% if detail_3 %}
+    <li class="flex items-start gap-2">
+      <svg class="mt-1 h-4 w-4 shrink-0 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4.5 12.75l6 6 9-13.5"/></svg>
+      {{ detail_3 }}
+    </li>
+    {% endif %}
+    {% if detail_4 %}
+    <li class="flex items-start gap-2">
+      <svg class="mt-1 h-4 w-4 shrink-0 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4.5 12.75l6 6 9-13.5"/></svg>
+      {{ detail_4 }}
+    </li>
+    {% endif %}
   </ul>
   {% endif %}
   {% if cta_text %}
-  <a href="{{ cta_url|default:'#' }}" class="mt-6 inline-flex w-full items-center justify-center rounded-2xl {% if featured == 'true' %}bg-primary text-white hover:bg-primary-700{% else %}border border-border bg-surface text-text hover:bg-background{% endif %} px-6 py-3 font-black transition-all hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface">{{ cta_text }}</a>
+  <a href="{{ cta_url|default:'#' }}" class="mt-6 inline-flex w-full items-center justify-center rounded-2xl {% if featured == 'true' %}bg-primary text-white hover:bg-primary-700{% else %}border border-border bg-surface text-text hover:bg-background{% endif %} px-6 py-3 font-black transition-all hover:-translate-y-0.5">{{ cta_text }}</a>
   {% endif %}
 </article>
 {% endwith %}
