@@ -1,155 +1,88 @@
 {% extends "accounts/base_auth.html" %}
-
-{% block page_meta %}
-{% include "ui/components/public/seo_meta.html" with page_title="ثبت‌نام سازمان — سالمندیار" page_description="ثبت‌نام شرکت یا آژانس مراقبتی در سالمندیار." page_url="/accounts/register/company/" %}
-{% endblock %}
-
 {% block auth_header %}
 <div class="mb-8">
-  <a href="{% url 'accounts:register' %}" class="inline-flex items-center gap-1 text-sm font-semibold text-text-muted transition-colors hover:text-primary mb-5">
-    <svg class="h-4 w-4 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
-    بازگشت به انتخاب نوع حساب
-  </a>
-  <div class="flex items-center gap-3">
-    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-xl dark:bg-primary-950">🏢</div>
-    <div>
-      <h1 class="text-2xl font-black text-text">ثبت‌نام سازمان / شرکت</h1>
-      <p class="mt-1 text-sm text-text-muted">اطلاعات مدیر و سازمان را وارد کنید.</p>
-    </div>
-  </div>
+  <a href="{% url 'accounts:register' %}" class="text-sm font-semibold text-text-muted hover:text-primary mb-5 inline-block">بازگشت</a>
+  <h1 class="text-2xl font-black text-text">ثبت‌نام سازمان / شرکت</h1>
+  <p class="mt-1 text-sm text-text-muted">اطلاعات مدیر و سازمان را وارد کنید.</p>
 </div>
-{% endblock %}
-
+{% endblock auth_header %}
 {% block auth_body %}
 <form method="post" action="{% url 'accounts:register-company' %}" class="space-y-6">
   {% csrf_token %}
-
   {% if form.non_field_errors %}
   <div class="rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger">
     {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
   </div>
   {% endif %}
-
-
-  <!-- Section: Admin Info -->
   <fieldset class="space-y-5">
-    <legend class="text-sm font-black text-primary mb-1">اطلاعات مدیر</legend>
+    <legend class="text-sm font-black text-primary">اطلاعات مدیر</legend>
     <div>
-      <label for="admin_name" class="block text-sm font-black text-text">نام و نام خانوادگی مدیر</label>
-      <input id="admin_name" name="admin_name" type="text" autocomplete="name" required
-        value="{{ form.admin_name.value|default:'' }}"
-        class="mt-2 block w-full rounded-2xl border {% if form.admin_name.errors %}border-danger{% else %}border-border{% endif %} bg-background px-4 py-3 text-text shadow-sm transition-colors placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2"
-        placeholder="مثلاً محمد کریمی">
+      <label for="admin_name" class="block text-sm font-black text-text">نام مدیر</label>
+      <input id="admin_name" name="admin_name" type="text" required value="{{ form.admin_name.value|default:'' }}" class="mt-2 block w-full rounded-2xl border {% if form.admin_name.errors %}border-danger{% else %}border-border{% endif %} bg-background px-4 py-3 text-text shadow-sm placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2" placeholder="مثلاً محمد کریمی">
       {% if form.admin_name.errors %}<p class="mt-2 text-xs text-danger">{{ form.admin_name.errors.0 }}</p>{% endif %}
     </div>
     <div>
       <label for="phone" class="block text-sm font-black text-text">شماره موبایل مدیر</label>
-      <input id="phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel" required
-        value="{{ form.phone.value|default:'' }}"
-        class="mt-2 block w-full rounded-2xl border {% if form.phone.errors %}border-danger{% else %}border-border{% endif %} bg-background px-4 py-3 text-text shadow-sm transition-colors placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2"
-        placeholder="09xxxxxxxxx" dir="ltr">
+      <input id="phone" name="phone" type="tel" inputmode="numeric" required value="{{ form.phone.value|default:'' }}" class="mt-2 block w-full rounded-2xl border {% if form.phone.errors %}border-danger{% else %}border-border{% endif %} bg-background px-4 py-3 text-text shadow-sm placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2" placeholder="09xxxxxxxxx" dir="ltr">
       {% if form.phone.errors %}<p class="mt-2 text-xs text-danger">{{ form.phone.errors.0 }}</p>{% endif %}
     </div>
     <div>
-      <label for="admin_role" class="block text-sm font-black text-text">سمت شما در سازمان</label>
-      <select id="admin_role" name="admin_role"
-        class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-2">
-        <option value="">انتخاب سمت</option>
-        <option value="owner" {% if form.admin_role.value == 'owner' %}selected{% endif %}>مالک / مؤسس</option>
+      <label for="admin_role" class="block text-sm font-black text-text">سمت</label>
+      <select id="admin_role" name="admin_role" class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm focus:border-primary focus:outline-none focus:ring-2">
+        <option value="">انتخاب</option>
+        <option value="owner" {% if form.admin_role.value == 'owner' %}selected{% endif %}>مالک</option>
         <option value="ceo" {% if form.admin_role.value == 'ceo' %}selected{% endif %}>مدیرعامل</option>
-        <option value="operations_manager" {% if form.admin_role.value == 'operations_manager' %}selected{% endif %}>مدیر عملیات</option>
-        <option value="branch_manager" {% if form.admin_role.value == 'branch_manager' %}selected{% endif %}>مدیر شعبه</option>
         <option value="other" {% if form.admin_role.value == 'other' %}selected{% endif %}>سایر</option>
       </select>
     </div>
   </fieldset>
-
   <div class="border-t border-border"></div>
-
-  <!-- Section: Organization Info -->
   <fieldset class="space-y-5">
-    <legend class="text-sm font-black text-primary mb-1">اطلاعات سازمان</legend>
+    <legend class="text-sm font-black text-primary">اطلاعات سازمان</legend>
     <div>
-      <label for="company_name" class="block text-sm font-black text-text">نام شرکت / آژانس</label>
-      <input id="company_name" name="company_name" type="text" required
-        value="{{ form.company_name.value|default:'' }}"
-        class="mt-2 block w-full rounded-2xl border {% if form.company_name.errors %}border-danger{% else %}border-border{% endif %} bg-background px-4 py-3 text-text shadow-sm transition-colors placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2"
-        placeholder="نام رسمی سازمان">
+      <label for="company_name" class="block text-sm font-black text-text">نام شرکت</label>
+      <input id="company_name" name="company_name" type="text" required value="{{ form.company_name.value|default:'' }}" class="mt-2 block w-full rounded-2xl border {% if form.company_name.errors %}border-danger{% else %}border-border{% endif %} bg-background px-4 py-3 text-text shadow-sm placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2" placeholder="نام رسمی سازمان">
       {% if form.company_name.errors %}<p class="mt-2 text-xs text-danger">{{ form.company_name.errors.0 }}</p>{% endif %}
     </div>
     <div>
       <label for="company_type" class="block text-sm font-black text-text">نوع سازمان</label>
-      <select id="company_type" name="company_type"
-        class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-2">
-        <option value="">انتخاب نوع</option>
+      <select id="company_type" name="company_type" class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm focus:border-primary focus:outline-none focus:ring-2">
+        <option value="">انتخاب</option>
         <option value="care_agency" {% if form.company_type.value == 'care_agency' %}selected{% endif %}>آژانس مراقبتی</option>
-        <option value="nursing_company" {% if form.company_type.value == 'nursing_company' %}selected{% endif %}>شرکت خدمات پرستاری</option>
-        <option value="rehab_center" {% if form.company_type.value == 'rehab_center' %}selected{% endif %}>مرکز توان‌بخشی</option>
-        <option value="home_care" {% if form.company_type.value == 'home_care' %}selected{% endif %}>شرکت مراقبت در منزل</option>
+        <option value="nursing_company" {% if form.company_type.value == 'nursing_company' %}selected{% endif %}>شرکت پرستاری</option>
         <option value="other" {% if form.company_type.value == 'other' %}selected{% endif %}>سایر</option>
       </select>
     </div>
 
     <div>
-      <label for="city" class="block text-sm font-black text-text">شهر دفتر مرکزی</label>
-      <select id="city" name="city"
-        class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-2">
+      <label for="city" class="block text-sm font-black text-text">شهر</label>
+      <select id="city" name="city" class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm focus:border-primary focus:outline-none focus:ring-2">
         <option value="">انتخاب شهر</option>
         <option value="tehran" {% if form.city.value == 'tehran' %}selected{% endif %}>تهران</option>
         <option value="isfahan" {% if form.city.value == 'isfahan' %}selected{% endif %}>اصفهان</option>
-        <option value="shiraz" {% if form.city.value == 'shiraz' %}selected{% endif %}>شیراز</option>
-        <option value="mashhad" {% if form.city.value == 'mashhad' %}selected{% endif %}>مشهد</option>
-        <option value="tabriz" {% if form.city.value == 'tabriz' %}selected{% endif %}>تبریز</option>
-        <option value="other" {% if form.city.value == 'other' %}selected{% endif %}>سایر شهرها</option>
+        <option value="other" {% if form.city.value == 'other' %}selected{% endif %}>سایر</option>
       </select>
     </div>
     <div>
-      <label for="team_size" class="block text-sm font-black text-text">تعداد تقریبی مراقبان</label>
-      <select id="team_size" name="team_size"
-        class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-2">
-        <option value="">انتخاب کنید</option>
-        <option value="1-5" {% if form.team_size.value == '1-5' %}selected{% endif %}>۱ تا ۵ نفر</option>
-        <option value="6-20" {% if form.team_size.value == '6-20' %}selected{% endif %}>۶ تا ۲۰ نفر</option>
-        <option value="21-50" {% if form.team_size.value == '21-50' %}selected{% endif %}>۲۱ تا ۵۰ نفر</option>
-        <option value="50+" {% if form.team_size.value == '50+' %}selected{% endif %}>بیش از ۵۰ نفر</option>
+      <label for="team_size" class="block text-sm font-black text-text">تعداد مراقبان</label>
+      <select id="team_size" name="team_size" class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm focus:border-primary focus:outline-none focus:ring-2">
+        <option value="">انتخاب</option>
+        <option value="1-5" {% if form.team_size.value == '1-5' %}selected{% endif %}>۱-۵</option>
+        <option value="6-20" {% if form.team_size.value == '6-20' %}selected{% endif %}>۶-۲۰</option>
+        <option value="50+" {% if form.team_size.value == '50+' %}selected{% endif %}>۵۰+</option>
       </select>
     </div>
   </fieldset>
-
-  <!-- Info notice -->
-  <div class="rounded-xl bg-info-50 border border-info-200 p-3 dark:bg-info-50">
-    <p class="text-xs leading-6 text-text-muted">
-      <strong class="text-text">نکته:</strong>
-      پس از ثبت‌نام، اپراتورها و مراقبان را از پنل سازمانی مدیریت خواهید کرد.
-    </p>
-  </div>
-
-  <!-- Terms -->
   <div class="flex items-start gap-3">
-    <input id="terms" name="terms" type="checkbox" required
-      class="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-2"
-      {% if form.terms.value %}checked{% endif %}>
-    <label for="terms" class="text-sm leading-6 text-text-muted">
-      <a href="/terms/" target="_blank" class="font-bold text-primary hover:text-primary-700">قوانین استفاده</a>
-      و <a href="/privacy/" target="_blank" class="font-bold text-primary hover:text-primary-700">حریم خصوصی</a>
-      را مطالعه کرده و می‌پذیرم.
-    </label>
+    <input id="terms" name="terms" type="checkbox" required class="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-2" {% if form.terms.value %}checked{% endif %}>
+    <label for="terms" class="text-sm leading-6 text-text-muted"><a href="/terms/" class="font-bold text-primary">قوانین</a> و <a href="/privacy/" class="font-bold text-primary">حریم خصوصی</a> را می‌پذیرم.</label>
   </div>
   {% if form.terms.errors %}<p class="text-xs text-danger">{{ form.terms.errors.0 }}</p>{% endif %}
-
-  <!-- Submit -->
-  <button type="submit"
-    class="inline-flex w-full items-center justify-center rounded-2xl bg-primary px-6 py-4 text-base font-black text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary-700 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface">
-    ادامه و دریافت کد تأیید
-  </button>
+  <button type="submit" class="inline-flex w-full items-center justify-center rounded-2xl bg-primary px-6 py-4 text-base font-black text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary-700 hover:shadow-xl">ادامه و دریافت کد تأیید</button>
 </form>
-{% endblock %}
-
+{% endblock auth_body %}
 {% block auth_footer %}
 <div class="mt-6 text-center">
-  <p class="text-sm text-text-muted">
-    قبلاً ثبت‌نام کرده‌اید؟
-    <a href="{% url 'accounts:login' %}" class="font-black text-primary transition-colors hover:text-primary-700">ورود به حساب</a>
-  </p>
+  <p class="text-sm text-text-muted">قبلاً ثبت‌نام کرده‌اید؟ <a href="{% url 'accounts:login' %}" class="font-black text-primary hover:text-primary-700">ورود به حساب</a></p>
 </div>
-{% endblock %}
+{% endblock auth_footer %}

@@ -1,57 +1,28 @@
 {% extends "accounts/base_auth.html" %}
-
-{% block page_meta %}
-{% include "ui/components/public/seo_meta.html" with page_title="در انتظار تأیید — سالمندیار" page_description="درخواست وابستگی سازمانی شما ارسال شده و در انتظار تأیید مدیر شرکت است." page_url="/accounts/pending/" %}
-{% endblock %}
-
-{% block auth_width %}max-w-lg{% endblock %}
-
+{% block auth_width %}max-w-lg{% endblock auth_width %}
 {% block auth_header %}
 <div class="text-center mb-6">
   <div class="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-warning-50 dark:bg-warning-100">
-    <svg class="h-8 w-8 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
-    </svg>
+    <svg class="h-8 w-8 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
   </div>
   <h1 class="text-2xl font-black text-text">در انتظار تأیید سازمان</h1>
-  <p class="mt-3 text-sm leading-7 text-text-muted">حساب شما ایجاد شد، اما درخواست وابستگی به سازمان هنوز تأیید نشده است.</p>
+  <p class="mt-3 text-sm leading-7 text-text-muted">حساب شما ایجاد شد اما درخواست وابستگی به سازمان هنوز تأیید نشده است.</p>
 </div>
-{% endblock %}
-
+{% endblock auth_header %}
 {% block auth_body %}
 <div class="space-y-5">
-  <!-- Explanation -->
   <div class="rounded-2xl border border-warning-200 bg-warning-50 p-5 dark:bg-warning-100">
     <h2 class="text-sm font-black text-text mb-2">وضعیت فعلی:</h2>
     <ul class="space-y-2 text-sm leading-7 text-text-muted">
-      <li class="flex items-start gap-2">
-        <svg class="mt-1 h-4 w-4 shrink-0 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4.5 12.75l6 6 9-13.5"/></svg>
-        حساب کاربری شما فعال شده است.
-      </li>
-      <li class="flex items-start gap-2">
-        <svg class="mt-1 h-4 w-4 shrink-0 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4.5 12.75l6 6 9-13.5"/></svg>
-        به‌صورت مستقل می‌توانید فعالیت کنید.
-      </li>
-      <li class="flex items-start gap-2">
-        <svg class="mt-1 h-4 w-4 shrink-0 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        درخواست وابستگی به سازمان ارسال شده و در انتظار تأیید مدیر است.
-      </li>
+      <li>حساب کاربری شما فعال شده است.</li>
+      <li>به‌صورت مستقل می‌توانید فعالیت کنید.</li>
+      <li>درخواست وابستگی در انتظار تأیید مدیر شرکت است.</li>
     </ul>
   </div>
-
-  <!-- What happens next -->
   <div class="rounded-2xl border border-border bg-background p-5">
-    <h2 class="text-sm font-black text-text mb-2">بعد از تأیید چه اتفاقی می‌افتد؟</h2>
-    <p class="text-sm leading-7 text-text-muted">پس از تأیید توسط مدیر سازمان، حساب شما به‌عنوان مراقب وابسته به آن شرکت فعال می‌شود و سفارش‌های سازمانی را دریافت خواهید کرد.</p>
-    <p class="mt-3 text-sm leading-7 text-text-muted">اگر درخواست رد شود یا مدیر اقدامی نکند، حساب شما همچنان به‌صورت <strong class="text-text">مستقل</strong> فعال باقی می‌ماند.</p>
+    <h2 class="text-sm font-black text-text mb-2">بعد از تأیید:</h2>
+    <p class="text-sm leading-7 text-text-muted">پس از تأیید مدیر، حساب شما به سازمان وصل می‌شود. اگر رد شود، مستقل باقی می‌مانید.</p>
   </div>
-
-  <!-- CTA -->
-  <a href="/"
-     class="inline-flex w-full items-center justify-center rounded-2xl bg-primary px-6 py-4 text-base font-black text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary-700 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface no-underline">
-    متوجه شدم — ادامه
-  </a>
-
-  <p class="text-center text-xs text-text-muted">وضعیت درخواست از طریق پنل کاربری قابل پیگیری خواهد بود.</p>
+  <a href="/" class="inline-flex w-full items-center justify-center rounded-2xl bg-primary px-6 py-4 text-base font-black text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary-700 hover:shadow-xl no-underline">متوجه شدم — ادامه</a>
 </div>
-{% endblock %}
+{% endblock auth_body %}

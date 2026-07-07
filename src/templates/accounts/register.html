@@ -1,91 +1,48 @@
 {% extends "accounts/base_auth.html" %}
-
-{% block page_meta %}
-{% include "ui/components/public/seo_meta.html" with page_title="ثبت‌نام در سالمندیار" page_description="ثبت‌نام در سالمندیار: خانواده‌ها، مراقبان مستقل، و شرکت‌های مراقبتی." page_url="/accounts/register/" %}
-{% endblock %}
-
-{% block auth_width %}max-w-lg{% endblock %}
-
+{% block auth_width %}max-w-lg{% endblock auth_width %}
 {% block auth_header %}
 <div class="text-center mb-8">
-  <div class="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50 dark:bg-primary-950">
-    <svg class="h-7 w-7 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM3 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 019.374 21c-2.331 0-4.512-.645-6.374-1.766z"/>
-    </svg>
-  </div>
   <h1 class="text-2xl font-black text-text">ثبت‌نام در سالمندیار</h1>
   <p class="mt-2 text-sm leading-7 text-text-muted">لطفاً نوع حساب خود را انتخاب کنید.</p>
 </div>
-{% endblock %}
-
+{% endblock auth_header %}
 {% block auth_body %}
 <div class="space-y-4">
-
-  <!-- Path 1: Customer (Family) -->
-  <a href="{% url 'accounts:register-customer' %}"
-     class="group block rounded-2xl border border-border bg-background p-5 transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-lg no-underline">
+  <a href="{% url 'accounts:register-customer' %}" class="group block rounded-2xl border border-border bg-background p-5 transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-lg no-underline">
     <div class="flex items-start gap-4">
-      <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-xl dark:bg-primary-950 transition-transform group-hover:scale-110">
-        👨‍👩‍👧
-      </div>
+      <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-xl dark:bg-primary-950">👨‍👩‍👧</div>
       <div class="flex-1 min-w-0">
         <h2 class="text-lg font-black text-text">خانواده / بیمار</h2>
         <p class="mt-1 text-sm leading-7 text-text-muted">به دنبال خدمات مراقبتی برای سالمند خانواده هستم.</p>
       </div>
-      <svg class="h-5 w-5 shrink-0 text-text-muted transition-transform group-hover:-translate-x-1 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/>
-      </svg>
     </div>
   </a>
-
-  <!-- Divider -->
   <div class="relative py-2">
     <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-border"></div></div>
     <div class="relative flex justify-center"><span class="bg-surface px-4 text-xs font-bold text-text-muted">یا</span></div>
   </div>
-
-  <!-- Path 2: Non-Customer — Caregiver / Provider -->
-  <a href="{% url 'accounts:register-caregiver' %}"
-     class="group block rounded-2xl border border-border bg-background p-5 transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-lg no-underline">
+  <a href="{% url 'accounts:register-caregiver' %}" class="group block rounded-2xl border border-border bg-background p-5 transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-lg no-underline">
     <div class="flex items-start gap-4">
-      <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-xl dark:bg-primary-950 transition-transform group-hover:scale-110">
-        👩‍⚕️
-      </div>
+      <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-xl dark:bg-primary-950">👩‍⚕️</div>
       <div class="flex-1 min-w-0">
         <h2 class="text-lg font-black text-text">مراقب / پرستار</h2>
         <p class="mt-1 text-sm leading-7 text-text-muted">می‌خواهم به‌عنوان ارائه‌دهنده خدمات مراقبتی فعالیت کنم.</p>
       </div>
-      <svg class="h-5 w-5 shrink-0 text-text-muted transition-transform group-hover:-translate-x-1 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/>
-      </svg>
     </div>
   </a>
-
-  <!-- Path 3: Non-Customer — Company Admin -->
-  <a href="{% url 'accounts:register-company' %}"
-     class="group block rounded-2xl border border-border bg-background p-5 transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-lg no-underline">
+  <a href="{% url 'accounts:register-company' %}" class="group block rounded-2xl border border-border bg-background p-5 transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-lg no-underline">
     <div class="flex items-start gap-4">
-      <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-xl dark:bg-primary-950 transition-transform group-hover:scale-110">
-        🏢
-      </div>
+      <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-xl dark:bg-primary-950">🏢</div>
       <div class="flex-1 min-w-0">
         <h2 class="text-lg font-black text-text">مدیر شرکت / آژانس</h2>
         <p class="mt-1 text-sm leading-7 text-text-muted">می‌خواهم سازمان خود را ثبت کنم و تیم مراقبان را مدیریت نمایم.</p>
       </div>
-      <svg class="h-5 w-5 shrink-0 text-text-muted transition-transform group-hover:-translate-x-1 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/>
-      </svg>
     </div>
   </a>
-
 </div>
-{% endblock %}
-
+{% endblock auth_body %}
 {% block auth_footer %}
 <div class="mt-6 text-center">
-  <p class="text-sm text-text-muted">
-    قبلاً ثبت‌نام کرده‌اید؟
-    <a href="{% url 'accounts:login' %}" class="font-black text-primary transition-colors hover:text-primary-700">ورود به حساب</a>
-  </p>
+  <p class="text-sm text-text-muted">قبلاً ثبت‌نام کرده‌اید؟ <a href="{% url 'accounts:login' %}" class="font-black text-primary hover:text-primary-700">ورود به حساب</a></p>
 </div>
-{% endblock %}
+{% endblock auth_footer %}

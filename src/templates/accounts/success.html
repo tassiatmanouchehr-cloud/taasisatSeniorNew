@@ -1,50 +1,17 @@
 {% extends "accounts/base_auth.html" %}
-
-{% block page_meta %}
-{% include "ui/components/public/seo_meta.html" with page_title="ثبت‌نام موفق — سالمندیار" page_description="حساب کاربری شما با موفقیت ایجاد شد." page_url="/accounts/success/" %}
-{% endblock %}
-
-{% block auth_width %}max-w-lg{% endblock %}
-
+{% block auth_width %}max-w-lg{% endblock auth_width %}
 {% block auth_header %}
 <div class="text-center mb-6">
   <div class="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-success-50 dark:bg-success-100">
-    <svg class="h-8 w-8 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.5 12.75l6 6 9-13.5"/>
-    </svg>
+    <svg class="h-8 w-8 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.5 12.75l6 6 9-13.5"/></svg>
   </div>
   <h1 class="text-2xl font-black text-text">ثبت‌نام با موفقیت انجام شد!</h1>
   <p class="mt-3 text-sm leading-7 text-text-muted">حساب کاربری شما فعال شده است. به سالمندیار خوش آمدید.</p>
 </div>
-{% endblock %}
-
+{% endblock auth_header %}
 {% block auth_body %}
 <div class="space-y-4">
-  <!-- Next steps -->
-  <div class="rounded-2xl border border-border bg-background p-5">
-    <h2 class="text-sm font-black text-text mb-3">مراحل بعدی:</h2>
-    <ul class="space-y-3 text-sm text-text-muted">
-      <li class="flex items-start gap-3">
-        <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-black text-white">۱</span>
-        <span>تکمیل اطلاعات پروفایل</span>
-      </li>
-      <li class="flex items-start gap-3">
-        <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-50 text-xs font-black text-primary dark:bg-primary-950">۲</span>
-        <span>آشنایی با امکانات پلتفرم</span>
-      </li>
-      <li class="flex items-start gap-3">
-        <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-50 text-xs font-black text-primary dark:bg-primary-950">۳</span>
-        <span>شروع استفاده از خدمات</span>
-      </li>
-    </ul>
-  </div>
-
-  <!-- CTA -->
-  <a href="/"
-     class="inline-flex w-full items-center justify-center rounded-2xl bg-primary px-6 py-4 text-base font-black text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary-700 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface no-underline">
-    ورود به پنل کاربری
-  </a>
-
-  <p class="text-center text-xs text-text-muted">پنل کاربری در مراحل بعدی توسعه فعال می‌شود. فعلاً به صفحه اصلی هدایت می‌شوید.</p>
+  <a href="/" class="inline-flex w-full items-center justify-center rounded-2xl bg-primary px-6 py-4 text-base font-black text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary-700 hover:shadow-xl no-underline">ورود به پلتفرم</a>
+  <p class="text-center text-xs text-text-muted">پنل کاربری در مراحل بعدی فعال می‌شود.</p>
 </div>
-{% endblock %}
+{% endblock auth_body %}

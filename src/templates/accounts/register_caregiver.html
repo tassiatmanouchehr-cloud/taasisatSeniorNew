@@ -1,153 +1,78 @@
 {% extends "accounts/base_auth.html" %}
-
-{% block page_meta %}
-{% include "ui/components/public/seo_meta.html" with page_title="ثبت‌نام مراقب — سالمندیار" page_description="ثبت‌نام به‌عنوان مراقب مستقل یا وابسته به سازمان." page_url="/accounts/register/caregiver/" %}
-{% endblock %}
-
 {% block auth_header %}
 <div class="mb-8">
-  <a href="{% url 'accounts:register' %}" class="inline-flex items-center gap-1 text-sm font-semibold text-text-muted transition-colors hover:text-primary mb-5">
-    <svg class="h-4 w-4 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
-    بازگشت به انتخاب نوع حساب
-  </a>
-  <div class="flex items-center gap-3">
-    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-xl dark:bg-primary-950">👩‍⚕️</div>
-    <div>
-      <h1 class="text-2xl font-black text-text">ثبت‌نام مراقب / پرستار</h1>
-      <p class="mt-1 text-sm text-text-muted">به‌صورت پیش‌فرض، مستقل ثبت‌نام می‌شوید.</p>
-    </div>
-  </div>
+  <a href="{% url 'accounts:register' %}" class="text-sm font-semibold text-text-muted hover:text-primary mb-5 inline-block">بازگشت</a>
+  <h1 class="text-2xl font-black text-text">ثبت‌نام مراقب / پرستار</h1>
+  <p class="mt-1 text-sm text-text-muted">به‌صورت پیش‌فرض، مستقل ثبت‌نام می‌شوید.</p>
 </div>
-{% endblock %}
-
+{% endblock auth_header %}
 {% block auth_body %}
-<form method="post" action="{% url 'accounts:register-caregiver' %}" class="space-y-5"
-      x-data="{ hasCompany: false }">
+<form method="post" action="{% url 'accounts:register-caregiver' %}" class="space-y-5" x-data="{ hasCompany: false }">
   {% csrf_token %}
-
   {% if form.non_field_errors %}
   <div class="rounded-xl border border-danger-200 bg-danger-50 p-3 text-sm text-danger">
     {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
   </div>
   {% endif %}
-
-
-  <!-- Full Name -->
   <div>
     <label for="full_name" class="block text-sm font-black text-text">نام و نام خانوادگی</label>
-    <input id="full_name" name="full_name" type="text" autocomplete="name" required
-      value="{{ form.full_name.value|default:'' }}"
-      class="mt-2 block w-full rounded-2xl border {% if form.full_name.errors %}border-danger{% else %}border-border{% endif %} bg-background px-4 py-3 text-text shadow-sm transition-colors placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2"
-      placeholder="مثلاً مریم احمدی">
+    <input id="full_name" name="full_name" type="text" required value="{{ form.full_name.value|default:'' }}" class="mt-2 block w-full rounded-2xl border {% if form.full_name.errors %}border-danger{% else %}border-border{% endif %} bg-background px-4 py-3 text-text shadow-sm placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2" placeholder="مثلاً مریم احمدی">
     {% if form.full_name.errors %}<p class="mt-2 text-xs text-danger">{{ form.full_name.errors.0 }}</p>{% endif %}
   </div>
-
-  <!-- Phone -->
   <div>
     <label for="phone" class="block text-sm font-black text-text">شماره موبایل</label>
-    <input id="phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel" required
-      value="{{ form.phone.value|default:'' }}"
-      class="mt-2 block w-full rounded-2xl border {% if form.phone.errors %}border-danger{% else %}border-border{% endif %} bg-background px-4 py-3 text-text shadow-sm transition-colors placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2"
-      placeholder="09xxxxxxxxx" dir="ltr">
+    <input id="phone" name="phone" type="tel" inputmode="numeric" required value="{{ form.phone.value|default:'' }}" class="mt-2 block w-full rounded-2xl border {% if form.phone.errors %}border-danger{% else %}border-border{% endif %} bg-background px-4 py-3 text-text shadow-sm placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2" placeholder="09xxxxxxxxx" dir="ltr">
     {% if form.phone.errors %}<p class="mt-2 text-xs text-danger">{{ form.phone.errors.0 }}</p>{% endif %}
   </div>
-
-  <!-- Specialty -->
   <div>
-    <label for="specialty" class="block text-sm font-black text-text">تخصص اصلی</label>
-    <select id="specialty" name="specialty"
-      class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-2">
+    <label for="specialty" class="block text-sm font-black text-text">تخصص</label>
+    <select id="specialty" name="specialty" class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm focus:border-primary focus:outline-none focus:ring-2">
       <option value="">انتخاب تخصص</option>
       <option value="nurse" {% if form.specialty.value == 'nurse' %}selected{% endif %}>پرستار</option>
       <option value="home_caregiver" {% if form.specialty.value == 'home_caregiver' %}selected{% endif %}>مراقب خانگی</option>
       <option value="companion" {% if form.specialty.value == 'companion' %}selected{% endif %}>همراه سالمند</option>
-      <option value="psychologist" {% if form.specialty.value == 'psychologist' %}selected{% endif %}>روان‌شناس سالمند</option>
-      <option value="physiotherapist" {% if form.specialty.value == 'physiotherapist' %}selected{% endif %}>فیزیوتراپیست</option>
       <option value="other" {% if form.specialty.value == 'other' %}selected{% endif %}>سایر</option>
     </select>
   </div>
-
-  <!-- City -->
   <div>
     <label for="city" class="block text-sm font-black text-text">شهر فعالیت</label>
-    <select id="city" name="city"
-      class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-2">
+    <select id="city" name="city" class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm focus:border-primary focus:outline-none focus:ring-2">
       <option value="">انتخاب شهر</option>
       <option value="tehran" {% if form.city.value == 'tehran' %}selected{% endif %}>تهران</option>
       <option value="isfahan" {% if form.city.value == 'isfahan' %}selected{% endif %}>اصفهان</option>
-      <option value="shiraz" {% if form.city.value == 'shiraz' %}selected{% endif %}>شیراز</option>
-      <option value="mashhad" {% if form.city.value == 'mashhad' %}selected{% endif %}>مشهد</option>
-      <option value="tabriz" {% if form.city.value == 'tabriz' %}selected{% endif %}>تبریز</option>
-      <option value="other" {% if form.city.value == 'other' %}selected{% endif %}>سایر شهرها</option>
+      <option value="other" {% if form.city.value == 'other' %}selected{% endif %}>سایر</option>
     </select>
   </div>
 
-
-  <!-- Company Affiliation Toggle -->
   <div class="rounded-2xl border border-border bg-background-alt p-4">
     <div class="flex items-center justify-between">
-      <div>
-        <p class="text-sm font-black text-text">وابسته به شرکت / آژانس هستید؟</p>
-        <p class="mt-1 text-xs text-text-muted">اختیاری — کد یا نام شرکت را وارد کنید.</p>
-      </div>
-      <button type="button" role="switch" :aria-checked="hasCompany" @click="hasCompany = !hasCompany"
-        class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-        :class="hasCompany ? 'bg-primary' : 'bg-border'">
-        <span class="sr-only">وابستگی به شرکت</span>
-        <span class="inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform"
-          :class="hasCompany ? '-translate-x-5 rtl:translate-x-5' : '-translate-x-0.5 rtl:translate-x-0.5'"></span>
+      <p class="text-sm font-black text-text">وابسته به شرکت هستید؟</p>
+      <button type="button" role="switch" :aria-checked="hasCompany" @click="hasCompany = !hasCompany" class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors" :class="hasCompany ? 'bg-primary' : 'bg-border'">
+        <span class="inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform" :class="hasCompany ? '-translate-x-5 rtl:translate-x-5' : '-translate-x-0.5 rtl:translate-x-0.5'"></span>
       </button>
     </div>
     <div x-show="hasCompany" x-cloak class="mt-4 space-y-4 border-t border-border pt-4">
       <div>
-        <label for="company_code" class="block text-sm font-black text-text">کد شرکت (اختیاری)</label>
-        <input id="company_code" name="company_code" type="text"
-          value="{{ form.company_code.value|default:'' }}"
-          class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm transition-colors placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2"
-          placeholder="کد شرکت را از مدیر سازمان دریافت کنید" dir="ltr">
+        <label for="company_code" class="block text-sm font-black text-text">کد شرکت</label>
+        <input id="company_code" name="company_code" type="text" value="{{ form.company_code.value|default:'' }}" class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2" placeholder="کد شرکت" dir="ltr">
       </div>
       <div>
         <label for="company_name" class="block text-sm font-black text-text">یا نام شرکت</label>
-        <input id="company_name" name="company_name" type="text"
-          value="{{ form.company_name.value|default:'' }}"
-          class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm transition-colors placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2"
-          placeholder="نام شرکت یا آژانس مراقبتی">
+        <input id="company_name" name="company_name" type="text" value="{{ form.company_name.value|default:'' }}" class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2" placeholder="نام شرکت">
       </div>
-      <div class="rounded-xl bg-info-50 border border-info-200 p-3 dark:bg-info-50">
-        <p class="text-xs leading-6 text-text-muted">
-          <strong class="text-text">توجه:</strong>
-          درخواست وابستگی ارسال می‌شود. مدیر شرکت باید تأیید کند. تا زمان تأیید، مستقل فعالیت خواهید کرد.
-        </p>
-      </div>
+      <p class="text-xs text-text-muted">درخواست وابستگی ارسال می‌شود. تا تأیید مدیر، مستقل فعالیت خواهید کرد.</p>
     </div>
   </div>
-
-  <!-- Terms -->
   <div class="flex items-start gap-3">
-    <input id="terms" name="terms" type="checkbox" required
-      class="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-2"
-      {% if form.terms.value %}checked{% endif %}>
-    <label for="terms" class="text-sm leading-6 text-text-muted">
-      <a href="/terms/" target="_blank" class="font-bold text-primary hover:text-primary-700">قوانین استفاده</a>
-      و <a href="/privacy/" target="_blank" class="font-bold text-primary hover:text-primary-700">حریم خصوصی</a>
-      را مطالعه کرده و می‌پذیرم.
-    </label>
+    <input id="terms" name="terms" type="checkbox" required class="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-2" {% if form.terms.value %}checked{% endif %}>
+    <label for="terms" class="text-sm leading-6 text-text-muted"><a href="/terms/" class="font-bold text-primary">قوانین</a> و <a href="/privacy/" class="font-bold text-primary">حریم خصوصی</a> را می‌پذیرم.</label>
   </div>
   {% if form.terms.errors %}<p class="text-xs text-danger">{{ form.terms.errors.0 }}</p>{% endif %}
-
-  <!-- Submit -->
-  <button type="submit"
-    class="inline-flex w-full items-center justify-center rounded-2xl bg-primary px-6 py-4 text-base font-black text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary-700 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface">
-    ادامه و دریافت کد تأیید
-  </button>
+  <button type="submit" class="inline-flex w-full items-center justify-center rounded-2xl bg-primary px-6 py-4 text-base font-black text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary-700 hover:shadow-xl">ادامه و دریافت کد تأیید</button>
 </form>
-{% endblock %}
-
+{% endblock auth_body %}
 {% block auth_footer %}
 <div class="mt-6 text-center">
-  <p class="text-sm text-text-muted">
-    قبلاً ثبت‌نام کرده‌اید؟
-    <a href="{% url 'accounts:login' %}" class="font-black text-primary transition-colors hover:text-primary-700">ورود به حساب</a>
-  </p>
+  <p class="text-sm text-text-muted">قبلاً ثبت‌نام کرده‌اید؟ <a href="{% url 'accounts:login' %}" class="font-black text-primary hover:text-primary-700">ورود به حساب</a></p>
 </div>
-{% endblock %}
+{% endblock auth_footer %}
