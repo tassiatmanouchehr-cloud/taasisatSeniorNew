@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Platform apps
     "apps.kernel",
+    "apps.showcase",
 ]
 
 # Conditionally add GIS support (requires GDAL + PostGIS)

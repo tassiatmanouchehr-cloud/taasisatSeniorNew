@@ -1,0 +1,31 @@
+{% extends "showcase/base.html" %}
+{% block title %}حالات خالی{% endblock %}
+{% block content %}
+<div class="space-y-10">
+  <div>
+    <h1 class="text-2xl font-bold text-text">حالات خالی</h1>
+    <p class="mt-1 text-text-muted">نمایش وضعیت‌های بدون داده</p>
+  </div>
+
+  <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="border border-border rounded-lg">
+      {% include "ui/components/data/empty_state.html" with title="سفارشی وجود ندارد" description="هنوز هیچ سفارشی ثبت نشده است. اولین سفارش خود را ایجاد کنید." icon="📋" action_label="ثبت سفارش" action_href="#" %}
+    </div>
+    <div class="border border-border rounded-lg">
+      {% include "ui/components/data/empty_state.html" with title="نتیجه‌ای یافت نشد" description="جستجوی شما نتیجه‌ای نداشت. عبارت دیگری را امتحان کنید." icon="🔍" action_label="پاک کردن فیلترها" action_href="#" %}
+    </div>
+    <div class="border border-border rounded-lg">
+      {% include "ui/components/data/empty_state.html" with title="دسترسی محدود" description="شما اجازه مشاهده این بخش را ندارید." icon="🔒" %}
+    </div>
+    <div class="border border-border rounded-lg">
+      {% include "ui/components/data/empty_state.html" with title="آفلاین هستید" description="اتصال اینترنت شما قطع شده است. لطفاً اتصال خود را بررسی کنید." icon="📡" action_label="تلاش مجدد" action_href="#" %}
+    </div>
+    <div class="border border-border rounded-lg">
+      {% include "ui/components/data/empty_state.html" with title="اعلانی ندارید" description="هنوز هیچ اعلانی دریافت نکرده‌اید." icon="🔔" %}
+    </div>
+    <div class="border border-border rounded-lg">
+      {% include "ui/components/data/empty_state.html" with title="پیامی ندارید" description="صندوق ورودی شما خالی است." icon="✉️" action_label="ارسال پیام" action_href="#" %}
+    </div>
+  </section>
+</div>
+{% endblock %}

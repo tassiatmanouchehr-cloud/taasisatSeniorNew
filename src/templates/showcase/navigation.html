@@ -1,0 +1,33 @@
+{% extends "showcase/base.html" %}
+{% block title %}ناوبری{% endblock %}
+{% block content %}
+<div class="space-y-10">
+  <div>
+    <h1 class="text-2xl font-bold text-text">ناوبری</h1>
+    <p class="mt-1 text-text-muted">مسیر، تب‌ها و صفحه‌بندی</p>
+  </div>
+
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">مسیر (Breadcrumb)</h2>
+    {% with items='[{"label":"خانه","href":"/"},{"label":"سفارش‌ها","href":"#"},{"label":"سفارش ۱۲۳۴"}]' %}
+    {% include "ui/components/data/breadcrumb.html" %}
+    {% endwith %}
+  </section>
+
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">تب‌ها (Tabs)</h2>
+    <div x-data="{ tab: 'info' }">
+      <div class="border-b border-border mb-4">
+        <nav class="flex gap-inline-6">
+          <button @click="tab = 'info'" :class="tab === 'info' ? 'border-b-2 border-primary text-primary' : 'border-b-2 border-transparent text-text-muted hover:text-text'" class="pb-2 text-sm font-medium transition-colors">اطلاعات</button>
+          <button @click="tab = 'settings'" :class="tab === 'settings' ? 'border-b-2 border-primary text-primary' : 'border-b-2 border-transparent text-text-muted hover:text-text'" class="pb-2 text-sm font-medium transition-colors">تنظیمات</button>
+          <button @click="tab = 'history'" :class="tab === 'history' ? 'border-b-2 border-primary text-primary' : 'border-b-2 border-transparent text-text-muted hover:text-text'" class="pb-2 text-sm font-medium transition-colors">تاریخچه</button>
+        </nav>
+      </div>
+      <div x-show="tab === 'info'" class="text-sm text-text-muted">محتوای تب اطلاعات</div>
+      <div x-show="tab === 'settings'" class="text-sm text-text-muted">محتوای تب تنظیمات</div>
+      <div x-show="tab === 'history'" class="text-sm text-text-muted">محتوای تب تاریخچه</div>
+    </div>
+  </section>
+</div>
+{% endblock %}

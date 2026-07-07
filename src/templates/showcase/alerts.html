@@ -1,0 +1,63 @@
+{% extends "showcase/base.html" %}
+{% block title %}هشدارها{% endblock %}
+
+{% block content %}
+<div class="space-y-10">
+  <div>
+    <h1 class="text-2xl font-bold text-text">هشدارها و بازخوردها</h1>
+    <p class="mt-1 text-text-muted">اعلان‌ها، هشدارها و نوارهای وضعیت</p>
+  </div>
+
+  <!-- Alerts -->
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">هشدارها (Alerts)</h2>
+    <div class="space-y-3 max-w-2xl">
+      {% include "ui/components/feedback/alert.html" with type="success" title="موفقیت‌آمیز" message="عملیات با موفقیت انجام شد." %}
+      {% include "ui/components/feedback/alert.html" with type="info" title="اطلاعات" message="این یک پیام اطلاع‌رسانی است." %}
+      {% include "ui/components/feedback/alert.html" with type="warning" title="هشدار" message="لطفاً قبل از ادامه اطلاعات خود را بررسی کنید." %}
+      {% include "ui/components/feedback/alert.html" with type="danger" title="خطا" message="مشکلی در پردازش درخواست شما رخ داده است." dismissible=True %}
+    </div>
+  </section>
+
+  <!-- Badges -->
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">نشان‌ها (Badges)</h2>
+    <div class="flex flex-wrap gap-2">
+      {% include "ui/components/feedback/badge.html" with label="اصلی" variant="primary" %}
+      {% include "ui/components/feedback/badge.html" with label="ثانویه" variant="secondary" %}
+      {% include "ui/components/feedback/badge.html" with label="موفقیت" variant="success" %}
+      {% include "ui/components/feedback/badge.html" with label="هشدار" variant="warning" %}
+      {% include "ui/components/feedback/badge.html" with label="خطر" variant="danger" %}
+      {% include "ui/components/feedback/badge.html" with label="اطلاعات" variant="info" %}
+      {% include "ui/components/feedback/badge.html" with label="خنثی" variant="neutral" %}
+    </div>
+    <div class="flex flex-wrap gap-2">
+      {% include "ui/components/feedback/badge.html" with label="۳" variant="danger" pill=True %}
+      {% include "ui/components/feedback/badge.html" with label="فعال" variant="success" dot=True %}
+      {% include "ui/components/feedback/badge.html" with label="جدید" variant="primary" size="md" %}
+    </div>
+  </section>
+
+  <!-- Chips -->
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">چیپ‌ها (Chips)</h2>
+    <div class="flex flex-wrap gap-2">
+      {% include "ui/components/feedback/chip.html" with label="تهران" removable=True %}
+      {% include "ui/components/feedback/chip.html" with label="اصفهان" removable=True %}
+      {% include "ui/components/feedback/chip.html" with label="فعال" variant="success" %}
+      {% include "ui/components/feedback/chip.html" with label="VIP" variant="primary" %}
+    </div>
+  </section>
+
+  <!-- Progress -->
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">نوار پیشرفت</h2>
+    <div class="space-y-4 max-w-lg">
+      {% include "ui/components/feedback/progress.html" with value=25 variant="primary" label="بارگذاری" show_value=True %}
+      {% include "ui/components/feedback/progress.html" with value=60 variant="success" label="تکمیل پروفایل" show_value=True %}
+      {% include "ui/components/feedback/progress.html" with value=85 variant="warning" label="فضای مصرفی" show_value=True %}
+      {% include "ui/components/feedback/progress.html" with value=95 variant="danger" label="محدودیت" show_value=True %}
+    </div>
+  </section>
+</div>
+{% endblock %}

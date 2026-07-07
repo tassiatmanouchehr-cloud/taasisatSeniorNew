@@ -1,0 +1,51 @@
+{% extends "showcase/base.html" %}
+{% block title %}آیکون‌ها{% endblock %}
+{% block content %}
+<div class="space-y-10">
+  <div>
+    <h1 class="text-2xl font-bold text-text">سیستم آیکون</h1>
+    <p class="mt-1 text-text-muted">آیکون‌های SVG — Heroicons (Outline)</p>
+  </div>
+
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">آیکون‌های پایه</h2>
+    <p class="text-sm text-text-muted mb-4">آیکون‌ها در بخش بعدی (Part 2) به‌صورت کامپوننت قابل استفاده مجدد پیاده‌سازی می‌شوند.</p>
+    <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-4">
+      {% for icon_name in "home,user,cog,bell,search,plus,trash,pencil,eye,heart,star,check,x-mark,arrow-right,arrow-left,chevron-down,chevron-up,document,folder,photo,phone,envelope,globe,clock"|split:"," %}
+      <div class="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-background-alt transition-colors">
+        <svg class="w-6 h-6 text-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v12m6-6H6"/>
+        </svg>
+        <span class="text-xs text-text-muted truncate w-full text-center">{{ icon_name }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">اندازه‌ها</h2>
+    <div class="flex items-end gap-6">
+      <div class="text-center">
+        <svg class="w-4 h-4 text-text mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"/></svg>
+        <span class="text-xs text-text-muted mt-1">16px</span>
+      </div>
+      <div class="text-center">
+        <svg class="w-5 h-5 text-text mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"/></svg>
+        <span class="text-xs text-text-muted mt-1">20px</span>
+      </div>
+      <div class="text-center">
+        <svg class="w-6 h-6 text-text mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"/></svg>
+        <span class="text-xs text-text-muted mt-1">24px</span>
+      </div>
+      <div class="text-center">
+        <svg class="w-8 h-8 text-text mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"/></svg>
+        <span class="text-xs text-text-muted mt-1">32px</span>
+      </div>
+      <div class="text-center">
+        <svg class="w-12 h-12 text-text mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v12m6-6H6"/></svg>
+        <span class="text-xs text-text-muted mt-1">48px</span>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

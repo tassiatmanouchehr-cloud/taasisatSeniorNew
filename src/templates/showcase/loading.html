@@ -1,0 +1,50 @@
+{% extends "showcase/base.html" %}
+{% block title %}بارگذاری{% endblock %}
+
+{% block content %}
+<div class="space-y-10">
+  <div>
+    <h1 class="text-2xl font-bold text-text">بارگذاری و اسکلت</h1>
+    <p class="mt-1 text-text-muted">نشانگرهای بارگذاری و جای‌نگهدارهای اسکلت</p>
+  </div>
+
+  <!-- Spinners -->
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">اسپینر (Loader)</h2>
+    <div class="flex flex-wrap items-center gap-6">
+      {% include "ui/components/feedback/loader.html" with size="sm" %}
+      {% include "ui/components/feedback/loader.html" with size="md" %}
+      {% include "ui/components/feedback/loader.html" with size="lg" %}
+      {% include "ui/components/feedback/loader.html" with size="xl" %}
+      {% include "ui/components/feedback/loader.html" with size="md" variant="secondary" %}
+    </div>
+  </section>
+
+  <!-- Skeletons -->
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">اسکلت (Skeleton)</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div>
+        <p class="text-sm text-text-muted mb-2">متن</p>
+        {% include "ui/components/feedback/skeleton.html" with type="text" %}
+      </div>
+      <div>
+        <p class="text-sm text-text-muted mb-2">عنوان</p>
+        {% include "ui/components/feedback/skeleton.html" with type="title" %}
+      </div>
+      <div>
+        <p class="text-sm text-text-muted mb-2">آواتار</p>
+        {% include "ui/components/feedback/skeleton.html" with type="avatar" %}
+      </div>
+      <div>
+        <p class="text-sm text-text-muted mb-2">تصویر</p>
+        {% include "ui/components/feedback/skeleton.html" with type="image" height="h-32" %}
+      </div>
+      <div class="md:col-span-2">
+        <p class="text-sm text-text-muted mb-2">کارت</p>
+        {% include "ui/components/feedback/skeleton.html" with type="card" %}
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

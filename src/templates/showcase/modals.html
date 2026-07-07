@@ -1,0 +1,29 @@
+{% extends "showcase/base.html" %}
+{% block title %}مودال‌ها{% endblock %}
+{% block content %}
+<div class="space-y-10" x-data="{ modal1: false, modal2: false, drawer1: false }">
+  <div>
+    <h1 class="text-2xl font-bold text-text">مودال و درآور</h1>
+    <p class="mt-1 text-text-muted">پنجره‌های بازشو و پنل‌های کشویی</p>
+  </div>
+
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">مودال</h2>
+    <div class="flex flex-wrap gap-3">
+      {% include "ui/components/forms/button.html" with label="مودال کوچک" variant="primary" attrs='@click="modal1 = true"' %}
+      {% include "ui/components/forms/button.html" with label="مودال بزرگ" variant="secondary" attrs='@click="modal2 = true"' %}
+      {% include "ui/components/forms/button.html" with label="درآور" variant="outline" attrs='@click="drawer1 = true"' %}
+    </div>
+  </section>
+
+  <!-- Modal 1 -->
+  <template x-if="modal1">
+    {% include "ui/components/overlays/modal.html" with title="تأیید عملیات" size="sm" %}
+  </template>
+
+  <!-- Drawer -->
+  <template x-if="drawer1">
+    {% include "ui/components/overlays/drawer.html" with title="فیلترها" position="start" model="drawer1" %}
+  </template>
+</div>
+{% endblock %}

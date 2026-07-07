@@ -1,0 +1,30 @@
+{% extends "showcase/base.html" %}
+{% block title %}کارت‌ها{% endblock %}
+
+{% block content %}
+<div class="space-y-10">
+  <div>
+    <h1 class="text-2xl font-bold text-text">کارت‌ها</h1>
+    <p class="mt-1 text-text-muted">کارت محتوا و کارت آمار</p>
+  </div>
+
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">کارت‌های پایه</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {% include "ui/components/data/card.html" with title="عنوان کارت" subtitle="زیرعنوان توضیحی کارت" %}
+      {% include "ui/components/data/card.html" with title="کارت حاشیه‌دار" subtitle="با حاشیه دوبل" variant="bordered" %}
+      {% include "ui/components/data/card.html" with title="کارت بالا آمده" subtitle="با سایه" variant="elevated" %}
+    </div>
+  </section>
+
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">کارت آمار (Stat Card)</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {% include "ui/components/data/stat_card.html" with label="سفارش‌ها" value="۱,۲۳۴" change="+۱۲%" trend="up" %}
+      {% include "ui/components/data/stat_card.html" with label="درآمد" value="۴۵,۰۰۰,۰۰۰ ت" change="+۸%" trend="up" %}
+      {% include "ui/components/data/stat_card.html" with label="لغو شده" value="۲۳" change="-۵%" trend="down" %}
+      {% include "ui/components/data/stat_card.html" with label="کاربران" value="۸,۹۲۱" change="۰%" trend="neutral" %}
+    </div>
+  </section>
+</div>
+{% endblock %}

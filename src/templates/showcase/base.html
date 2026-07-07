@@ -1,0 +1,61 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fa-IR" dir="rtl" :class="{ 'dark': isDark() }" x-data="themeEngine()">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title>{% block title %}{% endblock %} | طراحی سیستم</title>
+  <link rel="stylesheet" href="{% static 'css/output.css' %}">
+  <script src="{% static 'ui/js/theme.js' %}"></script>
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="font-sans antialiased min-h-screen bg-background text-text">
+
+  <!-- Showcase Toolbar -->
+  <header class="sticky top-0 z-sticky bg-surface border-b border-border backdrop-blur-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-14">
+        <!-- Brand -->
+        <a href="{% url 'showcase:index' %}" class="flex items-center gap-2 text-lg font-bold text-primary no-underline">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
+          </svg>
+          <span>طراحی سیستم</span>
+        </a>
+
+        <!-- Controls -->
+        <div class="flex items-center gap-inline-3">
+          <!-- Theme toggle -->
+          <button @click="toggle()" type="button"
+                  class="p-2 rounded-lg text-text-muted hover:bg-background-alt transition-colors"
+                  :aria-label="isDark() ? 'حالت روشن' : 'حالت تاریک'">
+            <svg x-show="!isDark()" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+            </svg>
+            <svg x-show="isDark()" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+            </svg>
+          </button>
+
+          <!-- Direction toggle -->
+          <button onclick="document.documentElement.dir = document.documentElement.dir === 'rtl' ? 'ltr' : 'rtl'"
+                  type="button"
+                  class="px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-text-muted hover:bg-background-alt transition-colors">
+            RTL ⇄ LTR
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    {% block content %}{% endblock %}
+  </main>
+
+  <script src="{% static 'ui/js/jalali.js' %}" defer></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

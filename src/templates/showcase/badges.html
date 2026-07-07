@@ -1,0 +1,24 @@
+{% extends "showcase/base.html" %}
+{% block title %}نشان‌ها{% endblock %}
+{% block content %}
+<div class="space-y-10">
+  <div>
+    <h1 class="text-2xl font-bold text-text">نشان‌ها و چیپ‌ها</h1>
+    <p class="mt-1 text-text-muted">برچسب‌های وضعیت و تگ‌های قابل حذف</p>
+  </div>
+  <section class="space-y-6">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">اندازه‌ها</h2>
+    <div class="flex flex-wrap gap-2">
+      {% include "ui/components/feedback/badge.html" with label="XS" variant="primary" size="xs" %}
+      {% include "ui/components/feedback/badge.html" with label="SM" variant="primary" size="sm" %}
+      {% include "ui/components/feedback/badge.html" with label="MD" variant="primary" size="md" %}
+    </div>
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">حالت‌ها</h2>
+    <div class="flex flex-wrap gap-2">
+      {% include "ui/components/feedback/badge.html" with label="عادی" variant="neutral" %}
+      {% include "ui/components/feedback/badge.html" with label="با نقطه" variant="success" dot=True %}
+      {% include "ui/components/feedback/badge.html" with label="۹+" variant="danger" pill=True %}
+    </div>
+  </section>
+</div>
+{% endblock %}

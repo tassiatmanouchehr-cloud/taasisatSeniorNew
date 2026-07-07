@@ -1,0 +1,45 @@
+{% extends "showcase/base.html" %}
+{% block title %}جداول{% endblock %}
+{% block content %}
+<div class="space-y-10">
+  <div>
+    <h1 class="text-2xl font-bold text-text">جداول</h1>
+    <p class="mt-1 text-text-muted">جدول داده با ترتیب‌بندی و صفحه‌بندی</p>
+  </div>
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">جدول پایه</h2>
+    <div class="overflow-x-auto rounded-lg border border-border">
+      <table class="w-full text-sm text-text">
+        <thead class="bg-background-alt text-text-muted text-xs uppercase">
+          <tr>
+            <th class="px-4 py-3 text-start font-semibold">نام</th>
+            <th class="px-4 py-3 text-start font-semibold">ایمیل</th>
+            <th class="px-4 py-3 text-start font-semibold">وضعیت</th>
+            <th class="px-4 py-3 text-start font-semibold">تاریخ</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-border">
+          <tr class="hover:bg-background-alt transition-colors">
+            <td class="px-4 py-3">علی محمدی</td>
+            <td class="px-4 py-3 embed-ltr">ali@example.com</td>
+            <td class="px-4 py-3">{% include "ui/components/feedback/badge.html" with label="فعال" variant="success" dot=True %}</td>
+            <td class="px-4 py-3"><time data-jalali="2026-07-01T10:00:00Z"></time></td>
+          </tr>
+          <tr class="hover:bg-background-alt transition-colors">
+            <td class="px-4 py-3">مریم رضایی</td>
+            <td class="px-4 py-3 embed-ltr">maryam@example.com</td>
+            <td class="px-4 py-3">{% include "ui/components/feedback/badge.html" with label="در انتظار" variant="warning" dot=True %}</td>
+            <td class="px-4 py-3"><time data-jalali="2026-06-28T14:30:00Z"></time></td>
+          </tr>
+          <tr class="hover:bg-background-alt transition-colors">
+            <td class="px-4 py-3">رضا کریمی</td>
+            <td class="px-4 py-3 embed-ltr">reza@example.com</td>
+            <td class="px-4 py-3">{% include "ui/components/feedback/badge.html" with label="غیرفعال" variant="danger" dot=True %}</td>
+            <td class="px-4 py-3"><time data-jalali="2026-05-15T09:00:00Z"></time></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

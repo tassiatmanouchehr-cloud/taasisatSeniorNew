@@ -1,0 +1,66 @@
+{% extends "showcase/base.html" %}
+{% block title %}دکمه‌ها{% endblock %}
+
+{% block content %}
+<div class="space-y-10">
+  <div>
+    <h1 class="text-2xl font-bold text-text">دکمه‌ها</h1>
+    <p class="mt-1 text-text-muted">تمام حالات و انواع دکمه‌ها</p>
+  </div>
+
+  <!-- Variants -->
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">انواع (Variants)</h2>
+    <div class="flex flex-wrap items-center gap-3">
+      {% include "ui/components/forms/button.html" with label="اصلی" variant="primary" %}
+      {% include "ui/components/forms/button.html" with label="ثانویه" variant="secondary" %}
+      {% include "ui/components/forms/button.html" with label="خطر" variant="danger" %}
+      {% include "ui/components/forms/button.html" with label="موفقیت" variant="success" %}
+      {% include "ui/components/forms/button.html" with label="شبح" variant="ghost" %}
+      {% include "ui/components/forms/button.html" with label="حاشیه" variant="outline" %}
+    </div>
+  </section>
+
+  <!-- Sizes -->
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">اندازه‌ها (Sizes)</h2>
+    <div class="flex flex-wrap items-end gap-3">
+      {% include "ui/components/forms/button.html" with label="بسیار کوچک" variant="primary" size="xs" %}
+      {% include "ui/components/forms/button.html" with label="کوچک" variant="primary" size="sm" %}
+      {% include "ui/components/forms/button.html" with label="متوسط" variant="primary" size="md" %}
+      {% include "ui/components/forms/button.html" with label="بزرگ" variant="primary" size="lg" %}
+      {% include "ui/components/forms/button.html" with label="بسیار بزرگ" variant="primary" size="xl" %}
+    </div>
+  </section>
+
+  <!-- States -->
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">حالات (States)</h2>
+    <div class="flex flex-wrap items-center gap-3">
+      {% include "ui/components/forms/button.html" with label="عادی" variant="primary" %}
+      {% include "ui/components/forms/button.html" with label="غیرفعال" variant="primary" disabled=True %}
+      {% include "ui/components/forms/button.html" with label="در حال بارگذاری" variant="primary" loading=True %}
+      {% include "ui/components/forms/button.html" with label="تمام‌عرض" variant="primary" full_width=True %}
+    </div>
+  </section>
+
+  <!-- With Icons -->
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">با آیکون</h2>
+    <div class="flex flex-wrap items-center gap-3">
+      {% include "ui/components/forms/button.html" with label="ذخیره" variant="primary" icon_start="💾" %}
+      {% include "ui/components/forms/button.html" with label="بیشتر" variant="ghost" icon_end="←" %}
+      {% include "ui/components/forms/button.html" with label="حذف" variant="danger" icon_start="🗑" %}
+    </div>
+  </section>
+
+  <!-- As Links -->
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">به‌عنوان لینک</h2>
+    <div class="flex flex-wrap items-center gap-3">
+      {% include "ui/components/forms/button.html" with label="رفتن به صفحه اصلی" variant="primary" href="/" %}
+      {% include "ui/components/forms/button.html" with label="مشاهده بیشتر" variant="outline" href="#" %}
+    </div>
+  </section>
+</div>
+{% endblock %}

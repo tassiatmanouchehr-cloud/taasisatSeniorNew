@@ -1,0 +1,29 @@
+{% extends "showcase/base.html" %}
+{% block title %}منوها{% endblock %}
+{% block content %}
+<div class="space-y-10">
+  <div>
+    <h1 class="text-2xl font-bold text-text">منوهای بازشو</h1>
+    <p class="mt-1 text-text-muted">دراپ‌داون، تولتیپ و آکوردئون</p>
+  </div>
+
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">دراپ‌داون</h2>
+    <div class="flex gap-4" x-data="{ open: false }">
+      <div class="relative">
+        {% include "ui/components/forms/button.html" with label="منوی عملیات" variant="secondary" attrs='@click="open = !open"' %}
+        {% include "ui/components/overlays/dropdown.html" with align="start" %}
+      </div>
+    </div>
+  </section>
+
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">آکوردئون</h2>
+    <div class="max-w-lg border border-border rounded-lg" x-data="{ active: null }">
+      {% include "ui/components/overlays/accordion.html" with id="faq1" title="چگونه ثبت‌نام کنم؟" content="برای ثبت‌نام کافیست شماره تلفن خود را وارد کنید و کد تأیید را دریافت نمایید." %}
+      {% include "ui/components/overlays/accordion.html" with id="faq2" title="هزینه استفاده از خدمات چقدر است؟" content="استفاده از پلتفرم برای مشتریان رایگان است. هزینه خدمات توسط ارائه‌دهنده تعیین می‌شود." %}
+      {% include "ui/components/overlays/accordion.html" with id="faq3" title="چگونه شکایت ثبت کنم؟" content="از بخش پشتیبانی در پنل کاربری خود می‌توانید شکایت ثبت کنید." %}
+    </div>
+  </section>
+</div>
+{% endblock %}

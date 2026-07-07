@@ -1,0 +1,61 @@
+{% extends "showcase/base.html" %}
+{% block title %}فرم‌ها{% endblock %}
+
+{% block content %}
+<div class="space-y-10">
+  <div>
+    <h1 class="text-2xl font-bold text-text">فرم‌ها</h1>
+    <p class="mt-1 text-text-muted">ورودی‌ها، انتخاب‌ها، تاگل‌ها و سایر عناصر فرم</p>
+  </div>
+
+  <!-- Input -->
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">ورودی متنی</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl">
+      {% include "ui/components/forms/input.html" with name="demo_normal" label="نام و نام خانوادگی" placeholder="علی محمدی" %}
+      {% include "ui/components/forms/input.html" with name="demo_email" label="ایمیل" type="email" placeholder="email@example.com" dir="ltr" hint="ایمیل شما محرمانه خواهد بود" %}
+      {% include "ui/components/forms/input.html" with name="demo_error" label="شماره تلفن" type="tel" error="شماره تلفن نامعتبر است" value="123" dir="ltr" %}
+      {% include "ui/components/forms/input.html" with name="demo_disabled" label="کد ملی" disabled=True value="۱۲۳۴۵۶۷۸۹۰" %}
+      {% include "ui/components/forms/input.html" with name="demo_sm" label="کوچک" size="sm" placeholder="اندازه کوچک" %}
+      {% include "ui/components/forms/input.html" with name="demo_lg" label="بزرگ" size="lg" placeholder="اندازه بزرگ" %}
+    </div>
+  </section>
+
+  <!-- Textarea -->
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">متن چندخطی</h2>
+    <div class="max-w-lg">
+      {% include "ui/components/forms/textarea.html" with name="demo_textarea" label="توضیحات" placeholder="توضیحات خود را وارد کنید..." rows="4" hint="حداکثر ۵۰۰ کاراکتر" maxlength="500" %}
+    </div>
+  </section>
+
+  <!-- Select -->
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">انتخاب</h2>
+    <div class="max-w-md">
+      {% with cities='[{"value":"tehran","label":"تهران"},{"value":"isfahan","label":"اصفهان"},{"value":"shiraz","label":"شیراز"},{"value":"tabriz","label":"تبریز"}]' %}
+      {% include "ui/components/forms/select.html" with name="demo_select" label="شهر" placeholder="انتخاب کنید" %}
+      {% endwith %}
+    </div>
+  </section>
+
+  <!-- Checkbox & Radio & Toggle -->
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">چک‌باکس / رادیو / تاگل</h2>
+    <div class="space-y-4 max-w-md">
+      {% include "ui/components/forms/checkbox.html" with name="demo_check1" label="شرایط و قوانین را می‌پذیرم" %}
+      {% include "ui/components/forms/checkbox.html" with name="demo_check2" label="اشتراک خبرنامه" checked=True %}
+      {% include "ui/components/forms/checkbox.html" with name="demo_check3" label="غیرفعال" disabled=True %}
+      <div class="border-t border-border pt-4 space-y-3">
+        {% include "ui/components/forms/radio.html" with name="demo_radio" value="male" label="مرد" %}
+        {% include "ui/components/forms/radio.html" with name="demo_radio" value="female" label="زن" checked=True %}
+      </div>
+      <div class="border-t border-border pt-4 space-y-3">
+        {% include "ui/components/forms/toggle.html" with name="demo_toggle1" label="اعلان‌ها" checked=True %}
+        {% include "ui/components/forms/toggle.html" with name="demo_toggle2" label="حالت تاریک" %}
+        {% include "ui/components/forms/toggle.html" with name="demo_toggle3" label="غیرفعال" disabled=True %}
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

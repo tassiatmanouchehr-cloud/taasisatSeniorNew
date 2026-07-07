@@ -1,0 +1,50 @@
+{% extends "showcase/base.html" %}
+{% block title %}کتابخانه کامپوننت{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+  <!-- Header -->
+  <div>
+    <h1 class="text-3xl font-bold text-text">طراحی سیستم</h1>
+    <p class="mt-2 text-text-muted text-lg">
+      کتابخانه کامپوننت‌های قابل استفاده مجدد — پلتفرم بازار خدمات سازمانی
+    </p>
+  </div>
+
+  <!-- Component Grid -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    {% for section in sections %}
+    <a href="{% url 'showcase:'|add:section.slug %}"
+       class="group block p-5 bg-surface border border-border rounded-xl
+              hover:border-primary/50 hover:shadow-md transition-all duration-fast no-underline">
+      <div class="flex items-center gap-inline-3 mb-3">
+        <div class="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-50 flex items-center justify-center
+                    group-hover:bg-primary-200 dark:group-hover:bg-primary-100 transition-colors">
+          <span class="text-primary text-lg">◆</span>
+        </div>
+        <div>
+          <h3 class="font-semibold text-text group-hover:text-primary transition-colors">{{ section.name }}</h3>
+          <p class="text-xs text-text-muted">{{ section.count }} نمونه</p>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+
+  <!-- Quick Info -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+    <div class="p-4 bg-surface border border-border rounded-lg">
+      <h3 class="font-semibold text-text mb-1">تم</h3>
+      <p class="text-sm text-text-muted">روشن / تاریک / خودکار — دکمه بالا سمت چپ</p>
+    </div>
+    <div class="p-4 bg-surface border border-border rounded-lg">
+      <h3 class="font-semibold text-text mb-1">جهت</h3>
+      <p class="text-sm text-text-muted">RTL / LTR — دکمه بالا سمت چپ</p>
+    </div>
+    <div class="p-4 bg-surface border border-border rounded-lg">
+      <h3 class="font-semibold text-text mb-1">دسترسی‌پذیری</h3>
+      <p class="text-sm text-text-muted">WCAG AA — کیبورد + صفحه‌خوان</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
