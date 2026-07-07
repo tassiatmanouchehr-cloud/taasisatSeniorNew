@@ -1,14 +1,3 @@
-{# Enterprise Feature Card Component
-   Usage:
-   {% include "ui/components/public/feature_card.html" with
-     icon="emoji_or_svg"
-     title="Feature Title"
-     description="Feature description"
-     cta_text="Optional CTA"
-     cta_url="/url/"
-     variant="default|highlighted"
-   %}
-#}
 {% with variant=variant|default:"default" %}
 <article class="group rounded-3xl border p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg {% if variant == 'highlighted' %}border-primary bg-primary-50 dark:bg-primary-950{% else %}border-border bg-surface{% endif %}">
   {% if icon %}

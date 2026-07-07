@@ -1,17 +1,3 @@
-{# Enterprise Hero Component
-   Usage:
-   {% include "ui/components/public/hero.html" with
-     badge="Badge text"
-     title="Main headline"
-     subtitle="Description paragraph"
-     primary_cta_text="Button text"
-     primary_cta_url="/url/"
-     secondary_cta_text="Button text"
-     secondary_cta_url="/url/"
-     has_pattern="true"
-   %}
-   Slots via blocks not possible with include — use the component inline.
-#}
 <section class="relative overflow-hidden bg-background">
   {% if has_pattern %}
   <div class="absolute inset-x-0 top-0 h-72 bg-primary-50 dark:bg-primary-950" aria-hidden="true"></div>

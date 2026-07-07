@@ -1,11 +1,3 @@
-{# Enterprise FAQ Accordion Item Component
-   Usage inside x-data="{ active: null }" container:
-   {% include "ui/components/public/faq_item.html" with
-     index=1
-     question="Question text"
-     answer="Answer text"
-   %}
-#}
 <div class="p-0">
   <button @click="active = active === {{ index }} ? null : {{ index }}"
           class="flex w-full items-center justify-between px-6 py-5 text-start transition-colors hover:bg-background-alt"

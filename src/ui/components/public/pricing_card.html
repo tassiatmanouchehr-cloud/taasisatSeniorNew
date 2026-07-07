@@ -1,18 +1,3 @@
-{# Enterprise Pricing Card Component
-   Usage:
-   {% include "ui/components/public/pricing_card.html" with
-     icon="emoji_or_svg"
-     title="Plan name"
-     description="Description"
-     featured="false"
-     detail_1="Feature line 1"
-     detail_2="Feature line 2"
-     detail_3="Feature line 3"
-     detail_4="Feature line 4"
-     cta_text="Button"
-     cta_url="/url/"
-   %}
-#}
 {% with featured=featured|default:"false" %}
 <article class="rounded-3xl border p-7 shadow-sm transition-all hover:shadow-md {% if featured == 'true' %}border-primary bg-primary-50 dark:bg-primary-950{% else %}border-border bg-surface{% endif %}">
   {% if icon %}

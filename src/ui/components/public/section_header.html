@@ -1,13 +1,3 @@
-{# Enterprise Section Header Component
-   Usage:
-   {% include "ui/components/public/section_header.html" with
-     eyebrow="Label"
-     title="Main Title"
-     subtitle="Description text"
-     align="center|start"
-     size="lg|md|sm"
-   %}
-#}
 {% with align=align|default:"center" size=size|default:"lg" %}
 <div class="{% if align == 'center' %}mx-auto max-w-3xl text-center{% else %}max-w-3xl{% endif %}">
   {% if eyebrow %}
