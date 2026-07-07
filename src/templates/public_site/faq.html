@@ -1,71 +1,30 @@
 {% extends "public_site/base_public.html" %}
 {% block public_title %}پرسش‌های متداول{% endblock %}
 
+{% block page_meta %}
+{% include "ui/components/public/seo_meta.html" with page_title="پرسش‌های متداول — سالمندیار" page_description="پاسخ سؤالات رایج درباره سالمندیار، هزینه‌ها، فرآیند تأیید مراقبان و عضویت سازمان‌ها." page_url="/faq/" %}
+{% endblock %}
+
 {% block content %}
-<section class="bg-background">
-  <div class="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
-    <div class="text-center">
-      <p class="text-sm font-black text-primary">پرسش‌های متداول</p>
-      <h1 class="mt-3 text-4xl font-black leading-tight text-text sm:text-5xl">پاسخ سؤالات رایج</h1>
-      <p class="mt-5 text-lg leading-9 text-text-muted">اگر پاسخ سؤال خود را پیدا نکردید، از صفحه تماس با ما ارتباط بگیرید.</p>
+{# === Hero === #}
+{% include "ui/components/public/hero.html" with eyebrow="پرسش‌های متداول" title="پاسخ سؤالات رایج" subtitle="اگر پاسخ سؤال خود را پیدا نکردید، از صفحه تماس با ما ارتباط بگیرید." has_pattern="true" %}
+
+{# === FAQ Accordion === #}
+<section class="bg-background py-16 lg:py-24">
+  <div class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+    <div class="space-y-0 divide-y divide-border rounded-3xl border border-border bg-surface shadow-sm" x-data="{ active: null }">
+      {% include "ui/components/public/faq_item.html" with index=1 question="سالمندیار چیست؟" answer="سالمندیار یک پلتفرم فارسی‌اول برای اتصال خانواده‌ها به مراقبان مستقل و سازمان‌های ارائه‌دهنده خدمات مراقبت سالمندان است." %}
+      {% include "ui/components/public/faq_item.html" with index=2 question="هزینه استفاده چقدر است؟" answer="ثبت‌نام و مشاوره رایگان است. هزینه خدمت توسط ارائه‌دهنده تعیین می‌شود و کارمزد پلتفرم به‌صورت شفاف نمایش داده می‌شود." %}
+      {% include "ui/components/public/faq_item.html" with index=3 question="مراقبان چگونه تأیید می‌شوند؟" answer="مراقبان قبل از فعالیت، فرآیند احراز هویت شامل تأیید مدارک شناسایی، بررسی سوابق و تخصص را طی می‌کنند." %}
+      {% include "ui/components/public/faq_item.html" with index=4 question="اگر از خدمت راضی نباشم چه کنم؟" answer="سیستم شکایت و رسیدگی فعال است. می‌توانید بازخورد ثبت کنید و تیم پشتیبانی موضوع را بررسی و پیگیری می‌کند." %}
+      {% include "ui/components/public/faq_item.html" with index=5 question="آیا سازمان‌ها هم می‌توانند عضو شوند؟" answer="بله. شرکت‌ها و آژانس‌های مراقبتی می‌توانند اکانت سازمانی داشته باشند و تیم خود را مدیریت کنند." %}
+      {% include "ui/components/public/faq_item.html" with index=6 question="چه شهرهایی تحت پوشش هستند؟" answer="در حال حاضر زیرساخت برای مناطق اصلی آماده می‌شود. اطلاعات دقیق شهرها در صفحه مناطق تحت پوشش موجود است." %}
+      {% include "ui/components/public/faq_item.html" with index=7 question="آیا خدمات شبانه‌روزی ارائه می‌شود؟" answer="بسته به دسترسی مراقبان، امکان درخواست خدمت در ساعات مختلف وجود دارد. جزئیات هنگام ثبت نیاز مشخص می‌شود." %}
     </div>
 
-
-    <div class="mt-12 space-y-0 divide-y divide-border rounded-3xl border border-border bg-surface shadow-sm" x-data="{ active: null }">
-      <div class="p-0">
-        <button @click="active = active === 1 ? null : 1" class="flex w-full items-center justify-between px-6 py-5 text-start" :aria-expanded="active === 1" type="button">
-          <span class="font-black text-text">سالمندیار چیست؟</span>
-          <svg class="w-5 h-5 text-text-muted transition-transform" :class="{ 'rotate-180': active === 1 }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
-        </button>
-        <div x-show="active === 1" x-collapse class="px-6 pb-5 text-sm leading-8 text-text-muted">سالمندیار یک پلتفرم فارسی‌اول برای اتصال خانواده‌ها به مراقبان مستقل و سازمان‌های ارائه‌دهنده خدمات مراقبت سالمندان است.</div>
-      </div>
-      <div class="p-0">
-        <button @click="active = active === 2 ? null : 2" class="flex w-full items-center justify-between px-6 py-5 text-start" :aria-expanded="active === 2" type="button">
-          <span class="font-black text-text">هزینه استفاده چقدر است؟</span>
-          <svg class="w-5 h-5 text-text-muted transition-transform" :class="{ 'rotate-180': active === 2 }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
-        </button>
-        <div x-show="active === 2" x-collapse class="px-6 pb-5 text-sm leading-8 text-text-muted">ثبت‌نام و مشاوره رایگان است. هزینه خدمت توسط ارائه‌دهنده تعیین می‌شود و کارمزد پلتفرم به‌صورت شفاف نمایش داده می‌شود.</div>
-      </div>
-      <div class="p-0">
-        <button @click="active = active === 3 ? null : 3" class="flex w-full items-center justify-between px-6 py-5 text-start" :aria-expanded="active === 3" type="button">
-          <span class="font-black text-text">مراقبان چگونه تأیید می‌شوند؟</span>
-          <svg class="w-5 h-5 text-text-muted transition-transform" :class="{ 'rotate-180': active === 3 }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
-        </button>
-        <div x-show="active === 3" x-collapse class="px-6 pb-5 text-sm leading-8 text-text-muted">مراقبان قبل از فعالیت، فرآیند احراز هویت شامل تأیید مدارک شناسایی، بررسی سوابق و تخصص را طی می‌کنند.</div>
-      </div>
-      <div class="p-0">
-        <button @click="active = active === 4 ? null : 4" class="flex w-full items-center justify-between px-6 py-5 text-start" :aria-expanded="active === 4" type="button">
-          <span class="font-black text-text">اگر از خدمت راضی نباشم چه کنم؟</span>
-          <svg class="w-5 h-5 text-text-muted transition-transform" :class="{ 'rotate-180': active === 4 }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
-        </button>
-        <div x-show="active === 4" x-collapse class="px-6 pb-5 text-sm leading-8 text-text-muted">سیستم شکایت و رسیدگی فعال است. می‌توانید بازخورد ثبت کنید و تیم پشتیبانی موضوع را بررسی و پیگیری می‌کند.</div>
-      </div>
-      <div class="p-0">
-        <button @click="active = active === 5 ? null : 5" class="flex w-full items-center justify-between px-6 py-5 text-start" :aria-expanded="active === 5" type="button">
-          <span class="font-black text-text">آیا سازمان‌ها هم می‌توانند عضو شوند؟</span>
-          <svg class="w-5 h-5 text-text-muted transition-transform" :class="{ 'rotate-180': active === 5 }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
-        </button>
-        <div x-show="active === 5" x-collapse class="px-6 pb-5 text-sm leading-8 text-text-muted">بله. شرکت‌ها و آژانس‌های مراقبتی می‌توانند اکانت سازمانی داشته باشند و تیم خود را مدیریت کنند.</div>
-      </div>
-      <div class="p-0">
-        <button @click="active = active === 6 ? null : 6" class="flex w-full items-center justify-between px-6 py-5 text-start" :aria-expanded="active === 6" type="button">
-          <span class="font-black text-text">چه شهرهایی تحت پوشش هستند؟</span>
-          <svg class="w-5 h-5 text-text-muted transition-transform" :class="{ 'rotate-180': active === 6 }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
-        </button>
-        <div x-show="active === 6" x-collapse class="px-6 pb-5 text-sm leading-8 text-text-muted">در حال حاضر زیرساخت برای مناطق اصلی آماده می‌شود. اطلاعات دقیق شهرها در صفحه مناطق تحت پوشش موجود است.</div>
-      </div>
-      <div class="p-0">
-        <button @click="active = active === 7 ? null : 7" class="flex w-full items-center justify-between px-6 py-5 text-start" :aria-expanded="active === 7" type="button">
-          <span class="font-black text-text">آیا خدمات شبانه‌روزی ارائه می‌شود؟</span>
-          <svg class="w-5 h-5 text-text-muted transition-transform" :class="{ 'rotate-180': active === 7 }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
-        </button>
-        <div x-show="active === 7" x-collapse class="px-6 pb-5 text-sm leading-8 text-text-muted">بسته به دسترسی مراقبان، امکان درخواست خدمت در ساعات مختلف وجود دارد. جزئیات هنگام ثبت نیاز مشخص می‌شود.</div>
-      </div>
-    </div>
-
-    <div class="mt-10 text-center">
+    <div class="mt-12 text-center">
       <p class="text-text-muted">پاسخ خود را پیدا نکردید؟</p>
-      <a href="/contact/" class="mt-3 inline-flex items-center justify-center rounded-2xl bg-primary px-6 py-3 font-black text-white transition-all hover:bg-primary-700">تماس با پشتیبانی</a>
+      <a href="/contact/" class="mt-4 inline-flex items-center justify-center rounded-2xl bg-primary px-6 py-3 font-black text-white transition-all hover:-translate-y-0.5 hover:bg-primary-700 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface">تماس با پشتیبانی</a>
     </div>
   </div>
 </section>

@@ -1,0 +1,22 @@
+{# Enterprise Timeline Step Component
+   Usage:
+   {% include "ui/components/public/timeline_step.html" with
+     number="1"
+     title="Step title"
+     description="Step description"
+     is_last="false"
+   %}
+#}
+<div class="relative flex gap-5">
+  <!-- Connector line -->
+  {% if not is_last %}
+  <div class="absolute start-6 top-14 bottom-0 w-0.5 bg-border" aria-hidden="true"></div>
+  {% endif %}
+  <!-- Step number -->
+  <div class="relative z-raised flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-lg font-black text-white shadow-md">{{ number }}</div>
+  <!-- Content -->
+  <div class="pb-10">
+    <h3 class="text-lg font-black text-text">{{ title }}</h3>
+    <p class="mt-2 text-sm leading-8 text-text-muted">{{ description }}</p>
+  </div>
+</div>

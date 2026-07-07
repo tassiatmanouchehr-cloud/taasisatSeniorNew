@@ -1,56 +1,29 @@
 {% extends "public_site/base_public.html" %}
 {% block public_title %}دسترسی‌پذیری{% endblock %}
 
+{% block page_meta %}
+{% include "ui/components/public/seo_meta.html" with page_title="دسترسی‌پذیری — سالمندیار" page_description="تعهد سالمندیار به دسترسی‌پذیری: طراحی فراگیر، رعایت WCAG و پشتیبانی از فناوری‌های کمکی." page_url="/accessibility/" %}
+{% endblock %}
+
 {% block content %}
-<section class="bg-background">
-  <div class="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
-    <p class="text-sm font-black text-primary">بیانیه دسترسی‌پذیری</p>
-    <h1 class="mt-3 text-3xl font-black text-text">تعهد ما به دسترسی برابر</h1>
-    <p class="mt-5 text-lg leading-9 text-text-muted">
-      سالمندیار متعهد است تجربه‌ای قابل دسترس برای همه کاربران فراهم کند، صرف‌نظر از توانایی‌های جسمی یا فناوری مورد استفاده.
-    </p>
+{# === Hero === #}
+{% include "ui/components/public/hero.html" with eyebrow="دسترسی‌پذیری" title="طراحی فراگیر برای همه" subtitle="سالمندیار متعهد به ایجاد تجربه‌ای قابل استفاده برای همه کاربران است، صرف‌نظر از توانایی‌ها و ابزارهای مورد استفاده آنها." %}
 
-
-    <div class="mt-10 grid gap-6 md:grid-cols-2">
-      <div class="rounded-3xl border border-border bg-surface p-6 shadow-sm">
-        <h2 class="font-black text-text">راست‌به‌چپ (RTL)</h2>
-        <p class="mt-3 text-sm leading-8 text-text-muted">تمام صفحات با ساختار فارسی‌اول و جهت راست‌به‌چپ طراحی شده‌اند. هیچ عنصری به‌صورت فیزیکی چپ/راست تنظیم نشده است.</p>
-      </div>
-      <div class="rounded-3xl border border-border bg-surface p-6 shadow-sm">
-        <h2 class="font-black text-text">ناوبری با کیبورد</h2>
-        <p class="mt-3 text-sm leading-8 text-text-muted">تمام عناصر تعاملی با کلید Tab، Enter و Escape قابل دسترسی هستند. حلقه فوکوس در تمام کامپوننت‌ها نمایش داده می‌شود.</p>
-      </div>
-      <div class="rounded-3xl border border-border bg-surface p-6 shadow-sm">
-        <h2 class="font-black text-text">کنتراست رنگ</h2>
-        <p class="mt-3 text-sm leading-8 text-text-muted">رنگ‌ها مطابق استاندارد WCAG AA انتخاب شده‌اند (نسبت کنتراست حداقل ۴.۵:۱ برای متن و ۳:۱ برای عناصر رابط).</p>
-      </div>
-      <div class="rounded-3xl border border-border bg-surface p-6 shadow-sm">
-        <h2 class="font-black text-text">حرکت کاهش‌یافته</h2>
-        <p class="mt-3 text-sm leading-8 text-text-muted">اگر سیستم‌عامل شما تنظیم «حرکت کمتر» را دارد، تمام انیمیشن‌ها و ترنزیشن‌ها غیرفعال می‌شوند.</p>
-      </div>
-      <div class="rounded-3xl border border-border bg-surface p-6 shadow-sm">
-        <h2 class="font-black text-text">صفحه‌خوان</h2>
-        <p class="mt-3 text-sm leading-8 text-text-muted">عناصر تزئینی با aria-hidden مخفی شده‌اند. دکمه‌ها و فرم‌ها دارای برچسب‌های معنادار هستند. ساختار سلسله‌مراتبی heading رعایت شده است.</p>
-      </div>
-      <div class="rounded-3xl border border-border bg-surface p-6 shadow-sm">
-        <h2 class="font-black text-text">حالت تاریک</h2>
-        <p class="mt-3 text-sm leading-8 text-text-muted">تم تاریک برای کاهش خستگی چشم در شرایط کم‌نور پشتیبانی می‌شود و از تنظیمات سیستم‌عامل پیروی می‌کند.</p>
-      </div>
-    </div>
-
-    <div class="mt-10 rounded-3xl border border-border bg-surface p-8">
-      <h2 class="text-lg font-black text-text">بهبودهای آینده</h2>
-      <ul class="mt-4 space-y-3 text-sm leading-8 text-text-muted">
-        <li>• افزایش پوشش تست خودکار دسترسی‌پذیری (axe-core)</li>
-        <li>• پشتیبانی از اندازه فونت بزرگ‌تر بدون شکست layout</li>
-        <li>• مسیرهای ساده‌شده برای کاربران با محدودیت شناختی</li>
-        <li>• تست با صفحه‌خوان‌های فارسی (NVDA، VoiceOver)</li>
-      </ul>
-    </div>
-
-    <div class="mt-8 text-sm text-text-muted">
-      <p>اگر در استفاده از سایت با مشکلی مواجه هستید، لطفاً از طریق <a href="/contact/" class="font-bold text-primary">صفحه تماس</a> گزارش دهید.</p>
+{# === Features === #}
+<section class="bg-background py-16 lg:py-24">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    {% include "ui/components/public/section_header.html" with title="تعهدات دسترسی‌پذیری ما" align="center" size="md" %}
+    <div class="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      {% include "ui/components/public/feature_card.html" with icon="⌨️" title="ناوبری صفحه‌کلید" description="تمام عملکردهای سایت از طریق صفحه‌کلید قابل دسترس هستند." %}
+      {% include "ui/components/public/feature_card.html" with icon="👁️" title="کنتراست بالا" description="رنگ‌ها با نسبت کنتراست مناسب برای خوانایی بهتر انتخاب شده‌اند." %}
+      {% include "ui/components/public/feature_card.html" with icon="📱" title="واکنش‌گرایی" description="سایت در تمام اندازه‌های صفحه نمایش به‌خوبی کار می‌کند." %}
+      {% include "ui/components/public/feature_card.html" with icon="🔊" title="سازگاری با صفحه‌خوان" description="از نشانه‌گذاری معنایی و ARIA برای فناوری‌های کمکی استفاده شده." %}
+      {% include "ui/components/public/feature_card.html" with icon="🎯" title="Focus قابل مشاهده" description="حلقه Focus برای تمام عناصر تعاملی فعال و قابل مشاهده است." %}
+      {% include "ui/components/public/feature_card.html" with icon="🚫" title="حرکت کاهش‌یافته" description="انیمیشن‌ها برای کاربرانی که prefers-reduced-motion دارند غیرفعال می‌شوند." %}
     </div>
   </div>
 </section>
+
+{# === CTA === #}
+{% include "ui/components/public/cta_section.html" with title="مشکل دسترسی‌پذیری پیدا کردید؟" subtitle="لطفاً با ما تماس بگیرید تا مشکل را بررسی و رفع کنیم." primary_cta_text="گزارش مشکل" primary_cta_url="/contact/" variant="bordered" %}
 {% endblock %}

@@ -1,0 +1,31 @@
+{# Enterprise SEO Meta Component
+   Usage in {% block extra_head %}:
+   {% include "ui/components/public/seo_meta.html" with
+     page_title="Page Title"
+     page_description="Description for search engines"
+     page_url="/current-path/"
+     og_image="/static/images/og-default.png"
+     canonical_url="https://salmandyar.com/page/"
+   %}
+#}
+{% if page_description %}
+<meta name="description" content="{{ page_description }}">
+{% endif %}
+
+<!-- OpenGraph -->
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fa_IR">
+{% if page_title %}<meta property="og:title" content="{{ page_title }} | سالمندیار">{% endif %}
+{% if page_description %}<meta property="og:description" content="{{ page_description }}">{% endif %}
+{% if og_image %}<meta property="og:image" content="{{ og_image }}">{% endif %}
+{% if page_url %}<meta property="og:url" content="{{ page_url }}">{% endif %}
+<meta property="og:site_name" content="سالمندیار — بازار خدمات مراقبت سالمندان">
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+{% if page_title %}<meta name="twitter:title" content="{{ page_title }} | سالمندیار">{% endif %}
+{% if page_description %}<meta name="twitter:description" content="{{ page_description }}">{% endif %}
+{% if og_image %}<meta name="twitter:image" content="{{ og_image }}">{% endif %}
+
+<!-- Canonical -->
+{% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}

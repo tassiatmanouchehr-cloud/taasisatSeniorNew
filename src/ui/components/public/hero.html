@@ -1,0 +1,54 @@
+{# Enterprise Hero Component
+   Usage:
+   {% include "ui/components/public/hero.html" with
+     badge="Badge text"
+     title="Main headline"
+     subtitle="Description paragraph"
+     primary_cta_text="Button text"
+     primary_cta_url="/url/"
+     secondary_cta_text="Button text"
+     secondary_cta_url="/url/"
+     has_pattern="true"
+   %}
+   Slots via blocks not possible with include — use the component inline.
+#}
+<section class="relative overflow-hidden bg-background">
+  {% if has_pattern %}
+  <div class="absolute inset-x-0 top-0 h-72 bg-primary-50 dark:bg-primary-950" aria-hidden="true"></div>
+  <!-- Decorative grid pattern -->
+  <svg class="absolute inset-x-0 top-0 h-72 w-full opacity-[0.03] dark:opacity-[0.05]" aria-hidden="true">
+    <defs><pattern id="hero-grid" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M0 40L40 0M-10 10L10 -10M30 50L50 30" stroke="currentColor" stroke-width="1"/></pattern></defs>
+    <rect fill="url(#hero-grid)" width="100%" height="100%"/>
+  </svg>
+  {% endif %}
+  <div class="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+    <div class="mx-auto max-w-4xl text-center">
+      {% if badge %}
+      <div class="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm font-bold text-text-muted shadow-sm">
+        <span class="h-2 w-2 rounded-full bg-success animate-pulse"></span>
+        {{ badge }}
+      </div>
+      {% endif %}
+      {% if title %}
+      <h1 class="mt-6 text-4xl font-black leading-tight text-text sm:text-5xl lg:text-6xl">{{ title }}</h1>
+      {% endif %}
+      {% if subtitle %}
+      <p class="mx-auto mt-6 max-w-2xl text-lg leading-9 text-text-muted">{{ subtitle }}</p>
+      {% endif %}
+      {% if primary_cta_text or secondary_cta_text %}
+      <div class="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+        {% if primary_cta_text %}
+        <a href="{{ primary_cta_url|default:'#' }}" class="inline-flex items-center justify-center rounded-2xl bg-primary px-8 py-4 text-base font-black text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary-700 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface">
+          {{ primary_cta_text }}
+        </a>
+        {% endif %}
+        {% if secondary_cta_text %}
+        <a href="{{ secondary_cta_url|default:'#' }}" class="inline-flex items-center justify-center rounded-2xl border border-border bg-surface px-8 py-4 text-base font-black text-text shadow-sm transition-all hover:-translate-y-0.5 hover:border-border-strong hover:bg-background hover:shadow-md focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface">
+          {{ secondary_cta_text }}
+        </a>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</section>

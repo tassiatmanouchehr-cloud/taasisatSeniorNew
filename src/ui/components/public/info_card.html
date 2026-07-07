@@ -1,0 +1,18 @@
+{# Enterprise Info Card Component — simple text card
+   Usage:
+   {% include "ui/components/public/info_card.html" with
+     title="Card Title"
+     description="Card description"
+     variant="default|elevated"
+   %}
+#}
+{% with variant=variant|default:"default" %}
+<article class="rounded-3xl border border-border p-7 shadow-sm {% if variant == 'elevated' %}bg-background{% else %}bg-surface{% endif %}">
+  {% if title %}
+  <h3 class="text-xl font-black text-text">{{ title }}</h3>
+  {% endif %}
+  {% if description %}
+  <p class="mt-4 leading-8 text-text-muted">{{ description }}</p>
+  {% endif %}
+</article>
+{% endwith %}

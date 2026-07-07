@@ -1,0 +1,30 @@
+{# Enterprise Feature Card Component
+   Usage:
+   {% include "ui/components/public/feature_card.html" with
+     icon="emoji_or_svg"
+     title="Feature Title"
+     description="Feature description"
+     cta_text="Optional CTA"
+     cta_url="/url/"
+     variant="default|highlighted"
+   %}
+#}
+{% with variant=variant|default:"default" %}
+<article class="group rounded-3xl border p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg {% if variant == 'highlighted' %}border-primary/30 bg-primary-50 dark:bg-primary-950{% else %}border-border bg-surface{% endif %}">
+  {% if icon %}
+  <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl {% if variant == 'highlighted' %}bg-primary text-white{% else %}bg-primary-50 dark:bg-primary-950{% endif %} text-xl transition-transform group-hover:scale-110">{{ icon }}</div>
+  {% endif %}
+  {% if title %}
+  <h3 class="text-xl font-black text-text">{{ title }}</h3>
+  {% endif %}
+  {% if description %}
+  <p class="mt-3 text-sm leading-8 text-text-muted">{{ description }}</p>
+  {% endif %}
+  {% if cta_text %}
+  <a href="{{ cta_url|default:'#' }}" class="mt-5 inline-flex items-center gap-1 text-sm font-black text-primary transition-colors hover:text-primary-700">
+    {{ cta_text }}
+    <svg class="h-4 w-4 transition-transform group-hover:-translate-x-1 rtl:rotate-180 rtl:group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+  </a>
+  {% endif %}
+</article>
+{% endwith %}

@@ -1,46 +1,27 @@
 {% extends "public_site/base_public.html" %}
 {% block public_title %}برای سازمان‌ها{% endblock %}
 
+{% block page_meta %}
+{% include "ui/components/public/seo_meta.html" with page_title="برای سازمان‌ها — سالمندیار" page_description="مدیریت تیم مراقبان، تخصیص سفارش، نظارت کیفیت و تسویه مالی متمرکز برای آژانس‌ها و شرکت‌های مراقبتی." page_url="/organizations/" %}
+{% endblock %}
+
 {% block content %}
-<section class="bg-background">
-  <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-    <div class="grid gap-12 lg:grid-cols-2 lg:items-center">
-      <div>
-        <p class="text-sm font-black text-primary">برای شرکت‌ها و آژانس‌ها</p>
-        <h1 class="mt-3 text-4xl font-black leading-tight text-text sm:text-5xl">خدمات‌رسانی حرفه‌ای در مقیاس سازمانی</h1>
-        <p class="mt-6 text-lg leading-9 text-text-muted">اگر شرکت یا مجموعه‌ای در حوزه مراقبت سالمندان هستید، سالمندیار امکان مدیریت تیم، تخصیص خدمت و نظارت بر کیفیت را فراهم می‌کند.</p>
-        <div class="mt-8 flex flex-col gap-3 sm:flex-row">
-          <a href="/contact/" class="inline-flex items-center justify-center rounded-2xl bg-primary px-7 py-4 font-black text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary-700">درخواست اکانت سازمانی</a>
-          <a href="/pricing/" class="inline-flex items-center justify-center rounded-2xl border border-border bg-surface px-7 py-4 font-black text-text transition-all hover:bg-background">مشاهده مدل قیمت‌گذاری</a>
-        </div>
-      </div>
-      <div class="space-y-4">
-        <div class="rounded-3xl border border-border bg-surface p-6 shadow-sm">
-          <h3 class="font-black text-text">مدیریت تیم مراقبان</h3>
-          <p class="mt-2 text-sm leading-8 text-text-muted">اعضای تیم خود را معرفی کنید، نقش‌ها را مشخص کنید و عملکرد هر فرد را پیگیری نمایید.</p>
-        </div>
-        <div class="rounded-3xl border border-border bg-surface p-6 shadow-sm">
-          <h3 class="font-black text-text">تخصیص داخلی سفارش‌ها</h3>
-          <p class="mt-2 text-sm leading-8 text-text-muted">سفارش‌ها را دریافت کنید و به مراقب مناسب درون سازمان خود اختصاص دهید.</p>
-        </div>
-        <div class="rounded-3xl border border-border bg-surface p-6 shadow-sm">
-          <h3 class="font-black text-text">نظارت و گزارش کیفیت</h3>
-          <p class="mt-2 text-sm leading-8 text-text-muted">داشبوردهای مدیریتی برای پایش عملکرد، رضایت خانواده و رتبه‌بندی سازمانی.</p>
-        </div>
-        <div class="rounded-3xl border border-border bg-surface p-6 shadow-sm">
-          <h3 class="font-black text-text">تسویه مالی متمرکز</h3>
-          <p class="mt-2 text-sm leading-8 text-text-muted">گزارش مالی، فاکتور و تسویه حساب جمعی برای سازمان و مراقبان وابسته.</p>
-        </div>
-      </div>
+{# === Hero === #}
+{% include "ui/components/public/hero.html" with eyebrow="برای شرکت‌ها و آژانس‌ها" title="خدمات‌رسانی حرفه‌ای در مقیاس سازمانی" subtitle="اگر شرکت یا مجموعه‌ای در حوزه مراقبت سالمندان هستید، سالمندیار امکان مدیریت تیم، تخصیص خدمت و نظارت بر کیفیت را فراهم می‌کند." primary_cta_text="درخواست اکانت سازمانی" primary_cta_url="/contact/" secondary_cta_text="مشاهده مدل قیمت‌گذاری" secondary_cta_url="/pricing/" has_pattern="true" %}
+
+{# === Organization Features === #}
+<section class="bg-background py-16 lg:py-24">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    {% include "ui/components/public/section_header.html" with eyebrow="امکانات سازمانی" title="ابزارهای مدیریتی برای رشد شما" align="center" size="md" %}
+    <div class="mt-12 grid gap-6 md:grid-cols-2">
+      {% include "ui/components/public/feature_card.html" with icon="👥" title="مدیریت تیم مراقبان" description="اعضای تیم خود را معرفی کنید، نقش‌ها را مشخص کنید و عملکرد هر فرد را پیگیری نمایید." %}
+      {% include "ui/components/public/feature_card.html" with icon="📋" title="تخصیص داخلی سفارش‌ها" description="سفارش‌ها را دریافت کنید و به مراقب مناسب درون سازمان خود اختصاص دهید." %}
+      {% include "ui/components/public/feature_card.html" with icon="📊" title="نظارت و گزارش کیفیت" description="داشبوردهای مدیریتی برای پایش عملکرد، رضایت خانواده و رتبه‌بندی سازمانی." %}
+      {% include "ui/components/public/feature_card.html" with icon="💳" title="تسویه مالی متمرکز" description="گزارش مالی، فاکتور و تسویه حساب جمعی برای سازمان و مراقبان وابسته." %}
     </div>
   </div>
 </section>
 
-<section class="border-t border-border bg-surface">
-  <div class="mx-auto max-w-5xl px-4 py-14 text-center sm:px-6 lg:px-8">
-    <h2 class="text-2xl font-black text-text">سازمان شما چه مدلی دارد؟</h2>
-    <p class="mx-auto mt-4 max-w-2xl leading-8 text-text-muted">سالمندیار از مدل‌های مختلف سازمانی پشتیبانی می‌کند: آژانس مراقبتی، شرکت خدمات پرستاری، مرکز توان‌بخشی، و هر مجموعه با ساختار تیمی.</p>
-    <a href="/contact/" class="mt-8 inline-flex items-center justify-center rounded-2xl bg-primary px-7 py-4 font-black text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary-700">مشاوره رایگان برای سازمان‌ها</a>
-  </div>
-</section>
+{# === CTA === #}
+{% include "ui/components/public/cta_section.html" with title="سازمان شما چه مدلی دارد؟" subtitle="سالمندیار از مدل‌های مختلف سازمانی پشتیبانی می‌کند: آژانس مراقبتی، شرکت خدمات پرستاری، مرکز توان‌بخشی، و هر مجموعه با ساختار تیمی." primary_cta_text="مشاوره رایگان برای سازمان‌ها" primary_cta_url="/contact/" variant="highlight" %}
 {% endblock %}

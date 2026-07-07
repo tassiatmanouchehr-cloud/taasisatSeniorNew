@@ -1,59 +1,27 @@
 {% extends "public_site/base_public.html" %}
 {% block public_title %}مناطق تحت پوشش{% endblock %}
 
+{% block page_meta %}
+{% include "ui/components/public/seo_meta.html" with page_title="مناطق تحت پوشش — سالمندیار" page_description="مناطق و شهرهایی که خدمات سالمندیار در آنها فعال یا در حال راه‌اندازی است." page_url="/service-areas/" %}
+{% endblock %}
+
 {% block content %}
-<section class="bg-background">
-  <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-    <div class="mx-auto max-w-3xl text-center">
-      <p class="text-sm font-black text-primary">مناطق تحت پوشش</p>
-      <h1 class="mt-3 text-4xl font-black leading-tight text-text sm:text-5xl">کجا خدمت ارائه می‌شود؟</h1>
-      <p class="mt-5 text-lg leading-9 text-text-muted">
-        سالمندیار در حال آماده‌سازی زیرساخت برای پوشش مناطق اصلی است.
-        در مرحله اول، شهرهای بزرگ و سپس سایر مناطق اضافه می‌شوند.
-      </p>
-    </div>
+{# === Hero === #}
+{% include "ui/components/public/hero.html" with eyebrow="مناطق تحت پوشش" title="کجا خدمات ارائه می‌شود؟" subtitle="در حال حاضر زیرساخت سالمندیار برای مناطق اصلی آماده می‌شود. اطلاعات دقیق‌تر با راه‌اندازی رسمی منتشر خواهد شد." has_pattern="true" %}
 
-
-    <div class="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-      <div class="rounded-3xl border border-primary/30 bg-primary-50 p-6 dark:bg-primary-950">
-        <h2 class="text-xl font-black text-text">تهران</h2>
-        <p class="mt-2 text-sm leading-7 text-text-muted">اولین شهر هدف — آماده‌سازی زیرساخت در حال انجام</p>
-        <span class="mt-3 inline-flex rounded-full bg-primary-100 px-3 py-1 text-xs font-bold text-primary dark:bg-primary-900">در حال آماده‌سازی</span>
-      </div>
-      <div class="rounded-3xl border border-border bg-surface p-6 shadow-sm">
-        <h2 class="text-xl font-black text-text">اصفهان</h2>
-        <p class="mt-2 text-sm leading-7 text-text-muted">فاز دوم — بررسی بازار و برنامه‌ریزی</p>
-        <span class="mt-3 inline-flex rounded-full bg-background-alt px-3 py-1 text-xs font-bold text-text-muted">برنامه‌ریزی</span>
-      </div>
-      <div class="rounded-3xl border border-border bg-surface p-6 shadow-sm">
-        <h2 class="text-xl font-black text-text">شیراز</h2>
-        <p class="mt-2 text-sm leading-7 text-text-muted">فاز دوم — بررسی بازار و برنامه‌ریزی</p>
-        <span class="mt-3 inline-flex rounded-full bg-background-alt px-3 py-1 text-xs font-bold text-text-muted">برنامه‌ریزی</span>
-      </div>
-      <div class="rounded-3xl border border-border bg-surface p-6 shadow-sm">
-        <h2 class="text-xl font-black text-text">مشهد</h2>
-        <p class="mt-2 text-sm leading-7 text-text-muted">فاز سوم — در لیست توسعه آینده</p>
-        <span class="mt-3 inline-flex rounded-full bg-background-alt px-3 py-1 text-xs font-bold text-text-muted">آینده</span>
-      </div>
-      <div class="rounded-3xl border border-border bg-surface p-6 shadow-sm">
-        <h2 class="text-xl font-black text-text">تبریز</h2>
-        <p class="mt-2 text-sm leading-7 text-text-muted">فاز سوم — در لیست توسعه آینده</p>
-        <span class="mt-3 inline-flex rounded-full bg-background-alt px-3 py-1 text-xs font-bold text-text-muted">آینده</span>
-      </div>
-      <div class="rounded-3xl border border-border bg-surface p-6 shadow-sm">
-        <h2 class="text-xl font-black text-text">سایر شهرها</h2>
-        <p class="mt-2 text-sm leading-7 text-text-muted">با رشد پلتفرم، شهرهای بیشتری اضافه خواهند شد</p>
-        <span class="mt-3 inline-flex rounded-full bg-background-alt px-3 py-1 text-xs font-bold text-text-muted">بررسی</span>
-      </div>
+{# === Areas Grid === #}
+<section class="bg-background py-16 lg:py-24">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    {% include "ui/components/public/section_header.html" with title="شهرهای آماده راه‌اندازی" subtitle="این لیست نمایشی است و با پیشرفت پلتفرم تکمیل خواهد شد." align="center" size="md" %}
+    <div class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {% include "ui/components/public/stat_item.html" with icon="🏙️" value="تهران" label="منطقه اصلی — در حال آماده‌سازی" %}
+      {% include "ui/components/public/stat_item.html" with icon="🌆" value="اصفهان" label="برنامه‌ریزی شده" %}
+      {% include "ui/components/public/stat_item.html" with icon="🌉" value="شیراز" label="برنامه‌ریزی شده" %}
+      {% include "ui/components/public/stat_item.html" with icon="🏔️" value="مشهد" label="برنامه‌ریزی شده" %}
     </div>
   </div>
 </section>
 
-<section class="border-t border-border bg-surface">
-  <div class="mx-auto max-w-5xl px-4 py-14 text-center sm:px-6 lg:px-8">
-    <h2 class="text-2xl font-black text-text">شهر شما در لیست نیست؟</h2>
-    <p class="mx-auto mt-4 max-w-2xl leading-8 text-text-muted">اگر در شهر یا منطقه‌ای هستید که هنوز پوشش داده نشده، علاقه خود را اعلام کنید. این به اولویت‌بندی توسعه کمک می‌کند.</p>
-    <a href="/contact/" class="mt-6 inline-flex items-center justify-center rounded-2xl bg-primary px-7 py-4 font-black text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary-700">اعلام علاقه‌مندی</a>
-  </div>
-</section>
+{# === CTA === #}
+{% include "ui/components/public/cta_section.html" with title="شهر شما در لیست نیست؟" subtitle="اگر در شهر شما به خدمات مراقبت نیاز دارید، درخواست خود را ثبت کنید تا در اولویت قرار بگیرید." primary_cta_text="ثبت درخواست شهر جدید" primary_cta_url="/contact/" variant="highlight" %}
 {% endblock %}

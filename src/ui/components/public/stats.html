@@ -1,0 +1,22 @@
+{# Enterprise Statistics Component
+   Usage:
+   {% include "ui/components/public/stats.html" with
+     stats=stats_list
+     bg="surface|background"
+   %}
+   Where stats_list is a template variable list of dicts:
+   [{"value": "24/7", "label": "..."}, ...]
+
+   For inline usage without context variable, use the slot pattern below.
+#}
+{% with bg=bg|default:"surface" %}
+<section class="{% if bg == 'surface' %}border-y border-border bg-surface{% else %}bg-background{% endif %}">
+  <div class="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+    <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      {% block stats_items %}
+      <!-- Override this block or pass stats context variable -->
+      {% endblock %}
+    </div>
+  </div>
+</section>
+{% endwith %}

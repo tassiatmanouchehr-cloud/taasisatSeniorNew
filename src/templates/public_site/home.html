@@ -1,137 +1,84 @@
 {% extends "public_site/base_public.html" %}
 {% block public_title %}خانه{% endblock %}
 
+{% block page_meta %}
+{% include "ui/components/public/seo_meta.html" with page_title="سالمندیار — بازار خدمات مراقبت سالمندان" page_description="پلتفرم فارسی‌اول برای اتصال خانواده‌ها به مراقبان مستقل و سازمان‌های معتبر. مراقبت مطمئن برای سالمند، آرامش واقعی برای خانواده." page_url="/" %}
+{% endblock %}
+
 {% block content %}
-<section class="relative overflow-hidden bg-background">
-  <div class="absolute inset-x-0 top-0 h-72 bg-primary-50 dark:bg-primary-950" aria-hidden="true"></div>
-  <div class="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-24">
-    <div class="space-y-8">
-      <div class="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm font-bold text-text-muted shadow-sm">
-        <span class="h-2 w-2 rounded-full bg-success"></span>
-        بازار خدمات مراقبت، همراهی و پشتیبانی سالمندان
-      </div>
-      <div class="space-y-6">
-        <h1 class="text-4xl font-black leading-tight text-text sm:text-5xl lg:text-6xl">
-          مراقبت مطمئن برای سالمند، آرامش واقعی برای خانواده.
-        </h1>
-        <p class="max-w-2xl text-lg leading-9 text-text-muted">
-          سالمندیار خانواده‌ها را به مراقبان مستقل و سازمان‌های معتبر متصل می‌کند؛ با تجربه فارسی، طراحی راست‌به‌چپ، فرآیند شفاف و زیرساخت آماده پیگیری کیفیت.
-        </p>
-      </div>
-      <div class="flex flex-col gap-3 sm:flex-row">
-        <a href="/contact/" class="inline-flex items-center justify-center rounded-2xl bg-primary px-7 py-4 text-base font-black text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary-700 hover:shadow-xl">
-          دریافت مشاوره و شروع درخواست
-        </a>
-        <a href="/services/" class="inline-flex items-center justify-center rounded-2xl border border-border bg-surface px-7 py-4 text-base font-black text-text shadow-sm transition-all hover:-translate-y-0.5 hover:border-border-strong hover:bg-background hover:shadow-md">
-          مشاهده خدمات
-        </a>
-      </div>
-      <div class="grid max-w-xl grid-cols-3 gap-3 pt-4">
-        <div class="rounded-2xl border border-border bg-surface p-4 text-center shadow-sm">
-          <div class="text-2xl font-black text-text">۲۴/۷</div>
-          <div class="mt-1 text-xs leading-6 text-text-muted">آماده طراحی برای پشتیبانی</div>
-        </div>
-        <div class="rounded-2xl border border-border bg-surface p-4 text-center shadow-sm">
-          <div class="text-2xl font-black text-text">RTL</div>
-          <div class="mt-1 text-xs leading-6 text-text-muted">فارسی و راست‌به‌چپ</div>
-        </div>
-        <div class="rounded-2xl border border-border bg-surface p-4 text-center shadow-sm">
-          <div class="text-2xl font-black text-text">۳ مدل</div>
-          <div class="mt-1 text-xs leading-6 text-text-muted">مستقل، سازمانی، ترکیبی</div>
-        </div>
-      </div>
-    </div>
+{# === Hero Section === #}
+{% include "ui/components/public/hero.html" with badge="بازار خدمات مراقبت، همراهی و پشتیبانی سالمندان" title="مراقبت مطمئن برای سالمند، آرامش واقعی برای خانواده." subtitle="سالمندیار خانواده‌ها را به مراقبان مستقل و سازمان‌های معتبر متصل می‌کند؛ با تجربه فارسی، طراحی راست‌به‌چپ، فرآیند شفاف و زیرساخت آماده پیگیری کیفیت." primary_cta_text="دریافت مشاوره و شروع درخواست" primary_cta_url="/contact/" secondary_cta_text="مشاهده خدمات" secondary_cta_url="/services/" has_pattern="true" %}
 
-    <div class="relative">
-      <div class="absolute -inset-4 rounded-3xl bg-primary-100 opacity-60 blur-2xl dark:bg-primary-950" aria-hidden="true"></div>
-      <div class="relative rounded-3xl border border-border bg-surface p-5 shadow-xl">
-        <div class="rounded-2xl bg-background p-5">
-          <div class="flex items-start justify-between gap-4">
-            <div>
-              <p class="text-sm font-bold text-primary">نمونه مسیر خدمت</p>
-              <h2 class="mt-2 text-2xl font-black text-text">همراهی سالمند در منزل</h2>
-            </div>
-            <span class="rounded-full bg-success-50 px-3 py-1 text-xs font-black text-success">قابل پیگیری</span>
-          </div>
-          <div class="mt-6 space-y-4">
-            <div class="flex gap-4 rounded-2xl border border-border bg-surface p-4">
-              <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary text-sm font-black text-white">۱</span>
-              <div>
-                <h3 class="font-black text-text">ثبت نیاز خانواده</h3>
-                <p class="mt-1 text-sm leading-7 text-text-muted">زمان، محل، نوع خدمت و توضیحات سالمند مشخص می‌شود.</p>
-              </div>
-            </div>
-            <div class="flex gap-4 rounded-2xl border border-border bg-surface p-4">
-              <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary text-sm font-black text-white">۲</span>
-              <div>
-                <h3 class="font-black text-text">هماهنگی و انتخاب ارائه‌دهنده</h3>
-                <p class="mt-1 text-sm leading-7 text-text-muted">پلتفرم برای مدل مستقل، شرکتی یا ترکیبی آماده است.</p>
-              </div>
-            </div>
-            <div class="flex gap-4 rounded-2xl border border-border bg-surface p-4">
-              <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary text-sm font-black text-white">۳</span>
-              <div>
-                <h3 class="font-black text-text">پیگیری کیفیت خدمت</h3>
-                <p class="mt-1 text-sm leading-7 text-text-muted">وضعیت، گزارش، بازخورد و کنترل کیفیت در مسیر آینده تکمیل می‌شود.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
+{# === Statistics === #}
 <section class="border-y border-border bg-surface">
   <div class="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
-    <div class="grid gap-6 md:grid-cols-3">
-      <div class="rounded-3xl border border-border bg-background p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg">
-        <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-50 text-xl dark:bg-primary-950">🛡️</div>
-        <h3 class="text-xl font-black text-text">اعتماد و کنترل کیفیت</h3>
-        <p class="mt-3 text-sm leading-8 text-text-muted">ساختار نقش‌ها، سیاست‌ها و گزارش‌ها برای کاهش ابهام و افزایش اطمینان خانواده‌ها.</p>
-      </div>
-      <div class="rounded-3xl border border-border bg-background p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg">
-        <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-50 text-xl dark:bg-primary-950">👵</div>
-        <h3 class="text-xl font-black text-text">طراحی انسان‌محور</h3>
-        <p class="mt-3 text-sm leading-8 text-text-muted">تمرکز روی نیاز سالمند، آرامش خانواده و ساده‌سازی تصمیم‌گیری در شرایط حساس.</p>
-      </div>
-      <div class="rounded-3xl border border-border bg-background p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg">
-        <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-50 text-xl dark:bg-primary-950">🏢</div>
-        <h3 class="text-xl font-black text-text">آماده رشد سازمانی</h3>
-        <p class="mt-3 text-sm leading-8 text-text-muted">قابل توسعه برای مراقبان مستقل، شرکت‌های ارائه‌دهنده خدمات و مدل‌های ترکیبی.</p>
-      </div>
+    <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      {% include "ui/components/public/stat_item.html" with value="۲۴/۷" label="آماده طراحی برای پشتیبانی" %}
+      {% include "ui/components/public/stat_item.html" with value="RTL" label="فارسی و راست‌به‌چپ بومی" %}
+      {% include "ui/components/public/stat_item.html" with value="۳ مدل" label="مستقل، سازمانی، ترکیبی" %}
+      {% include "ui/components/public/stat_item.html" with value="Enterprise" label="معماری سازمانی آماده رشد" %}
     </div>
   </div>
 </section>
 
-<section class="bg-background">
-  <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+{# === Key Features === #}
+<section class="bg-background py-16 lg:py-24">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    {% include "ui/components/public/section_header.html" with eyebrow="چرا سالمندیار" title="ساخته‌شده برای اعتماد خانواده‌ها" subtitle="یک پلتفرم واقعی مراقبت — نه فقط یک وبسایت ساده." align="center" size="md" %}
+    <div class="mt-12 grid gap-6 md:grid-cols-3">
+      {% include "ui/components/public/feature_card.html" with icon="🛡️" title="اعتماد و کنترل کیفیت" description="ساختار نقش‌ها، سیاست‌ها و گزارش‌ها برای کاهش ابهام و افزایش اطمینان خانواده‌ها." %}
+      {% include "ui/components/public/feature_card.html" with icon="👵" title="طراحی انسان‌محور" description="تمرکز روی نیاز سالمند، آرامش خانواده و ساده‌سازی تصمیم‌گیری در شرایط حساس." %}
+      {% include "ui/components/public/feature_card.html" with icon="🏢" title="آماده رشد سازمانی" description="قابل توسعه برای مراقبان مستقل، شرکت‌های ارائه‌دهنده خدمات و مدل‌های ترکیبی." %}
+    </div>
+  </div>
+</section>
+
+{# === Services Preview === #}
+<section class="border-t border-border bg-surface py-16 lg:py-24">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
     <div class="grid gap-10 lg:grid-cols-3 lg:items-start">
       <div class="lg:col-span-1">
-        <p class="text-sm font-black text-primary">خدمات منتخب</p>
-        <h2 class="mt-3 text-3xl font-black leading-tight text-text">برای نیازهای واقعی خانواده‌ها</h2>
-        <p class="mt-4 leading-8 text-text-muted">این بخش فعلاً معرفی عمومی است و در Sprintهای بعدی به کاتالوگ، ثبت درخواست و فرآیند سفارش متصل می‌شود.</p>
-        <a href="/services/" class="mt-6 inline-flex rounded-2xl border border-border bg-surface px-5 py-3 text-sm font-black text-text transition-all hover:border-border-strong hover:bg-background">دیدن همه خدمات</a>
+        {% include "ui/components/public/section_header.html" with eyebrow="خدمات منتخب" title="برای نیازهای واقعی خانواده‌ها" subtitle="این بخش معرفی عمومی خدمات است. در مراحل بعدی به کاتالوگ و فرآیند سفارش متصل می‌شود." align="start" size="sm" %}
+        <a href="/services/" class="mt-6 inline-flex items-center gap-2 rounded-2xl border border-border bg-background px-5 py-3 text-sm font-black text-text transition-all hover:border-border-strong hover:shadow-sm">
+          دیدن همه خدمات
+          <svg class="h-4 w-4 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+        </a>
       </div>
       <div class="grid gap-5 sm:grid-cols-2 lg:col-span-2">
-        <div class="rounded-3xl border border-border bg-surface p-6 shadow-sm"><h3 class="font-black text-text">مراقبت در منزل</h3><p class="mt-3 text-sm leading-8 text-text-muted">همراهی، مراقبت و پشتیبانی روزمره در محیط امن خانه.</p></div>
-        <div class="rounded-3xl border border-border bg-surface p-6 shadow-sm"><h3 class="font-black text-text">همراهی درمانی</h3><p class="mt-3 text-sm leading-8 text-text-muted">کمک در مراجعه، رفت‌وآمد و پیگیری امور درمانی.</p></div>
-        <div class="rounded-3xl border border-border bg-surface p-6 shadow-sm"><h3 class="font-black text-text">پشتیبانی خانواده</h3><p class="mt-3 text-sm leading-8 text-text-muted">شفاف‌سازی وضعیت خدمت برای افراد معتمد خانواده.</p></div>
-        <div class="rounded-3xl border border-border bg-surface p-6 shadow-sm"><h3 class="font-black text-text">ارزیابی نیاز</h3><p class="mt-3 text-sm leading-8 text-text-muted">کمک به انتخاب خدمت مناسب پیش از شروع فرآیند.</p></div>
+        {% include "ui/components/public/service_card.html" with icon="🏠" title="مراقبت در منزل" description="همراهی، مراقبت و پشتیبانی روزمره در محیط امن خانه." cta_text="درخواست مشاوره" cta_url="/contact/" %}
+        {% include "ui/components/public/service_card.html" with icon="🚕" title="همراهی درمانی" description="کمک در مراجعه، رفت‌وآمد و پیگیری امور درمانی." cta_text="هماهنگی اولیه" cta_url="/contact/" %}
+        {% include "ui/components/public/service_card.html" with icon="👨‍👩‍👧" title="پشتیبانی خانواده" description="شفاف‌سازی وضعیت خدمت برای افراد معتمد خانواده." cta_text="شروع گفتگو" cta_url="/contact/" %}
+        {% include "ui/components/public/service_card.html" with icon="🧭" title="ارزیابی نیاز" description="کمک به انتخاب خدمت مناسب پیش از شروع فرآیند." cta_text="مشاهده فرآیند" cta_url="/how-it-works/" %}
       </div>
     </div>
   </div>
 </section>
 
-<section class="bg-primary-50 dark:bg-primary-950">
-  <div class="mx-auto max-w-5xl px-4 py-16 text-center sm:px-6 lg:px-8">
-    <p class="text-sm font-black text-primary">آماده شروع هستید؟</p>
-    <h2 class="mt-3 text-3xl font-black leading-tight text-text sm:text-4xl">اولین قدم، توضیح نیاز خانواده است.</h2>
-    <p class="mx-auto mt-4 max-w-2xl leading-8 text-text-muted">فرم تماس فعلاً نمایشی است؛ در Sprintهای بعدی به درخواست خدمت، احراز هویت و پیگیری سفارش متصل می‌شود.</p>
-    <div class="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-      <a href="/contact/" class="inline-flex items-center justify-center rounded-2xl bg-primary px-7 py-4 font-black text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary-700">ثبت درخواست مشاوره</a>
-      <a href="/how-it-works/" class="inline-flex items-center justify-center rounded-2xl border border-border bg-surface px-7 py-4 font-black text-text transition-all hover:bg-background">آشنایی با فرآیند</a>
+{# === How it works preview === #}
+<section class="bg-background py-16 lg:py-24">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    {% include "ui/components/public/section_header.html" with eyebrow="نحوه کار" title="مسیر ساده از نیاز تا خدمت" align="center" size="md" %}
+    <div class="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      {% include "ui/components/public/step_card.html" with number="۱" title="ثبت نیاز" description="خانواده نوع خدمت، زمان و محل را مشخص می‌کند." %}
+      {% include "ui/components/public/step_card.html" with number="۲" title="بررسی و هماهنگی" description="سفارش بررسی و آماده تخصیص می‌شود." %}
+      {% include "ui/components/public/step_card.html" with number="۳" title="ارائه خدمت" description="مراقب یا سازمان، خدمت را انجام می‌دهد." %}
+      {% include "ui/components/public/step_card.html" with number="۴" title="بازخورد و کیفیت" description="مسیر امتیازدهی و بهبود کیفیت فعال می‌شود." %}
     </div>
   </div>
 </section>
+
+{# === Testimonials (demo) === #}
+<section class="border-y border-border bg-surface py-16 lg:py-24">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    {% include "ui/components/public/section_header.html" with eyebrow="تجربه کاربران" title="صدای خانواده‌ها و مراقبان" subtitle="نمونه‌های نمایشی برای نشان دادن ساختار بخش نظرات. در آینده با داده واقعی جایگزین می‌شود." align="center" size="md" %}
+    <div class="mt-12 grid gap-6 md:grid-cols-3">
+      {% include "ui/components/public/testimonial_card.html" with quote="پیدا کردن مراقب مطمئن همیشه نگرانی اصلی ما بود. ساختار این پلتفرم حس اعتماد و شفافیت بیشتری ایجاد می‌کند." author="خانواده نمونه" role="خانواده سالمند" avatar_initial="خ" is_demo="true" %}
+      {% include "ui/components/public/testimonial_card.html" with quote="به‌عنوان پرستار مستقل، داشتن یک پروفایل حرفه‌ای و مسیر مشخص دریافت درخواست خیلی مهم است." author="مراقب نمونه" role="پرستار سالمند" avatar_initial="م" is_demo="true" %}
+      {% include "ui/components/public/testimonial_card.html" with quote="مدیریت تیم مراقبان در یک پلتفرم واحد و دریافت بازخورد ساختاریافته، کار ما را آسان‌تر می‌کند." author="سازمان نمونه" role="مدیر آژانس مراقبتی" avatar_initial="س" is_demo="true" %}
+    </div>
+  </div>
+</section>
+
+{# === CTA === #}
+{% include "ui/components/public/cta_section.html" with eyebrow="آماده شروع هستید؟" title="اولین قدم، توضیح نیاز خانواده است." subtitle="فرم تماس فعلاً نمایشی است؛ در مراحل بعدی به درخواست خدمت، احراز هویت و پیگیری سفارش متصل می‌شود." primary_cta_text="ثبت درخواست مشاوره" primary_cta_url="/contact/" secondary_cta_text="آشنایی با فرآیند" secondary_cta_url="/how-it-works/" variant="highlight" %}
 {% endblock %}

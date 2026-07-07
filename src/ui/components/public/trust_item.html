@@ -1,0 +1,19 @@
+{# Enterprise Trust Item Component
+   Usage:
+   {% include "ui/components/public/trust_item.html" with
+     icon="emoji_or_svg"
+     title="Trust feature"
+     description="Description"
+   %}
+#}
+<div class="rounded-3xl border border-border bg-surface p-6 shadow-sm transition-all hover:shadow-md">
+  {% if icon %}
+  <div class="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-50 text-xl dark:bg-primary-950">{{ icon }}</div>
+  {% endif %}
+  {% if title %}
+  <h3 class="text-lg font-black text-text">{{ title }}</h3>
+  {% endif %}
+  {% if description %}
+  <p class="mt-3 text-sm leading-8 text-text-muted">{{ description }}</p>
+  {% endif %}
+</div>

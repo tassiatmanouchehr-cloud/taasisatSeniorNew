@@ -1,0 +1,23 @@
+{# Enterprise Section Header Component
+   Usage:
+   {% include "ui/components/public/section_header.html" with
+     eyebrow="Label"
+     title="Main Title"
+     subtitle="Description text"
+     align="center|start"
+     size="lg|md|sm"
+   %}
+#}
+{% with align=align|default:"center" size=size|default:"lg" %}
+<div class="{% if align == 'center' %}mx-auto max-w-3xl text-center{% else %}max-w-3xl{% endif %}">
+  {% if eyebrow %}
+  <p class="text-sm font-black text-primary">{{ eyebrow }}</p>
+  {% endif %}
+  {% if title %}
+  <h2 class="{% if eyebrow %}mt-3{% endif %} font-black leading-tight text-text {% if size == 'lg' %}text-3xl sm:text-4xl lg:text-5xl{% elif size == 'md' %}text-2xl sm:text-3xl{% else %}text-xl sm:text-2xl{% endif %}">{{ title }}</h2>
+  {% endif %}
+  {% if subtitle %}
+  <p class="mt-5 text-lg leading-9 text-text-muted">{{ subtitle }}</p>
+  {% endif %}
+</div>
+{% endwith %}

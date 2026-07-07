@@ -1,0 +1,15 @@
+{# Enterprise Value Card Component — for values/principles display
+   Usage:
+   {% include "ui/components/public/value_card.html" with
+     title="Value name"
+     description="Description"
+   %}
+#}
+<div class="rounded-2xl bg-background p-5">
+  {% if title %}
+  <div class="text-2xl font-black text-primary">{{ title }}</div>
+  {% endif %}
+  {% if description %}
+  <p class="mt-2 text-sm leading-7 text-text-muted">{{ description }}</p>
+  {% endif %}
+</div>

@@ -2,16 +2,17 @@
 {# Public layout — marketing pages, service catalog, registration #}
 {# Top navbar with brand + navigation + mobile hamburger + CTA actions. #}
 {# Mobile: drawer navigation via Alpine.js #}
+{# Scroll: header gets shadow on scroll for depth #}
 
 {% block body_class %}layout-public{% endblock %}
 
-{% block body_attrs %}x-data="{ mobileNav: false }"{% endblock %}
+{% block body_attrs %}x-data="{ mobileNav: false, scrolled: false }" @scroll.window="scrolled = (window.scrollY > 10)" @keydown.escape.window="mobileNav = false"{% endblock %}
 
 {% block body %}
 <div class="flex flex-col min-h-screen">
 
   <!-- Top Navigation Bar -->
-  <header class="sticky top-0 z-sticky bg-surface backdrop-blur-sm border-b border-border">
+  <header class="sticky top-0 z-sticky border-b border-border bg-surface backdrop-blur-sm transition-shadow duration-200" :class="{ 'shadow-md': scrolled }">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <nav class="flex items-center justify-between h-16" aria-label="ناوبری اصلی">
 
@@ -26,14 +27,14 @@
         </div>
 
         <!-- Desktop Navigation Links -->
-        <div class="hidden lg:flex items-center gap-inline-5">
+        <div class="hidden lg:flex items-center gap-6">
           {% block nav_links %}{% endblock %}
         </div>
 
         <!-- Actions + Mobile Toggle -->
-        <div class="flex items-center gap-inline-3">
+        <div class="flex items-center gap-3">
           <!-- Desktop CTA -->
-          <div class="hidden sm:flex items-center gap-inline-3">
+          <div class="hidden sm:flex items-center gap-3">
             {% block nav_actions %}{% endblock %}
           </div>
 
@@ -73,7 +74,6 @@
          class="lg:hidden border-t border-border bg-surface shadow-lg">
       <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 space-y-1">
         {% block mobile_nav_links %}
-        <!-- Default: same as desktop links, styled for mobile -->
         {% block nav_links_mobile %}{% endblock %}
         {% endblock %}
 
@@ -91,7 +91,7 @@
   </main>
 
   <!-- Footer -->
-  <footer class="bg-surface border-t border-border py-10">
+  <footer class="bg-surface border-t border-border py-12 lg:py-16">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       {% block footer %}
       <p class="text-sm text-text-muted text-center">

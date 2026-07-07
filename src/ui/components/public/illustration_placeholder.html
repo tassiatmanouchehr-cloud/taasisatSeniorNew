@@ -1,0 +1,47 @@
+{# Enterprise Illustration Placeholder — SVG-based, theme-aware
+   Usage:
+   {% include "ui/components/public/illustration_placeholder.html" with
+     variant="care|connect|trust|search|team|support"
+     size="lg|md|sm"
+   %}
+#}
+{% with size=size|default:"md" variant=variant|default:"care" %}
+<div class="flex items-center justify-center {% if size == 'lg' %}h-64 w-64{% elif size == 'sm' %}h-24 w-24{% else %}h-40 w-40{% endif %}">
+  <svg class="w-full h-full" viewBox="0 0 200 200" fill="none" aria-hidden="true">
+    <!-- Background circle -->
+    <circle cx="100" cy="100" r="90" class="fill-primary-50 dark:fill-primary-950"/>
+    <circle cx="100" cy="100" r="70" class="fill-primary-100 dark:fill-primary-950" opacity="0.5"/>
+    {% if variant == "care" %}
+    <!-- Heart / Care -->
+    <path d="M100 150c-30-20-50-40-50-60 0-15 12-27 25-27 8 0 16 4 25 15 9-11 17-15 25-15 13 0 25 12 25 27 0 20-20 40-50 60z" class="fill-primary" opacity="0.7"/>
+    {% elif variant == "connect" %}
+    <!-- Connect / Network -->
+    <circle cx="70" cy="80" r="12" class="fill-primary" opacity="0.6"/>
+    <circle cx="130" cy="80" r="12" class="fill-primary" opacity="0.6"/>
+    <circle cx="100" cy="130" r="12" class="fill-primary" opacity="0.6"/>
+    <line x1="70" y1="80" x2="130" y2="80" class="stroke-primary" stroke-width="2" opacity="0.4"/>
+    <line x1="70" y1="80" x2="100" y2="130" class="stroke-primary" stroke-width="2" opacity="0.4"/>
+    <line x1="130" y1="80" x2="100" y2="130" class="stroke-primary" stroke-width="2" opacity="0.4"/>
+    {% elif variant == "trust" %}
+    <!-- Shield / Trust -->
+    <path d="M100 50l40 20v30c0 25-15 48-40 60-25-12-40-35-40-60V70l40-20z" class="fill-primary" opacity="0.6"/>
+    <path d="M88 105l8 8 16-20" class="stroke-white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    {% elif variant == "search" %}
+    <!-- Search / Discovery -->
+    <circle cx="90" cy="90" r="30" class="stroke-primary" stroke-width="4" fill="none" opacity="0.6"/>
+    <line x1="112" y1="112" x2="140" y2="140" class="stroke-primary" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+    {% elif variant == "team" %}
+    <!-- Team / Organization -->
+    <circle cx="100" cy="70" r="15" class="fill-primary" opacity="0.6"/>
+    <circle cx="65" cy="110" r="12" class="fill-primary" opacity="0.4"/>
+    <circle cx="135" cy="110" r="12" class="fill-primary" opacity="0.4"/>
+    <path d="M80 140c0-11 9-20 20-20s20 9 20 20" class="stroke-primary" stroke-width="3" fill="none" opacity="0.5"/>
+    {% elif variant == "support" %}
+    <!-- Support / Help -->
+    <circle cx="100" cy="100" r="40" class="stroke-primary" stroke-width="3" fill="none" opacity="0.5"/>
+    <path d="M85 88c0-8 7-15 15-15s15 7 15 15c0 8-7 12-15 15v5" class="stroke-primary" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.7"/>
+    <circle cx="100" cy="125" r="3" class="fill-primary" opacity="0.7"/>
+    {% endif %}
+  </svg>
+</div>
+{% endwith %}

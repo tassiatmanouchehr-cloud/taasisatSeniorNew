@@ -1,0 +1,16 @@
+{# Enterprise Stat Item Component
+   Usage:
+   {% include "ui/components/public/stat_item.html" with
+     icon="emoji_or_svg"
+     value="24/7"
+     suffix="optional suffix"
+     label="Description"
+   %}
+#}
+<div class="rounded-3xl border border-border bg-background p-6 text-center shadow-sm transition-all hover:shadow-md">
+  {% if icon %}
+  <div class="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-50 text-xl dark:bg-primary-950">{{ icon }}</div>
+  {% endif %}
+  <div class="text-3xl font-black text-text">{{ value }}{% if suffix %}<span class="text-lg text-text-muted ms-1">{{ suffix }}</span>{% endif %}</div>
+  <div class="mt-2 text-sm leading-6 text-text-muted">{{ label }}</div>
+</div>

@@ -1,0 +1,31 @@
+{# Enterprise Testimonial Card Component
+   Usage:
+   {% include "ui/components/public/testimonial_card.html" with
+     quote="Testimonial text"
+     author="Name"
+     role="Role / relation"
+     avatar_initial="ع"
+     is_demo="true"
+   %}
+#}
+<article class="rounded-3xl border border-border bg-surface p-6 shadow-sm transition-all hover:shadow-md">
+  {% if is_demo %}
+  <span class="inline-flex rounded-full bg-warning-50 px-3 py-1 text-xs font-bold text-warning dark:bg-warning-100 mb-4">نمونه نمایشی</span>
+  {% endif %}
+  <!-- Quote icon -->
+  <svg class="h-8 w-8 text-primary-100 dark:text-primary-950 mb-3" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/>
+  </svg>
+  {% if quote %}
+  <p class="text-sm leading-8 text-text-muted">{{ quote }}</p>
+  {% endif %}
+  <div class="mt-5 flex items-center gap-3 border-t border-border pt-5">
+    <div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary-50 text-sm font-black text-primary dark:bg-primary-950">
+      {{ avatar_initial|default:"?" }}
+    </div>
+    <div>
+      {% if author %}<p class="text-sm font-black text-text">{{ author }}</p>{% endif %}
+      {% if role %}<p class="text-xs text-text-muted">{{ role }}</p>{% endif %}
+    </div>
+  </div>
+</article>

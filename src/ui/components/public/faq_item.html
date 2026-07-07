@@ -1,0 +1,27 @@
+{# Enterprise FAQ Accordion Item Component
+   Usage inside x-data="{ active: null }" container:
+   {% include "ui/components/public/faq_item.html" with
+     index=1
+     question="Question text"
+     answer="Answer text"
+   %}
+#}
+<div class="p-0">
+  <button @click="active = active === {{ index }} ? null : {{ index }}"
+          class="flex w-full items-center justify-between px-6 py-5 text-start transition-colors hover:bg-background-alt"
+          :aria-expanded="active === {{ index }}"
+          type="button">
+    <span class="font-black text-text">{{ question }}</span>
+    <svg class="h-5 w-5 shrink-0 text-text-muted transition-transform duration-200"
+         :class="{ 'rotate-180': active === {{ index }} }"
+         fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/>
+    </svg>
+  </button>
+  <div x-show="active === {{ index }}"
+       x-collapse
+       x-cloak
+       class="px-6 pb-5 text-sm leading-8 text-text-muted">
+    {{ answer }}
+  </div>
+</div>

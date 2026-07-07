@@ -1,55 +1,53 @@
 {% extends "public_site/base_public.html" %}
 {% block public_title %}درباره ما{% endblock %}
 
+{% block page_meta %}
+{% include "ui/components/public/seo_meta.html" with page_title="درباره سالمندیار" page_description="سالمندیار با هدف ساده‌سازی دسترسی خانواده‌ها به خدمات مراقبت سالمندان طراحی شده است." page_url="/about/" %}
+{% endblock %}
+
 {% block content %}
-<section class="bg-background">
-  <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+{# === Hero === #}
+{% include "ui/components/public/hero.html" with eyebrow="درباره سالمندیار" title="یک پلتفرم مراقبتی، ساخته‌شده برای اعتماد خانواده‌ها" subtitle="سالمندیار با هدف ساده‌سازی دسترسی خانواده‌ها به خدمات مراقبت، همراهی و پشتیبانی سالمندان طراحی شده است؛ با معماری Enterprise، تجربه فارسی‌اول و قابلیت توسعه برای بازارهای خدماتی مختلف." has_pattern="true" %}
+
+{# === Values === #}
+<section class="bg-background py-16 lg:py-24">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
     <div class="grid gap-12 lg:grid-cols-2 lg:items-center">
       <div>
-        <p class="text-sm font-black text-primary">درباره سالمندیار</p>
-        <h1 class="mt-3 text-4xl font-black leading-tight text-text sm:text-5xl">یک پلتفرم مراقبتی، ساخته‌شده برای اعتماد خانواده‌ها</h1>
-        <p class="mt-6 text-lg leading-9 text-text-muted">
-          سالمندیار با هدف ساده‌سازی دسترسی خانواده‌ها به خدمات مراقبت، همراهی و پشتیبانی سالمندان طراحی شده است؛ با معماری Enterprise، تجربه فارسی‌اول و قابلیت توسعه برای بازارهای خدماتی مختلف.
-        </p>
+        {% include "ui/components/public/section_header.html" with eyebrow="ارزش‌های ما" title="اصولی که هدایتگر ماست" align="start" size="md" %}
       </div>
-      <div class="rounded-3xl border border-border bg-surface p-6 shadow-xl">
-        <div class="grid gap-4 sm:grid-cols-2">
-          <div class="rounded-2xl bg-background p-5"><div class="text-2xl font-black text-primary">اعتماد</div><p class="mt-2 text-sm leading-7 text-text-muted">پایه اصلی انتخاب مراقب و سازمان خدمت‌رسان.</p></div>
-          <div class="rounded-2xl bg-background p-5"><div class="text-2xl font-black text-primary">شفافیت</div><p class="mt-2 text-sm leading-7 text-text-muted">وضعیت، مسئولیت و پیگیری باید روشن باشد.</p></div>
-          <div class="rounded-2xl bg-background p-5"><div class="text-2xl font-black text-primary">احترام</div><p class="mt-2 text-sm leading-7 text-text-muted">کرامت سالمند در مرکز تجربه محصول قرار دارد.</p></div>
-          <div class="rounded-2xl bg-background p-5"><div class="text-2xl font-black text-primary">توسعه</div><p class="mt-2 text-sm leading-7 text-text-muted">زیرساخت برای رشد مرحله‌ای و چندمدلی طراحی شده است.</p></div>
-        </div>
+      <div class="grid gap-4 sm:grid-cols-2">
+        {% include "ui/components/public/value_card.html" with title="اعتماد" description="پایه اصلی انتخاب مراقب و سازمان خدمت‌رسان." %}
+        {% include "ui/components/public/value_card.html" with title="شفافیت" description="وضعیت، مسئولیت و پیگیری باید روشن باشد." %}
+        {% include "ui/components/public/value_card.html" with title="احترام" description="کرامت سالمند در مرکز تجربه محصول قرار دارد." %}
+        {% include "ui/components/public/value_card.html" with title="توسعه" description="زیرساخت برای رشد مرحله‌ای و چندمدلی طراحی شده است." %}
       </div>
     </div>
   </div>
 </section>
 
-<section class="border-y border-border bg-surface">
-  <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+{# === Mission / Vision / Method === #}
+<section class="border-y border-border bg-surface py-16 lg:py-24">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
     <div class="grid gap-6 md:grid-cols-3">
-      <article class="rounded-3xl border border-border bg-background p-7 shadow-sm">
-        <h2 class="text-xl font-black text-text">ماموریت</h2>
-        <p class="mt-4 leading-8 text-text-muted">ایجاد بستری امن و قابل فهم برای اتصال خانواده‌ها، مراقبان مستقل و سازمان‌های ارائه‌دهنده خدمات.</p>
-      </article>
-      <article class="rounded-3xl border border-border bg-background p-7 shadow-sm">
-        <h2 class="text-xl font-black text-text">چشم‌انداز</h2>
-        <p class="mt-4 leading-8 text-text-muted">تبدیل شدن به مرجع قابل اعتماد خدمات مراقبت و همراهی سالمندان در بازار فارسی‌زبان.</p>
-      </article>
-      <article class="rounded-3xl border border-border bg-background p-7 shadow-sm">
-        <h2 class="text-xl font-black text-text">روش کار</h2>
-        <p class="mt-4 leading-8 text-text-muted">ساخت تدریجی، ماژولار و قابل تست؛ ابتدا زیرساخت، سپس تجربه کاربری و بعد فرآیندهای کسب‌وکاری.</p>
-      </article>
+      {% include "ui/components/public/info_card.html" with title="ماموریت" description="ایجاد بستری امن و قابل فهم برای اتصال خانواده‌ها، مراقبان مستقل و سازمان‌های ارائه‌دهنده خدمات." variant="elevated" %}
+      {% include "ui/components/public/info_card.html" with title="چشم‌انداز" description="تبدیل شدن به مرجع قابل اعتماد خدمات مراقبت و همراهی سالمندان در بازار فارسی‌زبان." variant="elevated" %}
+      {% include "ui/components/public/info_card.html" with title="روش کار" description="ساخت تدریجی، ماژولار و قابل تست؛ ابتدا زیرساخت، سپس تجربه کاربری و بعد فرآیندهای کسب‌وکاری." variant="elevated" %}
     </div>
   </div>
 </section>
 
-<section class="bg-background">
-  <div class="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
+{# === Platform Architecture Note === #}
+<section class="bg-background py-16">
+  <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
     <div class="rounded-3xl border border-border bg-surface p-8 shadow-sm">
       <p class="text-sm font-black text-primary">اصل معماری</p>
-      <h2 class="mt-3 text-3xl font-black text-text">سالمندیار فقط یک سایت ساده نیست؛ هسته‌ای برای بازار خدمات است.</h2>
+      <h2 class="mt-3 text-2xl font-black text-text sm:text-3xl">سالمندیار فقط یک سایت ساده نیست؛ هسته‌ای برای بازار خدمات است.</h2>
       <p class="mt-5 leading-9 text-text-muted">اگرچه نمونه فعلی روی مراقبت سالمند تمرکز دارد، زیرساخت برای مدل‌های مختلف بازار خدمات طراحی شده است: ارائه‌دهنده مستقل، سازمان ارائه‌دهنده، و مدل ترکیبی.</p>
     </div>
   </div>
 </section>
+
+{# === CTA === #}
+{% include "ui/components/public/cta_section.html" with title="می‌خواهید بیشتر بدانید؟" subtitle="با تیم سالمندیار در ارتباط باشید." primary_cta_text="تماس با ما" primary_cta_url="/contact/" secondary_cta_text="مشاهده خدمات" secondary_cta_url="/services/" variant="highlight" %}
 {% endblock %}

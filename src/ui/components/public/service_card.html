@@ -1,0 +1,33 @@
+{# Enterprise Service Card Component
+   Usage:
+   {% include "ui/components/public/service_card.html" with
+     icon="emoji_or_svg"
+     title="Service name"
+     description="Description"
+     badge="Optional badge text"
+     cta_text="Learn more"
+     cta_url="/url/"
+   %}
+#}
+<article class="group relative rounded-3xl border border-border bg-surface p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg">
+  <!-- Top accent line -->
+  <div class="absolute inset-x-6 top-0 h-0.5 rounded-full bg-primary opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true"></div>
+  {% if badge %}
+  <span class="absolute top-4 end-4 rounded-full bg-success-50 px-3 py-1 text-xs font-bold text-success dark:bg-success-100">{{ badge }}</span>
+  {% endif %}
+  {% if icon %}
+  <div class="mb-5 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50 text-2xl dark:bg-primary-950 transition-transform group-hover:scale-110">{{ icon }}</div>
+  {% endif %}
+  {% if title %}
+  <h3 class="text-lg font-black text-text">{{ title }}</h3>
+  {% endif %}
+  {% if description %}
+  <p class="mt-3 text-sm leading-8 text-text-muted">{{ description }}</p>
+  {% endif %}
+  {% if cta_text %}
+  <a href="{{ cta_url|default:'#' }}" class="mt-5 inline-flex items-center gap-1 text-sm font-black text-primary transition-colors hover:text-primary-700">
+    {{ cta_text }}
+    <svg class="h-4 w-4 transition-transform group-hover:-translate-x-1 rtl:rotate-180 rtl:group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+  </a>
+  {% endif %}
+</article>

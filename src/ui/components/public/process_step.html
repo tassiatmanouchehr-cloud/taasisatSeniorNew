@@ -1,0 +1,11 @@
+{# Enterprise Process Step Component — inline numbered step
+   Usage:
+   {% include "ui/components/public/process_step.html" with
+     number="1"
+     text="Step description with <strong>highlights</strong>"
+   %}
+#}
+<div class="flex gap-4">
+  <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-black text-white shadow-sm">{{ number }}</span>
+  <p class="text-sm leading-8 text-text-muted">{{ text }}</p>
+</div>
