@@ -1,0 +1,298 @@
+/*
+ * Motion Design System
+ * Enterprise Service Marketplace Platform
+ *
+ * Defines all animation/transition tokens and utility classes.
+ * Every animated component in the design system uses these tokens.
+ *
+ * Principles:
+ * 1. Purpose: motion communicates state changes, not decoration
+ * 2. Consistency: same duration/easing for same type of motion
+ * 3. Accessibility: respects prefers-reduced-motion (disables all)
+ * 4. Performance: use transform/opacity only (no layout triggers)
+ * 5. RTL-aware: directional animations use logical directions
+ *
+ * Component Animation Map:
+ *   Modal     → scale-in + fade (enter), scale-out + fade (leave)
+ *   Drawer    → slide from inline-start/end + fade
+ *   Dropdown  → scale-in from top + fade
+ *   Tooltip   → fade only (fast)
+ *   Toast     → slide-up + fade (enter), slide-down + fade (leave)
+ *   Accordion → collapse height (x-collapse)
+ *   Tab       → fade crossfade
+ *   Loading   → spin (infinite), pulse (infinite)
+ *   Skeleton  → pulse (infinite)
+ *   Alert     → fade + slide-down (enter), fade (leave)
+ */
+
+/* ============================================================
+   MOTION TOKENS (CSS Custom Properties)
+   ============================================================ */
+
+:root {
+  /* --- Durations --- */
+  --motion-duration-instant: 0ms;
+  --motion-duration-fast: 100ms;
+  --motion-duration-normal: 200ms;
+  --motion-duration-moderate: 300ms;
+  --motion-duration-slow: 400ms;
+  --motion-duration-slower: 600ms;
+
+  /* --- Delays --- */
+  --motion-delay-none: 0ms;
+  --motion-delay-short: 75ms;
+  --motion-delay-medium: 150ms;
+  --motion-delay-long: 300ms;
+
+  /* --- Easing Curves --- */
+  --motion-ease-default: cubic-bezier(0.4, 0, 0.2, 1);    /* standard */
+  --motion-ease-in: cubic-bezier(0.4, 0, 1, 1);           /* accelerate */
+  --motion-ease-out: cubic-bezier(0, 0, 0.2, 1);          /* decelerate */
+  --motion-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);     /* standard */
+  --motion-ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);  /* overshoot */
+  --motion-ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);   /* playful */
+
+  /* --- Transform Origins (component-specific) --- */
+  --motion-origin-modal: center center;
+  --motion-origin-dropdown: top center;
+  --motion-origin-tooltip: center;
+  --motion-origin-toast: bottom center;
+}
+
+/* ============================================================
+   COMPONENT-SPECIFIC MOTION CLASSES
+   ============================================================
+   These define the exact enter/leave transitions for each component.
+   Used with Alpine.js x-transition directives.
+*/
+
+@layer utilities {
+
+  /* --- Modal --- */
+  .motion-modal-enter {
+    transition: opacity var(--motion-duration-normal) var(--motion-ease-out),
+                transform var(--motion-duration-normal) var(--motion-ease-out);
+  }
+  .motion-modal-enter-from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  .motion-modal-enter-to {
+    opacity: 1;
+    transform: scale(1);
+  }
+  .motion-modal-leave {
+    transition: opacity var(--motion-duration-fast) var(--motion-ease-in),
+                transform var(--motion-duration-fast) var(--motion-ease-in);
+  }
+  .motion-modal-leave-to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  /* --- Backdrop (overlay behind modal/drawer) --- */
+  .motion-backdrop-enter {
+    transition: opacity var(--motion-duration-moderate) var(--motion-ease-out);
+  }
+  .motion-backdrop-enter-from { opacity: 0; }
+  .motion-backdrop-enter-to { opacity: 1; }
+  .motion-backdrop-leave {
+    transition: opacity var(--motion-duration-normal) var(--motion-ease-in);
+  }
+  .motion-backdrop-leave-to { opacity: 0; }
+
+  /* --- Drawer (slide from inline-start) --- */
+  .motion-drawer-enter {
+    transition: transform var(--motion-duration-moderate) var(--motion-ease-out);
+  }
+  .motion-drawer-enter-from {
+    transform: translateX(100%); /* RTL: slides from right */
+  }
+  .motion-drawer-enter-to {
+    transform: translateX(0);
+  }
+  .motion-drawer-leave {
+    transition: transform var(--motion-duration-normal) var(--motion-ease-in);
+  }
+  .motion-drawer-leave-to {
+    transform: translateX(100%);
+  }
+
+  /* --- Dropdown / Popover (scale from top) --- */
+  .motion-dropdown-enter {
+    transition: opacity var(--motion-duration-fast) var(--motion-ease-out),
+                transform var(--motion-duration-fast) var(--motion-ease-out);
+    transform-origin: var(--motion-origin-dropdown);
+  }
+  .motion-dropdown-enter-from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-4px);
+  }
+  .motion-dropdown-enter-to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  .motion-dropdown-leave {
+    transition: opacity 75ms var(--motion-ease-in),
+                transform 75ms var(--motion-ease-in);
+    transform-origin: var(--motion-origin-dropdown);
+  }
+  .motion-dropdown-leave-to {
+    opacity: 0;
+    transform: scale(0.95) translateY(-4px);
+  }
+
+  /* --- Tooltip (fast fade only) --- */
+  .motion-tooltip-enter {
+    transition: opacity var(--motion-duration-fast) var(--motion-ease-out);
+  }
+  .motion-tooltip-enter-from { opacity: 0; }
+  .motion-tooltip-enter-to { opacity: 1; }
+  .motion-tooltip-leave {
+    transition: opacity 75ms var(--motion-ease-in);
+  }
+  .motion-tooltip-leave-to { opacity: 0; }
+
+  /* --- Toast (slide up + fade) --- */
+  .motion-toast-enter {
+    transition: opacity var(--motion-duration-moderate) var(--motion-ease-out),
+                transform var(--motion-duration-moderate) var(--motion-ease-spring);
+  }
+  .motion-toast-enter-from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  .motion-toast-enter-to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  .motion-toast-leave {
+    transition: opacity var(--motion-duration-normal) var(--motion-ease-in),
+                transform var(--motion-duration-normal) var(--motion-ease-in);
+  }
+  .motion-toast-leave-to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+  /* --- Accordion / Collapse (handled by Alpine x-collapse) --- */
+  /* Alpine's x-collapse handles the height transition automatically.
+     These classes add fade for content inside the collapsing area. */
+  .motion-collapse-content {
+    transition: opacity var(--motion-duration-normal) var(--motion-ease-default);
+  }
+  .motion-collapse-content-hidden {
+    opacity: 0;
+  }
+
+  /* --- Alert (slide down + fade) --- */
+  .motion-alert-enter {
+    transition: opacity var(--motion-duration-normal) var(--motion-ease-out),
+                transform var(--motion-duration-normal) var(--motion-ease-out);
+  }
+  .motion-alert-enter-from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  .motion-alert-enter-to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .motion-alert-leave {
+    transition: opacity var(--motion-duration-fast) var(--motion-ease-in);
+  }
+  .motion-alert-leave-to {
+    opacity: 0;
+  }
+
+  /* --- Page/Tab transition (crossfade) --- */
+  .motion-fade-enter {
+    transition: opacity var(--motion-duration-normal) var(--motion-ease-default);
+  }
+  .motion-fade-enter-from { opacity: 0; }
+  .motion-fade-enter-to { opacity: 1; }
+  .motion-fade-leave {
+    transition: opacity var(--motion-duration-fast) var(--motion-ease-default);
+  }
+  .motion-fade-leave-to { opacity: 0; }
+
+  /* --- Slide Up (general purpose: cards appearing, list items) --- */
+  .motion-slide-up-enter {
+    transition: opacity var(--motion-duration-normal) var(--motion-ease-out),
+                transform var(--motion-duration-normal) var(--motion-ease-out);
+  }
+  .motion-slide-up-enter-from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  .motion-slide-up-enter-to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* --- Scale (subtle pop for badges, notifications) --- */
+  .motion-scale-enter {
+    transition: opacity var(--motion-duration-fast) var(--motion-ease-spring),
+                transform var(--motion-duration-fast) var(--motion-ease-spring);
+  }
+  .motion-scale-enter-from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  .motion-scale-enter-to {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* --- Infinite animations (loading states) --- */
+  .motion-spin {
+    animation: spin 1s linear infinite;
+  }
+  .motion-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  .motion-bounce {
+    animation: bounce 1s infinite;
+  }
+
+  /* --- Stagger delay helpers (for lists/grids) --- */
+  .motion-stagger-1 { transition-delay: 50ms; }
+  .motion-stagger-2 { transition-delay: 100ms; }
+  .motion-stagger-3 { transition-delay: 150ms; }
+  .motion-stagger-4 { transition-delay: 200ms; }
+  .motion-stagger-5 { transition-delay: 250ms; }
+  .motion-stagger-6 { transition-delay: 300ms; }
+}
+
+/* ============================================================
+   REDUCED MOTION OVERRIDE
+   ============================================================
+   When user prefers reduced motion, ALL transitions become instant.
+   This is the single enforcement point for the entire motion system.
+*/
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-duration-instant: 0ms;
+    --motion-duration-fast: 0ms;
+    --motion-duration-normal: 0ms;
+    --motion-duration-moderate: 0ms;
+    --motion-duration-slow: 0ms;
+    --motion-duration-slower: 0ms;
+    --motion-delay-short: 0ms;
+    --motion-delay-medium: 0ms;
+    --motion-delay-long: 0ms;
+  }
+
+  /* Kill all infinite animations */
+  .motion-spin,
+  .motion-pulse,
+  .motion-bounce {
+    animation: none !important;
+  }
+
+  /* Stagger delays become instant */
+  [class*="motion-stagger"] {
+    transition-delay: 0ms !important;
+  }
+}

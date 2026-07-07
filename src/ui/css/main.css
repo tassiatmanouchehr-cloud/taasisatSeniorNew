@@ -26,6 +26,8 @@
 @import './rtl.css';
 /* Accessibility (focus ring, keyboard nav, screen reader, contrast) */
 @import './accessibility.css';
+/* Motion design system (transitions, animations, reduced-motion) */
+@import './motion.css';
 
 @tailwind components;
 @tailwind utilities;
