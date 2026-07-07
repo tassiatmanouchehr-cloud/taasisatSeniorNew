@@ -8,6 +8,8 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from apps.common.managers import TenantScopedManager
+
 
 # ============================================================
 # Service Catalog
@@ -20,8 +22,11 @@ class CatalogStatus(models.TextChoices):
 
 class ServiceCategory(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "kernel.Tenant", on_delete=models.PROTECT, related_name="service_categories",
+    )
     name = models.CharField(max_length=255)
-    slug = models.SlugField(max_length=100, unique=True)
+    slug = models.SlugField(max_length=100)
     description = models.TextField(blank=True)
     icon = models.CharField(max_length=50, blank=True)
     status = models.CharField(max_length=20, choices=CatalogStatus.choices, default=CatalogStatus.ACTIVE)
@@ -29,10 +34,13 @@ class ServiceCategory(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    objects = TenantScopedManager()
+
     class Meta:
         db_table = "orders_service_category"
         ordering = ["sort_order", "name"]
         verbose_name_plural = "Service Categories"
+        unique_together = [("tenant", "slug")]
 
     def __str__(self):
         return self.name
@@ -40,6 +48,9 @@ class ServiceCategory(models.Model):
 
 class ServiceType(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "kernel.Tenant", on_delete=models.PROTECT, related_name="service_types",
+    )
     category = models.ForeignKey(ServiceCategory, on_delete=models.CASCADE, related_name="service_types")
     name = models.CharField(max_length=255)
     slug = models.SlugField(max_length=100)
@@ -51,10 +62,12 @@ class ServiceType(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    objects = TenantScopedManager()
+
     class Meta:
         db_table = "orders_service_type"
         ordering = ["sort_order", "name"]
-        unique_together = [("category", "slug")]
+        unique_together = [("tenant", "category", "slug")]
 
     def __str__(self):
         return f"{self.category.name} / {self.name}"
@@ -92,6 +105,9 @@ def _generate_order_number():
 
 class Order(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "kernel.Tenant", on_delete=models.PROTECT, related_name="orders",
+    )
     order_number = models.CharField(max_length=30, unique=True, db_index=True)
     source = models.CharField(max_length=20, choices=OrderSource.choices)
     status = models.CharField(max_length=30, choices=OrderStatus.choices, db_index=True)
@@ -120,12 +136,11 @@ class Order(models.Model):
     requested_date = models.DateField(null=True, blank=True)
     requested_time_window = models.CharField(max_length=100, blank=True)
 
-    # Assignment
-    assigned_provider = models.ForeignKey(
-        "accounts.CaregiverProfile", on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_orders",
-    )
-    assigned_organization = models.ForeignKey(
-        "accounts.OrganizationProfile", on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_orders",
+    # Assignment — ServiceSupplier is the single source of truth.
+    # See assigned_provider/assigned_organization properties below for
+    # read-only, backward-compatible access to the resolved profile.
+    assigned_supplier = models.ForeignKey(
+        "kernel.ServiceSupplier", on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_orders",
     )
 
     # Actors
@@ -146,6 +161,8 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    objects = TenantScopedManager()
+
     class Meta:
         db_table = "orders_order"
         ordering = ["-created_at"]
@@ -158,9 +175,38 @@ class Order(models.Model):
             self.order_number = _generate_order_number()
         super().save(*args, **kwargs)
 
+    @property
+    def assigned_provider(self):
+        """Read-only: the CaregiverProfile behind assigned_supplier, if any.
+
+        Kept for backward compatibility. ServiceSupplier (assigned_supplier)
+        is the only writable assignment field on Order.
+        """
+        from apps.accounts.models import CaregiverProfile
+        from apps.accounts.services.supplier_bridge import resolve_supplier_entity
+
+        entity = resolve_supplier_entity(self.assigned_supplier)
+        return entity if isinstance(entity, CaregiverProfile) else None
+
+    @property
+    def assigned_organization(self):
+        """Read-only: the OrganizationProfile behind assigned_supplier, if any.
+
+        Kept for backward compatibility. ServiceSupplier (assigned_supplier)
+        is the only writable assignment field on Order.
+        """
+        from apps.accounts.models import OrganizationProfile
+        from apps.accounts.services.supplier_bridge import resolve_supplier_entity
+
+        entity = resolve_supplier_entity(self.assigned_supplier)
+        return entity if isinstance(entity, OrganizationProfile) else None
+
 
 class OrderStatusHistory(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "kernel.Tenant", on_delete=models.PROTECT, related_name="order_status_history",
+    )
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="status_history")
     from_status = models.CharField(max_length=30, blank=True)
     to_status = models.CharField(max_length=30)
@@ -168,6 +214,8 @@ class OrderStatusHistory(models.Model):
     reason = models.TextField(blank=True)
     metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = TenantScopedManager()
 
     class Meta:
         db_table = "orders_status_history"

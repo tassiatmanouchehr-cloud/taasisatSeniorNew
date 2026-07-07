@@ -3,6 +3,7 @@
 from django.test import TestCase
 
 from apps.accounts.models import CaregiverProfile, CustomerProfile
+from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_caregiver
 from apps.kernel.models import Person, Role, Tenant, UserAccount
 from apps.orders.models import (
     CatalogStatus,
@@ -22,10 +23,10 @@ from apps.orders.services.status_machine import (
     OrderStateError,
     approve_cancellation,
     approve_public_order,
-    assign_provider,
+    assign_supplier,
     complete_order,
-    remove_provider,
-    replace_provider,
+    remove_supplier,
+    replace_supplier,
     request_cancellation,
     start_order,
 )
@@ -43,17 +44,17 @@ class BaseOrderTest(TestCase):
             phone="09120000001", person=self.person, tenant=self.tenant
         )
         self.category = ServiceCategory.objects.create(
-            name="Test Category", slug="test-cat", status=CatalogStatus.ACTIVE
+            tenant_id=self.tenant.id, name="Test Category", slug="test-cat", status=CatalogStatus.ACTIVE
         )
         self.inactive_cat = ServiceCategory.objects.create(
-            name="Inactive", slug="inactive-cat", status=CatalogStatus.INACTIVE
+            tenant_id=self.tenant.id, name="Inactive", slug="inactive-cat", status=CatalogStatus.INACTIVE
         )
         self.service_type = ServiceType.objects.create(
-            category=self.category, name="Test Type",
+            tenant_id=self.tenant.id, category=self.category, name="Test Type",
             slug="test-type", status=CatalogStatus.ACTIVE
         )
         self.inactive_type = ServiceType.objects.create(
-            category=self.category, name="Inactive Type",
+            tenant_id=self.tenant.id, category=self.category, name="Inactive Type",
             slug="inactive-type", status=CatalogStatus.INACTIVE
         )
         # Caregiver for assignment tests
@@ -67,6 +68,7 @@ class BaseOrderTest(TestCase):
             user=self.cg_user, person=self.cg_person,
             phone="09130000001", display_name="Caregiver",
         )
+        self.supplier = get_or_create_supplier_for_caregiver(self.caregiver, tenant_id=self.tenant.id)
 
 
     def _make_order_kwargs(self, **overrides):
@@ -129,7 +131,7 @@ class OrderCreationTest(BaseOrderTest):
 
     def test_operator_order_with_provider_waiting(self):
         order = create_operator_order(**self._make_order_kwargs(
-            assigned_provider=self.caregiver
+            assigned_supplier=self.supplier
         ))
         self.assertEqual(order.status, OrderStatus.WAITING_SERVICE)
 
@@ -172,7 +174,7 @@ class OrderApprovalTest(BaseOrderTest):
         order = create_public_order(**self._make_order_kwargs())
         order = approve_public_order(
             order_id=order.id, reviewed_by=self.user,
-            assigned_provider=self.caregiver
+            assigned_supplier=self.supplier
         )
         self.assertEqual(order.status, OrderStatus.WAITING_SERVICE)
 
@@ -182,19 +184,19 @@ class OrderApprovalTest(BaseOrderTest):
 class AssignmentTest(BaseOrderTest):
     def test_assign_provider_waiting(self):
         order = create_operator_order(**self._make_order_kwargs())
-        order = assign_provider(order_id=order.id, provider=self.caregiver)
+        order = assign_supplier(order_id=order.id, supplier=self.supplier)
         self.assertEqual(order.status, OrderStatus.WAITING_SERVICE)
 
     def test_remove_provider_new(self):
         order = create_operator_order(**self._make_order_kwargs(
-            assigned_provider=self.caregiver
+            assigned_supplier=self.supplier
         ))
-        order = remove_provider(order_id=order.id)
+        order = remove_supplier(order_id=order.id)
         self.assertEqual(order.status, OrderStatus.NEW)
 
     def test_replace_provider_waiting(self):
         order = create_operator_order(**self._make_order_kwargs(
-            assigned_provider=self.caregiver
+            assigned_supplier=self.supplier
         ))
         cg2_person = Person.objects.create(tenant=self.tenant, full_name="CG2")
         cg2_user = UserAccount.objects.create_user(
@@ -203,7 +205,8 @@ class AssignmentTest(BaseOrderTest):
         cg2 = CaregiverProfile.objects.create(
             user=cg2_user, person=cg2_person, phone="09130000002", display_name="CG2"
         )
-        order = replace_provider(order_id=order.id, new_provider=cg2)
+        cg2_supplier = get_or_create_supplier_for_caregiver(cg2, tenant_id=self.tenant.id)
+        order = replace_supplier(order_id=order.id, new_supplier=cg2_supplier)
         self.assertEqual(order.status, OrderStatus.WAITING_SERVICE)
         self.assertEqual(order.assigned_provider, cg2)
 
@@ -213,14 +216,14 @@ class AssignmentTest(BaseOrderTest):
 class ExecutionTest(BaseOrderTest):
     def test_start_order(self):
         order = create_operator_order(**self._make_order_kwargs(
-            assigned_provider=self.caregiver
+            assigned_supplier=self.supplier
         ))
         order = start_order(order_id=order.id)
         self.assertEqual(order.status, OrderStatus.IN_PROGRESS)
 
     def test_complete_order(self):
         order = create_operator_order(**self._make_order_kwargs(
-            assigned_provider=self.caregiver
+            assigned_supplier=self.supplier
         ))
         order = start_order(order_id=order.id)
         order = complete_order(order_id=order.id)
@@ -247,16 +250,16 @@ class CancellationTest(BaseOrderTest):
 class FinalStateTest(BaseOrderTest):
     def test_cannot_assign_completed(self):
         order = create_operator_order(**self._make_order_kwargs(
-            assigned_provider=self.caregiver
+            assigned_supplier=self.supplier
         ))
         start_order(order_id=order.id)
         complete_order(order_id=order.id)
         with self.assertRaises(OrderStateError):
-            assign_provider(order_id=order.id, provider=self.caregiver)
+            assign_supplier(order_id=order.id, supplier=self.supplier)
 
     def test_cannot_start_cancelled(self):
         order = create_operator_order(**self._make_order_kwargs(
-            assigned_provider=self.caregiver
+            assigned_supplier=self.supplier
         ))
         request_cancellation(order_id=order.id, requested_by=self.user)
         approve_cancellation(order_id=order.id)
@@ -265,7 +268,7 @@ class FinalStateTest(BaseOrderTest):
 
     def test_cannot_complete_cancelled(self):
         order = create_operator_order(**self._make_order_kwargs(
-            assigned_provider=self.caregiver
+            assigned_supplier=self.supplier
         ))
         request_cancellation(order_id=order.id, requested_by=self.user)
         approve_cancellation(order_id=order.id)

@@ -3,6 +3,7 @@
 from django.core.management.base import BaseCommand
 
 from apps.accounts.models import CaregiverProfile, CustomerProfile
+from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_caregiver
 from apps.orders.models import Order, ServiceCategory
 from apps.orders.services import create_operator_order, create_public_order
 
@@ -50,13 +51,14 @@ class Command(BaseCommand):
 
         # Operator order with provider
         if caregiver:
+            supplier = get_or_create_supplier_for_caregiver(caregiver, tenant_id=category.tenant_id)
             order3 = create_operator_order(
                 service_category_id=category.id,
                 description="مراقبت فوری — ارائه‌دهنده تخصیص شده — سفارش نمایشی",
                 phone="09133333333",
                 address="تهران، شهرک غرب",
                 city="tehran",
-                assigned_provider=caregiver,
+                assigned_supplier=supplier,
             )
             order3.internal_note = DEMO_MARKER
             order3.save(update_fields=["internal_note"])

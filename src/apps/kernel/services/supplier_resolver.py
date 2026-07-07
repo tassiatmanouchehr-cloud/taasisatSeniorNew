@@ -39,6 +39,7 @@ from django.db.models import QuerySet
 
 from apps.kernel.models.supplier import ServiceSupplier, SupplierStatus, SupplierType
 from apps.kernel.services.config_resolver import ConfigResolver
+from apps.kernel.services.supplier_registry import SupplierRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,7 @@ class SupplierResolver:
         Raises:
             ServiceSupplier.DoesNotExist: If supplier not found or wrong tenant.
         """
-        return ServiceSupplier.objects.get(id=supplier_id, tenant_id=tenant_id)
+        return SupplierRegistry.resolve_by_id(supplier_id, tenant_id=tenant_id)
 
     @classmethod
     def get_active_suppliers(

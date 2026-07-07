@@ -5,7 +5,9 @@ from .config_resolver import ConfigResolver
 from .event_publisher import EventPublisher
 from .feature_flag_service import FeatureFlagService
 from .policy_service import PolicyService
+from .supplier_registry import SupplierRegistry
 from .supplier_resolver import SupplierResolver
+from .tenant_service import TenantService
 
 __all__ = [
     "EventPublisher",
@@ -13,5 +15,7 @@ __all__ = [
     "ConfigResolver",
     "FeatureFlagService",
     "PolicyService",
+    "SupplierRegistry",
     "SupplierResolver",
+    "TenantService",
 ]

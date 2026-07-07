@@ -23,6 +23,7 @@ def _transition(order, *, to_status, changed_by=None, reason=""):
     order.save(update_fields=["status", "updated_at"])
     OrderStatusHistory.objects.create(
         order=order,
+        tenant_id=order.tenant_id,
         from_status=from_status,
         to_status=to_status,
         changed_by=changed_by,
@@ -31,7 +32,7 @@ def _transition(order, *, to_status, changed_by=None, reason=""):
 
 
 @transaction.atomic
-def approve_public_order(*, order_id, reviewed_by, assigned_provider=None):
+def approve_public_order(*, order_id, reviewed_by, assigned_supplier=None):
     """
     Approve a public order (pending_operator_review → new or waiting_service).
     """
@@ -42,71 +43,72 @@ def approve_public_order(*, order_id, reviewed_by, assigned_provider=None):
     order.reviewed_by = reviewed_by
     order.approved_at = timezone.now()
 
-    if assigned_provider:
-        order.assigned_provider = assigned_provider
+    if assigned_supplier:
+        order.assigned_supplier = assigned_supplier
         to_status = OrderStatus.WAITING_SERVICE
     else:
         to_status = OrderStatus.NEW
 
     order.status = to_status
-    order.save(update_fields=["status", "reviewed_by", "approved_at", "assigned_provider", "updated_at"])
+    order.save(update_fields=["status", "reviewed_by", "approved_at", "assigned_supplier", "updated_at"])
 
     OrderStatusHistory.objects.create(
-        order=order, from_status=OrderStatus.PENDING_OPERATOR_REVIEW,
+        order=order, tenant_id=order.tenant_id, from_status=OrderStatus.PENDING_OPERATOR_REVIEW,
         to_status=to_status, changed_by=reviewed_by, reason="تایید توسط اپراتور",
     )
     return order
 
 
 @transaction.atomic
-def assign_provider(*, order_id, provider, changed_by=None):
-    """Assign provider → waiting_service."""
+def assign_supplier(*, order_id, supplier, changed_by=None):
+    """Assign supplier → waiting_service."""
     order = Order.objects.select_for_update().get(id=order_id)
     _ensure_not_final(order)
 
-    order.assigned_provider = provider
+    from_status = order.status
+    order.assigned_supplier = supplier
     order.status = OrderStatus.WAITING_SERVICE
-    order.save(update_fields=["status", "assigned_provider", "updated_at"])
+    order.save(update_fields=["status", "assigned_supplier", "updated_at"])
 
     OrderStatusHistory.objects.create(
-        order=order, from_status=order.status, to_status=OrderStatus.WAITING_SERVICE,
-        changed_by=changed_by, reason="تخصیص ارائه‌دهنده",
+        order=order, tenant_id=order.tenant_id, from_status=from_status, to_status=OrderStatus.WAITING_SERVICE,
+        changed_by=changed_by, reason="تخصیص تامین‌کننده",
     )
     return order
 
 
 @transaction.atomic
-def remove_provider(*, order_id, changed_by=None):
-    """Remove provider → new."""
+def remove_supplier(*, order_id, changed_by=None):
+    """Remove supplier → new."""
     order = Order.objects.select_for_update().get(id=order_id)
     _ensure_not_final(order)
 
     from_status = order.status
-    order.assigned_provider = None
+    order.assigned_supplier = None
     order.status = OrderStatus.NEW
-    order.save(update_fields=["status", "assigned_provider", "updated_at"])
+    order.save(update_fields=["status", "assigned_supplier", "updated_at"])
 
     OrderStatusHistory.objects.create(
-        order=order, from_status=from_status, to_status=OrderStatus.NEW,
-        changed_by=changed_by, reason="حذف ارائه‌دهنده",
+        order=order, tenant_id=order.tenant_id, from_status=from_status, to_status=OrderStatus.NEW,
+        changed_by=changed_by, reason="حذف تامین‌کننده",
     )
     return order
 
 
 @transaction.atomic
-def replace_provider(*, order_id, new_provider, changed_by=None):
-    """Replace provider → waiting_service."""
+def replace_supplier(*, order_id, new_supplier, changed_by=None):
+    """Replace supplier → waiting_service."""
     order = Order.objects.select_for_update().get(id=order_id)
     _ensure_not_final(order)
 
     from_status = order.status
-    order.assigned_provider = new_provider
+    order.assigned_supplier = new_supplier
     order.status = OrderStatus.WAITING_SERVICE
-    order.save(update_fields=["status", "assigned_provider", "updated_at"])
+    order.save(update_fields=["status", "assigned_supplier", "updated_at"])
 
     OrderStatusHistory.objects.create(
-        order=order, from_status=from_status, to_status=OrderStatus.WAITING_SERVICE,
-        changed_by=changed_by, reason="جایگزینی ارائه‌دهنده",
+        order=order, tenant_id=order.tenant_id, from_status=from_status, to_status=OrderStatus.WAITING_SERVICE,
+        changed_by=changed_by, reason="جایگزینی تامین‌کننده",
     )
     return order
 
@@ -152,7 +154,7 @@ def request_cancellation(*, order_id, requested_by, reason=""):
     order.save(update_fields=["status", "cancellation_requested_by", "cancellation_reason", "updated_at"])
 
     OrderStatusHistory.objects.create(
-        order=order, from_status=from_status, to_status=OrderStatus.CANCELLATION_REQUESTED,
+        order=order, tenant_id=order.tenant_id, from_status=from_status, to_status=OrderStatus.CANCELLATION_REQUESTED,
         changed_by=requested_by, reason=reason or "درخواست لغو",
     )
     return order

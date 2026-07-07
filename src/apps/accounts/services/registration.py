@@ -8,7 +8,8 @@ import uuid
 from django.db import transaction
 from django.utils import timezone
 
-from apps.kernel.models import Person, Role, RoleAssignment, Tenant, UserAccount
+from apps.kernel.models import Person, Role, RoleAssignment, UserAccount
+from apps.kernel.services.tenant_service import TenantService
 
 from ..models.profiles import (
     CaregiverProfile,
@@ -24,14 +25,6 @@ from ..models.profiles import (
 from .organizations import find_organization_by_code_or_name
 
 logger = logging.getLogger(__name__)
-
-
-def _get_default_tenant():
-    tenant, _ = Tenant.objects.get_or_create(
-        slug="salmandyar",
-        defaults={"name": "سالمندیار", "status": "active"},
-    )
-    return tenant
 
 
 def _assign_role(*, tenant, user, role_slug):
@@ -54,7 +47,7 @@ class RegistrationService:
     @classmethod
     @transaction.atomic
     def create_customer(cls, *, phone, full_name, city="", relation_to_elder=""):
-        tenant = _get_default_tenant()
+        tenant = TenantService.get_default_tenant()
         person = Person.objects.create(tenant=tenant, full_name=full_name)
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         profile = CustomerProfile.objects.create(
@@ -68,7 +61,7 @@ class RegistrationService:
     @classmethod
     @transaction.atomic
     def create_caregiver(cls, *, phone, full_name, specialty="", city="", company_code="", company_name=""):
-        tenant = _get_default_tenant()
+        tenant = TenantService.get_default_tenant()
         person = Person.objects.create(tenant=tenant, full_name=full_name)
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         profile = CaregiverProfile.objects.create(
@@ -93,7 +86,7 @@ class RegistrationService:
     @classmethod
     @transaction.atomic
     def create_company_admin(cls, *, phone, admin_name, admin_role_title="", company_name, company_type="", city="", team_size=""):
-        tenant = _get_default_tenant()
+        tenant = TenantService.get_default_tenant()
         person = Person.objects.create(tenant=tenant, full_name=admin_name)
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         org_code = _generate_org_code(company_name)

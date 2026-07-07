@@ -21,6 +21,7 @@ from apps.kernel.models.supplier import (
     SupplierStatus,
     SupplierType,
 )
+from apps.kernel.models.tenant import Tenant
 from apps.kernel.services.supplier_resolver import SupplierResolver
 
 
@@ -28,7 +29,8 @@ class ServiceSupplierModelTest(TestCase):
     """Test ServiceSupplier model."""
 
     def setUp(self):
-        self.tenant_id = uuid.uuid4()
+        self.tenant = Tenant.objects.create(slug="test-supplier-model", name="Test Tenant")
+        self.tenant_id = self.tenant.id
 
     def _create_supplier(self, supplier_type=SupplierType.INDEPENDENT_PROVIDER, **kwargs):
         defaults = {
@@ -97,7 +99,8 @@ class SupplierResolverTest(TestCase):
     """Test SupplierResolver with marketplace model config."""
 
     def setUp(self):
-        self.tenant_id = uuid.uuid4()
+        self.tenant = Tenant.objects.create(slug="test-supplier-resolver", name="Test Tenant")
+        self.tenant_id = self.tenant.id
         # Register the marketplace config key
         self.config_key = ConfigurationKey.objects.create(
             key="marketplace.supplier_model",

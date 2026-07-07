@@ -3,6 +3,7 @@
 from django.core.management.base import BaseCommand
 from django.utils.text import slugify
 
+from apps.kernel.services.tenant_service import TenantService
 from apps.orders.models import ServiceCategory, ServiceType
 
 CATALOG = [
@@ -70,11 +71,13 @@ class Command(BaseCommand):
     help = "Seed the senior-care service catalog (idempotent)."
 
     def handle(self, *args, **options):
+        tenant_id = TenantService.get_default_tenant_id()
         created_cats = 0
         created_types = 0
 
         for i, cat_data in enumerate(CATALOG):
             cat, cat_created = ServiceCategory.objects.get_or_create(
+                tenant_id=tenant_id,
                 slug=cat_data["slug"],
                 defaults={
                     "name": cat_data["name"],
@@ -87,6 +90,7 @@ class Command(BaseCommand):
 
             for j, type_data in enumerate(cat_data.get("types", [])):
                 _, type_created = ServiceType.objects.get_or_create(
+                    tenant_id=tenant_id,
                     category=cat,
                     slug=type_data["slug"],
                     defaults={

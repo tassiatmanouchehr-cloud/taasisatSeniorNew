@@ -83,7 +83,9 @@ class ServiceSupplier(models.Model):
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    tenant_id = models.UUIDField(db_index=True)
+    tenant = models.ForeignKey(
+        "kernel.Tenant", on_delete=models.PROTECT, related_name="service_suppliers",
+    )
 
     # Type classification
     supplier_type = models.CharField(
@@ -182,11 +184,11 @@ class ServiceSupplier(models.Model):
         ordering = ["display_name"]
         indexes = [
             models.Index(
-                fields=["tenant_id", "supplier_type", "status"],
+                fields=["tenant", "supplier_type", "status"],
                 name="idx_supplier_tenant_type_st",
             ),
             models.Index(
-                fields=["tenant_id", "status", "availability_status"],
+                fields=["tenant", "status", "availability_status"],
                 name="idx_supplier_availability",
             ),
             models.Index(
