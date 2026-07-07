@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     # Platform apps
     "apps.kernel",
     "apps.accounts",
+    "apps.orders",
     "apps.showcase",
     "apps.public_site",
 ]
