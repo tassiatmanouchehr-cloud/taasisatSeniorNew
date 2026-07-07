@@ -5,44 +5,118 @@
 <div class="space-y-10">
   <div>
     <h1 class="text-2xl font-bold text-text">بارگذاری و اسکلت</h1>
-    <p class="mt-1 text-text-muted">نشانگرهای بارگذاری و جای‌نگهدارهای اسکلت</p>
+    <p class="mt-1 text-text-muted">۱۳ نوع اسکلت + اسپینر بارگذاری</p>
   </div>
 
   <!-- Spinners -->
   <section class="space-y-4">
-    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">اسپینر (Loader)</h2>
-    <div class="flex flex-wrap items-center gap-6">
-      {% include "ui/components/feedback/loader.html" with size="sm" %}
-      {% include "ui/components/feedback/loader.html" with size="md" %}
-      {% include "ui/components/feedback/loader.html" with size="lg" %}
-      {% include "ui/components/feedback/loader.html" with size="xl" %}
-      {% include "ui/components/feedback/loader.html" with size="md" variant="secondary" %}
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">
+      اسپینر (Loader)
+    </h2>
+    <div class="flex flex-wrap items-center gap-8">
+      <div class="text-center space-y-2">
+        {% include "ui/components/feedback/loader.html" with size="sm" %}
+        <p class="text-xs text-text-muted">SM</p>
+      </div>
+      <div class="text-center space-y-2">
+        {% include "ui/components/feedback/loader.html" with size="md" %}
+        <p class="text-xs text-text-muted">MD</p>
+      </div>
+      <div class="text-center space-y-2">
+        {% include "ui/components/feedback/loader.html" with size="lg" %}
+        <p class="text-xs text-text-muted">LG</p>
+      </div>
+      <div class="text-center space-y-2">
+        {% include "ui/components/feedback/loader.html" with size="xl" %}
+        <p class="text-xs text-text-muted">XL</p>
+      </div>
+      <div class="text-center space-y-2">
+        {% include "ui/components/feedback/loader.html" with size="md" variant="secondary" %}
+        <p class="text-xs text-text-muted">ثانویه</p>
+      </div>
     </div>
   </section>
 
-  <!-- Skeletons -->
-  <section class="space-y-4">
-    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">اسکلت (Skeleton)</h2>
+  <!-- Skeleton Types -->
+  <section class="space-y-6">
+    <h2 class="text-lg font-semibold text-text border-b border-border pb-2">
+      انواع اسکلت (۱۳ نوع)
+    </h2>
+
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div>
-        <p class="text-sm text-text-muted mb-2">متن</p>
+      <!-- Text -->
+      <div class="space-y-2">
+        <p class="text-sm font-medium text-text-muted">text — متن چندخطی</p>
         {% include "ui/components/feedback/skeleton.html" with type="text" %}
       </div>
-      <div>
-        <p class="text-sm text-text-muted mb-2">عنوان</p>
+
+      <!-- Title -->
+      <div class="space-y-2">
+        <p class="text-sm font-medium text-text-muted">title — عنوان</p>
         {% include "ui/components/feedback/skeleton.html" with type="title" %}
       </div>
-      <div>
-        <p class="text-sm text-text-muted mb-2">آواتار</p>
+
+      <!-- Avatar -->
+      <div class="space-y-2">
+        <p class="text-sm font-medium text-text-muted">avatar — آواتار</p>
         {% include "ui/components/feedback/skeleton.html" with type="avatar" %}
       </div>
-      <div>
-        <p class="text-sm text-text-muted mb-2">تصویر</p>
+
+      <!-- Button -->
+      <div class="space-y-2">
+        <p class="text-sm font-medium text-text-muted">button — دکمه</p>
+        {% include "ui/components/feedback/skeleton.html" with type="button" %}
+      </div>
+
+      <!-- Image -->
+      <div class="space-y-2">
+        <p class="text-sm font-medium text-text-muted">image — تصویر</p>
         {% include "ui/components/feedback/skeleton.html" with type="image" height="h-32" %}
       </div>
-      <div class="md:col-span-2">
-        <p class="text-sm text-text-muted mb-2">کارت</p>
+
+      <!-- Dashboard Tile -->
+      <div class="space-y-2">
+        <p class="text-sm font-medium text-text-muted">dashboard — کارت آمار</p>
+        {% include "ui/components/feedback/skeleton.html" with type="dashboard" %}
+      </div>
+    </div>
+
+    <!-- Full-width types -->
+    <div class="space-y-6">
+      <!-- List -->
+      <div class="space-y-2">
+        <p class="text-sm font-medium text-text-muted">list — لیست با آواتار</p>
+        {% include "ui/components/feedback/skeleton.html" with type="list" %}
+      </div>
+
+      <!-- Table -->
+      <div class="space-y-2">
+        <p class="text-sm font-medium text-text-muted">table — جدول</p>
+        {% include "ui/components/feedback/skeleton.html" with type="table" %}
+      </div>
+
+      <!-- Profile -->
+      <div class="space-y-2 max-w-lg">
+        <p class="text-sm font-medium text-text-muted">profile — پروفایل کاربر</p>
+        {% include "ui/components/feedback/skeleton.html" with type="profile" %}
+      </div>
+
+      <!-- Form -->
+      <div class="space-y-2 max-w-md">
+        <p class="text-sm font-medium text-text-muted">form — فرم</p>
+        {% include "ui/components/feedback/skeleton.html" with type="form" %}
+      </div>
+
+      <!-- Card -->
+      <div class="space-y-2 max-w-sm">
+        <p class="text-sm font-medium text-text-muted">card — کارت محتوا</p>
         {% include "ui/components/feedback/skeleton.html" with type="card" %}
+      </div>
+
+      <!-- Chart -->
+      <div class="space-y-2 max-w-lg">
+        <p class="text-sm font-medium text-text-muted">chart — نمودار</p>
+        {% include "ui/components/feedback/skeleton.html" with type="chart" %}
       </div>
     </div>
   </section>
