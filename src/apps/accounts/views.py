@@ -8,7 +8,7 @@ Uses Django session auth. OTP verified before account creation.
 import logging
 
 from django.conf import settings
-from django.contrib.auth import login
+from django.contrib.auth import login as auth_login
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 
@@ -27,6 +27,9 @@ from .services.phone import normalize_phone
 from .services.registration import RegistrationService
 
 logger = logging.getLogger(__name__)
+
+
+AUTHENTICATION_BACKEND = "django.contrib.auth.backends.ModelBackend"
 
 
 def _get_client_ip(request):
@@ -231,7 +234,7 @@ def _handle_login(request, phone):
     """Login an existing user by phone after OTP verification."""
     user = UserAccount.objects.filter(phone=phone, is_active=True).first()
     if user:
-        login(request, user)
+        auth_login(request, user, backend=AUTHENTICATION_BACKEND)
         _clear_otp_session(request)
         logger.info("Login success: %s", phone)
         return user
@@ -245,13 +248,13 @@ def _handle_registration(request):
 
     if reg_type == "customer":
         user, profile = RegistrationService.create_customer(**reg_data)
-        login(request, user)
+        auth_login(request, user, backend=AUTHENTICATION_BACKEND)
         _clear_otp_session(request)
         return "accounts:success"
 
     elif reg_type == "caregiver":
         user, profile, affiliation = RegistrationService.create_caregiver(**reg_data)
-        login(request, user)
+        auth_login(request, user, backend=AUTHENTICATION_BACKEND)
         _clear_otp_session(request)
         if affiliation:
             return "accounts:pending"
@@ -267,7 +270,7 @@ def _handle_registration(request):
             city=reg_data.get("city", ""),
             team_size=reg_data.get("team_size", ""),
         )
-        login(request, user)
+        auth_login(request, user, backend=AUTHENTICATION_BACKEND)
         _clear_otp_session(request)
         return "accounts:success"
 
@@ -297,6 +300,6 @@ def pending_view(request):
 @require_http_methods(["GET"])
 def logout_view(request):
     """Logout the user and redirect to home."""
-    from django.contrib.auth import logout
-    logout(request)
+    from django.contrib.auth import logout as auth_logout
+    auth_logout(request)
     return redirect("/")

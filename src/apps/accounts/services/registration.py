@@ -13,7 +13,6 @@ from django.db import transaction
 from apps.kernel.models import Person, Role, RoleAssignment, Tenant, UserAccount
 
 from ..models.profiles import (
-    AffiliationStatus,
     CaregiverProfile,
     CompanyAffiliationRequest,
     CustomerProfile,
