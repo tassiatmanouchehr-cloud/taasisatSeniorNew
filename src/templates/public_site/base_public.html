@@ -17,8 +17,10 @@
 <a href="/" class="text-sm font-semibold text-text-muted transition-colors hover:text-primary">خانه</a>
 <a href="/services/" class="text-sm font-semibold text-text-muted transition-colors hover:text-primary">خدمات</a>
 <a href="/how-it-works/" class="text-sm font-semibold text-text-muted transition-colors hover:text-primary">نحوه کار</a>
-<a href="/about/" class="text-sm font-semibold text-text-muted transition-colors hover:text-primary">درباره ما</a>
-<a href="/contact/" class="text-sm font-semibold text-text-muted transition-colors hover:text-primary">تماس</a>
+<a href="/trust-safety/" class="text-sm font-semibold text-text-muted transition-colors hover:text-primary">اعتماد و امنیت</a>
+<a href="/pricing/" class="text-sm font-semibold text-text-muted transition-colors hover:text-primary">قیمت‌گذاری</a>
+<a href="/faq/" class="text-sm font-semibold text-text-muted transition-colors hover:text-primary">پرسش‌های متداول</a>
+<a href="/contact/" class="text-sm font-semibold text-text-muted transition-colors hover:text-primary">تماس با ما</a>
 {% endblock %}
 
 {% block nav_actions %}
@@ -31,8 +33,9 @@
 {% endblock %}
 
 {% block footer %}
-<div class="grid gap-10 lg:grid-cols-4">
-  <div class="lg:col-span-2">
+<div class="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+  <!-- Column 1: Brand -->
+  <div>
     <div class="flex items-center gap-3">
       <span class="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-base font-black text-white shadow-md">س</span>
       <div>
@@ -40,26 +43,43 @@
         <p class="mt-1 text-xs text-text-muted">زیرساخت قابل اعتماد خدمات سالمند</p>
       </div>
     </div>
-    <p class="mt-5 max-w-2xl text-sm leading-8 text-text-muted">
-      سالمندیار یک پلتفرم فارسی‌اول و راست‌به‌چپ برای معرفی، انتخاب، هماهنگی و پیگیری خدمات مراقبت و همراهی سالمندان است؛ ساخته‌شده با معماری توسعه‌پذیر برای مدل‌های مستقل، سازمانی و ترکیبی.
+    <p class="mt-5 text-sm leading-8 text-text-muted">
+      پلتفرم فارسی‌اول و راست‌به‌چپ برای معرفی، انتخاب، هماهنگی و پیگیری خدمات مراقبت و همراهی سالمندان.
     </p>
   </div>
+
+  <!-- Column 2: صفحات اصلی -->
   <div>
-    <h3 class="text-sm font-black text-text">دسترسی سریع</h3>
+    <h3 class="text-sm font-black text-text">صفحات اصلی</h3>
     <ul class="mt-4 space-y-3 text-sm text-text-muted">
+      <li><a class="transition-colors hover:text-primary" href="/">خانه</a></li>
       <li><a class="transition-colors hover:text-primary" href="/services/">خدمات</a></li>
       <li><a class="transition-colors hover:text-primary" href="/how-it-works/">نحوه کار</a></li>
       <li><a class="transition-colors hover:text-primary" href="/about/">درباره ما</a></li>
-      <li><a class="transition-colors hover:text-primary" href="/contact/">تماس با ما</a></li>
     </ul>
   </div>
+
+  <!-- Column 3: برای کاربران -->
   <div>
-    <h3 class="text-sm font-black text-text">برای خانواده‌ها</h3>
+    <h3 class="text-sm font-black text-text">برای کاربران</h3>
     <ul class="mt-4 space-y-3 text-sm text-text-muted">
-      <li>ثبت نیاز مراقبتی</li>
-      <li>هماهنگی خدمت</li>
-      <li>پیگیری شفاف وضعیت</li>
-      <li>کنترل کیفیت و بازخورد</li>
+      <li><a class="transition-colors hover:text-primary" href="/caregivers/">برای مراقبان</a></li>
+      <li><a class="transition-colors hover:text-primary" href="/organizations/">برای سازمان‌ها</a></li>
+      <li><a class="transition-colors hover:text-primary" href="/pricing/">قیمت‌گذاری</a></li>
+      <li><a class="transition-colors hover:text-primary" href="/service-areas/">مناطق تحت پوشش</a></li>
+    </ul>
+  </div>
+
+  <!-- Column 4: اعتماد و پشتیبانی -->
+  <div>
+    <h3 class="text-sm font-black text-text">اعتماد و پشتیبانی</h3>
+    <ul class="mt-4 space-y-3 text-sm text-text-muted">
+      <li><a class="transition-colors hover:text-primary" href="/trust-safety/">اعتماد و امنیت</a></li>
+      <li><a class="transition-colors hover:text-primary" href="/support/">پشتیبانی</a></li>
+      <li><a class="transition-colors hover:text-primary" href="/faq/">پرسش‌های متداول</a></li>
+      <li><a class="transition-colors hover:text-primary" href="/privacy/">حریم خصوصی</a></li>
+      <li><a class="transition-colors hover:text-primary" href="/terms/">قوانین استفاده</a></li>
+      <li><a class="transition-colors hover:text-primary" href="/accessibility/">دسترسی‌پذیری</a></li>
     </ul>
   </div>
 </div>

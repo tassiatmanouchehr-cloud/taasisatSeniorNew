@@ -1,0 +1,83 @@
+{% extends "public_site/base_public.html" %}
+{% block public_title %}پشتیبانی{% endblock %}
+
+{% block content %}
+<section class="bg-background">
+  <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+    <div class="mx-auto max-w-3xl text-center">
+      <p class="text-sm font-black text-primary">مرکز پشتیبانی</p>
+      <h1 class="mt-3 text-4xl font-black leading-tight text-text sm:text-5xl">چگونه می‌توانیم کمک کنیم؟</h1>
+      <p class="mt-5 text-lg leading-9 text-text-muted">تیم پشتیبانی سالمندیار آماده پاسخگویی به سؤالات و رسیدگی به مشکلات شماست.</p>
+    </div>
+
+
+    <div class="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div class="rounded-3xl border border-border bg-surface p-6 shadow-sm">
+        <div class="mb-4 text-2xl">💬</div>
+        <h2 class="text-lg font-black text-text">چت و پیام</h2>
+        <p class="mt-3 text-sm leading-8 text-text-muted">ارتباط مستقیم از طریق سیستم پیام داخلی پلتفرم (در مراحل بعدی).</p>
+      </div>
+      <div class="rounded-3xl border border-border bg-surface p-6 shadow-sm">
+        <div class="mb-4 text-2xl">📧</div>
+        <h2 class="text-lg font-black text-text">ایمیل پشتیبانی</h2>
+        <p class="mt-3 text-sm leading-8 text-text-muted">ارسال درخواست از طریق ایمیل. پاسخ‌گویی در ساعات اداری.</p>
+      </div>
+      <div class="rounded-3xl border border-border bg-surface p-6 shadow-sm">
+        <div class="mb-4 text-2xl">📞</div>
+        <h2 class="text-lg font-black text-text">تماس تلفنی</h2>
+        <p class="mt-3 text-sm leading-8 text-text-muted">شنبه تا پنجشنبه، ۹ صبح تا ۶ عصر (شماره در مراحل بعدی اعلام می‌شود).</p>
+      </div>
+    </div>
+
+    <div class="mt-12">
+      <h2 class="text-xl font-black text-text">دسته‌بندی مشکلات</h2>
+      <div class="mt-6 grid gap-4 sm:grid-cols-2">
+        <div class="rounded-2xl border border-border bg-surface p-5">
+          <h3 class="font-bold text-text">مشکل در ثبت درخواست</h3>
+          <p class="mt-2 text-sm text-text-muted">خطا در فرم، عدم ارسال، یا نیاز به تغییر درخواست.</p>
+        </div>
+        <div class="rounded-2xl border border-border bg-surface p-5">
+          <h3 class="font-bold text-text">نارضایتی از خدمت</h3>
+          <p class="mt-2 text-sm text-text-muted">کیفیت نامناسب، تأخیر، یا عدم تطابق با توافق.</p>
+        </div>
+        <div class="rounded-2xl border border-border bg-surface p-5">
+          <h3 class="font-bold text-text">مشکل مالی یا پرداخت</h3>
+          <p class="mt-2 text-sm text-text-muted">اختلاف در مبلغ، مشکل بازگشت وجه، یا خطای تراکنش.</p>
+        </div>
+        <div class="rounded-2xl border border-border bg-surface p-5">
+          <h3 class="font-bold text-text">مشکل فنی</h3>
+          <p class="mt-2 text-sm text-text-muted">باگ سایت، خطای نمایش، یا مشکل در عملکرد پلتفرم.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-12 rounded-3xl border border-border bg-surface p-8">
+      <h2 class="text-lg font-black text-text">مسیر اسکالیشن (تشدید بررسی)</h2>
+      <div class="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div class="flex-1 rounded-2xl bg-background p-4 text-center">
+          <p class="font-bold text-text">سطح ۱</p>
+          <p class="text-xs text-text-muted">پشتیبانی عمومی</p>
+        </div>
+        <span class="hidden text-text-muted sm:block">←</span>
+        <div class="flex-1 rounded-2xl bg-background p-4 text-center">
+          <p class="font-bold text-text">سطح ۲</p>
+          <p class="text-xs text-text-muted">کارشناس ارشد</p>
+        </div>
+        <span class="hidden text-text-muted sm:block">←</span>
+        <div class="flex-1 rounded-2xl bg-background p-4 text-center">
+          <p class="font-bold text-text">سطح ۳</p>
+          <p class="text-xs text-text-muted">مدیریت و رسیدگی ویژه</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="border-t border-border bg-surface">
+  <div class="mx-auto max-w-5xl px-4 py-14 text-center sm:px-6 lg:px-8">
+    <h2 class="text-2xl font-black text-text">نیاز به کمک فوری دارید؟</h2>
+    <p class="mt-3 text-text-muted">از صفحه تماس با ما ارتباط بگیرید. تیم پشتیبانی در اسرع وقت پاسخ‌گو خواهد بود.</p>
+    <a href="/contact/" class="mt-6 inline-flex items-center justify-center rounded-2xl bg-primary px-7 py-4 font-black text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary-700">تماس با پشتیبانی</a>
+  </div>
+</section>
+{% endblock %}

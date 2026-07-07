@@ -1,0 +1,63 @@
+{% extends "public_site/base_public.html" %}
+{% block public_title %}برای مراقبان{% endblock %}
+
+{% block content %}
+<section class="bg-background">
+  <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+    <div class="grid gap-12 lg:grid-cols-2 lg:items-center">
+      <div>
+        <p class="text-sm font-black text-primary">برای مراقبان و پرستاران</p>
+        <h1 class="mt-3 text-4xl font-black leading-tight text-text sm:text-5xl">مهارت شما، آرامش خانواده‌ها</h1>
+        <p class="mt-6 text-lg leading-9 text-text-muted">اگر در حوزه مراقبت از سالمندان فعالیت می‌کنید، سالمندیار بستری حرفه‌ای برای معرفی خدمات، دریافت درخواست و مدیریت فعالیت شما فراهم می‌کند.</p>
+        <div class="mt-8 flex flex-col gap-3 sm:flex-row">
+          <a href="/contact/" class="inline-flex items-center justify-center rounded-2xl bg-primary px-7 py-4 font-black text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary-700">اعلام آمادگی همکاری</a>
+          <a href="/how-it-works/" class="inline-flex items-center justify-center rounded-2xl border border-border bg-surface px-7 py-4 font-black text-text transition-all hover:bg-background">آشنایی با فرآیند</a>
+        </div>
+      </div>
+      <div class="rounded-3xl border border-border bg-surface p-6 shadow-xl">
+        <div class="space-y-4">
+          <div class="rounded-2xl bg-background p-5">
+            <h3 class="font-black text-text">پروفایل حرفه‌ای</h3>
+            <p class="mt-2 text-sm leading-7 text-text-muted">معرفی تخصص، تجربه و دسترسی خود به خانواده‌ها.</p>
+          </div>
+          <div class="rounded-2xl bg-background p-5">
+            <h3 class="font-black text-text">دریافت درخواست مستقیم</h3>
+            <p class="mt-2 text-sm leading-7 text-text-muted">خانواده‌ها بر اساس نیاز خود، درخواست خدمت ارسال می‌کنند.</p>
+          </div>
+          <div class="rounded-2xl bg-background p-5">
+            <h3 class="font-black text-text">مدیریت زمان و برنامه</h3>
+            <p class="mt-2 text-sm leading-7 text-text-muted">در آینده، تقویم، دسترسی و ظرفیت خود را مدیریت خواهید کرد.</p>
+          </div>
+          <div class="rounded-2xl bg-background p-5">
+            <h3 class="font-black text-text">درآمد شفاف و پرداخت منظم</h3>
+            <p class="mt-2 text-sm leading-7 text-text-muted">تسویه منصفانه پس از تأیید خدمت توسط خانواده.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="border-t border-border bg-surface">
+  <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+    <div class="mx-auto max-w-3xl text-center">
+      <h2 class="text-2xl font-black text-text">چه کسانی می‌توانند عضو شوند؟</h2>
+      <p class="mt-4 leading-8 text-text-muted">پرستاران، مراقبان خانگی، بهیاران، روان‌شناسان سالمند، فیزیوتراپیست‌ها و هر فرد دارای تجربه و صلاحیت در حوزه مراقبت از سالمندان.</p>
+    </div>
+    <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="rounded-2xl border border-border bg-background p-5 text-center"><div class="text-2xl">👩‍⚕️</div><p class="mt-2 text-sm font-bold text-text">پرستار</p></div>
+      <div class="rounded-2xl border border-border bg-background p-5 text-center"><div class="text-2xl">🧑‍🤝‍🧑</div><p class="mt-2 text-sm font-bold text-text">مراقب خانگی</p></div>
+      <div class="rounded-2xl border border-border bg-background p-5 text-center"><div class="text-2xl">🧠</div><p class="mt-2 text-sm font-bold text-text">روان‌شناس سالمند</p></div>
+      <div class="rounded-2xl border border-border bg-background p-5 text-center"><div class="text-2xl">🏋️</div><p class="mt-2 text-sm font-bold text-text">فیزیوتراپیست</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="bg-primary-50 dark:bg-primary-950">
+  <div class="mx-auto max-w-5xl px-4 py-14 text-center sm:px-6 lg:px-8">
+    <h2 class="text-2xl font-black text-text">آماده همکاری هستید؟</h2>
+    <p class="mt-3 text-text-muted">فعلاً از طریق فرم تماس، آمادگی خود را اعلام کنید. ثبت‌نام رسمی در مراحل بعدی فعال می‌شود.</p>
+    <a href="/contact/" class="mt-6 inline-flex items-center justify-center rounded-2xl bg-primary px-7 py-4 font-black text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-primary-700">شروع گفتگو</a>
+  </div>
+</section>
+{% endblock %}
