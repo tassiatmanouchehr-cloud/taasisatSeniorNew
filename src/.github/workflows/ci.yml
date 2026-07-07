@@ -17,6 +17,7 @@ env:
   CELERY_BROKER_URL: redis://localhost:6379/0
   CELERY_RESULT_BACKEND: redis://localhost:6379/1
   SECRET_KEY: ci-test-secret-not-for-production
+  GIS_ENABLED: "true"
 
 jobs:
   lint:
@@ -37,8 +38,54 @@ jobs:
       - name: Ruff format check
         run: ruff format --check .
 
+  ui-quality:
+    name: UI Quality Gates
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Design Token Validation
+      - name: Validate Design Tokens
+        run: python tools/validate_tokens.py
+
+      # RTL Validation
+      - name: Validate RTL Compliance
+        run: python tools/validate_rtl.py
+
+      # Theme Validation
+      - name: Validate Theme Consistency
+        run: python tools/validate_themes.py
+
+      # Component Architecture Validation
+      - name: Validate Components
+        run: python tools/validate_components.py
+
+  tailwind:
+    name: Tailwind CSS Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install dependencies
+        run: npm install
+      - name: Build CSS
+        run: npx tailwindcss -i ui/css/main.css -o static/css/output.css --minify
+      - name: Verify output exists
+        run: test -f static/css/output.css && echo "✅ CSS built successfully"
+
   test:
-    name: Test Suite
+    name: Django Test Suite
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -83,3 +130,65 @@ jobs:
         run: python manage.py migrate
       - name: Run tests
         run: python manage.py test --verbosity=2
+
+  visual-regression:
+    name: Visual & Accessibility Tests
+    runs-on: ubuntu-latest
+    needs: [tailwind, test]
+    defaults:
+      run:
+        working-directory: src
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: test_marketplace
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gdal-bin libgdal-dev libpq-dev
+      - name: Install Python dependencies
+        run: pip install -r requirements/test.txt
+      - name: Install Node dependencies (root)
+        run: npm install
+      - name: Build CSS
+        run: npx tailwindcss -i ui/css/main.css -o static/css/output.css --minify
+      - name: Run migrations
+        run: python manage.py migrate
+      - name: Seed test data
+        run: python manage.py seed_tenant
+      - name: Start Django server
+        run: python manage.py runserver 0.0.0.0:8000 &
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.development
+          GIS_ENABLED: "true"
+      - name: Wait for server
+        run: sleep 5
+      - name: Install Playwright
+        working-directory: src/tests/visual
+        run: |
+          npm install
+          npx playwright install chromium --with-deps
+      - name: Run Playwright tests (accessibility + snapshots)
+        working-directory: src/tests/visual
+        run: npx playwright test
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:8000
