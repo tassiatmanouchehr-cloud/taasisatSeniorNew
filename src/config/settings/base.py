@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "apps.kernel",
     "apps.accounts",
     "apps.orders",
+    "apps.matching",
     "apps.showcase",
     "apps.public_site",
 ]
