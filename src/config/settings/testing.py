@@ -28,10 +28,14 @@ if os.environ.get("USE_SQLITE", "0") == "1":
     # Remove GIS app when using SQLite (no spatial support)
     INSTALLED_APPS = [app for app in INSTALLED_APPS if app != "django.contrib.gis"]  # noqa: F405
 else:
-    # Use PostgreSQL for integration tests (same as base, different test DB name)
-    DATABASES["default"]["TEST"] = {  # noqa: F405
-        "NAME": os.environ.get("DATABASE_TEST_NAME", "test_marketplace"),
-    }
+    # Use PostgreSQL for integration tests (same as base, different test DB name).
+    # Merge into the existing TEST dict rather than replacing it outright —
+    # Django pre-populates TEST with MIRROR/CHARSET/COLLATION/MIGRATE defaults
+    # (django.db.utils.ConnectionHandler.configure_settings), and a blind
+    # replacement can drop those keys, causing `KeyError: 'MIRROR'` inside
+    # Django's test runner (get_unique_databases_and_mirrors).
+    DATABASES["default"].setdefault("TEST", {})  # noqa: F405
+    DATABASES["default"]["TEST"]["NAME"] = os.environ.get("DATABASE_TEST_NAME", "test_marketplace")  # noqa: F405
 
 # --- Cache ---
 # Always use local memory cache in tests (no Redis dependency)
