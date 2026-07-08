@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     "apps.booking",
     "apps.execution",
     "apps.finance",
+    "apps.notifications",
     "apps.showcase",
     "apps.public_site",
 ]
