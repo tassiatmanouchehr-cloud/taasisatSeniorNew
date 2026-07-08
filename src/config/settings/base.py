@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework",
     # Platform apps
     "apps.kernel",
     "apps.accounts",
@@ -73,6 +74,7 @@ INSTALLED_APPS = [
     "apps.wallet",
     "apps.payments",
     "apps.reporting",
+    "apps.api",
     "apps.showcase",
     "apps.public_site",
 ]
@@ -195,6 +197,21 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Custom user model — per ADR-001.01 (Person separate from UserAccount)
 AUTH_USER_MODEL = "kernel.UserAccount"
+
+# Django REST Framework — Module 17A API foundation.
+# Session auth reuses the existing login flow (no second auth system).
+# AllowAny is the framework-level default; every view still enforces its
+# own auth/tenant/RBAC via apps.api.permissions before touching a service.
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.AllowAny",
+    ],
+    "EXCEPTION_HANDLER": "apps.api.exception_handler.api_exception_handler",
+    "UNAUTHENTICATED_USER": "django.contrib.auth.models.AnonymousUser",
+}
 
 # Celery — Task queue with Redis broker
 # Falls back to synchronous execution if no broker configured
