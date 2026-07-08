@@ -15,6 +15,7 @@ from decimal import Decimal
 from django.db import transaction
 
 from apps.kernel.services.event_publisher import EventPublisher
+from apps.kernel.services.permission_service import PermissionService
 
 from ..models import (
     DEFAULT_CURRENCY,
@@ -37,7 +38,9 @@ class LedgerService:
 
     @classmethod
     @transaction.atomic
-    def post_entries(cls, *, tenant_id, entries, entry_group_id=None) -> list[LedgerEntry]:
+    def post_entries(cls, *, tenant_id, entries, entry_group_id=None, actor=None) -> list[LedgerEntry]:
+        PermissionService.require(actor, "finance.ledger.post", tenant_id=tenant_id)
+
         if not entries:
             raise FinanceError("post_entries requires at least one entry.")
 

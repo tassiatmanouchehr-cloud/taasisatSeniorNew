@@ -13,6 +13,7 @@ from decimal import Decimal
 from django.db import transaction
 
 from apps.kernel.services.event_publisher import EventPublisher
+from apps.kernel.services.permission_service import PermissionService
 
 from ..models import (
     DEFAULT_CURRENCY,
@@ -52,7 +53,9 @@ class SettlementService:
 
     @classmethod
     @transaction.atomic
-    def create_batch(cls, *, tenant_id, currency=None, period_start=None, period_end=None) -> SettlementBatch:
+    def create_batch(cls, *, tenant_id, currency=None, period_start=None, period_end=None, actor=None) -> SettlementBatch:
+        PermissionService.require(actor, "finance.settlement.create_batch", tenant_id=tenant_id)
+
         net_positions = cls.calculate_net_position(
             tenant_id=tenant_id, period_start=period_start, period_end=period_end,
         )

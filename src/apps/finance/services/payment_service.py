@@ -14,6 +14,8 @@ from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 
+from apps.kernel.services.permission_service import PermissionService
+
 from ..models import (
     DEFAULT_CURRENCY,
     FinancialDocument,
@@ -58,6 +60,8 @@ class PaymentService:
         payer_party = FinancialParty.objects.get(id=payer_party_id)
         receiver_party = FinancialParty.objects.get(id=receiver_party_id)
         tenant_id = payer_party.tenant_id
+
+        PermissionService.require(recorded_by, "finance.payment.record", tenant_id=tenant_id)
 
         if receiver_party.tenant_id != tenant_id:
             raise FinanceError("Payer and receiver parties belong to different tenants.")

@@ -16,6 +16,7 @@ import logging
 from django.db import transaction
 
 from apps.kernel.services.event_publisher import EventPublisher
+from apps.kernel.services.permission_service import PermissionService
 from apps.matching.services.match_orchestrator import MatchOrchestrator
 from apps.orders.services.status_machine import assign_supplier, remove_supplier, replace_supplier
 
@@ -50,6 +51,8 @@ class AssignmentService:
 
         order = Order.objects.get(id=order_id)
         cls._ensure_same_tenant(order=order, supplier=supplier)
+
+        PermissionService.require(assigned_by, "booking.assignment.assign", tenant_id=order.tenant_id)
 
         # The ONLY mutation of Order.assigned_supplier / Order.status.
         assign_supplier(order_id=order.id, supplier=supplier, changed_by=assigned_by)
