@@ -22,6 +22,8 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.booking.models import SupplierAssignmentStatus
+from apps.kernel.events.base import ORDER_COMPLETED, ORDER_STARTED, DomainEvent
+from apps.kernel.events.publisher import publish as publish_domain_event
 from apps.kernel.services.event_publisher import EventPublisher
 from apps.kernel.services.permission_service import PermissionService
 from apps.orders.services.status_machine import complete_order, start_order
@@ -121,6 +123,19 @@ class ExecutionService:
             actor_id=cls._actor_id(changed_by),
         )
 
+        domain_event = DomainEvent(
+            event_type=ORDER_STARTED,
+            tenant_id=session.tenant_id,
+            aggregate_type="Order",
+            aggregate_id=session.order_id,
+            actor_id=cls._actor_id(changed_by),
+            payload={
+                "execution_session_id": str(session.id),
+                "recipient_id": cls._customer_person_id(session),
+            },
+        )
+        transaction.on_commit(lambda: publish_domain_event(domain_event))
+
         return session
 
     @classmethod
@@ -186,6 +201,19 @@ class ExecutionService:
             actor_id=cls._actor_id(changed_by),
         )
 
+        domain_event = DomainEvent(
+            event_type=ORDER_COMPLETED,
+            tenant_id=session.tenant_id,
+            aggregate_type="Order",
+            aggregate_id=session.order_id,
+            actor_id=cls._actor_id(changed_by),
+            payload={
+                "execution_session_id": str(session.id),
+                "recipient_id": cls._customer_person_id(session),
+            },
+        )
+        transaction.on_commit(lambda: publish_domain_event(domain_event))
+
         return session
 
     # --- internal helpers -------------------------------------------------
@@ -197,3 +225,10 @@ class ExecutionService:
     @staticmethod
     def _actor_id(user):
         return getattr(user, "person_id", None)
+
+    @staticmethod
+    def _customer_person_id(session):
+        order = session.order
+        if order.customer_profile_id:
+            return str(order.customer_profile.person_id)
+        return None

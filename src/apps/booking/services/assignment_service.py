@@ -15,6 +15,8 @@ import logging
 
 from django.db import transaction
 
+from apps.kernel.events.base import ORDER_ASSIGNED, DomainEvent
+from apps.kernel.events.publisher import publish as publish_domain_event
 from apps.kernel.services.event_publisher import EventPublisher
 from apps.kernel.services.permission_service import PermissionService
 from apps.matching.services.match_orchestrator import MatchOrchestrator
@@ -91,6 +93,20 @@ class AssignmentService:
             },
             actor_id=cls._actor_id(assigned_by),
         )
+
+        domain_event = DomainEvent(
+            event_type=ORDER_ASSIGNED,
+            tenant_id=order.tenant_id,
+            aggregate_type="Order",
+            aggregate_id=order.id,
+            actor_id=cls._actor_id(assigned_by),
+            payload={
+                "supplier_id": str(supplier.id),
+                "assignment_id": str(assignment.id),
+                "recipient_id": cls._customer_person_id(order),
+            },
+        )
+        transaction.on_commit(lambda: publish_domain_event(domain_event))
 
         return assignment
 
@@ -232,3 +248,9 @@ class AssignmentService:
     @staticmethod
     def _actor_id(user):
         return getattr(user, "person_id", None)
+
+    @staticmethod
+    def _customer_person_id(order):
+        if order.customer_profile_id:
+            return str(order.customer_profile.person_id)
+        return None

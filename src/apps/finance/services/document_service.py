@@ -17,6 +17,8 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.execution.models import ExecutionSession, ExecutionSessionStatus
+from apps.kernel.events.base import INVOICE_ISSUED, DomainEvent
+from apps.kernel.events.publisher import publish as publish_domain_event
 from apps.kernel.services.event_publisher import EventPublisher
 from apps.kernel.services.permission_service import PermissionService
 from apps.orders.models import Order
@@ -113,6 +115,20 @@ class FinancialDocumentService:
             payload={"document_type": document.document_type, "total_amount": str(document.total_amount)},
             actor_id=cls._actor_id(changed_by),
         )
+
+        domain_event = DomainEvent(
+            event_type=INVOICE_ISSUED,
+            tenant_id=document.tenant_id,
+            aggregate_type="FinancialDocument",
+            aggregate_id=document.id,
+            actor_id=cls._actor_id(changed_by),
+            payload={
+                "document_type": document.document_type,
+                "total_amount": str(document.total_amount),
+                "recipient_id": cls._customer_person_id(document),
+            },
+        )
+        transaction.on_commit(lambda: publish_domain_event(domain_event))
 
         return document
 
@@ -270,6 +286,12 @@ class FinancialDocumentService:
     @staticmethod
     def _actor_id(user):
         return getattr(user, "person_id", None)
+
+    @staticmethod
+    def _customer_person_id(document):
+        if document.order_id and document.order.customer_profile_id:
+            return str(document.order.customer_profile.person_id)
+        return None
 
 
 def _tenant(tenant_id):
