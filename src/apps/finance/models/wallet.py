@@ -1,4 +1,12 @@
-"""WalletAccount / WalletTransaction — Module 05 wallet foundation. Entries are append-only."""
+"""
+WalletAccount / WalletTransaction — Module 05 wallet foundation. Entries are append-only.
+
+LEGACY / FROZEN (as of Module 14): superseded by apps.wallet as the
+canonical customer-wallet bounded context. Nothing outside this app's own
+tests ever creates a WalletAccount row. Kept only so those existing tests
+keep passing — do not extend this model or wire it into new flows; build
+new wallet/customer-credit functionality in apps.wallet instead.
+"""
 
 import uuid
 from decimal import Decimal

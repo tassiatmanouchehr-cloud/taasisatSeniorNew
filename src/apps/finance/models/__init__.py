@@ -16,6 +16,8 @@ from .obligation import FinancialObligation, ObligationStatus, ObligationType
 from .party import FinancialParty, FinancialPartyType
 from .payment import PaymentMethod, PaymentStatus, PaymentTransaction
 from .settlement import SettlementBatch, SettlementBatchStatus, SettlementItem, SettlementItemStatus
+
+# Legacy/frozen (Module 05) — superseded by apps.wallet (Module 14). See .wallet module docstring.
 from .wallet import WalletAccount, WalletStatus, WalletTransaction, WalletTransactionType
 
 __all__ = [

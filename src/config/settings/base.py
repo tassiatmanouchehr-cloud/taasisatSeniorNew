@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     "apps.pricing",
     "apps.discovery",
     "apps.reviews",
+    "apps.wallet",
     "apps.showcase",
     "apps.public_site",
 ]
