@@ -9,6 +9,8 @@ against real querysets in future modules, not just in-memory sequences).
 from dataclasses import dataclass, field
 from typing import Any
 
+from django.db.models import QuerySet
+
 from .errors import ApiError
 
 DEFAULT_LIMIT = 20
@@ -52,11 +54,18 @@ def parse_pagination_params(query_params, *, default_limit: int = DEFAULT_LIMIT,
 
 
 def paginate(items, *, limit: int = DEFAULT_LIMIT, offset: int = 0, max_limit: int = MAX_LIMIT) -> Page:
-    """Slices `items` (any sized sequence) into a Page, applying the safe limit cap."""
+    """Slices `items` into a Page, applying the safe limit cap.
+
+    Uses .count() for a Django QuerySet so the total is a single COUNT
+    query and the slice is a single LIMIT/OFFSET query, rather than
+    forcing the whole queryset into memory via len(). Plain lists/tuples
+    fall back to len() (list.count(value) has a different signature, so
+    this must check the concrete QuerySet type rather than duck-typing).
+    """
     limit = min(max(limit, 1), max_limit)
     offset = max(offset, 0)
 
-    total_count = len(items)
+    total_count = items.count() if isinstance(items, QuerySet) else len(items)
     results = tuple(items[offset:offset + limit])
     has_more = (offset + limit) < total_count
 

@@ -5,6 +5,8 @@ import uuid
 from django.test import TestCase
 
 from apps.accounts.models.profiles import CustomerProfile
+from apps.booking.services.assignment_service import AssignmentService
+from apps.execution.services.session_service import ExecutionService
 from apps.kernel.models import Person, Tenant, UserAccount
 from apps.kernel.models.supplier import (
     AvailabilityStatus,
@@ -67,3 +69,15 @@ class ApiTestCase(TestCase):
 
     def _grant(self, user, tenant, permission_keys):
         return grant_permissions(tenant, user, permission_keys)
+
+    def _complete_order(self, order=None, supplier=None):
+        """Drives an order through assignment + execution to COMPLETED. Returns the refreshed Order."""
+        order = order or self.order
+        supplier = supplier or self.supplier
+        assignment = AssignmentService.assign(order_id=order.id, supplier=supplier)
+        session = ExecutionService.create_session(supplier_assignment=assignment)
+        ExecutionService.start_session(session_id=session.id)
+        ExecutionService.complete_session(session_id=session.id)
+        ExecutionService.close_session(session_id=session.id)
+        order.refresh_from_db()
+        return order

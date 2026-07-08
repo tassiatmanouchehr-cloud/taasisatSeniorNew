@@ -29,6 +29,12 @@ class WalletTransactionService:
     """Posts CREDIT/DEBIT/REFUND/PROMOTION/ADJUSTMENT/MANUAL movements against a Wallet."""
 
     @classmethod
+    def list_transactions(cls, wallet):
+        """Read-only. Returns the wallet's transactions ordered newest-first as a QuerySet
+        (callers may further filter/slice/paginate it — no rows are fetched until they do)."""
+        return WalletTransaction.objects.filter(tenant_id=wallet.tenant_id, wallet=wallet).order_by("-created_at")
+
+    @classmethod
     def validate_sufficient_funds(cls, wallet, amount) -> bool:
         """True if applying `amount` (signed) would not take the wallet negative, or overdraft is allowed."""
         amount = _q(amount)
