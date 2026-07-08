@@ -3,6 +3,11 @@ WalletService — Module 05 wallet foundation.
 
 Wallet balances only ever move through append-only WalletTransaction rows.
 No code updates WalletAccount.balance except via credit()/debit() here.
+
+LEGACY / FROZEN (as of Module 14): superseded by apps.wallet.services as
+the canonical customer-wallet bounded context. Retained only so this
+app's own existing tests keep passing — do not extend or wire this into
+new flows; use apps.wallet.services.WalletTransactionService instead.
 """
 
 import logging

@@ -9,6 +9,8 @@ from .obligation_service import ObligationService
 from .party_service import FinancialPartyService
 from .payment_service import PaymentService
 from .settlement_service import SettlementService
+
+# Legacy/frozen (Module 05) — superseded by apps.wallet.services (Module 14). See .wallet_service module docstring.
 from .wallet_service import WalletService
 
 __all__ = [
