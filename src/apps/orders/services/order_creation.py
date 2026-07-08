@@ -2,6 +2,8 @@
 
 from django.db import transaction
 
+from apps.kernel.events.base import ORDER_CREATED, DomainEvent
+from apps.kernel.events.publisher import publish as publish_domain_event
 from apps.kernel.services.tenant_service import TenantService
 
 from ..models import (
@@ -67,6 +69,31 @@ def _record_history(order, to_status, changed_by=None, reason=""):
     )
 
 
+def _actor_id(user):
+    return getattr(user, "person_id", None)
+
+
+def _customer_person_id(order):
+    if order.customer_profile_id:
+        return str(order.customer_profile.person_id)
+    return None
+
+
+def _publish_order_created(order, *, changed_by=None):
+    event = DomainEvent(
+        event_type=ORDER_CREATED,
+        tenant_id=order.tenant_id,
+        aggregate_type="Order",
+        aggregate_id=order.id,
+        actor_id=_actor_id(changed_by),
+        payload={
+            "order_number": order.order_number,
+            "recipient_id": _customer_person_id(order),
+        },
+    )
+    transaction.on_commit(lambda: publish_domain_event(event))
+
+
 @transaction.atomic
 def create_public_order(
     *,
@@ -113,6 +140,7 @@ def create_public_order(
     )
 
     _record_history(order, OrderStatus.PENDING_OPERATOR_REVIEW, changed_by=created_by, reason="سفارش عمومی ایجاد شد")
+    _publish_order_created(order, changed_by=created_by)
     return order
 
 
@@ -169,4 +197,5 @@ def create_operator_order(
     )
 
     _record_history(order, status, changed_by=created_by, reason="سفارش اپراتوری ایجاد شد")
+    _publish_order_created(order, changed_by=created_by)
     return order
