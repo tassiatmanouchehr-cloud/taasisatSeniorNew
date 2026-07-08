@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     "apps.availability",
     "apps.pricing",
     "apps.discovery",
+    "apps.reviews",
     "apps.showcase",
     "apps.public_site",
 ]
