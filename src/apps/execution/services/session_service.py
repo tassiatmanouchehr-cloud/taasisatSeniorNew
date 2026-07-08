@@ -23,6 +23,7 @@ from django.utils import timezone
 
 from apps.booking.models import SupplierAssignmentStatus
 from apps.kernel.services.event_publisher import EventPublisher
+from apps.kernel.services.permission_service import PermissionService
 from apps.orders.services.status_machine import complete_order, start_order
 
 from ..models import ExecutionSession, ExecutionSessionStatus, ExecutionSource
@@ -157,6 +158,8 @@ class ExecutionService:
     def close_session(cls, *, session_id, changed_by=None) -> ExecutionSession:
         """Finalizes the session AND the Order (Order.status -> completed)."""
         session = ExecutionSession.objects.select_for_update().get(id=session_id)
+
+        PermissionService.require(changed_by, "execution.session.close", tenant_id=session.tenant_id)
 
         if session.status not in _CLOSABLE_STATUSES:
             raise ExecutionError(

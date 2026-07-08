@@ -18,6 +18,7 @@ from django.utils import timezone
 
 from apps.execution.models import ExecutionSession, ExecutionSessionStatus
 from apps.kernel.services.event_publisher import EventPublisher
+from apps.kernel.services.permission_service import PermissionService
 from apps.orders.models import Order
 
 from ..models import (
@@ -94,6 +95,8 @@ class FinancialDocumentService:
     def issue_document(cls, *, document_id, changed_by=None) -> FinancialDocument:
         document = FinancialDocument.objects.select_for_update().get(id=document_id)
 
+        PermissionService.require(changed_by, "finance.document.issue", tenant_id=document.tenant_id)
+
         if document.status != FinancialDocumentStatus.DRAFT:
             raise FinanceError(f"Cannot issue a document in '{document.status}' status.")
 
@@ -117,6 +120,8 @@ class FinancialDocumentService:
     @transaction.atomic
     def lock_document(cls, *, document_id, changed_by=None) -> FinancialDocument:
         document = FinancialDocument.objects.select_for_update().get(id=document_id)
+
+        PermissionService.require(changed_by, "finance.document.lock", tenant_id=document.tenant_id)
 
         if document.status not in _EDITABLE_STATUSES:
             raise FinanceError(f"Cannot lock a document in '{document.status}' status.")
