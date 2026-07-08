@@ -41,3 +41,26 @@ def require_permission(request, permission_key: str, *, scope: dict | None = Non
     tenant_id = resolve_tenant_id(request)
     PermissionService.require(request.user, permission_key, tenant_id=tenant_id, scope=scope)
     return tenant_id
+
+
+def resolve_customer_profile(request):
+    """Returns the authenticated user's own CustomerProfile. Never accepted from the request body —
+    prevents one user from acting (reviewing, paying) as another. Call require_authenticated() first."""
+    from apps.accounts.models.profiles import CustomerProfile
+
+    person = getattr(request.user, "person", None)
+    if person is None:
+        raise ApiError(
+            code="customer_profile_required",
+            message="The authenticated account has no associated customer profile.",
+            status_code=400,
+        )
+
+    try:
+        return person.customer_profile
+    except CustomerProfile.DoesNotExist:
+        raise ApiError(
+            code="customer_profile_required",
+            message="The authenticated account has no associated customer profile.",
+            status_code=400,
+        )

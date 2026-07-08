@@ -52,6 +52,18 @@ class WalletService:
         return wallet.balance
 
     @classmethod
+    def get_wallet_or_none(cls, *, party, currency=None):
+        """Read-only lookup. Returns the party's Wallet if one already exists, else None —
+        unlike create_wallet()/get_or_create_wallet(), this never creates a row. Safe to call
+        from a GET/read path with no side effects."""
+        from ..models import Wallet
+
+        queryset = Wallet.objects.filter(tenant_id=party.tenant_id, party=party)
+        if currency:
+            queryset = queryset.filter(currency=currency)
+        return queryset.first()
+
+    @classmethod
     @transaction.atomic
     def recalculate_balance(cls, wallet):
         """Recomputes the deterministic sum of transactions and realigns the cached balance + snapshot."""

@@ -1,15 +1,18 @@
 """
-DRF exception handler — Module 17A foundation.
+DRF exception handler — Module 17A foundation, extended in Module 17B.
 
 The single place that maps exceptions to the standard error envelope
 `{"error": {"code", "message", "details"}}`. Wired via
 settings.REST_FRAMEWORK["EXCEPTION_HANDLER"], so every apps.api view gets
 it automatically through DRF's own dispatch/handle_exception machinery.
 
-Domain/service exceptions from business modules are NOT mapped here —
-only apps.api's own ApiError, RBAC's PermissionDenied, and DRF/Django's
-built-in exception types. Per-module domain-error -> HTTP mapping for full
-resource APIs is deferred to Module 17B.
+Module 17B adds _DOMAIN_ERROR_CLASSES: a small, explicit allowlist of
+per-module exception types (DiscoveryError, PricingError, ReviewError,
+WalletError, PaymentError) mapped to a generic 400 "domain_error". Their
+messages are already safe, human-written strings (never tracebacks) by
+convention across every module — see e.g. apps.wallet.services.errors.
+This does not attempt to cover every module; only the ones this module's
+endpoints can actually raise.
 """
 
 import logging
@@ -19,11 +22,18 @@ from django.http import Http404
 from rest_framework.response import Response
 from rest_framework.views import exception_handler as drf_exception_handler
 
+from apps.discovery.services import DiscoveryError
 from apps.kernel.services.errors import PermissionDenied
+from apps.payments.services import PaymentError
+from apps.pricing.services import PricingError
+from apps.reviews.services import ReviewError
+from apps.wallet.services import WalletError
 
 from .errors import ApiError
 
 logger = logging.getLogger(__name__)
+
+_DOMAIN_ERROR_CLASSES = (DiscoveryError, PricingError, ReviewError, WalletError, PaymentError)
 
 _STATUS_CODE_DEFAULTS = {
     400: "validation_error",
@@ -42,6 +52,9 @@ def api_exception_handler(exc, context):
 
     if isinstance(exc, ApiError):
         return _envelope(code=exc.code, message=exc.message, details=exc.details, status=exc.status_code)
+
+    if isinstance(exc, _DOMAIN_ERROR_CLASSES):
+        return _envelope(code="domain_error", message=str(exc), status=400)
 
     if isinstance(exc, PermissionDenied):
         return _envelope(

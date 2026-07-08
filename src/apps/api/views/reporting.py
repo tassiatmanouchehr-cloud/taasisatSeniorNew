@@ -1,30 +1,13 @@
-"""
-Base API view + sample endpoints — Module 17A foundation, DRF-based.
+"""Reporting sample endpoints — Module 17A foundation (unchanged in Module 17B)."""
 
-DRF's own dispatch() -> handle_exception() -> settings.REST_FRAMEWORK
-["EXCEPTION_HANDLER"] (apps.api.exception_handler.api_exception_handler)
-is what maps exceptions to the standard error envelope now — there is no
-custom dispatch() override here. permission_classes = [AllowAny] on every
-view is deliberate: apps.api.permissions.require_permission() performs the
-real auth/tenant/RBAC enforcement manually (reusing PermissionService),
-not DRF's own permission framework.
-"""
-
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
 from apps.reporting.services import OperationalReportService, ProviderReportService
 
-from .pagination import paginate, parse_pagination_params
-from .permissions import require_permission
-from .serializers import OrderCountsReportSerializer, ProviderPerformanceReportSerializer
-
-
-class ApiView(APIView):
-    """Base class for all apps.api views."""
-
-    permission_classes = [AllowAny]
+from ..pagination import paginate, parse_pagination_params
+from ..permissions import require_permission
+from ..serializers import OrderCountsReportSerializer, ProviderPerformanceReportSerializer
+from .base import ApiView
 
 
 class OrderCountsSampleView(ApiView):

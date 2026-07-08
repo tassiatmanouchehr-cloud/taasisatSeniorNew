@@ -1,10 +1,4 @@
-"""
-DRF serializers for transport — Module 17A foundation.
-
-These serialize the existing frozen-dataclass report DTOs
-(apps.reporting.dto) for the wire. No business logic lives here — they
-are read-only transport shape only.
-"""
+"""DRF serializers for apps.reporting DTOs — Module 17A. Transport shape only."""
 
 from rest_framework import serializers
 
