@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     "apps.reviews",
     "apps.wallet",
     "apps.payments",
+    "apps.reporting",
     "apps.showcase",
     "apps.public_site",
 ]
