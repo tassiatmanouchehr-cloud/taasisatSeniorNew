@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     "apps.finance",
     "apps.notifications",
     "apps.availability",
+    "apps.pricing",
     "apps.showcase",
     "apps.public_site",
 ]
