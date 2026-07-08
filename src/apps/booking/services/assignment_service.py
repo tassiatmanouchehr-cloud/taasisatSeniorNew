@@ -48,13 +48,24 @@ class AssignmentService:
         assigned_by=None,
         assignment_source=None,
         metadata=None,
+        requested_start=None,
+        requested_end=None,
     ) -> SupplierAssignment:
+        """
+        requested_start/requested_end are optional and conservative by
+        design: availability/capacity validation (Module 10) only runs when
+        BOTH are explicitly supplied by the caller. Every existing call site
+        that omits them keeps today's exact behavior — nothing new runs.
+        """
         from apps.orders.models import Order
 
         order = Order.objects.get(id=order_id)
         cls._ensure_same_tenant(order=order, supplier=supplier)
 
         PermissionService.require(assigned_by, "booking.assignment.assign", tenant_id=order.tenant_id)
+
+        if requested_start is not None and requested_end is not None:
+            cls._validate_availability(supplier=supplier, requested_start=requested_start, requested_end=requested_end)
 
         # The ONLY mutation of Order.assigned_supplier / Order.status.
         assign_supplier(order_id=order.id, supplier=supplier, changed_by=assigned_by)
@@ -214,6 +225,22 @@ class AssignmentService:
     def _ensure_same_tenant(*, order, supplier):
         if supplier.tenant_id != order.tenant_id:
             raise AssignmentError("Supplier tenant does not match order tenant.")
+
+    @staticmethod
+    def _validate_availability(*, supplier, requested_start, requested_end):
+        """Only reached when the caller explicitly supplied both bounds — see assign()."""
+        from apps.availability.services import AvailabilityConfiguration, AvailabilityQueryService, CapacityService
+
+        if not AvailabilityConfiguration.get_enforcement_enabled(tenant_id=supplier.tenant_id):
+            return
+
+        if not AvailabilityQueryService.is_supplier_available(
+            supplier=supplier, start=requested_start, end=requested_end,
+        ):
+            raise AssignmentError("Supplier is not available for the requested time range.")
+
+        if CapacityService.is_capacity_exceeded(supplier=supplier):
+            raise AssignmentError("Supplier capacity is exceeded.")
 
     @staticmethod
     def _resolve_source(assignment_source, match_candidate) -> str:
