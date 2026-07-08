@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     "apps.notifications",
     "apps.availability",
     "apps.pricing",
+    "apps.discovery",
     "apps.showcase",
     "apps.public_site",
 ]
