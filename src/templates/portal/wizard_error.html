@@ -1,0 +1,11 @@
+{% extends "portal/base.html" %}
+
+{% block portal_title %}خطا در ثبت درخواست{% endblock %}
+{% block page_title %}ثبت درخواست ناموفق بود{% endblock %}
+
+{% block portal_content %}
+<div class="bg-surface border border-danger-200 rounded-lg p-6 max-w-2xl">
+  <p class="text-sm text-danger">{{ error }}</p>
+  <a href="{% url 'portal:request-wizard-review' %}" class="mt-4 inline-block text-sm font-bold text-primary hover:underline">بازگشت به بازبینی</a>
+</div>
+{% endblock %}

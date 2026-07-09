@@ -197,6 +197,35 @@ sprint** per the "do not modify domain services/schema unless critical"
 constraint. Good candidate for a dedicated, carefully-tested future
 module.
 
+## Order Share Link tokens stored in plaintext
+
+**What**: `apps.orders.models.OrderShareLink.token` is stored in
+plaintext (not hashed) — an unguessable, high-entropy value
+(`secrets.token_urlsafe(32)`), but the database column itself is the
+credential's only protection, not a one-way hash.
+
+**Why**: Matches the pre-existing pattern in this codebase — the fake
+payment callback endpoint's `provider_reference` is handled the same way
+(no signature verification, documented as a deliberate simulation of an
+unauthenticated PSP webhook — see *Deferred architecture* in
+`GAP_ANALYSIS.md`). Hashing the token was judged out of scope for
+Customer Experience Phase 1, the same way real PSP signature
+verification was deferred rather than half-built.
+
+**Risk**: Low today (no evidence this repository has ever been exposed to
+a real production database compromise scenario), but a genuine
+production-hardening gap — a database read (backup leak, SQL injection
+elsewhere, admin-tooling misuse) exposes usable share tokens directly,
+whereas a hash would not.
+
+**Resolution**: Store `hashlib.sha256(token).hexdigest()` instead of the
+raw token, compare hashes on resolve, and return the raw token to the
+caller only once at creation time — the same shape used by most
+password-reset-token implementations. Not done in Customer Experience
+Phase 1; a good first task for whichever future sprint hardens the fake
+PSP callback's signature verification, since both are the same class of
+deferred hardening.
+
 ## Resolved in Module 18
 
 - **`apps/api/views/reporting.py` hardcoded permission string**: replaced

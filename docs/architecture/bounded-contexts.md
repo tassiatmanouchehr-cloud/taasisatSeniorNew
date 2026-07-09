@@ -39,32 +39,38 @@ profile to an *existing* account idempotently, never creating a second
 `Person` or `UserAccount`. There is deliberately **no**
 `FamilyMemberProfile` or other "family member" account type — see
 `docs/adr/ADR-008_DEMAND_SIDE_DOMAIN_MODEL.md`. The demand side has
-exactly one requester role; who a service is *for* is future data
+exactly one requester role; who a service is *for* is data
 (`CareRecipient`), not a second account.
 
-Future (not built yet — see the same ADR): `CareRecipient` as a reusable
-entity reachable from `CustomerProfile` (a customer may hold several —
-father, mother, grandmother — reused across many orders over time, with
-its own demographics/medical notes/addresses/emergency contacts/
-preferences/consent records/order history), and a third party following
-an order will eventually use a read-only, single-order, invitation-based
-Order Share Link rather than an account of any kind.
+Built in Customer Experience Phase 1 (see the same ADR and
+`DECISION_HISTORY.md`): `CareRecipient` as a reusable entity reachable
+from `CustomerProfile` (`customer_profile.elder_profiles` — a customer
+may hold several, reused across many orders over time, with its own
+demographics/medical notes/addresses/emergency contacts/preferences/order
+history — consent records remain unbuilt). Implemented by extending the
+pre-existing `ElderProfile` model in place rather than introducing a
+second model. A third party following an order uses a read-only,
+single-order, revocable, time-limited Order Share Link
+(`apps.orders.services.share_links.OrderShareLinkService`) rather than an
+account of any kind.
 
 ## orders
 
 Owns: `Order` (and its status machine — the only code allowed to mutate
 `Order.status` is `apps.orders.services.status_machine`), `ServiceCategory`,
-`ServiceType`.
+`ServiceType`, `OrderStatusHistory`, `OrderShareLink`.
 
 Does not own: assignment (that's `booking`), execution (`execution`),
 pricing (`pricing`).
 
-Future (not built yet — see `docs/adr/ADR-008_DEMAND_SIDE_DOMAIN_MODEL.md`):
-`Order.care_recipient` (FK to the reusable `CareRecipient` owned by
-`accounts`, not by `orders`) and `Order.relationship_to_recipient`,
-distinguishing the requesting customer from who the service is for; and a
-read-only Order Share Link for a non-account third party to follow one
-specific order.
+Per `docs/adr/ADR-008_DEMAND_SIDE_DOMAIN_MODEL.md`: `Order.elder_profile`
+(FK to the reusable `CareRecipient`/`ElderProfile` owned by `accounts`,
+not by `orders` — this FK pre-dates Customer Experience Phase 1 and is
+what made extending `ElderProfile` in place, rather than adding a new FK,
+the non-duplicating choice) distinguishes the requesting customer from
+who the service is for. `OrderShareLink` (owned by `orders`, not
+`accounts`) gives a non-account third party read-only, single-order,
+revocable, time-limited access to follow one specific order.
 
 ## matching
 

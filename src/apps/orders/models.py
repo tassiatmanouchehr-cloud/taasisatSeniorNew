@@ -223,3 +223,60 @@ class OrderStatusHistory(models.Model):
 
     def __str__(self):
         return f"{self.order.order_number}: {self.from_status} → {self.to_status}"
+
+
+# ============================================================
+# OrderShareLink — Customer Experience Phase 1 / ADR-008
+#
+# Read-only, invitation-based, single-order visibility for someone who is
+# not a platform account holder — the "Order Share Link" ADR-008 scoped as
+# future work. The token is an unguessable capability, not a hashed
+# credential — the same "unguessable token is the entire security model"
+# pattern already used by the fake payment callback's provider_reference
+# (see docs/architecture/technical-debt-register.md). Hashing the stored
+# token would be a real future hardening step, same as that callback's
+# still-deferred signature verification — not done here, and noted so a
+# reviewer doesn't mistake the omission for an oversight.
+# ============================================================
+
+def _generate_share_token():
+    import secrets
+    return secrets.token_urlsafe(32)
+
+
+class OrderShareLink(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "kernel.Tenant", on_delete=models.PROTECT, related_name="order_share_links",
+    )
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="share_links")
+    token = models.CharField(max_length=64, unique=True, db_index=True, default=_generate_share_token)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+    )
+    expires_at = models.DateTimeField(help_text="Link stops working after this time, even if never revoked.")
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    access_count = models.IntegerField(default=0)
+    last_accessed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = TenantScopedManager()
+
+    class Meta:
+        db_table = "orders_share_link"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"ShareLink({self.order.order_number}) [{'revoked' if self.revoked_at else 'active'}]"
+
+    def is_valid(self) -> bool:
+        return self.revoked_at is None and self.expires_at > timezone.now()
+
+    def revoke(self):
+        self.revoked_at = timezone.now()
+        self.save(update_fields=["revoked_at"])
+
+    def record_access(self):
+        self.access_count += 1
+        self.last_accessed_at = timezone.now()
+        self.save(update_fields=["access_count", "last_accessed_at"])

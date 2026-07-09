@@ -1,0 +1,28 @@
+{% extends "portal/base.html" %}
+
+{% block portal_title %}{% if is_new %}گیرنده خدمت جدید{% else %}ویرایش گیرنده خدمت{% endif %}{% endblock %}
+{% block page_title %}{% if is_new %}افزودن گیرنده خدمت{% else %}ویرایش {{ care_recipient.full_name }}{% endif %}{% endblock %}
+
+{% block portal_content %}
+<form method="post" class="bg-surface border border-border rounded-lg p-6 space-y-5 max-w-2xl">
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+  <div class="rounded-lg border border-danger-200 bg-danger-50 p-3 text-sm text-danger">
+    {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+  </div>
+  {% endif %}
+
+  {% for field in form %}
+  <div>
+    <label for="{{ field.id_for_label }}" class="block text-sm font-bold text-text">{{ field.label }}</label>
+    {{ field }}
+    {% if field.errors %}<p class="mt-1 text-xs text-danger">{{ field.errors.0 }}</p>{% endif %}
+  </div>
+  {% endfor %}
+
+  <div class="flex items-center gap-inline-3 pt-2">
+    <button type="submit" class="inline-flex items-center rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white hover:bg-primary-700">ذخیره</button>
+    <a href="{% url 'portal:care-recipients' %}" class="text-sm font-medium text-text-muted hover:text-text">انصراف</a>
+  </div>
+</form>
+{% endblock %}

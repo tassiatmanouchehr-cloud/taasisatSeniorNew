@@ -1,7 +1,8 @@
 # Project Module Status
 
-Status: current as of the Repository Documentation & Project Governance
-sprint, `main` @ `25b5f8ec3dab673beaa4ff954c577c6338d4764f`. This is the
+Status: current as of the Customer Experience Phase 1 sprint (branch
+`claude/customer-experience-phase1`), based on `main` @
+`ad415cb59dc9d114c1f1c5bbe9d810a2c292497f` (PR #20's merge commit). This is the
 **permanent module inventory** — the canonical mapping between the 25
 Blueprint modules (`module/MODULE_INDEX_COMPLETE_01_25.json`) and what has
 actually been built in `src/apps/`.

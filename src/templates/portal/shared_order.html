@@ -1,0 +1,32 @@
+{% extends "ui/layouts/public.html" %}
+{# Public, read-only, single-order share view — Customer Experience Phase 1
+   Phase 6. Deliberately extends the public layout (no portal sidebar, no
+   links to wallet/profile/notifications/other orders/dashboard): a share
+   link viewer never authenticates and this page never resolves a
+   CustomerProfile, so nothing here can reach account-scoped data. #}
+
+{% block title %}پیگیری درخواست {{ order.order_number }}{% endblock %}
+
+{% block body %}
+<div class="max-w-2xl mx-auto px-4 py-10">
+  <div class="bg-surface border border-border rounded-lg p-6">
+    <h1 class="text-xl font-bold text-text mb-1">پیگیری درخواست {{ order.order_number }}</h1>
+    <p class="text-sm text-text-muted mb-6">{{ order.service_category.name }}</p>
+
+    {% if timeline.cancelled %}
+    <p class="text-sm font-medium text-danger mb-4">این درخواست لغو شده است.</p>
+    {% endif %}
+
+    <ol class="space-y-3">
+      {% for step in timeline.steps %}
+      <li class="flex items-center gap-inline-3">
+        <span class="w-3 h-3 rounded-full {% if step.reached %}bg-primary{% else %}bg-border{% endif %}"></span>
+        <span class="text-sm {% if step.reached %}text-text font-medium{% else %}text-text-muted{% endif %}">{{ step.label }}</span>
+      </li>
+      {% endfor %}
+    </ol>
+
+    <p class="mt-6 text-xs text-text-muted">این لینک فقط برای مشاهده این درخواست است و به هیچ اطلاعات دیگری دسترسی ندارد.</p>
+  </div>
+</div>
+{% endblock %}

@@ -1,7 +1,8 @@
 # Project Index
 
-Status: current as of the Repository Documentation & Project Governance
-sprint, `main` @ `25b5f8ec3dab673beaa4ff954c577c6338d4764f`.
+Status: current as of the Customer Experience Phase 1 sprint (branch
+`claude/customer-experience-phase1`), based on `main` @
+`ad415cb59dc9d114c1f1c5bbe9d810a2c292497f` (PR #20's merge commit).
 
 **Start here.** This is the entry point to this repository's
 documentation — everything a new developer needs to understand where the

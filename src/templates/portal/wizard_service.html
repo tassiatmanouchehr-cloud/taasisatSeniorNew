@@ -1,0 +1,46 @@
+{% extends "portal/base.html" %}
+
+{% block portal_title %}درخواست جدید — نوع خدمت{% endblock %}
+{% block page_title %}چه خدمتی نیاز دارید؟{% endblock %}
+
+{% block portal_content %}
+{% include "portal/_wizard_steps.html" %}
+
+{{ types_by_category|json_script:"types-by-category" }}
+
+<form method="post" class="bg-surface border border-border rounded-lg p-6 space-y-4 max-w-2xl"
+      x-data="{
+        categoryId: '',
+        types: {},
+        init() { this.types = JSON.parse(document.getElementById('types-by-category').textContent); }
+      }">
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+  <div class="rounded-lg border border-danger-200 bg-danger-50 p-3 text-sm text-danger">
+    {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="space-y-2">
+    {% for category in categories %}
+    <label class="flex items-center gap-inline-3 rounded-lg border border-border px-4 py-3 cursor-pointer hover:border-primary">
+      <input type="radio" name="service_category_id" value="{{ category.id }}" required
+             x-model="categoryId" class="h-4 w-4 text-primary focus:ring-2">
+      <span class="text-sm text-text font-medium">{{ category.name }}</span>
+    </label>
+    {% endfor %}
+  </div>
+
+  <div x-show="categoryId && types[categoryId] && types[categoryId].length" x-cloak>
+    <label class="block text-sm font-bold text-text mb-2">نوع خدمت (اختیاری)</label>
+    <select name="service_type_id" class="mt-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text shadow-sm focus:border-primary focus:outline-none focus:ring-2">
+      <option value="">بدون انتخاب دقیق</option>
+      <template x-for="t in (types[categoryId] || [])" :key="t.id">
+        <option :value="t.id" x-text="t.name"></option>
+      </template>
+    </select>
+  </div>
+
+  <button type="submit" class="inline-flex items-center rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white hover:bg-primary-700">ادامه</button>
+</form>
+{% endblock %}
