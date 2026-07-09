@@ -1,5 +1,6 @@
 """
-RBAC permission_key taxonomy — Module 17B.
+RBAC permission_key taxonomy — Module 17A/17B, documented in
+docs/architecture/rbac-permissions.md.
 
 No permission_key registry exists anywhere in the platform yet
 (Role.permissions is a freeform JSON string list — see
@@ -10,6 +11,7 @@ granted these keys explicitly (see apps.kernel.tests.rbac_helpers.
 grant_permissions) — nothing here auto-grants access.
 """
 
+REPORTING_READ = "reporting.read"
 DISCOVERY_SUPPLIERS_READ = "discovery.suppliers.read"
 PRICING_QUOTES_CREATE = "pricing.quotes.create"
 REVIEWS_SUBMIT = "reviews.submit"
