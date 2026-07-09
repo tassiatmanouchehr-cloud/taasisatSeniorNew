@@ -27,7 +27,10 @@ from .organizations import find_organization_by_code_or_name
 logger = logging.getLogger(__name__)
 
 
-def _assign_role(*, tenant, user, role_slug):
+def assign_role(*, tenant, user, role_slug):
+    """Grant `user` the named role in `tenant`, if that role exists. Idempotent.
+    Shared across registration and multi-role profile-attachment (see
+    apps.accounts.services.profiles.ensure_customer_profile/ensure_caregiver_profile)."""
     role = Role.objects.filter(tenant=tenant, slug=role_slug).first()
     if role:
         RoleAssignment.objects.get_or_create(
@@ -54,7 +57,7 @@ class RegistrationService:
             user=user, person=person, phone=phone, display_name=full_name,
             city=city, relation_to_elder=relation_to_elder,
         )
-        _assign_role(tenant=tenant, user=user, role_slug="customer")
+        assign_role(tenant=tenant, user=user, role_slug="customer")
         logger.info("Customer created: %s (%s)", full_name, phone)
         return user, profile
 
@@ -68,7 +71,7 @@ class RegistrationService:
             user=user, person=person, phone=phone, display_name=full_name,
             specialty=specialty, city=city,
         )
-        _assign_role(tenant=tenant, user=user, role_slug="independent_caregiver")
+        assign_role(tenant=tenant, user=user, role_slug="independent_caregiver")
 
         affiliation_request = None
         company_ref = company_code or company_name
@@ -104,6 +107,6 @@ class RegistrationService:
             joined_at=timezone.now(),
         )
 
-        _assign_role(tenant=tenant, user=user, role_slug="organization_admin")
+        assign_role(tenant=tenant, user=user, role_slug="organization_admin")
         logger.info("Company admin created: %s for '%s' (code=%s)", admin_name, company_name, org_code)
         return user, organization

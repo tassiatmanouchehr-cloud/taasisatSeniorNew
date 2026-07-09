@@ -78,7 +78,7 @@ class UserAccountManager(BaseUserManager):
             raise ValueError("UserAccount must have either email or phone")
         if email:
             email = self.normalize_email(email)
-        user = self.model(email=email or "", phone=phone or "", **extra_fields)
+        user = self.model(email=email or None, phone=phone or "", **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
@@ -125,7 +125,7 @@ class UserAccount(AbstractBaseUser, PermissionsMixin):
         blank=True,
         help_text="Tenant this account belongs to. Null for platform superuser only.",
     )
-    email = models.EmailField(max_length=255, blank=True)
+    email = models.EmailField(max_length=255, null=True, blank=True, unique=True)
     phone = models.CharField(max_length=20, blank=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(
@@ -136,8 +136,16 @@ class UserAccount(AbstractBaseUser, PermissionsMixin):
 
     objects = UserAccountManager()
 
-    USERNAME_FIELD = "id"
-    REQUIRED_FIELDS = ["email"]
+    # Human-friendly login identifier — email, not the UUID primary key.
+    # null=True (not "") lets phone-only accounts share a blank email
+    # without violating uniqueness (Postgres allows multiple NULLs under a
+    # unique constraint). The existing phone-based OTP login flow
+    # (apps.accounts.views) never goes through Django's authenticate(), so
+    # it is unaffected by this — only /admin/ login and createsuperuser use
+    # USERNAME_FIELD.
+    USERNAME_FIELD = "email"
+    EMAIL_FIELD = "email"
+    REQUIRED_FIELDS = []
 
     class Meta:
         db_table = "kernel\".\"user_account"

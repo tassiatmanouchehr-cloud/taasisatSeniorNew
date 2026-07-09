@@ -1,6 +1,7 @@
-"""Profile services — completion, elder, trusted contacts."""
+"""Profile services — completion, elder, trusted contacts, multi-role identity."""
 
 from ..models.profiles import CustomerProfile, CaregiverProfile, ElderProfile, TrustedContact
+from .registration import assign_role
 
 
 def calculate_customer_profile_completion(profile: CustomerProfile) -> int:
@@ -52,3 +53,53 @@ def add_trusted_contact(*, customer_profile, full_name, phone, **kwargs):
         **kwargs,
     )
     return contact
+
+
+# ============================================================
+# Multi-role identity — Module 21A
+# ============================================================
+#
+# One Person/UserAccount may hold several profiles at once (e.g. a
+# caregiver who also books care for their own parent as a customer).
+# CustomerProfile and CaregiverProfile are independent OneToOneField(user)
+# tables, so nothing in the schema prevents this — the gap was that
+# RegistrationService.create_customer()/create_caregiver() always create a
+# brand-new Person + UserAccount. These helpers instead attach a profile
+# to an *existing* account, idempotently, without ever creating a second
+# Person or UserAccount for the same human.
+
+
+def ensure_customer_profile(user, *, phone=None, display_name=None, **kwargs) -> CustomerProfile:
+    """Idempotently attach a CustomerProfile to an existing UserAccount.
+    Returns the existing profile if one is already attached."""
+    existing = CustomerProfile.objects.filter(user=user).first()
+    if existing:
+        return existing
+    if user.person is None:
+        raise ValueError("UserAccount must have a Person before a profile can be attached.")
+    profile = CustomerProfile.objects.create(
+        user=user, person=user.person,
+        phone=phone or user.phone,
+        display_name=display_name or user.person.full_name,
+        **kwargs,
+    )
+    assign_role(tenant=user.tenant, user=user, role_slug="customer")
+    return profile
+
+
+def ensure_caregiver_profile(user, *, phone=None, display_name=None, **kwargs) -> CaregiverProfile:
+    """Idempotently attach a CaregiverProfile to an existing UserAccount.
+    Returns the existing profile if one is already attached."""
+    existing = CaregiverProfile.objects.filter(user=user).first()
+    if existing:
+        return existing
+    if user.person is None:
+        raise ValueError("UserAccount must have a Person before a profile can be attached.")
+    profile = CaregiverProfile.objects.create(
+        user=user, person=user.person,
+        phone=phone or user.phone,
+        display_name=display_name or user.person.full_name,
+        **kwargs,
+    )
+    assign_role(tenant=user.tenant, user=user, role_slug="independent_caregiver")
+    return profile
