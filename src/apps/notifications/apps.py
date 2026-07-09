@@ -8,5 +8,9 @@ class NotificationsConfig(AppConfig):
 
     def ready(self):
         from apps.kernel.events.handlers import register_handlers
+        from apps.notifications.jobs import register_job_handlers
+        from apps.notifications.providers.fake import register_providers
 
         register_handlers()
+        register_providers()
+        register_job_handlers()
