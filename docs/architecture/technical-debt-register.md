@@ -216,7 +216,12 @@ verification was deferred rather than half-built.
 a real production database compromise scenario), but a genuine
 production-hardening gap — a database read (backup leak, SQL injection
 elsewhere, admin-tooling misuse) exposes usable share tokens directly,
-whereas a hash would not.
+whereas a hash would not. Partially offset by a post-review addition: every
+create/revoke/access of a share link now publishes a DomainEvent
+(`ShareLinkCreated`/`ShareLinkRevoked`/`ShareLinkAccessed`) via
+`apps.kernel.events.publish`, which writes an `AuditLog` row automatically
+— so a compromised token's use is at least auditable after the fact, even
+though the token itself is still unhashed at rest.
 
 **Resolution**: Store `hashlib.sha256(token).hexdigest()` instead of the
 raw token, compare hashes on resolve, and return the raw token to the
