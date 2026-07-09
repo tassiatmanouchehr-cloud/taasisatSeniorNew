@@ -1,0 +1,49 @@
+{% extends "admin_portal/base.html" %}
+
+{% block portal_title %}نمای کلی مستأجر{% endblock %}
+{% block page_title %}نمای کلی مستأجر{% endblock %}
+{% block page_description %}
+<p class="mt-1 text-sm text-text-muted">ترکیب بازار برای مستأجر جاری — فقط خواندنی.</p>
+{% endblock %}
+
+{% block admin_content %}
+<div class="grid gap-4 grid-cols-1 sm:grid-cols-3">
+  {% include "ui/components/data/stat_card.html" with label="ارائه‌دهندگان خدمت" value=stats.supplier_count %}
+  {% include "ui/components/data/stat_card.html" with label="سازمان‌ها" value=stats.organization_count %}
+  {% include "ui/components/data/stat_card.html" with label="مشتریان" value=stats.customer_count %}
+</div>
+
+<div class="mt-6 grid gap-6 grid-cols-1 lg:grid-cols-2">
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-sm font-bold text-text">توزیع نوع ارائه‌دهنده</h2>
+    {% if stats.supplier_type_distribution %}
+    <ul class="mt-3 space-y-2 text-sm">
+      {% for supplier_type, count in stats.supplier_type_distribution.items %}
+      <li class="flex items-center justify-between text-text-muted">
+        <span>{{ supplier_type }}</span>
+        <span class="font-semibold text-text">{{ count }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    {% include "ui/components/data/empty_state.html" with title="داده‌ای یافت نشد" size="sm" %}
+    {% endif %}
+  </div>
+
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-sm font-bold text-text">توزیع دسته‌بندی خدمات</h2>
+    {% if stats.category_distribution %}
+    <ul class="mt-3 space-y-2 text-sm">
+      {% for category_name, count in stats.category_distribution.items %}
+      <li class="flex items-center justify-between text-text-muted">
+        <span>{{ category_name }}</span>
+        <span class="font-semibold text-text">{{ count }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    {% include "ui/components/data/empty_state.html" with title="داده‌ای یافت نشد" size="sm" %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

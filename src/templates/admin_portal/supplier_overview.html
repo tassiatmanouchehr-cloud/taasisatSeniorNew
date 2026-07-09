@@ -1,0 +1,42 @@
+{% extends "admin_portal/base.html" %}
+
+{% block portal_title %}ارائه‌دهندگان خدمت{% endblock %}
+{% block page_title %}ارائه‌دهندگان خدمت{% endblock %}
+{% block page_description %}
+<p class="mt-1 text-sm text-text-muted">عملکرد هر ارائه‌دهنده برای مستأجر جاری — فقط خواندنی.</p>
+{% endblock %}
+
+{% block admin_content %}
+{% if reports %}
+<div class="w-full overflow-x-auto rounded-lg border border-border">
+  <table class="w-full text-sm text-text" role="table">
+    <thead class="bg-background-alt text-text-muted text-xs uppercase tracking-wide">
+      <tr>
+        <th scope="col" class="px-4 py-3 text-start font-semibold whitespace-nowrap">شناسه ارائه‌دهنده</th>
+        <th scope="col" class="px-4 py-3 text-start font-semibold whitespace-nowrap">خدمات تکمیل‌شده</th>
+        <th scope="col" class="px-4 py-3 text-start font-semibold whitespace-nowrap">میانگین امتیاز</th>
+        <th scope="col" class="px-4 py-3 text-start font-semibold whitespace-nowrap">تعداد نظرات</th>
+        <th scope="col" class="px-4 py-3 text-start font-semibold whitespace-nowrap">وضعیت دسترسی</th>
+        <th scope="col" class="px-4 py-3 text-start font-semibold whitespace-nowrap">تخصیص‌های فعال</th>
+        <th scope="col" class="px-4 py-3 text-start font-semibold whitespace-nowrap">کل تخصیص‌ها</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-border">
+      {% for report in reports %}
+      <tr class="hover:bg-background-alt transition-colors">
+        <td class="px-4 py-3 whitespace-nowrap ltr-value">{{ report.supplier_id }}</td>
+        <td class="px-4 py-3 whitespace-nowrap">{{ report.completed_services }}</td>
+        <td class="px-4 py-3 whitespace-nowrap">{{ report.reputation_average|default:"—" }}</td>
+        <td class="px-4 py-3 whitespace-nowrap">{{ report.reputation_review_count }}</td>
+        <td class="px-4 py-3 whitespace-nowrap">{{ report.availability_status }}</td>
+        <td class="px-4 py-3 whitespace-nowrap">{{ report.active_assignments }}</td>
+        <td class="px-4 py-3 whitespace-nowrap">{{ report.total_assignments }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+{% include "ui/components/data/empty_state.html" with title="ارائه‌دهنده‌ای یافت نشد" %}
+{% endif %}
+{% endblock %}

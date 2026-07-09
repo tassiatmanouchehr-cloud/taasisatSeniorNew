@@ -1,0 +1,32 @@
+{% extends "admin_portal/base.html" %}
+
+{% block portal_title %}سفارش‌ها{% endblock %}
+{% block page_title %}سفارش‌ها{% endblock %}
+{% block page_description %}
+<p class="mt-1 text-sm text-text-muted">شمار سفارش‌ها برای مستأجر جاری — فقط خواندنی.</p>
+{% endblock %}
+
+{% block admin_content %}
+<div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+  {% include "ui/components/data/stat_card.html" with label="کل سفارش‌ها" value=counts.total_orders %}
+  {% include "ui/components/data/stat_card.html" with label="سفارش‌های فعال" value=counts.active_orders %}
+  {% include "ui/components/data/stat_card.html" with label="سفارش‌های تکمیل‌شده" value=counts.completed_orders %}
+  {% include "ui/components/data/stat_card.html" with label="سفارش‌های لغوشده" value=counts.cancelled_orders %}
+</div>
+
+<div class="mt-6 bg-surface border border-border rounded-lg p-5">
+  <h2 class="text-sm font-bold text-text">توزیع بر اساس وضعیت</h2>
+  {% if counts.by_status %}
+  <ul class="mt-3 space-y-2 text-sm">
+    {% for status, count in counts.by_status.items %}
+    <li class="flex items-center justify-between text-text-muted">
+      <span>{{ status }}</span>
+      <span class="font-semibold text-text">{{ count }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  {% include "ui/components/data/empty_state.html" with title="سفارشی یافت نشد" size="sm" %}
+  {% endif %}
+</div>
+{% endblock %}
