@@ -1,8 +1,8 @@
 # Project State
 
-Status: current as of the Customer Experience Phase 1 sprint (branch
-`claude/customer-experience-phase1`), based on `main` @
-`ad415cb59dc9d114c1f1c5bbe9d810a2c292497f` (PR #20's merge commit). This document is the
+Status: current as of PR #22's merge (Customer Experience Phase 1,
+including the post-review architecture remediation), `main` @
+`f5c68f19ce3df7ce44ab5c8faa35ccaf31b97e07` (PR #22's merge commit). This document is the
 **single source of truth** for "where the project stands." It supersedes any
 verbal summary given in chat, a PR description, or a prior conversation —
 if this file and a conversation disagree, this file is right (or needs
@@ -23,14 +23,14 @@ Verification** rather than assumed.
 |---|---|
 | Repository URL | `github.com/tassiatmanouchehr-cloud/taasisatSenior` |
 | Default Branch | `main` |
-| Current `main` HEAD | `ad415cb59dc9d114c1f1c5bbe9d810a2c292497f` (PR #20's merge commit) — this branch (`claude/customer-experience-phase1`) is based on it and not yet merged |
-| Current Test Count | **1024 passing**, 0 failing (`python manage.py test`, run on this branch — includes 59 new tests from the Customer Experience Phase 1 sprint: 14 for `CareRecipientService`, 19 for `OrderShareLink`/`OrderShareLinkService` (incl. event-publishing/audit and race-condition coverage from the post-review architecture remediation), 25 for `apps.portal` views, and 1 `PortalOrmDisciplineTest` architecture guardrail in `apps.kernel.tests.test_architecture_guardrails`) |
+| Current `main` HEAD | `f5c68f19ce3df7ce44ab5c8faa35ccaf31b97e07` (PR #22's merge commit) |
+| Current Test Count | **1024 passing**, 0 failing (`python manage.py test`, run against this HEAD — includes 59 new tests from the Customer Experience Phase 1 sprint: 14 for `CareRecipientService`, 19 for `OrderShareLink`/`OrderShareLinkService` (incl. event-publishing/audit and race-condition coverage from the post-review architecture remediation), 25 for `apps.portal` views, and 1 `PortalOrmDisciplineTest` architecture guardrail in `apps.kernel.tests.test_architecture_guardrails`) |
 | Python Version | **3.12** is the project's canonical version — declared in `pyproject.toml` (`requires-python = ">=3.12"`), pinned in CI (`.github/workflows/ci.yml`, `python-version: "3.12"`), and pinned in `src/docker/Dockerfile.dev` (`FROM python:3.12-slim`). Three independent sources agree. The one execution environment that disagrees is this specific sandboxed session, which runs **3.11.15** — a fact about this session's container, not about the repository's declared target. Not flagged as uncertain: the repository is internally consistent on 3.12; only this particular runtime differs from it. |
 | Django Version | Installed: **5.2.16**. Declared requirement (`requirements/base.txt`): `django>=5.1,<5.3`. Consistent. |
 | Database | **PostgreSQL 16**, optionally with **PostGIS** (`GIS_ENABLED` env var switches `django.db.backends.postgresql` ↔ `django.contrib.gis.db.backends.postgis`; CI uses the `postgis/postgis:16-3.4` image with `GIS_ENABLED=true`). SQLite is supported as a settings-level fallback (`DATABASE_ENGINE=sqlite`) but is not the platform's real target and is not exercised by CI. |
 | Architecture Style | **Modular monolith** — a single Django project (`config/`) composed of 22 apps under `src/apps/`, each owning its own models/services/tests, communicating through service-layer calls and two deliberately separate event systems (see [Domain Events](#domain-events) below), not through network calls. No microservices, no separate deployable units. |
 | Current Development Phase | **Foundation phase, largely complete → transitioning to Product Experience phase.** See [Current Development Phase](#current-development-phase) below. |
-| Current Project Status | Active development. 20 merged pull requests on `main`; this sprint's PR and one documentation-maintenance PR (#21) are open, not yet merged. No open incidents or known production deployment (no evidence of a live/production environment in this repository — infra config exists for one, but nothing indicates it is running). |
+| Current Project Status | Active development. 21 merged pull requests on `main` (PR #22 just merged); one documentation-maintenance PR (#21) remains open, not yet merged. No open incidents or known production deployment (no evidence of a live/production environment in this repository — infra config exists for one, but nothing indicates it is running). |
 | Current Branching Strategy | Trunk-based: every unit of work branches from `main` (branch naming has drifted over time — see [Repository Structure](#repository-structure) → *A note on module numbering*), is reviewed as a pull request, and merges back to `main`. No long-lived release branches exist. `.github/workflows/ci.yml` also recognizes `phase-*/**` branches as a push trigger, though none currently exist. |
 | Repository Structure | See [below](#repository-structure). |
 | Current CI/Test Status | See [below](#current-ci--test-status). |

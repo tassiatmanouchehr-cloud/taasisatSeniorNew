@@ -1,12 +1,12 @@
 # Gap Analysis
 
-Status: current as of the Customer Experience Phase 1 sprint (branch
-`claude/customer-experience-phase1`), based on `main` @
-`ad415cb59dc9d114c1f1c5bbe9d810a2c292497f` (PR #20's merge commit).
+Status: current as of PR #22's merge (Customer Experience Phase 1,
+including the post-review architecture remediation), `main` @
+`f5c68f19ce3df7ce44ab5c8faa35ccaf31b97e07` (PR #22's merge commit).
 
 ## Where exactly are we today?
 
-Nineteen merged pull requests have built a real, disciplined, well-tested
+Twenty-one merged pull requests have built a real, disciplined, well-tested
 **foundation** — not a finished product. The demand-side transaction loop
 (identity → order → matching → booking → execution → pricing → wallet →
 reviews) is genuinely walkable end-to-end in code. What it does not yet
