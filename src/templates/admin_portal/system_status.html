@@ -1,0 +1,33 @@
+{% extends "admin_portal/base.html" %}
+
+{% block portal_title %}وضعیت سیستم{% endblock %}
+{% block page_title %}وضعیت سیستم{% endblock %}
+{% block page_description %}
+<p class="mt-1 text-sm text-text-muted">اتصال زنده پایگاه‌داده و حافظه پنهان.</p>
+{% endblock %}
+
+{% block admin_content %}
+<div class="grid gap-4 grid-cols-1 sm:grid-cols-2">
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <div class="flex items-center justify-between">
+      <h2 class="text-sm font-bold text-text">پایگاه‌داده</h2>
+      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                   {% if db_status == 'ok' %}bg-success-100 text-success-700{% else %}bg-danger-100 text-danger-700{% endif %}">
+        {% if db_status == 'ok' %}متصل{% else %}قطع{% endif %}
+      </span>
+    </div>
+    <p class="mt-2 text-sm text-text-muted ltr-value">{{ db_status }}</p>
+  </div>
+
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <div class="flex items-center justify-between">
+      <h2 class="text-sm font-bold text-text">حافظه پنهان</h2>
+      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                   {% if cache_status == 'ok' %}bg-success-100 text-success-700{% else %}bg-danger-100 text-danger-700{% endif %}">
+        {% if cache_status == 'ok' %}متصل{% else %}قطع{% endif %}
+      </span>
+    </div>
+    <p class="mt-2 text-sm text-text-muted ltr-value">{{ cache_status }}</p>
+  </div>
+</div>
+{% endblock %}

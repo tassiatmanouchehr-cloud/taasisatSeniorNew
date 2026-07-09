@@ -36,6 +36,24 @@ def _python_files(*, under: Path, exclude_dirs: tuple[str, ...] = ()) -> list[Pa
     return files
 
 
+# Shared by every thin-controller surface (apps.api, apps.admin_portal, and any future
+# one) — a single-row `.objects.get(...)` lookup is the only ORM access a view may
+# perform directly; everything else belongs in the service layer.
+THIN_CONTROLLER_FORBIDDEN_ORM_PATTERNS = (
+    r"\.objects\.filter\(",
+    r"\.objects\.exclude\(",
+    r"\.objects\.annotate\(",
+    r"\.objects\.aggregate\(",
+    r"\.objects\.all\(\)",
+    r"\.objects\.create\(",
+    r"\.objects\.update\(",
+    r"\.objects\.bulk_create\(",
+    r"\.objects\.bulk_update\(",
+    r"\.save\(",
+    r"\.delete\(\)",
+)
+
+
 class ApiViewOrmDisciplineTest(SimpleTestCase):
     """
     docs/architecture/api-guidelines.md + ADR-007: apps/api/views/*.py may
@@ -44,19 +62,7 @@ class ApiViewOrmDisciplineTest(SimpleTestCase):
     ORM access belong in the service layer.
     """
 
-    FORBIDDEN_PATTERNS = (
-        r"\.objects\.filter\(",
-        r"\.objects\.exclude\(",
-        r"\.objects\.annotate\(",
-        r"\.objects\.aggregate\(",
-        r"\.objects\.all\(\)",
-        r"\.objects\.create\(",
-        r"\.objects\.update\(",
-        r"\.objects\.bulk_create\(",
-        r"\.objects\.bulk_update\(",
-        r"\.save\(",
-        r"\.delete\(\)",
-    )
+    FORBIDDEN_PATTERNS = THIN_CONTROLLER_FORBIDDEN_ORM_PATTERNS
 
     def test_no_forbidden_orm_calls_in_api_views(self):
         views_dir = APPS_DIR / "api" / "views"
@@ -76,6 +82,28 @@ class ApiViewOrmDisciplineTest(SimpleTestCase):
         views_dir = APPS_DIR / "api" / "views"
         combined = "\n".join(_read(p) for p in _python_files(under=views_dir))
         self.assertIn(".objects.get(", combined)
+
+
+class AdminPortalOrmDisciplineTest(SimpleTestCase):
+    """
+    Module 19: apps/admin_portal/views.py follows the same thin-controller
+    rule as apps/api/views/*.py (ADR-007) — every view calls exactly one
+    apps.reporting service method (or the reused health-check helpers) and
+    renders a template. No ORM access of any kind is expected here (unlike
+    apps.api, no view needs to resolve a request-body ID into an object),
+    so this check is stricter: any ORM call at all is a violation.
+    """
+
+    def test_no_orm_calls_in_admin_portal_views(self):
+        views_file = APPS_DIR / "admin_portal" / "views.py"
+        self.assertTrue(views_file.is_file(), f"expected {views_file} to exist")
+
+        source = _read(views_file)
+        violations = [pattern for pattern in THIN_CONTROLLER_FORBIDDEN_ORM_PATTERNS if re.search(pattern, source)]
+        if re.search(r"\.objects\.\w+\(", source):
+            violations.append(".objects. call found — admin_portal views should call services only")
+
+        self.assertEqual(violations, [], f"Forbidden ORM usage found in apps/admin_portal/views.py: {violations}")
 
 
 class NoReverseApiImportTest(SimpleTestCase):

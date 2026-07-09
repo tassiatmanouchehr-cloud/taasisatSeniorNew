@@ -1,0 +1,18 @@
+{% extends "admin_portal/base.html" %}
+
+{% block portal_title %}خلاصه مالی{% endblock %}
+{% block page_title %}خلاصه مالی{% endblock %}
+{% block page_description %}
+<p class="mt-1 text-sm text-text-muted">خلاصه فاکتور، پرداخت و کیف پول برای مستأجر جاری — فقط خواندنی.</p>
+{% endblock %}
+
+{% block admin_content %}
+<div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+  {% include "ui/components/data/stat_card.html" with label="فاکتورهای صادرشده" value=summary.invoices_issued_count %}
+  {% include "ui/components/data/stat_card.html" with label="جمع مبلغ فاکتورها" value=summary.invoices_issued_total %}
+  {% include "ui/components/data/stat_card.html" with label="پرداخت‌های موفق" value=summary.payments_succeeded_count %}
+  {% include "ui/components/data/stat_card.html" with label="جمع مبلغ پرداخت‌ها" value=summary.payments_succeeded_total %}
+  {% include "ui/components/data/stat_card.html" with label="موجودی کل کیف پول" value=summary.wallet_total_balance %}
+  {% include "ui/components/data/stat_card.html" with label="تعداد تراکنش‌های کیف پول" value=summary.wallet_transaction_count %}
+</div>
+{% endblock %}

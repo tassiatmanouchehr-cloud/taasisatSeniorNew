@@ -1,0 +1,32 @@
+{% extends "admin_portal/base.html" %}
+
+{% block portal_title %}خانه{% endblock %}
+{% block page_title %}پنل مدیریت{% endblock %}
+{% block page_description %}
+<p class="mt-1 text-sm text-text-muted">نمای کلی عملیاتی سالمندیار — فقط خواندنی.</p>
+{% endblock %}
+
+{% block admin_content %}
+<div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+  <a href="{% url 'admin_portal:tenant-overview' %}" class="block bg-surface border border-border rounded-lg p-5 no-underline transition-colors hover:border-primary">
+    <h2 class="text-base font-bold text-text">نمای کلی مستأجر</h2>
+    <p class="mt-1 text-sm text-text-muted">آمار ارائه‌دهندگان، سازمان‌ها و مشتریان.</p>
+  </a>
+  <a href="{% url 'admin_portal:supplier-overview' %}" class="block bg-surface border border-border rounded-lg p-5 no-underline transition-colors hover:border-primary">
+    <h2 class="text-base font-bold text-text">ارائه‌دهندگان خدمت</h2>
+    <p class="mt-1 text-sm text-text-muted">عملکرد و اعتبار هر ارائه‌دهنده.</p>
+  </a>
+  <a href="{% url 'admin_portal:order-overview' %}" class="block bg-surface border border-border rounded-lg p-5 no-underline transition-colors hover:border-primary">
+    <h2 class="text-base font-bold text-text">سفارش‌ها</h2>
+    <p class="mt-1 text-sm text-text-muted">وضعیت و تعداد سفارش‌ها.</p>
+  </a>
+  <a href="{% url 'admin_portal:finance-overview' %}" class="block bg-surface border border-border rounded-lg p-5 no-underline transition-colors hover:border-primary">
+    <h2 class="text-base font-bold text-text">خلاصه مالی</h2>
+    <p class="mt-1 text-sm text-text-muted">فاکتورها، پرداخت‌ها و کیف پول.</p>
+  </a>
+  <a href="{% url 'admin_portal:system-status' %}" class="block bg-surface border border-border rounded-lg p-5 no-underline transition-colors hover:border-primary">
+    <h2 class="text-base font-bold text-text">وضعیت سیستم</h2>
+    <p class="mt-1 text-sm text-text-muted">اتصال پایگاه‌داده و حافظه پنهان.</p>
+  </a>
+</div>
+{% endblock %}
