@@ -24,7 +24,7 @@ Verification** rather than assumed.
 | Default Branch | `main` |
 | Current `main` HEAD | `25b5f8ec3dab673beaa4ff954c577c6338d4764f` |
 | Current Test Count | **965 passing**, 0 failing (`python manage.py test`, run against this HEAD) |
-| Python Version | Installed/running: **3.11.15**. Declared requirement (`pyproject.toml`): `>=3.12`. CI (`.github/workflows/ci.yml`) pins `python-version: "3.12"`. **Needs Verification**: the local development/execution environment (3.11.15) does not match the declared minimum (3.12) — confirm whether this is intentional environment drift or a `pyproject.toml` that needs updating. |
+| Python Version | **3.12** is the project's canonical version — declared in `pyproject.toml` (`requires-python = ">=3.12"`), pinned in CI (`.github/workflows/ci.yml`, `python-version: "3.12"`), and pinned in `src/docker/Dockerfile.dev` (`FROM python:3.12-slim`). Three independent sources agree. The one execution environment that disagrees is this specific sandboxed session, which runs **3.11.15** — a fact about this session's container, not about the repository's declared target. Not flagged as uncertain: the repository is internally consistent on 3.12; only this particular runtime differs from it. |
 | Django Version | Installed: **5.2.16**. Declared requirement (`requirements/base.txt`): `django>=5.1,<5.3`. Consistent. |
 | Database | **PostgreSQL 16**, optionally with **PostGIS** (`GIS_ENABLED` env var switches `django.db.backends.postgresql` ↔ `django.contrib.gis.db.backends.postgis`; CI uses the `postgis/postgis:16-3.4` image with `GIS_ENABLED=true`). SQLite is supported as a settings-level fallback (`DATABASE_ENGINE=sqlite`) but is not the platform's real target and is not exercised by CI. |
 | Architecture Style | **Modular monolith** — a single Django project (`config/`) composed of 21 apps under `src/apps/`, each owning its own models/services/tests, communicating through service-layer calls and two deliberately separate event systems (see [Domain Events](#domain-events) below), not through network calls. No microservices, no separate deployable units. |
@@ -114,7 +114,7 @@ Filtering)** shipped under the branch name `module-12-search-discovery`.
 | `test` | `python manage.py check` → `migrate` → `test --verbosity=2`, against a real `postgis/postgis:16` + `redis:7` service pair |
 | `visual-regression` | Playwright accessibility/visual-snapshot tests against a running dev server, gated on `tailwind` + `test` passing |
 
-**Needs Verification**: this document is written from repository inspection, not from live GitHub Actions run history — whether the most recent CI run on `main` is green is not independently confirmed here. Locally, against this exact HEAD, `python manage.py check` reports 0 issues and `python manage.py test` reports **965 passed, 0 failed**.
+**Verified directly against the GitHub Actions API**: this workflow has **never actually run** — `GET /repos/tassiatmanouchehr-cloud/taasisatSenior/actions/workflows` returns zero registered workflows and zero runs. `ci.yml` is a real, complete, checked-in pipeline definition that GitHub has not yet executed even once (most likely because Actions has never been enabled/triggered for this repository, not because of a failure). There is therefore no CI pass/fail history to report — "green" or "red" does not yet apply. What *is* independently confirmed, locally, against this exact HEAD: `python manage.py check` reports 0 issues and `python manage.py test` reports **965 passed, 0 failed**.
 
 ### Known, harmless migration-check quirk
 

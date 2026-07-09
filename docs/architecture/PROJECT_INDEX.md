@@ -1,5 +1,8 @@
 # Project Index
 
+Status: current as of the Repository Documentation & Project Governance
+sprint, `main` @ `25b5f8ec3dab673beaa4ff954c577c6338d4764f`.
+
 **Start here.** This is the entry point to this repository's
 documentation — everything a new developer needs to understand where the
 project stands, without reading old chats, old PRs, or prior

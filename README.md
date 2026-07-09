@@ -1,4 +1,4 @@
-# سالمندیار — Enterprise Service Marketplace Platform
+# سالمندیار (Salmandyar, "Elder Companion") — Enterprise Service Marketplace Platform
 
 A multi-tenant Django platform for a senior-care service marketplace.
 Customers request in-home care services; independent providers and

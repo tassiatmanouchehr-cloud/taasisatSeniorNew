@@ -9,9 +9,12 @@ actually been built in `src/apps/`.
 **Every row was verified by reading source code, tests, and ADRs — not
 inferred from a PR title.** "Current Test Coverage" counts test *files*
 under each app's `tests/` directory (a rough proxy for depth, not a
-percentage — this repository does not run coverage.py in CI today, so a
-true line/branch coverage percentage is **Needs Verification**). Status
-definitions:
+percentage). A true line/branch coverage percentage cannot be stated here:
+confirmed by inspecting `.github/workflows/ci.yml` and
+`requirements/*.txt` that no coverage tool (`coverage.py`, `pytest-cov`,
+or similar) is installed or run anywhere in this repository today — the
+absence of that number is a verified fact about current tooling, not an
+open question. Status definitions:
 
 - **Completed** — matches its Blueprint scope in full. *(No module in
   this repository currently qualifies — see the note at the bottom.)*
