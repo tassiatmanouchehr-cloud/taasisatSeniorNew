@@ -1,0 +1,26 @@
+{# Shared nav-link list — included by both the desktop sidebar_nav block and the
+   mobile_sidebar_nav block in base.html. #}
+<a href="{% url 'portal:dashboard' %}"
+   class="flex items-center gap-inline-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+          {% if request.resolver_match.url_name == 'dashboard' %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text-muted hover:bg-background-alt hover:text-text{% endif %}">
+  داشبورد
+</a>
+<a href="{% url 'portal:requests' %}"
+   class="flex items-center gap-inline-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+          {% if request.resolver_match.url_name == 'requests' or request.resolver_match.url_name == 'request-detail' %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text-muted hover:bg-background-alt hover:text-text{% endif %}">
+  درخواست‌های من
+</a>
+<a href="{% url 'portal:care-recipients' %}"
+   class="flex items-center gap-inline-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+          {% if 'care-recipient' in request.resolver_match.url_name %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text-muted hover:bg-background-alt hover:text-text{% endif %}">
+  گیرندگان خدمت
+</a>
+<a href="{% url 'portal:notifications' %}"
+   class="flex items-center gap-inline-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+          {% if request.resolver_match.url_name == 'notifications' %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text-muted hover:bg-background-alt hover:text-text{% endif %}">
+  اعلان‌ها
+</a>
+<a href="{% url 'portal:request-wizard-care-recipient' %}"
+   class="flex items-center gap-inline-3 px-3 py-2 rounded-lg text-sm font-bold text-primary hover:bg-primary-50 dark:hover:bg-primary-950">
+  + درخواست جدید
+</a>

@@ -1,0 +1,14 @@
+{# Shared step indicator for the 6-step service request wizard. #}
+<ol class="flex flex-wrap items-center gap-2 mb-6 text-xs font-medium text-text-muted">
+  <li class="{% if step == 1 %}text-primary font-bold{% endif %}">۱. گیرنده خدمت</li>
+  <li>›</li>
+  <li class="{% if step == 2 %}text-primary font-bold{% endif %}">۲. نوع خدمت</li>
+  <li>›</li>
+  <li class="{% if step == 3 %}text-primary font-bold{% endif %}">۳. زمان‌بندی</li>
+  <li>›</li>
+  <li class="{% if step == 4 %}text-primary font-bold{% endif %}">۴. آدرس</li>
+  <li>›</li>
+  <li class="{% if step == 5 %}text-primary font-bold{% endif %}">۵. توضیحات</li>
+  <li>›</li>
+  <li class="{% if step == 6 %}text-primary font-bold{% endif %}">۶. بازبینی و ثبت</li>
+</ol>

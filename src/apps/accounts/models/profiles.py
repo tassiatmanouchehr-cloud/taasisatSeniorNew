@@ -46,6 +46,29 @@ class MobilityLevel(models.TextChoices):
     UNKNOWN = "unknown", "Unknown"
 
 
+class CareRecipientRelationship(models.TextChoices):
+    """Relationship of the requesting customer to the care recipient — the
+    enumerated vocabulary named in ADR-008 (Customer Experience Phase 1)."""
+
+    SELF = "self", "Self"
+    FATHER = "father", "Father"
+    MOTHER = "mother", "Mother"
+    SPOUSE = "spouse", "Spouse"
+    CHILD = "child", "Child"
+    SIBLING = "sibling", "Sibling"
+    GRANDPARENT = "grandparent", "Grandparent"
+    RELATIVE = "relative", "Relative"
+    FRIEND = "friend", "Friend"
+    LEGAL_GUARDIAN = "legal_guardian", "Legal Guardian"
+    OTHER = "other", "Other"
+
+
+class CaregiverGenderPreference(models.TextChoices):
+    NO_PREFERENCE = "no_preference", "No Preference"
+    MALE = "male", "Male"
+    FEMALE = "female", "Female"
+
+
 class TrustedContactAccessLevel(models.TextChoices):
     NOTIFY_ONLY = "notify_only", "Notify Only"
     LIMITED_VIEW = "limited_view", "Limited View"
@@ -117,7 +140,14 @@ class CustomerProfile(models.Model):
 
 
 # ============================================================
-# ElderProfile
+# ElderProfile — the reusable "Care Recipient" (Customer Experience
+# Phase 1 / ADR-008). ADR-008 named a future, reusable CareRecipient
+# entity reachable from CustomerProfile and deliberately left
+# reconciling it with this pre-existing ElderProfile model to "the
+# future CareRecipient module" — this is that module. The model keeps
+# its original name (Order and CustomerProfile already reference it,
+# and existing migrations/tests depend on the name); the product-facing
+# vocabulary in the customer portal calls it "Care Recipient" throughout.
 # ============================================================
 
 class ElderProfile(models.Model):
@@ -129,13 +159,27 @@ class ElderProfile(models.Model):
     gender = models.CharField(max_length=20, blank=True)
     birth_date = models.DateField(null=True, blank=True)
     approximate_age = models.IntegerField(null=True, blank=True)
+    relationship = models.CharField(
+        max_length=20, choices=CareRecipientRelationship.choices, blank=True,
+        help_text="The requesting customer's relationship to this care recipient.",
+    )
+    phone = models.CharField(max_length=20, blank=True)
     city = models.CharField(max_length=100, blank=True)
     address = models.TextField(blank=True)
     care_needs = models.TextField(blank=True)
     medical_notes = models.TextField(blank=True)
+    disabilities = models.TextField(blank=True)
+    allergies = models.TextField(blank=True)
     mobility_level = models.CharField(
         max_length=30, choices=MobilityLevel.choices, default=MobilityLevel.UNKNOWN,
     )
+    preferred_caregiver_gender = models.CharField(
+        max_length=20, choices=CaregiverGenderPreference.choices, default=CaregiverGenderPreference.NO_PREFERENCE,
+    )
+    preferred_language = models.CharField(max_length=50, blank=True)
+    communication_notes = models.TextField(blank=True)
+    emergency_contact_name = models.CharField(max_length=255, blank=True)
+    emergency_contact_phone = models.CharField(max_length=20, blank=True)
     emergency_notes = models.TextField(blank=True)
     is_primary = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=ProfileStatus.choices, default=ProfileStatus.ACTIVE)

@@ -1,7 +1,8 @@
 # Project State
 
-Status: current as of the Repository Documentation & Project Governance sprint,
-`main` @ `25b5f8ec3dab673beaa4ff954c577c6338d4764f`. This document is the
+Status: current as of the Customer Experience Phase 1 sprint (branch
+`claude/customer-experience-phase1`), based on `main` @
+`ad415cb59dc9d114c1f1c5bbe9d810a2c292497f` (PR #20's merge commit). This document is the
 **single source of truth** for "where the project stands." It supersedes any
 verbal summary given in chat, a PR description, or a prior conversation —
 if this file and a conversation disagree, this file is right (or needs
@@ -22,14 +23,14 @@ Verification** rather than assumed.
 |---|---|
 | Repository URL | `github.com/tassiatmanouchehr-cloud/taasisatSenior` |
 | Default Branch | `main` |
-| Current `main` HEAD | `25b5f8ec3dab673beaa4ff954c577c6338d4764f` |
-| Current Test Count | **965 passing**, 0 failing (`python manage.py test`, run against this HEAD) |
+| Current `main` HEAD | `ad415cb59dc9d114c1f1c5bbe9d810a2c292497f` (PR #20's merge commit) — this branch (`claude/customer-experience-phase1`) is based on it and not yet merged |
+| Current Test Count | **1024 passing**, 0 failing (`python manage.py test`, run on this branch — includes 59 new tests from the Customer Experience Phase 1 sprint: 14 for `CareRecipientService`, 19 for `OrderShareLink`/`OrderShareLinkService` (incl. event-publishing/audit and race-condition coverage from the post-review architecture remediation), 25 for `apps.portal` views, and 1 `PortalOrmDisciplineTest` architecture guardrail in `apps.kernel.tests.test_architecture_guardrails`) |
 | Python Version | **3.12** is the project's canonical version — declared in `pyproject.toml` (`requires-python = ">=3.12"`), pinned in CI (`.github/workflows/ci.yml`, `python-version: "3.12"`), and pinned in `src/docker/Dockerfile.dev` (`FROM python:3.12-slim`). Three independent sources agree. The one execution environment that disagrees is this specific sandboxed session, which runs **3.11.15** — a fact about this session's container, not about the repository's declared target. Not flagged as uncertain: the repository is internally consistent on 3.12; only this particular runtime differs from it. |
 | Django Version | Installed: **5.2.16**. Declared requirement (`requirements/base.txt`): `django>=5.1,<5.3`. Consistent. |
 | Database | **PostgreSQL 16**, optionally with **PostGIS** (`GIS_ENABLED` env var switches `django.db.backends.postgresql` ↔ `django.contrib.gis.db.backends.postgis`; CI uses the `postgis/postgis:16-3.4` image with `GIS_ENABLED=true`). SQLite is supported as a settings-level fallback (`DATABASE_ENGINE=sqlite`) but is not the platform's real target and is not exercised by CI. |
-| Architecture Style | **Modular monolith** — a single Django project (`config/`) composed of 21 apps under `src/apps/`, each owning its own models/services/tests, communicating through service-layer calls and two deliberately separate event systems (see [Domain Events](#domain-events) below), not through network calls. No microservices, no separate deployable units. |
+| Architecture Style | **Modular monolith** — a single Django project (`config/`) composed of 22 apps under `src/apps/`, each owning its own models/services/tests, communicating through service-layer calls and two deliberately separate event systems (see [Domain Events](#domain-events) below), not through network calls. No microservices, no separate deployable units. |
 | Current Development Phase | **Foundation phase, largely complete → transitioning to Product Experience phase.** See [Current Development Phase](#current-development-phase) below. |
-| Current Project Status | Active development. 19 merged pull requests on `main`. No open incidents or known production deployment (no evidence of a live/production environment in this repository — infra config exists for one, but nothing indicates it is running). |
+| Current Project Status | Active development. 20 merged pull requests on `main`; this sprint's PR and one documentation-maintenance PR (#21) are open, not yet merged. No open incidents or known production deployment (no evidence of a live/production environment in this repository — infra config exists for one, but nothing indicates it is running). |
 | Current Branching Strategy | Trunk-based: every unit of work branches from `main` (branch naming has drifted over time — see [Repository Structure](#repository-structure) → *A note on module numbering*), is reviewed as a pull request, and merges back to `main`. No long-lived release branches exist. `.github/workflows/ci.yml` also recognizes `phase-*/**` branches as a push trigger, though none currently exist. |
 | Repository Structure | See [below](#repository-structure). |
 | Current CI/Test Status | See [below](#current-ci--test-status). |
@@ -53,7 +54,7 @@ taasisatSenior/
 │   ├── adr/                                   # ADR-002 .. ADR-008 — decisions made *during* build
 │   └── architecture/                          # living reference docs + this file
 └── src/                                        # the actual Django project
-    ├── apps/                                    # 21 apps — see table below
+    ├── apps/                                    # 22 apps — see table below
     ├── config/                                   # settings, urls, celery, wsgi
     ├── templates/, static/, ui/                   # server-rendered UI (Django + HTMX + Alpine + Tailwind)
     ├── tests/visual/                               # Playwright visual/accessibility tests
@@ -62,7 +63,7 @@ taasisatSenior/
     └── .github/workflows/ci.yml                       # CI pipeline
 ```
 
-### The 21 apps, one line each
+### The 22 apps, one line each
 
 | App | Owns |
 |---|---|
@@ -84,6 +85,7 @@ taasisatSenior/
 | `reporting` | Read-only aggregation over other apps' data (owns no models) |
 | `api` | The `/api/v1/` DRF surface |
 | `admin_portal` | Server-rendered, read-only internal dashboards |
+| `portal` | Server-rendered customer dashboard, care recipient management, service request wizard, order timeline, share links, notification center |
 | `common` | Abstract base models (TimestampedModel, TenantAwareModel, SoftDeleteMixin) |
 | `public_site` | Static, server-rendered marketing pages |
 | `showcase` | Development-only UI component/design-system browser |
@@ -186,7 +188,10 @@ caregiver, organization admin, etc.) without duplicate accounts.
 `ensure_customer_profile()`/`ensure_caregiver_profile()` in
 `apps.accounts.services.profiles` attach a profile to an *existing*
 account idempotently. No `FamilyMemberProfile` or similar concept exists
-by design (ADR-008).
+by design (ADR-008). The care recipient a customer requests service *for*
+is separate, non-authenticating data — `ElderProfile`, extended in
+Customer Experience Phase 1 to serve as ADR-008's "Care Recipient" — never
+a `UserAccount`.
 
 ### Domain Events
 Two deliberately separate systems (see `event-architecture.md`):
@@ -322,8 +327,8 @@ Where a guardrail exists, it's named.
 | **`apps.wallet` is canonical** — the one and only active wallet bounded context; `apps.finance`'s wallet is legacy/frozen. | ADR-004; guardrail: `NoDuplicateWalletModelTest` |
 | **PaymentIntent boundary** — `apps.payments` never creates a `finance.PaymentTransaction`, `Wallet`/`WalletTransaction`, or `FinancialDocument` row. | ADR-005 |
 | **Multi-role accounts** — one `Person`/`UserAccount` may hold several profiles; never a duplicate account per role. | Convention (`ensure_*_profile()` helpers), documented in this file above |
-| **Future `CareRecipient`** — a reusable entity reachable from `CustomerProfile`, referenced by `Order`, never order-embedded. Not built yet. | ADR-008 |
-| **Future Order Share Link** — invitation-based, single-order, read-only visibility for a non-account third party. Not built yet. | ADR-008 |
+| **Care Recipient** — a reusable entity reachable from `CustomerProfile` (`ElderProfile`, extended in place — see `DECISION_HISTORY.md`), referenced by `Order`, never order-embedded. | ADR-008; `apps.accounts.services.care_recipients.CareRecipientService` |
+| **Order Share Link** — invitation-based, single-order, read-only visibility for a non-account third party; the resolving view never authenticates and never resolves a `CustomerProfile`. | ADR-008; `apps.orders.services.share_links.OrderShareLinkService` |
 | **ADR-first architecture** — any deviation from a frozen decision requires a new ADR with explicit approval, not an ad-hoc code change. | ADR-001.23 |
 | **Guardrail tests** — several of the rules above are checked by source-inspection tests in `apps/kernel/tests/test_architecture_guardrails.py`, run as part of the normal test suite (not a separate CI job). | CI `test` job |
 

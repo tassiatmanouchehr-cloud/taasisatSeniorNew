@@ -1,0 +1,84 @@
+{% extends "portal/base.html" %}
+
+{% block portal_title %}{{ order.order_number }}{% endblock %}
+{% block page_title %}{{ order.order_number }}{% endblock %}
+{% block page_description %}
+<p class="mt-1 text-sm text-text-muted">{{ order.service_category.name }} — {{ order.elder_profile.full_name }}</p>
+{% endblock %}
+
+{% block portal_content %}
+<div class="grid gap-4 grid-cols-1 lg:grid-cols-3">
+
+  <div class="lg:col-span-2 bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">روند درخواست</h2>
+    {% if timeline.cancelled %}
+    <p class="text-sm font-medium text-danger">این درخواست لغو شده است.</p>
+    {% endif %}
+    <ol class="space-y-3">
+      {% for step in timeline.steps %}
+      <li class="flex items-center gap-inline-3">
+        <span class="w-3 h-3 rounded-full {% if step.reached %}bg-primary{% else %}bg-border{% endif %}"></span>
+        <span class="text-sm {% if step.reached %}text-text font-medium{% else %}text-text-muted{% endif %}">{{ step.label }}</span>
+      </li>
+      {% endfor %}
+    </ol>
+
+    {% if timeline.history %}
+    <h3 class="text-sm font-bold text-text mt-6 mb-2">تاریخچه تغییر وضعیت</h3>
+    <ul class="space-y-1">
+      {% for h in timeline.history %}
+      <li class="text-xs text-text-muted">{{ h.created_at|date:"Y/m/d H:i" }} — {{ h.to_status }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">جزئیات</h2>
+    <dl class="space-y-2 text-sm">
+      <div class="flex justify-between"><dt class="text-text-muted">وضعیت</dt><dd class="text-text font-medium">{{ order.get_status_display }}</dd></div>
+      <div class="flex justify-between"><dt class="text-text-muted">شهر</dt><dd class="text-text font-medium">{{ order.city }}</dd></div>
+      <div class="flex justify-between"><dt class="text-text-muted">آدرس</dt><dd class="text-text font-medium">{{ order.address }}</dd></div>
+      <div class="flex justify-between"><dt class="text-text-muted">تماس</dt><dd class="text-text font-medium">{{ order.phone }}</dd></div>
+    </dl>
+    {% if order.description %}
+    <h3 class="text-sm font-bold text-text mt-4 mb-1">توضیحات</h3>
+    <p class="text-sm text-text-muted">{{ order.description }}</p>
+    {% endif %}
+  </div>
+
+  <div class="lg:col-span-3 bg-surface border border-border rounded-lg p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-bold text-text">اشتراک‌گذاری با خانواده</h2>
+      <form method="post" action="{% url 'portal:share-link-create' order_id=order.id %}">
+        {% csrf_token %}
+        <button type="submit" class="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-700">ایجاد لینک اشتراک</button>
+      </form>
+    </div>
+    {% if share_links %}
+    <ul class="divide-y divide-border">
+      {% for link in share_links %}
+      <li class="py-3 flex items-center justify-between gap-inline-3">
+        <div class="min-w-0">
+          <p class="text-xs font-mono text-text truncate" dir="ltr">{% url 'portal:shared-order' token=link.token as share_url %}{{ request.scheme }}://{{ request.get_host }}{{ share_url }}</p>
+          <p class="text-xs text-text-muted mt-0.5">
+            {% if link.revoked_at %}لغو شده{% elif link.is_valid %}معتبر تا {{ link.expires_at|date:"Y/m/d H:i" }}{% else %}منقضی شده{% endif %}
+            · {{ link.access_count }} بازدید
+          </p>
+        </div>
+        {% if not link.revoked_at %}
+        <form method="post" action="{% url 'portal:share-link-revoke' order_id=order.id link_id=link.id %}">
+          {% csrf_token %}
+          <button type="submit" class="text-sm font-medium text-danger hover:underline">لغو</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-text-muted">هنوز لینک اشتراکی ایجاد نکرده‌اید.</p>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

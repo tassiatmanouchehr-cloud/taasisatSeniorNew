@@ -1,0 +1,40 @@
+{% extends "portal/base.html" %}
+
+{% block portal_title %}درخواست جدید — بازبینی{% endblock %}
+{% block page_title %}بازبینی و ثبت نهایی{% endblock %}
+
+{% block portal_content %}
+{% include "portal/_wizard_steps.html" %}
+
+<div class="bg-surface border border-border rounded-lg p-6 max-w-2xl space-y-4">
+  <dl class="space-y-2 text-sm">
+    <div class="flex justify-between"><dt class="text-text-muted">گیرنده خدمت</dt><dd class="text-text font-medium">{{ care_recipient.full_name }}</dd></div>
+    <div class="flex justify-between"><dt class="text-text-muted">دسته خدمت</dt><dd class="text-text font-medium">{{ category.name }}</dd></div>
+    {% if service_type %}<div class="flex justify-between"><dt class="text-text-muted">نوع خدمت</dt><dd class="text-text font-medium">{{ service_type.name }}</dd></div>{% endif %}
+    {% if data.requested_date %}<div class="flex justify-between"><dt class="text-text-muted">تاریخ</dt><dd class="text-text font-medium">{{ data.requested_date }}</dd></div>{% endif %}
+    {% if data.requested_time_window %}<div class="flex justify-between"><dt class="text-text-muted">بازه زمانی</dt><dd class="text-text font-medium">{{ data.requested_time_window }}</dd></div>{% endif %}
+    <div class="flex justify-between"><dt class="text-text-muted">شهر</dt><dd class="text-text font-medium">{{ data.city }}</dd></div>
+    <div class="flex justify-between"><dt class="text-text-muted">آدرس</dt><dd class="text-text font-medium">{{ data.address }}</dd></div>
+    <div class="flex justify-between"><dt class="text-text-muted">تماس</dt><dd class="text-text font-medium">{{ data.phone }}</dd></div>
+  </dl>
+  {% if data.description %}
+  <div>
+    <h3 class="text-sm font-bold text-text mb-1">توضیحات</h3>
+    <p class="text-sm text-text-muted">{{ data.description }}</p>
+  </div>
+  {% endif %}
+  {% if quote %}
+  <div class="rounded-lg bg-primary-50 dark:bg-primary-950 p-4">
+    <p class="text-sm text-text-muted">برآورد هزینه</p>
+    <p class="text-xl font-bold text-text">{{ quote.total_amount }} {{ quote.currency }}</p>
+  </div>
+  {% else %}
+  <p class="text-xs text-text-muted">برآورد هزینه در حال حاضر در دسترس نیست — پس از بررسی توسط اپراتور اعلام می‌شود.</p>
+  {% endif %}
+
+  <form method="post" action="{% url 'portal:request-wizard-submit' %}">
+    {% csrf_token %}
+    <button type="submit" class="inline-flex items-center rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white hover:bg-primary-700">ثبت نهایی درخواست</button>
+  </form>
+</div>
+{% endblock %}

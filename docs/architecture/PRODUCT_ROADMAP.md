@@ -1,7 +1,8 @@
 # Product Roadmap
 
-Status: current as of the Repository Documentation & Project Governance
-sprint, `main` @ `25b5f8ec3dab673beaa4ff954c577c6338d4764f`.
+Status: current as of the Customer Experience Phase 1 sprint (branch
+`claude/customer-experience-phase1`), based on `main` @
+`ad415cb59dc9d114c1f1c5bbe9d810a2c292497f` (PR #20's merge commit).
 
 This roadmap is organized **by business value, not by Blueprint module
 number** — the order a customer, provider, or organization experiences
@@ -33,9 +34,15 @@ it existing first.
 - Customer Selection — let a customer actually choose among matched
   candidates (Matching currently has no accept step for the requester).
 - Real order-status notifications (SMS/email/push, not console logs).
-- `CareRecipient` + Order Share Link (already architecturally scoped in
-  ADR-008 — a customer manages care for father/mother/spouse without a
-  second account, and a sibling can follow one order without one either).
+- ~~`CareRecipient` + Order Share Link~~ — **done** (Customer Experience
+  Phase 1): a customer manages care for father/mother/spouse without a
+  second account (`ElderProfile`, extended per ADR-008), and a family
+  member can follow one order via a revocable, time-limited link without
+  one either (`OrderShareLink`). Also delivered in the same sprint: a
+  customer dashboard, care recipient CRUD, a service request wizard
+  reusing existing pricing/order/matching services, an order timeline
+  reusing `OrderStatusHistory`, and a notification center reusing
+  `apps.notifications` — all under the new `apps.portal` app.
 - Geo-aware search and proximity-based discovery.
 - Real payment methods at checkout, with a payment that actually resolves
   to a settled, wallet-reflected transaction.
@@ -165,8 +172,9 @@ suddenly rather than gradually.
 - Trust & Governance engine — `TrustCase`, disputes, appeals, fraud
   signals (currently zero code exists for any of this).
 - Fix the review reviewer-ownership integrity gap.
-- Consent records (already scoped under the future `CareRecipient`
-  model, ADR-008).
+- Consent records (the `CareRecipient` model itself now exists as
+  `ElderProfile`, per ADR-008/Customer Experience Phase 1; consent
+  records on top of it remain unbuilt).
 - Audit/observability depth sufficient to serve as regulatory evidence.
 
 **Modules involved**: 06 (Trust/Governance), 14 (Review/Reputation), 23

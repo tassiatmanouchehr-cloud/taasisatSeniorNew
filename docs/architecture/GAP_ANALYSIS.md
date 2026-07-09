@@ -1,7 +1,8 @@
 # Gap Analysis
 
-Status: current as of the Repository Documentation & Project Governance
-sprint, `main` @ `25b5f8ec3dab673beaa4ff954c577c6338d4764f`.
+Status: current as of the Customer Experience Phase 1 sprint (branch
+`claude/customer-experience-phase1`), based on `main` @
+`ad415cb59dc9d114c1f1c5bbe9d810a2c292497f` (PR #20's merge commit).
 
 ## Where exactly are we today?
 
@@ -178,17 +179,30 @@ adapter, not replace these in place):
   ever needed, should be introduced additively behind the existing
   `ReportingService` call sites.
 
-## Future placeholders
+## Future placeholders — resolved by Customer Experience Phase 1
 
-Explicitly scoped in ADR-008, not built in this sprint or any prior one:
+Both items ADR-008 scoped as future work are now implemented:
 
-- **`CareRecipient`** — a reusable entity reachable from `CustomerProfile`
-  (not `Order`-embedded), representing who a service is *for*, distinct
-  from who requested it. A customer may hold several over time (father,
-  mother, grandmother).
-- **Order Share Link** — invitation-based, single-order, read-only
-  visibility for a third party who is not a platform account holder.
-  Explicitly *not* a new account type or role.
+- **Care Recipient** — built by extending the pre-existing `ElderProfile`
+  model in place (`apps.accounts.models.profiles.ElderProfile`), rather
+  than introducing a duplicate model — reachable from `CustomerProfile`
+  via `customer_profile.elder_profiles`, referenced by `Order.elder_profile`
+  (an FK that already existed). `apps.accounts.services.care_recipients.CareRecipientService`
+  owns create/update/list/ownership-scoped-get. Product/UI vocabulary says
+  "Care Recipient"; the Django model class name stays `ElderProfile`.
+- **Order Share Link** — `apps.orders.models.OrderShareLink` +
+  `apps.orders.services.share_links.OrderShareLinkService`: an
+  unguessable token (`secrets.token_urlsafe(32)`), time-limited (14-day
+  default), revocable, read-only, scoped to exactly one order. The public
+  resolve view (`apps.portal.views.shared_order_view`) never authenticates
+  and never resolves a `CustomerProfile`, so it structurally cannot reach
+  wallet/payments/profile/notifications/other-orders/dashboard.
+
+Both ship as part of the new `apps.portal` app (Customer Experience Phase
+1) — a server-rendered customer dashboard, care recipient management,
+service request wizard, order timeline, and notification center — none of
+which is a numbered Blueprint module (mirrors `apps.admin_portal`'s
+cross-cutting, unnumbered status).
 
 ## Duplicated concepts
 
