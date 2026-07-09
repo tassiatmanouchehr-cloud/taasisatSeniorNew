@@ -23,6 +23,15 @@ ORDER_STARTED = "OrderStarted"
 ORDER_COMPLETED = "OrderCompleted"
 INVOICE_ISSUED = "InvoiceIssued"
 
+# Order Share Link events (Customer Experience Phase 1). No notification
+# handler is registered for these yet — publishing them still gets an
+# AuditLog row for free via publish()'s unconditional audit call, which is
+# the whole point: every share-link lifecycle transition is now audited
+# even before any handler exists.
+SHARE_LINK_CREATED = "ShareLinkCreated"
+SHARE_LINK_REVOKED = "ShareLinkRevoked"
+SHARE_LINK_ACCESSED = "ShareLinkAccessed"
+
 
 @dataclass(frozen=True)
 class DomainEvent:

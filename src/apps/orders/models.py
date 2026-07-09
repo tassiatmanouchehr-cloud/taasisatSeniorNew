@@ -6,6 +6,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.db.models import F
 from django.utils import timezone
 
 from apps.common.managers import TenantScopedManager
@@ -277,6 +278,10 @@ class OrderShareLink(models.Model):
         self.save(update_fields=["revoked_at"])
 
     def record_access(self):
-        self.access_count += 1
-        self.last_accessed_at = timezone.now()
-        self.save(update_fields=["access_count", "last_accessed_at"])
+        """Atomic, race-free increment — two concurrent accesses to the same
+        link (e.g. opened from two devices at once) never lose an update,
+        unlike a read-modify-write `self.access_count += 1`."""
+        type(self).objects.filter(pk=self.pk).update(
+            access_count=F("access_count") + 1, last_accessed_at=timezone.now(),
+        )
+        self.refresh_from_db(fields=["access_count", "last_accessed_at"])

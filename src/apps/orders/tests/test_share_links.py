@@ -61,6 +61,17 @@ class ResolveShareLinkTest(ShareLinkTestCase):
         self.assertEqual(link.access_count, 1)
         self.assertIsNotNone(link.last_accessed_at)
 
+    def test_repeated_resolves_increment_access_count_atomically(self):
+        """record_access() uses F("access_count") + 1 (a DB-level atomic
+        increment), not a Python read-modify-write — this covers the
+        sequential case; the point of F() is safety under concurrent access,
+        which a single-process unit test can't directly exercise."""
+        link = OrderShareLinkService.create(order=self.order)
+        for _ in range(3):
+            OrderShareLinkService.resolve(link.token)
+        link.refresh_from_db()
+        self.assertEqual(link.access_count, 3)
+
     def test_resolve_raises_for_unknown_token(self):
         with self.assertRaises(OrderShareLinkError):
             OrderShareLinkService.resolve("does-not-exist")
@@ -97,6 +108,57 @@ class RevokeShareLinkTest(ShareLinkTestCase):
         link = OrderShareLinkService.create(order=self.order)
         with self.assertRaises(OrderShareLinkError):
             OrderShareLinkService.revoke(order=other_order, link_id=link.id)
+
+
+class ShareLinkEventPublishingTest(ShareLinkTestCase):
+    """Customer Experience Phase 1 remediation: create/revoke/resolve each
+    publish a DomainEvent, which unconditionally writes an AuditLog row
+    (apps.kernel.events.publisher.publish) — verified end to end here
+    rather than assumed. transaction.on_commit() callbacks never fire
+    inside TestCase's default rollback-wrapped transaction, so each
+    assertion runs inside captureOnCommitCallbacks(execute=True)."""
+
+    def test_create_publishes_share_link_created_and_is_audited(self):
+        from apps.kernel.models.audit import AuditLog
+
+        with self.captureOnCommitCallbacks(execute=True):
+            link = OrderShareLinkService.create(order=self.order, created_by=self.user)
+
+        entry = AuditLog.objects.get(action="domain_event.ShareLinkCreated", resource_id=link.id)
+        self.assertEqual(entry.resource_type, "OrderShareLink")
+        self.assertEqual(entry.tenant_id, self.tenant.id)
+        self.assertEqual(entry.actor_id, self.user.person_id)
+
+    def test_create_without_created_by_has_no_actor(self):
+        from apps.kernel.models.audit import AuditLog
+
+        with self.captureOnCommitCallbacks(execute=True):
+            link = OrderShareLinkService.create(order=self.order)
+
+        entry = AuditLog.objects.get(action="domain_event.ShareLinkCreated", resource_id=link.id)
+        self.assertIsNone(entry.actor_id)
+
+    def test_resolve_publishes_share_link_accessed_and_is_audited(self):
+        from apps.kernel.models.audit import AuditLog
+
+        with self.captureOnCommitCallbacks(execute=True):
+            link = OrderShareLinkService.create(order=self.order)
+        with self.captureOnCommitCallbacks(execute=True):
+            OrderShareLinkService.resolve(link.token)
+
+        entry = AuditLog.objects.get(action="domain_event.ShareLinkAccessed", resource_id=link.id)
+        self.assertEqual(entry.resource_type, "OrderShareLink")
+
+    def test_revoke_publishes_share_link_revoked_and_is_audited(self):
+        from apps.kernel.models.audit import AuditLog
+
+        with self.captureOnCommitCallbacks(execute=True):
+            link = OrderShareLinkService.create(order=self.order)
+        with self.captureOnCommitCallbacks(execute=True):
+            OrderShareLinkService.revoke(order=self.order, link_id=link.id, revoked_by=self.user)
+
+        entry = AuditLog.objects.get(action="domain_event.ShareLinkRevoked", resource_id=link.id)
+        self.assertEqual(entry.actor_id, self.user.person_id)
 
 
 class ShareLinkModelTest(ShareLinkTestCase):

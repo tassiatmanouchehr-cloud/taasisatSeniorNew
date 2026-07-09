@@ -27,11 +27,15 @@ class AuthenticatedAccessTest(PortalTestCase):
             self.assertEqual(response.status_code, 200, path)
 
     def test_care_recipient_edit_denies_other_customers_recipient(self):
+        """404, not 403 — Customer Experience Phase 1 remediation: every
+        ownership-scoped resource lookup (care recipient, order, share
+        link) uses 404 consistently, so a customer can never distinguish
+        "not found" from "not yours" for another customer's data."""
         self.login_as_customer()
         self.client.logout()
         self.client.force_login(self.other_customer.user)
         response = self.client.get(f"/portal/care-recipients/{self.care_recipient.id}/edit/")
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 404)
 
     def test_request_detail_denies_other_customers_order(self):
         from apps.orders.services.order_creation import create_public_order

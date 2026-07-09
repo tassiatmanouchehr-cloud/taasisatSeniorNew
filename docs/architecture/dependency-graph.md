@@ -1,7 +1,12 @@
 # App Dependency Graph
 
-Status: current as of Module 18. Derived by grepping every `from apps.X`
-import across the codebase (production code, not tests) on 2026-07-09.
+Status: current as of Module 18, plus the `apps.portal` addition below
+(Customer Experience Phase 1 remediation — this diagram never mentioned
+`apps.portal` or `apps.admin_portal` at all before this update; only
+`portal`'s own new imports are added here, verified by the same
+regenerate command used everywhere else in this doc). Derived by
+grepping every `from apps.X` import across the codebase (production
+code, not tests) on 2026-07-09.
 Re-derive with:
 
 ```bash
@@ -26,13 +31,22 @@ kernel
                   availability, pricing, discovery, reviews
                         └── finance (→ execution, booking, orders)
                               └── wallet, payments (→ finance, wallet)
+                                    └── notifications (read by portal below;
+                                        also reached by kernel.events.handlers,
+                                        see the one deliberate exception below)
                                     └── reporting (→ everything above, read-only)
                                           └── api (→ everything, read + thin write)
+                                          └── portal (→ accounts, orders, finance,
+                                              notifications, pricing, wallet — read
+                                              + thin write, server-rendered UI)
 ```
 
 A **lower-numbered app never imports a higher-numbered one.** `api` is the
 apex: nothing imports `apps.api` except `config/urls.py`'s routing
-`include()` — verified by grep, zero matches elsewhere.
+`include()` — verified by grep, zero matches elsewhere. `apps.portal` sits
+alongside `api`/`reporting` at the same wide-read end of the graph — see
+below — but nothing imports `apps.portal` either, so it doesn't change
+anything upstream of it.
 
 ## The one deliberate exception
 
@@ -74,6 +88,41 @@ No other model imports exist in `apps/api/views/`. See `api-guidelines.md`
 for the rule this satisfies, and
 `apps/kernel/tests/test_architecture_guardrails.py` for the automated
 check that enforces it (Module 18).
+
+## `apps.portal` import shape
+
+Customer Experience Phase 1. Verified by grepping `apps/portal` for
+`from apps\.` (production code, not tests): `apps.accounts`,
+`apps.finance`, `apps.notifications`, `apps.orders`, `apps.pricing`,
+`apps.wallet`. Unlike `apps.api`, `apps/portal/views.py` imports **zero**
+models — every read and write goes through a `services` package call:
+
+| Domain | Service(s) called from `apps/portal/views.py` |
+|---|---|
+| `apps.accounts` | `CareRecipientService` (create/update/list/ownership-scoped `get_for_customer`) |
+| `apps.orders` | `OrderQueryService`, `CatalogQueryService`, `OrderTimelineService`, `OrderShareLinkService`, `create_public_order()` |
+| `apps.notifications` | `NotificationQueryService` |
+| `apps.finance` | `FinancialPartyService.resolve_party_for_customer()` |
+| `apps.wallet` | `WalletService.get_wallet_or_none()` |
+| `apps.pricing` | `QuoteService.generate_quote()` |
+
+`OrderQueryService`, `CatalogQueryService`, `OrderTimelineService`
+(`apps/orders/services/`) and `NotificationQueryService`
+(`apps/notifications/services/`) were added specifically so `apps.portal`
+would have a service to call instead of touching the ORM directly — an
+earlier review of this module found `apps/portal/views.py` calling
+`.objects.filter()`/`.count()`/`get_object_or_404(queryset, ...)` directly
+in nine view functions, the same anti-pattern `ApiViewOrmDisciplineTest`/
+`AdminPortalOrmDisciplineTest` exist to prevent elsewhere. `apps/portal/views.py`
+is now held to the same zero-ORM standard as `apps/admin_portal/views.py`
+by `PortalOrmDisciplineTest` (`apps/kernel/tests/test_architecture_guardrails.py`).
+
+`apps.notifications` itself was never given a position in the layering
+diagram above until this update (a pre-existing gap, not introduced by
+this addition) — it sits after `wallet`/`payments` in build order but is
+a low-coupling app (owns its own models, reached elsewhere only via the
+guarded `kernel.events.handlers` exception above); `apps.portal` reading
+from it does not change that.
 
 ## Verified clean
 

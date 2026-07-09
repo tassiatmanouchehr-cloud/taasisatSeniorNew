@@ -106,6 +106,32 @@ class AdminPortalOrmDisciplineTest(SimpleTestCase):
         self.assertEqual(violations, [], f"Forbidden ORM usage found in apps/admin_portal/views.py: {violations}")
 
 
+class PortalOrmDisciplineTest(SimpleTestCase):
+    """
+    Customer Experience Phase 1 (remediation): apps/portal/views.py follows
+    the same thin-controller rule as apps/admin_portal/views.py — every
+    view calls a service method (apps.accounts, apps.orders,
+    apps.notifications, apps.finance, apps.wallet, apps.pricing —
+    including the read/query services added specifically so this app
+    would have something to call instead of the ORM: OrderQueryService,
+    CatalogQueryService, OrderTimelineService, NotificationQueryService)
+    and renders a template. Like admin_portal, any ORM call at all here is
+    a violation — this is the guardrail an earlier review of this same
+    module found missing.
+    """
+
+    def test_no_orm_calls_in_portal_views(self):
+        views_file = APPS_DIR / "portal" / "views.py"
+        self.assertTrue(views_file.is_file(), f"expected {views_file} to exist")
+
+        source = _read(views_file)
+        violations = [pattern for pattern in THIN_CONTROLLER_FORBIDDEN_ORM_PATTERNS if re.search(pattern, source)]
+        if re.search(r"\.objects\.\w+\(", source):
+            violations.append(".objects. call found — portal views should call services only")
+
+        self.assertEqual(violations, [], f"Forbidden ORM usage found in apps/portal/views.py: {violations}")
+
+
 class NoReverseApiImportTest(SimpleTestCase):
     """
     docs/architecture/dependency-graph.md: apps.api sits at the top of the

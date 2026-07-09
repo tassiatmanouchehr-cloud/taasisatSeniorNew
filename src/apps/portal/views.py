@@ -2,24 +2,40 @@
 Customer portal views — Customer Experience Phase 1.
 
 Every view: authenticate -> resolve the caller's own CustomerProfile ->
-call exactly one existing service method -> render a template. Mirrors
-apps.admin_portal's thin-controller shape (Module 19) and reuses every
-domain service listed in the module's own architecture review — no
-business logic lives here.
+call service methods -> render a template. Mirrors apps.admin_portal's
+thin-controller shape (Module 19) and reuses every domain service listed
+in the module's own architecture review — no business logic, and no ORM
+access of any kind, lives here (enforced by
+apps.kernel.tests.test_architecture_guardrails.PortalOrmDisciplineTest,
+same as apps.admin_portal.views).
+
+Permission-failure convention (Customer Experience Phase 1 remediation):
+403 (PermissionDenied, raised inside .permissions) means "you are not a
+valid, authenticated customer at all" — no session, no tenant, no
+CustomerProfile. 404 (Http404) means "you are a valid customer, but this
+specific resource does not exist for you" — every ownership-scoped
+resource lookup (a care recipient, an order, a share link) uses this, so
+a customer can never distinguish "not found" from "not yours" for
+another customer's data.
 """
 
-from django.core.exceptions import PermissionDenied
-from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
+from django.http import Http404
+from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 
 from apps.accounts.services.care_recipients import CareRecipientService
 from apps.accounts.services.errors import AccountsError
 from apps.finance.services.party_service import FinancialPartyService
-from apps.notifications.models import Notification
-from apps.orders.models import CatalogStatus, Order, OrderStatus, ServiceCategory, ServiceType
+from apps.notifications.services.queries import NotificationQueryService
 from apps.orders.services.order_creation import OrderValidationError, create_public_order
+from apps.orders.services.queries import (
+    CatalogNotFoundError,
+    CatalogQueryService,
+    OrderNotFoundError,
+    OrderQueryService,
+)
 from apps.orders.services.share_links import OrderShareLinkError, OrderShareLinkService
+from apps.orders.services.timeline import OrderTimelineService
 from apps.pricing.services.errors import PricingError
 from apps.pricing.services.quote_service import QuoteService
 from apps.wallet.services.wallet_service import WalletService
@@ -58,22 +74,20 @@ def dashboard_view(request):
     Activity, Notifications, Quick Actions."""
     customer, tenant_id = _guard(request)
 
-    recent_orders = Order.objects.for_tenant(tenant_id).filter(
-        customer_profile=customer,
-    ).order_by("-created_at")[:RECENT_ORDERS_LIMIT]
-
+    recent_orders = OrderQueryService.list_recent_for_customer(
+        customer_profile=customer, tenant_id=tenant_id, limit=RECENT_ORDERS_LIMIT,
+    )
     care_recipients = CareRecipientService.list_for_customer(customer)
 
     party = FinancialPartyService.resolve_party_for_customer(customer)
     wallet = WalletService.get_wallet_or_none(party=party)
 
-    recent_notifications = Notification.objects.for_tenant(tenant_id).filter(
-        recipient=customer.person_id,
-    ).order_by("-created_at")[:RECENT_NOTIFICATIONS_LIMIT]
-
-    unread_notification_count = Notification.objects.for_tenant(tenant_id).filter(
-        recipient=customer.person_id, status="PENDING",
-    ).count()
+    recent_notifications = NotificationQueryService.list_recent_for_recipient(
+        tenant_id=tenant_id, recipient_id=customer.person_id, limit=RECENT_NOTIFICATIONS_LIMIT,
+    )
+    unread_notification_count = NotificationQueryService.count_unread_for_recipient(
+        tenant_id=tenant_id, recipient_id=customer.person_id,
+    )
 
     context = {
         "customer": customer,
@@ -125,7 +139,7 @@ def care_recipient_edit_view(request, care_recipient_id):
     try:
         care_recipient = CareRecipientService.get_for_customer(customer, care_recipient_id)
     except AccountsError:
-        raise PermissionDenied("Care recipient not found.")
+        raise Http404("Care recipient not found.")
 
     if request.method == "POST":
         form = CareRecipientForm(request.POST)
@@ -153,54 +167,22 @@ def care_recipient_edit_view(request, care_recipient_id):
 # My Requests + Order Timeline — Phase 5
 # ============================================================
 
-TIMELINE_STEPS = [
-    ("created", "ثبت درخواست"),
-    ("matching", "در حال یافتن ارائه‌دهنده"),
-    ("accepted", "تخصیص ارائه‌دهنده"),
-    ("scheduled", "زمان‌بندی شده"),
-    ("started", "شروع خدمت"),
-    ("completed", "پایان خدمت"),
-]
-
-
-def _timeline_for_order(order):
-    """Read-only presentation over OrderStatusHistory + existing Order state —
-    no new persisted state, no new status values. Maps the existing
-    OrderStatus machine onto the customer-facing timeline steps."""
-    history = list(order.status_history.order_by("created_at"))
-
-    reached = {"created"}
-    if order.status in (OrderStatus.NEW, OrderStatus.WAITING_SERVICE, OrderStatus.IN_PROGRESS, OrderStatus.COMPLETED):
-        reached.add("matching")
-    if order.assigned_supplier_id:
-        reached.add("accepted")
-    if order.scheduled_for or order.requested_date:
-        reached.add("scheduled")
-    if order.started_at:
-        reached.add("started")
-    if order.completed_at:
-        reached.add("completed")
-
-    cancelled = order.status == OrderStatus.CANCELLED
-    timeline = [
-        {"key": key, "label": label, "reached": key in reached}
-        for key, label in TIMELINE_STEPS
-    ]
-    return {"steps": timeline, "history": history, "cancelled": cancelled}
-
-
 @require_http_methods(["GET"])
 def requests_list_view(request):
     customer, tenant_id = _guard(request)
-    orders = Order.objects.for_tenant(tenant_id).filter(customer_profile=customer).order_by("-created_at")
+    orders = OrderQueryService.list_for_customer(customer_profile=customer, tenant_id=tenant_id)
     return render(request, "portal/requests_list.html", {"orders": orders})
 
 
 @require_http_methods(["GET"])
 def request_detail_view(request, order_id):
     customer, tenant_id = _guard(request)
-    order = get_object_or_404(Order.objects.for_tenant(tenant_id), id=order_id, customer_profile=customer)
-    timeline = _timeline_for_order(order)
+    try:
+        order = OrderQueryService.get_for_customer(customer_profile=customer, tenant_id=tenant_id, order_id=order_id)
+    except OrderNotFoundError:
+        raise Http404("Order not found.")
+
+    timeline = OrderTimelineService.build(order)
     share_links = OrderShareLinkService.list_for_order(order)
     return render(request, "portal/request_detail.html", {
         "order": order, "timeline": timeline, "share_links": share_links,
@@ -233,7 +215,9 @@ def wizard_care_recipient_view(request):
         form = WizardChooseCareRecipientForm(request.POST)
         if form.is_valid():
             care_recipient_id = str(form.cleaned_data["care_recipient_id"])
-            if not care_recipients.filter(id=care_recipient_id).exists():
+            try:
+                CareRecipientService.get_for_customer(customer, care_recipient_id)
+            except AccountsError:
                 form.add_error(None, "گیرنده خدمت انتخاب‌شده معتبر نیست.")
             else:
                 data = _wizard_data(request)
@@ -254,13 +238,15 @@ def wizard_service_view(request):
     if "care_recipient_id" not in _wizard_data(request):
         return redirect("portal:request-wizard-care-recipient")
 
-    categories = ServiceCategory.objects.for_tenant(tenant_id).filter(status=CatalogStatus.ACTIVE)
+    categories = CatalogQueryService.list_active_categories(tenant_id=tenant_id)
 
     if request.method == "POST":
         form = WizardChooseServiceForm(request.POST)
         if form.is_valid():
             category_id = str(form.cleaned_data["service_category_id"])
-            if not categories.filter(id=category_id).exists():
+            try:
+                CatalogQueryService.get_active_category(tenant_id=tenant_id, category_id=category_id)
+            except CatalogNotFoundError:
                 form.add_error(None, "دسته خدمت انتخاب‌شده معتبر نیست.")
             else:
                 data = _wizard_data(request)
@@ -272,13 +258,9 @@ def wizard_service_view(request):
     else:
         form = WizardChooseServiceForm()
 
-    types_by_category = {
-        str(c.id): [
-            {"id": str(t.id), "name": t.name}
-            for t in ServiceType.objects.for_tenant(tenant_id).filter(category=c, status=CatalogStatus.ACTIVE)
-        ]
-        for c in categories
-    }
+    types_by_category = CatalogQueryService.list_active_types_grouped_by_category(
+        tenant_id=tenant_id, categories=categories,
+    )
     return render(request, "portal/wizard_service.html", {
         "form": form, "categories": categories, "types_by_category": types_by_category, "step": 2,
     })
@@ -353,10 +335,14 @@ def wizard_review_view(request):
         return redirect("portal:request-wizard-notes")
 
     care_recipient = CareRecipientService.get_for_customer(customer, data["care_recipient_id"])
-    category = get_object_or_404(ServiceCategory.objects.for_tenant(tenant_id), id=data["service_category_id"])
+    try:
+        category = CatalogQueryService.get_category(tenant_id=tenant_id, category_id=data["service_category_id"])
+    except CatalogNotFoundError:
+        raise Http404("Service category not found.")
+
     service_type = None
     if data.get("service_type_id"):
-        service_type = ServiceType.objects.for_tenant(tenant_id).filter(id=data["service_type_id"]).first()
+        service_type = CatalogQueryService.get_type_or_none(tenant_id=tenant_id, type_id=data["service_type_id"])
 
     quote = None
     try:
@@ -409,7 +395,10 @@ def wizard_submit_view(request):
 @require_http_methods(["POST"])
 def share_link_create_view(request, order_id):
     customer, tenant_id = _guard(request)
-    order = get_object_or_404(Order.objects.for_tenant(tenant_id), id=order_id, customer_profile=customer)
+    try:
+        order = OrderQueryService.get_for_customer(customer_profile=customer, tenant_id=tenant_id, order_id=order_id)
+    except OrderNotFoundError:
+        raise Http404("Order not found.")
     OrderShareLinkService.create(order=order, created_by=request.user)
     return redirect("portal:request-detail", order_id=order.id)
 
@@ -417,9 +406,12 @@ def share_link_create_view(request, order_id):
 @require_http_methods(["POST"])
 def share_link_revoke_view(request, order_id, link_id):
     customer, tenant_id = _guard(request)
-    order = get_object_or_404(Order.objects.for_tenant(tenant_id), id=order_id, customer_profile=customer)
     try:
-        OrderShareLinkService.revoke(order=order, link_id=link_id)
+        order = OrderQueryService.get_for_customer(customer_profile=customer, tenant_id=tenant_id, order_id=order_id)
+    except OrderNotFoundError:
+        raise Http404("Order not found.")
+    try:
+        OrderShareLinkService.revoke(order=order, link_id=link_id, revoked_by=request.user)
     except OrderShareLinkError:
         pass  # Already gone/revoked — revoking is idempotent from the caller's perspective.
     return redirect("portal:request-detail", order_id=order.id)
@@ -440,7 +432,7 @@ def shared_order_view(request, token):
     except OrderShareLinkError as exc:
         return render(request, "portal/shared_order_invalid.html", {"error": str(exc)}, status=404)
 
-    timeline = _timeline_for_order(order)
+    timeline = OrderTimelineService.build(order)
     return render(request, "portal/shared_order.html", {"order": order, "timeline": timeline})
 
 
@@ -451,16 +443,13 @@ def shared_order_view(request, token):
 @require_http_methods(["GET"])
 def notifications_view(request):
     customer, tenant_id = _guard(request)
-    notifications = Notification.objects.for_tenant(tenant_id).filter(
-        recipient=customer.person_id,
-    ).order_by("-created_at")
 
     filter_param = request.GET.get("filter", "all")
-    if filter_param == "unread":
-        notifications = notifications.filter(status="PENDING")
-    elif filter_param == "read":
-        notifications = notifications.exclude(status="PENDING")
+    only = filter_param if filter_param in ("unread", "read") else None
+    notifications = NotificationQueryService.list_for_recipient(
+        tenant_id=tenant_id, recipient_id=customer.person_id, only=only,
+    )
 
     return render(request, "portal/notifications.html", {
-        "notifications": notifications, "filter": filter_param, "now": timezone.now(),
+        "notifications": notifications, "filter": filter_param,
     })
