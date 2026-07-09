@@ -31,6 +31,25 @@ is the one sanctioned translator from `ServiceSupplier` back to a concrete
 profile, used only where the concrete type is genuinely needed (e.g. a
 `city` field for Discovery's location filter).
 
+Multi-role identity (Module 21A): one `Person`/`UserAccount` may hold
+several profiles at once (e.g. a caregiver who also books care for their
+own parent as a customer) — `ensure_customer_profile()`/
+`ensure_caregiver_profile()` in `apps.accounts.services.profiles` attach a
+profile to an *existing* account idempotently, never creating a second
+`Person` or `UserAccount`. There is deliberately **no**
+`FamilyMemberProfile` or other "family member" account type — see
+`docs/adr/ADR-008_DEMAND_SIDE_DOMAIN_MODEL.md`. The demand side has
+exactly one requester role; who a service is *for* is future data
+(`CareRecipient`), not a second account.
+
+Future (not built yet — see the same ADR): `CareRecipient` as a reusable
+entity reachable from `CustomerProfile` (a customer may hold several —
+father, mother, grandmother — reused across many orders over time, with
+its own demographics/medical notes/addresses/emergency contacts/
+preferences/consent records/order history), and a third party following
+an order will eventually use a read-only, single-order, invitation-based
+Order Share Link rather than an account of any kind.
+
 ## orders
 
 Owns: `Order` (and its status machine — the only code allowed to mutate
@@ -39,6 +58,13 @@ Owns: `Order` (and its status machine — the only code allowed to mutate
 
 Does not own: assignment (that's `booking`), execution (`execution`),
 pricing (`pricing`).
+
+Future (not built yet — see `docs/adr/ADR-008_DEMAND_SIDE_DOMAIN_MODEL.md`):
+`Order.care_recipient` (FK to the reusable `CareRecipient` owned by
+`accounts`, not by `orders`) and `Order.relationship_to_recipient`,
+distinguishing the requesting customer from who the service is for; and a
+read-only Order Share Link for a non-account third party to follow one
+specific order.
 
 ## matching
 

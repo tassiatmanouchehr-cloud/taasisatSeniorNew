@@ -5,10 +5,57 @@ All kernel models are registered here for administrative access.
 Admin is available at /admin/ for platform staff.
 """
 
+from django import forms
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.forms import ReadOnlyPasswordHashField
 
 from .models import Permission, Person, Role, RoleAssignment, Tenant, UserAccount
+
+
+class UserAccountCreationForm(forms.ModelForm):
+    """Add-user form bound to UserAccount. Django's built-in UserCreationForm
+    has Meta.model hardcoded to auth.User (not get_user_model()), which
+    breaks entirely for a swapped AUTH_USER_MODEL — this replaces it."""
+
+    password1 = forms.CharField(label="Password", widget=forms.PasswordInput)
+    password2 = forms.CharField(label="Password confirmation", widget=forms.PasswordInput)
+
+    class Meta:
+        model = UserAccount
+        fields = ("email", "phone", "person", "tenant", "is_staff")
+
+    def clean_password2(self):
+        password1 = self.cleaned_data.get("password1")
+        password2 = self.cleaned_data.get("password2")
+        if password1 and password2 and password1 != password2:
+            raise forms.ValidationError("Passwords don't match.")
+        return password2
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data["password1"])
+        if commit:
+            user.save()
+        return user
+
+
+class UserAccountChangeForm(forms.ModelForm):
+    """Change-user form bound to UserAccount, mirroring Django's UserChangeForm
+    (read-only password hash display) but pointed at the right model."""
+
+    password = ReadOnlyPasswordHashField(
+        label="Password",
+        help_text="Raw passwords are not stored, so there is no way to see this "
+        'user\'s password, but you can change the password using <a href="../password/">this form</a>.',
+    )
+
+    class Meta:
+        model = UserAccount
+        fields = "__all__"
+
+    def clean_password(self):
+        return self.initial.get("password")
 
 
 @admin.register(Tenant)
@@ -29,6 +76,8 @@ class PersonAdmin(admin.ModelAdmin):
 
 @admin.register(UserAccount)
 class UserAccountAdmin(BaseUserAdmin):
+    form = UserAccountChangeForm
+    add_form = UserAccountCreationForm
     list_display = ["email", "phone", "person", "tenant", "is_active", "is_staff", "date_joined"]
     list_filter = ["is_active", "is_staff", "is_superuser", "tenant"]
     search_fields = ["email", "phone"]

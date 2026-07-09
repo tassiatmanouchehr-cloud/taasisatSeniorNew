@@ -16,8 +16,21 @@ Usage:
 
 from django.core.management.base import BaseCommand
 
-from apps.kernel.models import Person, Role, Tenant, TenantStatus, UserAccount
+from apps.kernel.models import Person, Role, RoleAssignment, Tenant, TenantStatus, UserAccount
 
+# Admin portal permission keys (apps.admin_portal.permission_keys) — kept as
+# raw strings here rather than importing that app: Role.permissions is a
+# freeform JSON string list with no registry, and apps.kernel must not
+# import a higher-layer app. Granted to platform-owner so the seeded dev
+# admin can actually use /admin-portal/, not just /admin/.
+ADMIN_PORTAL_PERMISSIONS = [
+    "admin.portal.access",
+    "admin.tenants.read",
+    "admin.suppliers.read",
+    "admin.orders.read",
+    "admin.finance.read",
+    "admin.system.read",
+]
 
 # Default system roles per the Correction Package (Canonical Actor Glossary)
 DEFAULT_ROLES = [
@@ -89,8 +102,9 @@ class Command(BaseCommand):
 
         # 2. Create default roles
         roles_created = 0
+        platform_owner_role = None
         for role_data in DEFAULT_ROLES:
-            _, role_created = Role.objects.get_or_create(
+            role, role_created = Role.objects.get_or_create(
                 tenant=tenant,
                 slug=role_data["slug"],
                 defaults={
@@ -101,7 +115,18 @@ class Command(BaseCommand):
             )
             if role_created:
                 roles_created += 1
+            if role_data["slug"] == "platform-owner":
+                platform_owner_role = role
         self.stdout.write(self.style.SUCCESS(f"Roles: {roles_created} created, {len(DEFAULT_ROLES) - roles_created} already existed"))
+
+        # Ensure platform-owner carries admin-portal access, in seed logic
+        # (not manually in shell) — a role's permissions list is additive,
+        # so this is safe to re-run even if a tenant customized it later.
+        missing_permissions = [p for p in ADMIN_PORTAL_PERMISSIONS if p not in platform_owner_role.permissions]
+        if missing_permissions:
+            platform_owner_role.permissions = [*platform_owner_role.permissions, *missing_permissions]
+            platform_owner_role.save(update_fields=["permissions", "updated_at", "version"])
+            self.stdout.write(self.style.SUCCESS(f"Granted admin-portal permissions to platform-owner: {missing_permissions}"))
 
         # 3. Create Person + superuser
         person, person_created = Person.objects.get_or_create(
@@ -127,6 +152,15 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"Created superuser: {admin_email}"))
         else:
             self.stdout.write(f"Superuser already exists: {admin_email}")
+
+        # 4. Assign platform-owner to the seeded admin so /admin-portal/ works too
+        # (is_superuser alone grants nothing under PermissionService — RBAC is fail-closed).
+        _, assignment_created = RoleAssignment.objects.get_or_create(
+            tenant=tenant, user=user, role=platform_owner_role,
+            defaults={"scope_type": "platform"},
+        )
+        if assignment_created:
+            self.stdout.write(self.style.SUCCESS(f"Assigned platform-owner role to {admin_email}"))
 
         self.stdout.write(self.style.SUCCESS("\nSeed complete. You can now log into /admin/ with:"))
         self.stdout.write(f"  Email: {admin_email}")
