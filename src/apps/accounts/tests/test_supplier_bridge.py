@@ -107,3 +107,104 @@ class SupplierBridgeTest(TestCase):
 
         source = inspect.getsource(supplier_bridge)
         self.assertNotIn("ServiceSupplier.objects", source)
+
+
+class OrganizationProviderActivationTest(TestCase):
+    """Epic 04 Sprint 3 (Provider Affiliation Activation)."""
+
+    def setUp(self):
+        self.tenant = TenantService.get_default_tenant()
+        self.person = Person.objects.create(tenant=self.tenant, full_name="Affiliated Caregiver")
+        self.user = UserAccount.objects.create_user(phone="09140000010", person=self.person, tenant=self.tenant)
+
+    def _create_caregiver(self, *, provider_type):
+        from apps.accounts.models.profiles import CaregiverProviderType
+
+        return CaregiverProfile.objects.create(
+            user=self.user, person=self.person, phone="09140000010", display_name="Affiliated Caregiver",
+            provider_type=provider_type,
+        )
+
+    def test_independent_caregiver_still_gets_independent_provider_supplier(self):
+        from apps.accounts.models.profiles import CaregiverProviderType
+
+        caregiver = self._create_caregiver(provider_type=CaregiverProviderType.INDEPENDENT)
+        supplier = get_or_create_supplier_for_caregiver(caregiver)
+        self.assertEqual(supplier.supplier_type, SupplierType.INDEPENDENT_PROVIDER)
+
+    def test_organization_affiliated_caregiver_gets_organization_provider_supplier(self):
+        from apps.accounts.models.profiles import CaregiverProviderType
+
+        caregiver = self._create_caregiver(provider_type=CaregiverProviderType.ORGANIZATION_AFFILIATED)
+        supplier = get_or_create_supplier_for_caregiver(caregiver)
+        self.assertEqual(supplier.supplier_type, SupplierType.ORGANIZATION_PROVIDER)
+
+    def test_approve_affiliation_request_produces_organization_provider_supplier(self):
+        """End-to-end through the real approval flow, not a direct field set."""
+        from apps.accounts.models.profiles import CompanyAffiliationRequest, OrganizationMembership
+        from apps.accounts.services.affiliations import approve_affiliation_request
+        from apps.accounts.services.organizations import find_organization_by_code_or_name
+
+        caregiver = self._create_caregiver(provider_type="independent")
+        org_admin_person = Person.objects.create(tenant=self.tenant, full_name="Org Admin")
+        org_admin = UserAccount.objects.create_user(phone="09140000011", person=org_admin_person, tenant=self.tenant)
+        organization = OrganizationProfile.objects.create(
+            name="Affil Co", code="AFFIL-CO-1", admin_user=org_admin, tenant=self.tenant,
+        )
+        request = CompanyAffiliationRequest.objects.create(
+            caregiver_profile=caregiver, requested_company_name_or_code="AFFIL-CO-1", organization=organization,
+        )
+
+        approve_affiliation_request(request_id=request.id, reviewed_by=org_admin)
+        caregiver.refresh_from_db()
+
+        supplier = get_or_create_supplier_for_caregiver(caregiver)
+        self.assertEqual(supplier.supplier_type, SupplierType.ORGANIZATION_PROVIDER)
+        self.assertTrue(
+            OrganizationMembership.objects.filter(organization=organization, user=self.user).exists(),
+        )
+
+
+class ReconcileOrganizationProviderSuppliersTest(TestCase):
+    def setUp(self):
+        from apps.accounts.models.profiles import CaregiverProviderType
+
+        self.tenant = TenantService.get_default_tenant()
+        self.person = Person.objects.create(tenant=self.tenant, full_name="Legacy Affiliated Caregiver")
+        self.user = UserAccount.objects.create_user(phone="09140000020", person=self.person, tenant=self.tenant)
+        # Simulates a caregiver who was already ORGANIZATION_AFFILIATED
+        # BEFORE the supplier_bridge branch existed: their supplier was
+        # created as INDEPENDENT_PROVIDER and never updated.
+        self.caregiver = CaregiverProfile.objects.create(
+            user=self.user, person=self.person, phone="09140000020", display_name="Legacy",
+            provider_type=CaregiverProviderType.INDEPENDENT,
+        )
+        self.supplier = get_or_create_supplier_for_caregiver(self.caregiver)
+        self.caregiver.provider_type = CaregiverProviderType.ORGANIZATION_AFFILIATED
+        self.caregiver.save(update_fields=["provider_type"])
+
+    def test_reconcile_updates_existing_supplier_type(self):
+        from django.core.management import call_command
+
+        self.assertEqual(self.supplier.supplier_type, SupplierType.INDEPENDENT_PROVIDER)
+        call_command("reconcile_organization_provider_suppliers")
+
+        self.supplier.refresh_from_db()
+        self.assertEqual(self.supplier.supplier_type, SupplierType.ORGANIZATION_PROVIDER)
+
+    def test_reconcile_is_idempotent(self):
+        from django.core.management import call_command
+
+        call_command("reconcile_organization_provider_suppliers")
+        call_command("reconcile_organization_provider_suppliers")
+
+        self.supplier.refresh_from_db()
+        self.assertEqual(self.supplier.supplier_type, SupplierType.ORGANIZATION_PROVIDER)
+        self.assertEqual(ServiceSupplier.objects.filter(id=self.supplier.id).count(), 1)
+
+    def test_dry_run_writes_nothing(self):
+        from django.core.management import call_command
+
+        call_command("reconcile_organization_provider_suppliers", "--dry-run")
+        self.supplier.refresh_from_db()
+        self.assertEqual(self.supplier.supplier_type, SupplierType.INDEPENDENT_PROVIDER)
