@@ -6,7 +6,7 @@ the `apps.provider_portal`/`apps.organization_portal` additions below (the
 `apps.portal` section was added in the Customer Experience Phase 1
 remediation and remains unchanged), plus the `apps.payments -> apps.orders`
 and `apps.payments -> apps.jobs` edges added below (Epic 03 Sprint 1 —
-Financial Settlement, PR pending). Derived by grepping every
+Financial Settlement, PR #26, merged). Derived by grepping every
 `from apps.X` import across the codebase (production code, not tests) on
 2026-07-10.
 Re-derive with:
@@ -86,7 +86,7 @@ assignment_confirm_view`'s docstring).
   settlement failure recovery). `apps/payments/jobs.py` imports
   `apps.jobs.registry.JobRegistry` (to register a
   `payments.settlement.retry` handler from `PaymentsConfig.ready()`) and
-  `apps.payments/services/payment_callback_service.py` imports
+  `apps/payments/services/payment_callback_service.py` imports
   `apps.jobs.services.job_service.JobService` (to durably, idempotently
   enqueue a retry when synchronous settlement fails). `apps.jobs` owns no
   models outside its own `JobDefinition`/`JobRun` and imports no business

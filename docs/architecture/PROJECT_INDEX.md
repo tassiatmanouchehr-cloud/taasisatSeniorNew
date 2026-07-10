@@ -1,8 +1,8 @@
 # Project Index
 
-Status: current as of PR #24's merge (Epic 02 — Marketplace Operational
-Experience), `main` @ `bb95a902df4874076542884edaad81c4a6e9073d` (PR #24's
-merge commit).
+Status: current as of PR #26's merge (Epic 03 Sprint 1 — Financial
+Settlement & Money Flow), `main` @
+`36e07c68c40a72d896a03af2a484ba2e2ab2b2ca` (PR #26's merge commit).
 
 **Start here.** This is the entry point to this repository's
 documentation — everything a new developer needs to understand where the
