@@ -1,9 +1,8 @@
 # Product Roadmap
 
-Status: current as of the Epic 02 — Marketplace Operational Experience
-sprint (branch `claude/epic-02-marketplace-operational-experience`), based
-on `main` @ `73bb852ceeff3c551476a628a283a56248abdb6d` (PR #23's merge
-commit).
+Status: current as of PR #24's merge (Epic 02 — Marketplace Operational
+Experience), `main` @ `bb95a902df4874076542884edaad81c4a6e9073d` (PR #24's
+merge commit).
 
 This roadmap is organized **by business value, not by Blueprint module
 number** — the order a customer, provider, or organization experiences

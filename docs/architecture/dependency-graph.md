@@ -1,6 +1,7 @@
 # App Dependency Graph
 
-Status: current as of Epic 02 — Marketplace Operational Experience, plus
+Status: current as of PR #24's merge (Epic 02 — Marketplace Operational
+Experience, `main` @ `bb95a902df4874076542884edaad81c4a6e9073d`), plus
 the `apps.provider_portal`/`apps.organization_portal` additions below (the
 `apps.portal` section was added in the Customer Experience Phase 1
 remediation and remains unchanged). Derived by grepping every

@@ -1,9 +1,8 @@
 # Project State
 
-Status: current as of the Epic 02 — Marketplace Operational Experience
-sprint (branch `claude/epic-02-marketplace-operational-experience`), based
-on `main` @ `73bb852ceeff3c551476a628a283a56248abdb6d` (PR #23's merge
-commit, itself the post-merge documentation sync for PR #22). This document is the
+Status: current as of PR #24's merge (Epic 02 — Marketplace Operational
+Experience), `main` @ `bb95a902df4874076542884edaad81c4a6e9073d` (PR #24's
+merge commit). This document is the
 **single source of truth** for "where the project stands." It supersedes any
 verbal summary given in chat, a PR description, or a prior conversation —
 if this file and a conversation disagree, this file is right (or needs
@@ -24,14 +23,14 @@ Verification** rather than assumed.
 |---|---|
 | Repository URL | `github.com/tassiatmanouchehr-cloud/taasisatSenior` |
 | Default Branch | `main` |
-| Current `main` HEAD | `73bb852ceeff3c551476a628a283a56248abdb6d` (PR #23's merge commit) — this branch (`claude/epic-02-marketplace-operational-experience`) is not yet merged |
+| Current `main` HEAD | `bb95a902df4874076542884edaad81c4a6e9073d` (PR #24's merge commit) |
 | Current Test Count | **1130 passing**, 0 failing (`python manage.py test`, run on this branch — 106 new tests over the `main` baseline of 1024: 76 from the Epic 02 implementation (22 for the new `apps.provider_portal` app, 16 for the new `apps.organization_portal` app, 14 for `ProviderAssignmentActionService`, 8 for `ProviderExecutionService`, and 16 spread across `apps.portal`/`apps.accounts` extensions and the two new `*PortalOrmDisciplineTest` guardrails) plus 30 from the subsequent Enterprise Architecture Review remediation pass (cross-tenant regression coverage, `CareRecipientArchived` event publishing, and the `PermissionService.require()` `ownership_authorized_by` mechanism — see `DECISION_HISTORY.md`) |
 | Python Version | **3.12** is the project's canonical version — declared in `pyproject.toml` (`requires-python = ">=3.12"`), pinned in CI (`.github/workflows/ci.yml`, `python-version: "3.12"`), and pinned in `src/docker/Dockerfile.dev` (`FROM python:3.12-slim`). Three independent sources agree. The one execution environment that disagrees is this specific sandboxed session, which runs **3.11.15** — a fact about this session's container, not about the repository's declared target. Not flagged as uncertain: the repository is internally consistent on 3.12; only this particular runtime differs from it. |
 | Django Version | Installed: **5.2.16**. Declared requirement (`requirements/base.txt`): `django>=5.1,<5.3`. Consistent. |
 | Database | **PostgreSQL 16**, optionally with **PostGIS** (`GIS_ENABLED` env var switches `django.db.backends.postgresql` ↔ `django.contrib.gis.db.backends.postgis`; CI uses the `postgis/postgis:16-3.4` image with `GIS_ENABLED=true`). SQLite is supported as a settings-level fallback (`DATABASE_ENGINE=sqlite`) but is not the platform's real target and is not exercised by CI. |
 | Architecture Style | **Modular monolith** — a single Django project (`config/`) composed of 24 apps under `src/apps/`, each owning its own models/services/tests, communicating through service-layer calls and two deliberately separate event systems (see [Domain Events](#domain-events) below), not through network calls. No microservices, no separate deployable units. |
 | Current Development Phase | **Product Experience phase, in progress.** Customer Experience Phase 1 and Phase 2, Provider Experience Phase 1, and Organization Experience Phase 1 are now built. See [Current Development Phase](#current-development-phase) below. |
-| Current Project Status | Active development. 23 merged pull requests on `main`; this branch (Epic 02 — Marketplace Operational Experience) is complete, tested, and pending review/PR. No open incidents or known production deployment (no evidence of a live/production environment in this repository — infra config exists for one, but nothing indicates it is running). |
+| Current Project Status | Active development. 23 merged pull requests on `main` (PR #24, Epic 02 — Marketplace Operational Experience, just merged); one documentation-maintenance PR (#21, opened after PR #20, predating this epic) remains open and now has merge conflicts against current `main` — not touched by this epic. No open incidents or known production deployment (no evidence of a live/production environment in this repository — infra config exists for one, but nothing indicates it is running). |
 | Current Branching Strategy | Trunk-based: every unit of work branches from `main` (branch naming has drifted over time — see [Repository Structure](#repository-structure) → *A note on module numbering*), is reviewed as a pull request, and merges back to `main`. No long-lived release branches exist. `.github/workflows/ci.yml` also recognizes `phase-*/**` branches as a push trigger, though none currently exist. |
 | Repository Structure | See [below](#repository-structure). |
 | Current CI/Test Status | See [below](#current-ci--test-status). |
