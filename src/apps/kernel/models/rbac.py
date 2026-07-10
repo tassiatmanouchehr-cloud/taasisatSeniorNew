@@ -14,6 +14,7 @@ References:
 import uuid
 
 from django.db import models
+from django.db.models import Q
 
 
 class Role(models.Model):
@@ -177,6 +178,21 @@ class RoleAssignment(models.Model):
             models.Index(fields=["tenant", "user", "is_active"]),
             models.Index(fields=["tenant", "role", "is_active"]),
             models.Index(fields=["scope_type", "scope_id"]),
+        ]
+        constraints = [
+            # Database-level backstop (Epic 04 — Enterprise Organization
+            # Isolation): the same (tenant, user, role, scope_type, scope_id)
+            # combination can never have more than one ACTIVE row. Scoped to
+            # is_active=True so a deactivated row never blocks a fresh grant
+            # from being created afresh — apps.accounts.services
+            # .organization_rbac.OrganizationRoleSyncService reactivates the
+            # existing row in place instead, but this constraint is what
+            # makes that safe under concurrent syncs, not just conventional.
+            models.UniqueConstraint(
+                fields=["tenant", "user", "role", "scope_type", "scope_id"],
+                condition=Q(is_active=True),
+                name="uq_role_assignment_active_scope",
+            ),
         ]
 
     def __str__(self):
