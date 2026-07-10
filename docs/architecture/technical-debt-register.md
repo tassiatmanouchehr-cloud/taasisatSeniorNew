@@ -291,6 +291,135 @@ account_code, party, entry_type)`, or rescope it to key off
 scope "the balanced set of entries posted together"), or remove it
 entirely in favor of relying solely on the `PaymentIntent` row lock.
 
+## Epic 04: three organization permission keys granted but not enforced
+
+**What**: `apps.accounts.permission_keys` defines
+`ORGANIZATION_ASSIGNMENT_ASSIGN`, `ORGANIZATION_MEMBERSHIP_APPROVE`, and
+`ORGANIZATION_MEMBERSHIP_SUSPEND`, all granted to the `organization_admin`
+`Role` (`apps.accounts.services.organization_rbac
+.OrganizationRoleSyncService`, `seed_auth_roles.py`). None of the three
+is checked by a `PermissionService.require()`/`.check()` call anywhere in
+the merged Epic 04 code: `AssignmentService.assign()`/`replace()` check
+the literal string `"booking.assignment.assign"` (a different string
+than the granted key); `OrganizationStaffService.approve_membership()`/
+`suspend_membership()` contain no permission check of any kind.
+
+**Why**: Discovered during Epic 04's Architecture Review, via a direct
+cross-reference of every granted permission key against every real
+`PermissionService` call site — the mismatch was not caught earlier
+because the Epic's own tests exercise `PermissionService.check()`
+directly with the same key used for granting, never through the real
+`AssignmentService.assign()` call chain, and the portal-test fixtures
+construct memberships directly rather than through the real
+`approve_membership()` sync hook.
+
+**Risk**: Low today. Every affected action remains safely authorized:
+`AssignmentService.assign()` is always called with
+`ownership_authorized_by=actor` (an already ownership-verified admin),
+so `PermissionService.require()` falls through to its pre-existing,
+correctly-scoped `ownership_authorized_by` fallback rather than denying
+or silently bypassing; `approve_membership()`/`suspend_membership()`
+remain gated by `apps.organization_portal.permissions
+.resolve_organization()`'s ownership check at the portal view layer. No
+cross-tenant or cross-organization leak results. The gap is that Epic
+04's stated Sprint 2 goal ("organization-scoped RBAC activation") is not
+functionally achieved by real RBAC evaluation in isolation — only the
+*writer* side (`OrganizationRoleSyncService` correctly creating
+`RoleAssignment` rows) is complete; the *consumer* side is not.
+
+**Resolution**: Change `AssignmentService.assign()`/`replace()` to check
+the canonical organization-facing key (or grant/check a consistently
+named key) and add `PermissionService.require()` calls to
+`approve_membership()`/`suspend_membership()`. Already implemented and
+tested on the Epic 05 (Permission-Key Registry & Authorization
+Hardening) branch, not yet merged as of this entry.
+
+## Epic 04: `RoleAssignment` sync audit misattributes the suspension actor
+
+**What**: `OrganizationRoleSyncService._audit()` always reads
+`membership.approved_by_id` to attribute the `RoleAssignment`
+activation/deactivation `AuditLog` entry it writes — correct when called
+from `approve_membership()` (the actor who just approved), but also used
+unchanged when called from `suspend_membership()`, which accepts no
+actor parameter at all. A suspension performed by admin B is therefore
+audited as if performed by whoever originally approved the membership
+(possibly a different admin, possibly nobody).
+
+**Why**: `suspend_membership()` was written to accept no actor argument
+(the caller — `apps/organization_portal/views.py`'s `staff_suspend_view`
+— doesn't pass `request.user` either), so `_audit()` has no real actor to
+attribute the deactivation to and falls back to reusing the
+membership's pre-existing `approved_by` field instead of reporting the
+gap honestly.
+
+**Risk**: Low — a cosmetic audit-trail nuance, not a data-integrity or
+authorization defect. No test currently depends on the (wrong)
+attribution.
+
+**Resolution**: Thread a real actor through `suspend_membership()` (e.g.
+`suspended_by=request.user`) and have `_audit()` use it instead of
+`approved_by_id` for the deactivation case. Already implemented on the
+Epic 05 branch, not yet merged as of this entry.
+
+## Epic 04: financial-isolation coverage gap between the real approval path and financial-party resolution
+
+**What**: `apps.accounts.tests.test_supplier_bridge
+.test_approve_affiliation_request_produces_organization_provider_supplier`
+exercises the real `approve_affiliation_request()` flow end-to-end and
+asserts the resulting `ServiceSupplier.supplier_type`, but asserts
+nothing about `FinancialPartyService`. `apps.finance.tests
+.test_organization_provider_financial_isolation` asserts financial-party
+resolution correctly, but constructs its `ServiceSupplier` fixture
+directly with `supplier_type=ORGANIZATION_PROVIDER`, never routing
+through the real affiliation-approval flow. No single test proves both
+halves of the real production path together.
+
+**Why**: Each test was written to prove its own specific concern in
+isolation (identity resolution vs. financial-party resolution); the
+combination was not judged necessary given both halves are independently
+simple and well-tested, and `FinancialPartyService
+.resolve_party_for_supplier()` is untouched by Epic 04.
+
+**Risk**: Low — both halves are independently correct and tested; the
+gap is a coverage nicety, not an identified behavior risk.
+
+**Resolution**: Add one test that runs `approve_affiliation_request()`
+end-to-end and then asserts `FinancialPartyService
+.resolve_party_for_supplier()`'s result on the resulting supplier.
+Low-effort, not yet done.
+
+## Two independent, unreconciled role-seeding catalogs
+
+**What**: `apps.kernel.management.commands.seed_tenant`'s `DEFAULT_ROLES`
+(hyphenated slugs — `organization-owner`, `organization-staff`, etc.,
+seeded against a `dev`-slug tenant) and `apps.accounts.management
+.commands.seed_auth_roles`'s `ROLES` (underscored slugs —
+`organization_admin`, `organization_operator`, etc., seeded against the
+real default `salmandyar` tenant) describe overlapping but
+non-identical role catalogs, with no shared source of truth and no
+naming-convention reconciliation between hyphens and underscores.
+
+**Why**: The two commands were written independently, at different
+points in the project's history, for different purposes (a local dev
+bootstrap vs. the real default-tenant seed) — neither was retrofitted
+onto the other when Epic 04 added `organization_admin`'s permission
+list, since reconciling role slugs across the two carries real risk
+(renaming a role a tenant may have already customized) and was
+explicitly out of Epic 04's approved scope.
+
+**Risk**: Low today — `seed_tenant.py`'s roles carry no permissions
+relevant to Epic 04's enforcement points, and the real default tenant
+only ever uses `seed_auth_roles.py`'s catalog. Structurally confusing:
+a developer bootstrapping a fresh `dev` tenant sees a different role
+catalog than the one the platform's real tenant uses.
+
+**Resolution**: Consolidate into one canonical, importable role/permission
+catalog both commands consume, with an explicit decision on which slug
+convention wins and a safe reconciliation strategy for any existing
+custom-permission tenant data. Addressed on the Epic 05 branch (a shared
+`apps.kernel.role_catalog` module plus a `reconcile_role_permissions`
+management command), not yet merged as of this entry.
+
 ## Resolved in Module 18
 
 - **`apps/api/views/reporting.py` hardcoded permission string**: replaced
