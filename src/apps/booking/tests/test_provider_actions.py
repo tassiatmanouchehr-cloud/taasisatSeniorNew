@@ -6,7 +6,7 @@ from django.test import TestCase
 
 from apps.accounts.models.profiles import CaregiverProfile
 from apps.accounts.services.provider_identity import resolve_supplier_for_user
-from apps.booking.models import SupplierAssignment, SupplierAssignmentStatus
+from apps.booking.models import SupplierAssignmentStatus
 from apps.booking.services.assignment_service import AssignmentService
 from apps.booking.services.provider_actions import ProviderAssignmentActionError, ProviderAssignmentActionService
 from apps.kernel.models import Person, Tenant, UserAccount
