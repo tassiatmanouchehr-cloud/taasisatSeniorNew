@@ -88,7 +88,16 @@ class SettlementOrchestrationService:
     @classmethod
     @transaction.atomic
     def settle_payment_intent(cls, *, payment_intent_id) -> PaymentTransaction:
-        intent = PaymentIntent.objects.select_related("payer_party").get(id=payment_intent_id)
+        # select_for_update() is the concurrency guarantee: it serializes any
+        # two overlapping calls to settle_payment_intent() for the same
+        # intent (e.g. the synchronous callback path racing a future retry
+        # job) on this row lock. A second caller blocks here until the first
+        # caller's transaction commits or rolls back, then re-reads a
+        # consistent existing_payment below — a plain read-then-write check
+        # alone cannot make that guarantee (see uq_payment_transaction_tenant_
+        # provider_reference / uq_ledger_entry_payment_txn_account_code for
+        # the database-level backstop if this lock is ever bypassed).
+        intent = PaymentIntent.objects.select_for_update().get(id=payment_intent_id)
         tenant_id = intent.tenant_id
 
         existing_payment = PaymentTransaction.objects.filter(

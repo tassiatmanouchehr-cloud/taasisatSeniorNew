@@ -3,6 +3,7 @@
 import uuid
 
 from django.db import models
+from django.db.models import Q
 
 from apps.common.managers import TenantScopedManager
 
@@ -69,6 +70,19 @@ class PaymentTransaction(models.Model):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["tenant", "status"], name="idx_finpay_tenant_status"),
+        ]
+        constraints = [
+            # Database-level backstop (Epic 03 Sprint 1 remediation) against a
+            # concurrent double-settlement race: two overlapping callers both
+            # passing a service-layer "does a SUCCEEDED payment already exist
+            # for this provider_reference" check before either commits. Scoped
+            # to non-blank provider_reference only — CASH/MANUAL payments that
+            # never set one are unaffected and may still repeat blank values.
+            models.UniqueConstraint(
+                fields=["tenant", "provider_reference"],
+                condition=Q(provider_reference__gt=""),
+                name="uq_payment_transaction_tenant_provider_reference",
+            ),
         ]
 
     def __str__(self):

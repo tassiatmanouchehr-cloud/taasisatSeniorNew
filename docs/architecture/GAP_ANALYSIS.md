@@ -162,18 +162,12 @@ adapter, not replace these in place):
 
 ## Deferred architecture
 
-- ~~**Payment settlement bridge**~~ — **closed by Epic 03 Sprint 1**
-  (`SettlementOrchestrationService`, `apps.payments.services`). A
-  `PaymentIntent` reaching `SUCCEEDED` now resolves the order's
-  `FinancialDocument`/`FinancialObligation`, records a
-  `finance.PaymentTransaction`, posts a balanced `LedgerEntry` group, and
-  credits the beneficiary's canonical `apps.wallet.Wallet` — Direct
-  Settlement only, all commission/tax/discount adjustments still zero
-  (see `SettlementAdjustmentPipeline`, the preserved extension point).
-  Still deferred, and now tracked as their own items below: real
-  commission/tax calculation, escrow execution (config seam exists and is
-  read, but Sprint 1 always warns-and-falls-back to Direct Settlement),
-  provider payout batches, real PSP adapters.
+- **Payment settlement bridge** — a `PaymentIntent` reaching `SUCCEEDED`
+  never credits a `Wallet` or creates a `finance.PaymentTransaction`.
+  ADR-005 names this explicitly: *"A future orchestration module would
+  call `PaymentService.record_payment()` once a `PaymentIntent` reaches
+  `SUCCEEDED` — deliberately not built now."* This is the single most
+  consequential deferred bridge in the codebase.
 - **Real PSP signature/HMAC verification** — the fake payment callback
   endpoint requires no authentication by design (it simulates an
   unauthenticated PSP webhook). A real adapter's callback route must add
@@ -333,11 +327,9 @@ needing to bend:
 
 Ranked by leverage, not by module number:
 
-1. **Financial Operations** (Module 05) — the payment-to-settlement bridge
-   is closed (Epic 03 Sprint 1, Direct Settlement only). Remaining:
-   real commission/tax/discount rules behind the now-preserved
-   `SettlementAdjustmentPipeline` extension point, escrow execution,
-   provider payout batches, real PSP adapters.
+1. **Financial Operations** (Module 05) — close the payment-to-settlement
+   bridge. The prior art exists on both sides of the gap; this is
+   mechanical, not exploratory.
 2. **Identity, Roles, Profiles & Access** (Module 08) — finish the
    permission-key registry and general default-role permission seeding.
    Every RBAC-gated feature in a fresh deployment is silently inert

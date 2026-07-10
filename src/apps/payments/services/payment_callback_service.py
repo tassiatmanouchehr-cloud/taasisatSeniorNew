@@ -15,9 +15,14 @@ SUCCEEDED, this triggers SettlementOrchestrationService to connect the
 payment to the finance/wallet money flow. Settlement failures are logged,
 never re-raised — the callback's own durability guarantee (the provider
 gets a definitive accept/reject) must stay independent of settlement
-succeeding; a failed settlement is fixable later against the same
-idempotent PaymentTransaction.provider_reference, without re-processing
-the callback.
+succeeding.
+
+Remediation (Architecture Review, Critical Finding 1): a synchronous
+settlement failure is no longer just a log line — it also enqueues a
+durable, idempotent `payments.settlement.retry` job (apps.jobs) so the
+PaymentIntent is never silently left SUCCEEDED with no recovery path. See
+apps.payments.jobs for the handler and DECISION_HISTORY.md for why
+apps.jobs (not a new mechanism) was reused.
 """
 
 import logging
@@ -25,6 +30,9 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from django.db import transaction
 
+from apps.jobs.services.job_service import JobService
+
+from ..jobs import PAYMENT_SETTLEMENT_RETRY
 from ..models import PaymentAttempt, PaymentCallback, PaymentIntent, PaymentStatus
 from .dto import PaymentResult
 from .errors import PaymentError
@@ -132,13 +140,26 @@ class PaymentCallbackService:
     def _trigger_settlement(intent: PaymentIntent) -> None:
         """Best-effort: a settlement failure must never undo an already-accepted callback.
 
-        Logged, not re-raised. Safe to retry later against the same
-        PaymentIntent — SettlementOrchestrationService is itself idempotent.
+        Never re-raised — the callback's own accept/reject guarantee stays
+        independent of settlement succeeding. On failure, durably enqueues a
+        `payments.settlement.retry` job instead of relying on a log line as
+        the only recovery signal (Architecture Review, Critical Finding 1).
+        JobService.enqueue() is idempotent per (tenant_id, job_type,
+        idempotency_key) — a database-unique constraint, not a read-then-
+        write check — so calling this from multiple failed attempts for the
+        same intent never creates more than one retry job.
         """
         try:
             SettlementOrchestrationService.settle_payment_intent(payment_intent_id=intent.id)
         except Exception:
             logger.exception(
-                "Settlement orchestration failed for PaymentIntent %s; callback acceptance stands.",
+                "Settlement orchestration failed for PaymentIntent %s; callback acceptance stands. "
+                "Enqueuing payments.settlement.retry for recovery.",
                 intent.id,
+            )
+            JobService.enqueue(
+                job_type=PAYMENT_SETTLEMENT_RETRY,
+                idempotency_key=str(intent.id),
+                tenant_id=intent.tenant_id,
+                payload={"payment_intent_id": str(intent.id)},
             )
