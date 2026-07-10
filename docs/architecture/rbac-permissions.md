@@ -49,6 +49,36 @@ real API endpoints needed RBAC checks:
 permission key — see `wallet-finance-boundary.md` and the view's own
 docstring for why (it simulates an unauthenticated PSP webhook).
 
+`apps/accounts/permission_keys.py`, introduced in Epic 04 (Enterprise
+Organization Isolation). Located in `apps.accounts` rather than
+`apps.organization_portal` because enforcement happens in service code in
+`apps.accounts`/`apps.booking`, not at the portal's view layer, and
+`apps.accounts` is the most upstream of the two consuming apps in the
+dependency graph — `apps.booking` importing from it does not invert the
+graph:
+
+| Constant | Value | Guards |
+|---|---|---|
+| `ORGANIZATION_ASSIGNMENT_ASSIGN` | `organization.assignment.assign` | `AssignmentService.assign()`, when called with `scope={"scope_type": "organization", ...}` — the path `OrganizationAssignmentService.assign_manual()` always uses |
+| `ORGANIZATION_MEMBERSHIP_APPROVE` | `organization.membership.approve` | `OrganizationStaffService.approve_membership()` |
+| `ORGANIZATION_MEMBERSHIP_SUSPEND` | `organization.membership.suspend` | `OrganizationStaffService.suspend_membership()` |
+
+Only these three keys exist because only these three enforcement points
+exist in Epic 04's approved scope — `apps.organization_portal.permissions
+.resolve_organization()` already gates every organization-portal view to
+an `ACTIVE`, `ADMIN`-role `OrganizationMembership`, so no other
+`OrgMembershipRole` value (`OPERATOR`, `CAREGIVER`, `ACCOUNTANT`,
+`SUPPORT`, `MANAGER`) has an enforcement point to hold a permission for
+yet — a key was deliberately not added for `organization.order
+.view_eligible`/`organization.staff.view`/`organization.reports.view`/
+`organization.capacity.view` for exactly this reason (see
+`apps.accounts.permission_keys`'s own module docstring).
+
+The `organization_admin` `Role` (seeded by `apps/accounts/management
+/commands/seed_auth_roles.py`, also lazily created by
+`apps.accounts.services.organization_rbac.OrganizationRoleSyncService` if
+missing) is the only role carrying these three keys.
+
 ## Naming convention
 
 `<domain>.<resource>.<action>` or `<domain>.<action>` when there's a
@@ -81,3 +111,31 @@ for anyone standing up a working deployment today — flagged in
 `technical-debt-register.md`, not fixed here (deciding which roles get
 which keys is a product/security decision, not an architecture-hygiene
 one).
+
+## Epic 04: organization-scoped RoleAssignment activation
+
+`RoleAssignment.scope_type="organization"`/`scope_id` and
+`PermissionService._scope_matches()` existed and were correctly evaluated
+since Module 08, but had zero production writers until Epic 04 (Enterprise
+Organization Isolation). `apps.accounts.services.organization_rbac
+.OrganizationRoleSyncService` is now the sole writer — see
+`docs/adr/ADR-009_ORGANIZATION_ELIGIBILITY_AND_SCOPED_RBAC.md` for the
+full design. One important, unchanged pre-existing behavior this
+activation makes newly relevant: `_scope_matches()` returns `True`
+immediately when the caller's `check()`/`require()` call passes no `scope`
+kwarg at all (`scope is None`), regardless of the assignment's own
+`scope_type` — an organization-scoped `RoleAssignment` therefore also
+satisfies any *unscoped* check for the same `permission_key`. Not
+exploitable today (every organization-isolation call site always passes
+an explicit `scope`), but a real gap for a future Permission-Key Registry
+& Authorization Hardening Epic to close, not something Epic 04 changed
+(see its own explicit "Do not replace the RBAC model" constraint).
+
+Two independent, unreconciled role-seeding catalogs exist in this
+codebase — `apps.kernel.management.commands.seed_tenant`'s hyphenated
+`DEFAULT_ROLES` (seeded against a `dev`-slug tenant) and
+`apps.accounts.management.commands.seed_auth_roles`'s underscored `ROLES`
+(seeded against the real default `salmandyar` tenant,
+`apps.kernel.services.tenant_service.TenantService`'s own default). Epic
+04 extends only the latter — see `technical-debt-register.md` for the
+tracked divergence.
