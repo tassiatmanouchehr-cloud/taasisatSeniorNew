@@ -83,7 +83,7 @@ class SyncBasicsTest(OrganizationRbacTestCase):
         OrganizationRoleSyncService.sync_for_membership(membership)
 
         role = Role.objects.get(tenant=self.tenant, slug=ORGANIZATION_ADMIN_ROLE_SLUG)
-        self.assertIn("organization.assignment.assign", role.permissions)
+        self.assertIn("booking.assignment.assign", role.permissions)
         self.assertIn("organization.membership.approve", role.permissions)
         self.assertIn("organization.membership.suspend", role.permissions)
 
@@ -137,7 +137,7 @@ class ScopedPermissionEvaluationTest(OrganizationRbacTestCase):
 
         self.assertTrue(
             PermissionService.check(
-                self.admin_user, "organization.assignment.assign", tenant_id=self.tenant.id,
+                self.admin_user, "booking.assignment.assign", tenant_id=self.tenant.id,
                 scope={"scope_type": "organization", "scope_id": str(self.organization.id)},
             ),
         )
@@ -149,7 +149,7 @@ class ScopedPermissionEvaluationTest(OrganizationRbacTestCase):
         other_org_id = uuid.uuid4()
         self.assertFalse(
             PermissionService.check(
-                self.admin_user, "organization.assignment.assign", tenant_id=self.tenant.id,
+                self.admin_user, "booking.assignment.assign", tenant_id=self.tenant.id,
                 scope={"scope_type": "organization", "scope_id": str(other_org_id)},
             ),
         )
@@ -177,7 +177,7 @@ class ScopedPermissionEvaluationTest(OrganizationRbacTestCase):
         OrganizationRoleSyncService.sync_for_membership(membership)
 
         self.assertTrue(
-            PermissionService.check(self.admin_user, "organization.assignment.assign", tenant_id=self.tenant.id),
+            PermissionService.check(self.admin_user, "booking.assignment.assign", tenant_id=self.tenant.id),
         )
 
     def test_deactivated_assignment_no_longer_authorizes(self):
@@ -190,7 +190,7 @@ class ScopedPermissionEvaluationTest(OrganizationRbacTestCase):
 
         self.assertFalse(
             PermissionService.check(
-                self.admin_user, "organization.assignment.assign", tenant_id=self.tenant.id,
+                self.admin_user, "booking.assignment.assign", tenant_id=self.tenant.id,
                 scope={"scope_type": "organization", "scope_id": str(self.organization.id)},
             ),
         )
@@ -203,7 +203,7 @@ class CrossTenantRbacTest(OrganizationRbacTestCase):
 
         self.assertFalse(
             PermissionService.check(
-                self.admin_user, "organization.assignment.assign", tenant_id=self.other_tenant.id,
+                self.admin_user, "booking.assignment.assign", tenant_id=self.other_tenant.id,
                 scope={"scope_type": "organization", "scope_id": str(self.organization.id)},
             ),
         )

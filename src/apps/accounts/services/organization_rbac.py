@@ -35,7 +35,7 @@ this Epic existed.
 from django.db import transaction
 
 from apps.accounts.permission_keys import (
-    ORGANIZATION_ASSIGNMENT_ASSIGN,
+    BOOKING_ASSIGNMENT_ASSIGN,
     ORGANIZATION_MEMBERSHIP_APPROVE,
     ORGANIZATION_MEMBERSHIP_SUSPEND,
 )
@@ -47,7 +47,7 @@ from ..models.profiles import OrgMembershipRole, OrgMembershipStatus
 ORGANIZATION_ADMIN_ROLE_SLUG = "organization_admin"
 ORGANIZATION_ADMIN_ROLE_NAME = "مدیر سازمان"
 ORGANIZATION_ADMIN_PERMISSIONS = [
-    ORGANIZATION_ASSIGNMENT_ASSIGN,
+    BOOKING_ASSIGNMENT_ASSIGN,
     ORGANIZATION_MEMBERSHIP_APPROVE,
     ORGANIZATION_MEMBERSHIP_SUSPEND,
 ]

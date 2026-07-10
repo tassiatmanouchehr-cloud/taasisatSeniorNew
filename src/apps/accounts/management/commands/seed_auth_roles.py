@@ -26,18 +26,8 @@ Usage:
 
 from django.core.management.base import BaseCommand
 
-from apps.accounts.permission_keys import (
-    ORGANIZATION_ASSIGNMENT_ASSIGN,
-    ORGANIZATION_MEMBERSHIP_APPROVE,
-    ORGANIZATION_MEMBERSHIP_SUSPEND,
-)
+from apps.accounts.services.organization_rbac import ORGANIZATION_ADMIN_PERMISSIONS
 from apps.kernel.models import Role, Tenant
-
-ORGANIZATION_ADMIN_PERMISSIONS = [
-    ORGANIZATION_ASSIGNMENT_ASSIGN,
-    ORGANIZATION_MEMBERSHIP_APPROVE,
-    ORGANIZATION_MEMBERSHIP_SUSPEND,
-]
 
 ROLES = [
     # Platform roles

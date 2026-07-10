@@ -22,6 +22,8 @@ from apps.kernel.services.permission_service import PermissionService
 from apps.matching.services.match_orchestrator import MatchOrchestrator
 from apps.orders.services.status_machine import assign_supplier, remove_supplier, replace_supplier
 
+from ..permission_keys import BOOKING_ASSIGNMENT_ASSIGN
+
 from ..models import AssignmentSource, SupplierAssignment, SupplierAssignmentStatus
 from .configuration import BookingConfiguration
 
@@ -89,7 +91,7 @@ class AssignmentService:
         cls._ensure_same_tenant(order=order, supplier=supplier)
 
         PermissionService.require(
-            assigned_by, "booking.assignment.assign", tenant_id=order.tenant_id,
+            assigned_by, BOOKING_ASSIGNMENT_ASSIGN, tenant_id=order.tenant_id,
             ownership_authorized_by=ownership_authorized_by, scope=scope,
         )
         effective_actor = assigned_by or ownership_authorized_by
@@ -162,14 +164,33 @@ class AssignmentService:
         assigned_by=None,
         assignment_source=None,
         metadata=None,
+        ownership_authorized_by=None,
+        scope=None,
     ) -> SupplierAssignment:
         """Concurrency (Epic 04): Order.objects.select_for_update() is the
         first statement, mirroring assign()'s own locking — see that
-        method's docstring for the full reasoning."""
+        method's docstring for the full reasoning.
+
+        Authorization (Epic 05 confirmed authorization defect fix): this
+        method previously performed no PermissionService check at all —
+        assign() has always required "booking.assignment.assign", replace()
+        (a reassignment, the same underlying capability) required nothing.
+        No production call site exists yet for replace() (confirmed by
+        inspection — only test code calls it today), so this closes the
+        gap before a real caller is ever wired up, rather than after.
+        Reuses BOOKING_ASSIGNMENT_ASSIGN — reassignment is not a distinct
+        product capability from assignment, so a second key would be
+        speculative (see the canonical permission-key registry's own
+        docstring, apps/kernel/permissions/keys.py)."""
         from apps.orders.models import Order
 
         order = Order.objects.select_for_update().get(id=order_id)
         cls._ensure_same_tenant(order=order, supplier=new_supplier)
+
+        PermissionService.require(
+            assigned_by, BOOKING_ASSIGNMENT_ASSIGN, tenant_id=order.tenant_id,
+            ownership_authorized_by=ownership_authorized_by, scope=scope,
+        )
 
         if not BookingConfiguration.get_reassignment_enabled(tenant_id=order.tenant_id):
             raise AssignmentError("Reassignment is disabled for this tenant.")

@@ -43,3 +43,39 @@ class AssignmentPermissionEnforcementTest(BookingTestCase):
     def test_assign_still_works_with_no_actor_supplied(self):
         assignment = AssignmentService.assign(order_id=self.order.id, supplier=self.supplier)
         self.assertIsNotNone(assignment.pk)
+
+
+class ReplacePermissionEnforcementTest(BookingTestCase):
+    """Epic 05 (Permission-Key Registry & Authorization Hardening)
+    confirmed authorization defect fix: AssignmentService.replace()
+    previously performed no PermissionService check at all."""
+
+    def setUp(self):
+        super().setUp()
+        self.unauthorized_actor = make_actor(self.tenant, full_name="No Permission Actor")
+        self.supplier = self._create_supplier()
+        self.new_supplier = self._create_supplier()
+        AssignmentService.assign(order_id=self.order.id, supplier=self.supplier)
+
+    def test_replace_denied_without_permission(self):
+        with self.assertRaises(PermissionDenied):
+            AssignmentService.replace(
+                order_id=self.order.id, new_supplier=self.new_supplier, assigned_by=self.unauthorized_actor,
+            )
+
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.assigned_supplier_id, self.supplier.id)
+
+    def test_replace_allowed_with_permission(self):
+        grant_permissions(self.tenant, self.unauthorized_actor, ["booking.assignment.assign"])
+
+        AssignmentService.replace(
+            order_id=self.order.id, new_supplier=self.new_supplier, assigned_by=self.unauthorized_actor,
+        )
+
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.assigned_supplier_id, self.new_supplier.id)
+
+    def test_replace_still_works_with_no_actor_supplied(self):
+        assignment = AssignmentService.replace(order_id=self.order.id, new_supplier=self.new_supplier)
+        self.assertIsNotNone(assignment.pk)
