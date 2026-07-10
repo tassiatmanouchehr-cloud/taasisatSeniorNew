@@ -24,6 +24,7 @@ from ..models import (
     SettlementItem,
     SettlementItemStatus,
 )
+from ..permission_keys import FINANCE_SETTLEMENT_CREATE_BATCH
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ class SettlementService:
     @classmethod
     @transaction.atomic
     def create_batch(cls, *, tenant_id, currency=None, period_start=None, period_end=None, actor=None) -> SettlementBatch:
-        PermissionService.require(actor, "finance.settlement.create_batch", tenant_id=tenant_id)
+        PermissionService.require(actor, FINANCE_SETTLEMENT_CREATE_BATCH, tenant_id=tenant_id)
 
         net_positions = cls.calculate_net_position(
             tenant_id=tenant_id, period_start=period_start, period_end=period_end,
