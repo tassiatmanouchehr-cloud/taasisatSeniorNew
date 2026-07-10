@@ -1,13 +1,12 @@
 # Gap Analysis
 
-Status: current as of the Epic 02 — Marketplace Operational Experience
-sprint (branch `claude/epic-02-marketplace-operational-experience`), based
-on `main` @ `73bb852ceeff3c551476a628a283a56248abdb6d` (PR #23's merge
-commit).
+Status: current as of PR #24's merge (Epic 02 — Marketplace Operational
+Experience), `main` @ `bb95a902df4874076542884edaad81c4a6e9073d` (PR #24's
+merge commit).
 
 ## Where exactly are we today?
 
-Twenty-one merged pull requests have built a real, disciplined, well-tested
+Twenty-three merged pull requests have built a real, disciplined, well-tested
 **foundation** — not a finished product. The demand-side transaction loop
 (identity → order → matching → booking → execution → pricing → wallet →
 reviews) is genuinely walkable end-to-end in code. What it does not yet
