@@ -1,12 +1,11 @@
 # App Dependency Graph
 
-Status: current as of Module 18, plus the `apps.portal` addition below
-(Customer Experience Phase 1 remediation — this diagram never mentioned
-`apps.portal` or `apps.admin_portal` at all before this update; only
-`portal`'s own new imports are added here, verified by the same
-regenerate command used everywhere else in this doc). Derived by
-grepping every `from apps.X` import across the codebase (production
-code, not tests) on 2026-07-09.
+Status: current as of Epic 02 — Marketplace Operational Experience, plus
+the `apps.provider_portal`/`apps.organization_portal` additions below (the
+`apps.portal` section was added in the Customer Experience Phase 1
+remediation and remains unchanged). Derived by grepping every
+`from apps.X` import across the codebase (production code, not tests) on
+2026-07-10.
 Re-derive with:
 
 ```bash
@@ -39,14 +38,32 @@ kernel
                                           └── portal (→ accounts, orders, finance,
                                               notifications, pricing, wallet — read
                                               + thin write, server-rendered UI)
+                                          └── provider_portal (→ accounts, availability,
+                                              booking, execution, finance, notifications,
+                                              orders, reporting, reviews, wallet — read
+                                              + thin write, server-rendered UI)
+                                          └── organization_portal (→ accounts,
+                                              availability, booking, notifications,
+                                              orders, reporting — read + thin write,
+                                              server-rendered UI)
 ```
 
 A **lower-numbered app never imports a higher-numbered one.** `api` is the
 apex: nothing imports `apps.api` except `config/urls.py`'s routing
-`include()` — verified by grep, zero matches elsewhere. `apps.portal` sits
-alongside `api`/`reporting` at the same wide-read end of the graph — see
-below — but nothing imports `apps.portal` either, so it doesn't change
-anything upstream of it.
+`include()` — verified by grep, zero matches elsewhere. `apps.portal`,
+`apps.provider_portal`, and `apps.organization_portal` sit alongside
+`api`/`reporting` at the same wide-read end of the graph — see below — but
+nothing imports any of the three portals either, so none of them change
+anything upstream.
+
+Notably, `apps.provider_portal` is the first app in this graph to import
+both `apps.booking` and `apps.execution` directly (`apps.execution`
+already depends on `apps.booking`, so this doesn't create a cycle) — it
+does so specifically to orchestrate "confirm assignment, then create the
+execution session" as two sequential calls at the view layer, since
+`apps.booking` itself cannot import `apps.execution` (see *the one
+deliberate exception*-style note in `apps.provider_portal.views.
+assignment_confirm_view`'s docstring).
 
 ## The one deliberate exception
 
@@ -123,6 +140,49 @@ this addition) — it sits after `wallet`/`payments` in build order but is
 a low-coupling app (owns its own models, reached elsewhere only via the
 guarded `kernel.events.handlers` exception above); `apps.portal` reading
 from it does not change that.
+
+## `apps.provider_portal` import shape
+
+Epic 02 (Provider Experience Phase 1). Verified by grepping
+`apps/provider_portal` for `from apps\.` (production code, not tests):
+`apps.accounts`, `apps.availability`, `apps.booking`, `apps.execution`,
+`apps.finance`, `apps.notifications`, `apps.orders`, `apps.reporting`,
+`apps.reviews`, `apps.wallet`. Like `apps.portal`, `apps/provider_portal/
+views.py` imports **zero** models directly — every read/write goes
+through a `services` package call:
+
+| Domain | Service(s) called from `apps/provider_portal/views.py` |
+|---|---|
+| `apps.accounts` | `resolve_supplier_for_user()` — the *only* place this app touches a concrete profile model, and only via this one resolver, never `CaregiverProfile` directly |
+| `apps.booking` | `ProviderAssignmentQueryService`, `ProviderAssignmentActionService` |
+| `apps.execution` | `ProviderExecutionQueryService`, `ProviderExecutionService`, plus `ExecutionService.create_session()` (called directly, once, immediately after a successful `confirm` — the cross-boundary orchestration point described above) |
+| `apps.availability` | `AvailabilityQueryService`, `WorkingWindowService`, `BlockedPeriodService`, `CapacityService` |
+| `apps.reporting` | `ProviderReportService` |
+| `apps.reviews` | `ReputationService` |
+| `apps.finance` | `FinancialPartyService.resolve_party_for_customer()`-equivalent for suppliers |
+| `apps.notifications` | `NotificationQueryService` |
+
+## `apps.organization_portal` import shape
+
+Epic 02 (Organization Experience Phase 1). Verified by grepping
+`apps/organization_portal` for `from apps\.` (production code, not
+tests): `apps.accounts`, `apps.availability`, `apps.booking`,
+`apps.notifications`, `apps.orders`, `apps.reporting`. Same zero-ORM
+discipline as the other two portals:
+
+| Domain | Service(s) called from `apps/organization_portal/views.py` |
+|---|---|
+| `apps.accounts` | `list_administered_organizations()`/`resolve_organization()`, `OrganizationStaffService`, `resolve_supplier_for_user()` |
+| `apps.booking` | `OrganizationAssignmentService.assign_manual()` |
+| `apps.orders` | `OrderQueryService` (`list_unassigned_for_tenant`, `list_recent_unassigned_for_tenant`, `count_unassigned_for_tenant`) |
+| `apps.availability` | `CapacityService` |
+| `apps.reporting` | `ProviderReportService.list_reports_for_suppliers()` |
+| `apps.notifications` | `NotificationQueryService` |
+
+Both new portals are held to the same `*OrmDisciplineTest` standard as
+`apps.portal`/`apps.api`/`apps.admin_portal` —
+`ProviderPortalOrmDisciplineTest` and `OrganizationPortalOrmDisciplineTest`
+in `apps/kernel/tests/test_architecture_guardrails.py`.
 
 ## Verified clean
 

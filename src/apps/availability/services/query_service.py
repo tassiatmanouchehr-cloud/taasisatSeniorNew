@@ -49,6 +49,19 @@ class AvailabilityQueryService:
             qs = qs.filter(start_at__lt=end, end_at__gt=start)
         return qs
 
+    @classmethod
+    def get_working_window_for_supplier(cls, *, supplier, window_id):
+        """Ownership-scoped single-row lookup — Epic 02 (Marketplace Operational
+        Experience), so apps.provider_portal can verify a window belongs to the
+        caller before mutating it, without filtering a queryset in the view."""
+        return ProviderWorkingWindow.objects.filter(supplier=supplier, id=window_id).first()
+
+    @classmethod
+    def get_blocked_period_for_supplier(cls, *, supplier, blocked_period_id):
+        """Ownership-scoped single-row lookup — Epic 02, same reasoning as
+        get_working_window_for_supplier()."""
+        return AvailabilityBlockedPeriod.objects.filter(supplier=supplier, id=blocked_period_id).first()
+
     # --- internal helpers -------------------------------------------------
 
     @staticmethod

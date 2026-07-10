@@ -1,8 +1,9 @@
 # Product Roadmap
 
-Status: current as of PR #22's merge (Customer Experience Phase 1,
-including the post-review architecture remediation), `main` @
-`f5c68f19ce3df7ce44ab5c8faa35ccaf31b97e07` (PR #22's merge commit).
+Status: current as of the Epic 02 — Marketplace Operational Experience
+sprint (branch `claude/epic-02-marketplace-operational-experience`), based
+on `main` @ `73bb852ceeff3c551476a628a283a56248abdb6d` (PR #23's merge
+commit).
 
 This roadmap is organized **by business value, not by Blueprint module
 number** — the order a customer, provider, or organization experiences
@@ -43,6 +44,12 @@ it existing first.
   reusing existing pricing/order/matching services, an order timeline
   reusing `OrderStatusHistory`, and a notification center reusing
   `apps.notifications` — all under the new `apps.portal` app.
+- ~~Customer dashboard, order history/detail/timeline, notification
+  center~~ — **done** (Customer Experience Phase 2, Epic 02): active/
+  upcoming/completed/cancelled order views, an upcoming-visits summary,
+  order-list filter tabs, and a `CareRecipientService.archive()` lifecycle
+  action, all reusing/extending the existing `apps.portal`/`apps.orders`/
+  `apps.notifications` query services — no new engines.
 - Geo-aware search and proximity-based discovery.
 - Real payment methods at checkout, with a payment that actually resolves
   to a settled, wallet-reflected transaction.
@@ -72,12 +79,27 @@ gets to act on it. Reputation is worthless if a provider can never appeal
 an unfair review.
 
 **Features**:
-- Candidate accept/decline workflow for Matching.
+- ~~Provider dashboard, assignment accept/decline, visit execution,
+  availability, earnings~~ — **done** (Provider Experience Phase 1, Epic
+  02): a supplier-generic `apps.provider_portal` (built on
+  `kernel.ServiceSupplier`, never `CaregiverProfile` directly, so it's
+  reusable for future non-caregiver supplier types) lets a provider see
+  today's/upcoming assignments and active execution sessions, confirm or
+  decline an assignment (new `SupplierAssignmentStatus.DECLINED`, an
+  explicit extensible transition table — not ad-hoc status writes), start
+  and complete a visit (reusing `apps.execution.ExecutionService`
+  unmodified), manage availability (reusing `apps.availability`
+  directly), and see an earnings summary (reusing
+  `apps.reporting.ProviderReportService`).
+- Candidate accept/decline workflow **at the Matching proposal stage**
+  (still open — what shipped is acceptance one step downstream, of an
+  already-created `SupplierAssignment`; see `GAP_ANALYSIS.md`).
 - Execution evidence capture (photos, notes) during service delivery.
 - Reputation depth — appeals and abuse prevention, and fixing the known
   reviewer-ownership integrity gap (see `GAP_ANALYSIS.md`).
 - Calendar-grade availability tooling on top of the existing
-  `availability` data model.
+  `availability` data model (Epic 02 exposed the existing model's
+  windows/blocked-periods/capacity; no new calendar UI).
 
 **Modules involved**: 02 (Matching), 03 (Booking), 04 (Execution), 13
 (Document/Media), 14 (Review/Reputation).
@@ -91,7 +113,8 @@ trust that their reputation reflects only real, legitimate reviews.
 
 **Priority**: **P1** — the platform functions without this today only
 because an operator manually assigns work; this phase is what makes it
-self-serve for providers.
+self-serve for providers. (Assignment accept/decline and visit execution
+are now self-serve as of Epic 02; the rest of this phase remains open.)
 
 ---
 
@@ -106,9 +129,22 @@ segment (agencies bring many caregivers and recurring volume) that the
 current foundation only partially serves.
 
 **Features**:
+- ~~Organization dashboard, staff management, manual assignment center,
+  capacity overview, performance reports~~ — **done** (Organization
+  Experience Phase 1, Epic 02): `apps.organization_portal` reuses
+  `OrganizationMembership` for staff (approve/suspend using fields that
+  already existed on the model — no new membership model), a manual
+  staff-assignment center (`OrganizationAssignmentService.assign_manual()`,
+  reusing `AssignmentService.assign()` unmodified, with the service
+  boundary shaped to hold future automatic/bulk/shift strategies), a
+  capacity view reusing `apps.availability.CapacityService`, and reports
+  reusing `apps.reporting.ProviderReportService`. Deliberately scoped to
+  one organization per admin (see `DECISION_HISTORY.md`) — multi-org
+  switching is explicitly deferred, not designed out.
 - `Branch`/`Department`/`Team` model — frozen in the Phase 0.5 domain
-  model, never built.
-- Organization-level dashboards and reporting.
+  model, never built. The new portal's navigation is structured so these
+  can each become one more module/nav entry later without a restructure
+  (see `apps.organization_portal`'s `_sidebar_nav.html`).
 - Bulk caregiver management and deeper affiliation-request workflows.
 
 **Modules involved**: 08 (Identity/Access — organization structure), 17
@@ -121,7 +157,8 @@ prioritized against Customer/Provider Experience work.
 business on the platform, not just be one account among many.
 
 **Priority**: **P1** — real, deferred value; not blocking the core
-transaction loop.
+transaction loop. (Staff management and manual assignment are now real as
+of Epic 02; branches/departments/teams and bulk workflows remain open.)
 
 ---
 

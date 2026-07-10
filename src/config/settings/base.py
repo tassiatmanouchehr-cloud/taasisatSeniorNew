@@ -78,6 +78,8 @@ INSTALLED_APPS = [
     "apps.api",
     "apps.admin_portal",
     "apps.portal",
+    "apps.provider_portal",
+    "apps.organization_portal",
     "apps.showcase",
     "apps.public_site",
 ]

@@ -1,0 +1,11 @@
+{% extends "provider_portal/base.html" %}
+
+{% block portal_title %}خطا{% endblock %}
+{% block page_title %}عملیات ناموفق بود{% endblock %}
+
+{% block portal_content %}
+<div class="bg-surface border border-danger-200 rounded-lg p-6 max-w-2xl">
+  <p class="text-sm text-danger">{{ error }}</p>
+  <a href="{% url 'provider_portal:assignments' %}" class="mt-4 inline-block text-sm font-bold text-primary hover:underline">بازگشت به تخصیص‌ها</a>
+</div>
+{% endblock %}

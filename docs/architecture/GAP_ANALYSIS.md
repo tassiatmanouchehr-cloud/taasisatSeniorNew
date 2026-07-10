@@ -1,8 +1,9 @@
 # Gap Analysis
 
-Status: current as of PR #22's merge (Customer Experience Phase 1,
-including the post-review architecture remediation), `main` @
-`f5c68f19ce3df7ce44ab5c8faa35ccaf31b97e07` (PR #22's merge commit).
+Status: current as of the Epic 02 — Marketplace Operational Experience
+sprint (branch `claude/epic-02-marketplace-operational-experience`), based
+on `main` @ `73bb852ceeff3c551476a628a283a56248abdb6d` (PR #23's merge
+commit).
 
 ## Where exactly are we today?
 
@@ -204,6 +205,40 @@ service request wizard, order timeline, and notification center — none of
 which is a numbered Blueprint module (mirrors `apps.admin_portal`'s
 cross-cutting, unnumbered status).
 
+## Future placeholders — resolved by Epic 02 (Marketplace Operational Experience)
+
+Provider Experience's and Organization Experience's "matching is worthless
+if the matched provider never gets to act on it" gap (see
+`PRODUCT_ROADMAP.md`) is now partially closed:
+
+- **Provider assignment accept/decline** — `SupplierAssignmentStatus`
+  gained a `DECLINED` value; `apps.booking.services.provider_actions.
+  ProviderAssignmentActionService` (an explicit, extensible transition
+  table, not ad-hoc status writes) lets a provider confirm or decline
+  their own assignment from the new `apps.provider_portal` app.
+  Confirming also creates the `ExecutionSession` (orchestrated at the
+  portal-view layer, since `apps.booking` cannot import `apps.execution`
+  — see `dependency-graph.md`).
+- **Provider visit execution** — `apps.execution.services.provider_actions.
+  ProviderExecutionService` wraps the unmodified `ExecutionService.
+  start_session()`/`complete_session()` with ownership verification, reached
+  from `apps.provider_portal`. No second execution lifecycle.
+- **Provider availability, earnings** — `apps.provider_portal` exposes the
+  pre-existing `apps.availability` services directly and a read-only
+  earnings view backed by `apps.reporting.ProviderReportService`.
+- **Organization staff & assignment** — `apps.organization_portal` exposes
+  `OrganizationMembership` staff lifecycle (approve/suspend, using fields
+  that already existed on the model) and a manual staff-assignment center
+  (`OrganizationAssignmentService.assign_manual()`, reusing
+  `AssignmentService.assign()` unmodified — the service boundary is shaped
+  to hold future automatic/bulk/shift assignment strategies, none of which
+  are implemented yet).
+
+Still open after Epic 02: candidate accept/decline *at the Matching
+proposal stage* (Module 02) — what Epic 02 built is acceptance of an
+already-created `SupplierAssignment`, one step downstream of Matching
+itself, which remains unchanged. See `PROJECT_MODULE_STATUS.md` Module 02.
+
 ## Duplicated concepts
 
 | Concept | Where | Status |
@@ -279,12 +314,20 @@ Ranked by leverage, not by module number:
 - No dispute, complaint, or fraud signal can currently be captured,
   investigated, or resolved anywhere in the platform.
 - A customer cannot select who they want from a set of matched
-  candidates — matching proposes, nothing lets them choose.
+  candidates — matching proposes, nothing lets them choose. (A provider
+  *can* now accept/decline a `SupplierAssignment` once one exists — Epic
+  02 — but the upstream candidate-selection step itself is unchanged.)
 
 ## Architecture gaps
 
 - No permission-key registry — a typo in a granted permission string
-  fails silently, forever.
+  fails silently, forever. All three server-rendered portals today
+  (`apps.portal`, `apps.provider_portal`, `apps.organization_portal`) use
+  ownership as their security boundary instead of RBAC permission keys —
+  a deliberate, consistent choice (see `DECISION_HISTORY.md`), not drift —
+  because no infrastructure exists yet to seed org/provider-scoped role
+  assignments. `RoleAssignment.scope_type`/`scope_id` exists on the model
+  but is unused by any current code path.
 - No public API surface — nothing external can integrate with this
   platform today.
 - No metrics, tracing, or alerting beyond a single health-check endpoint

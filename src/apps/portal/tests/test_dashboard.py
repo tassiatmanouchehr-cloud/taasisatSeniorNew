@@ -1,3 +1,5 @@
+from django.utils import timezone
+
 from apps.orders.services.order_creation import create_public_order
 
 from .helpers import PortalTestCase
@@ -36,3 +38,27 @@ class DashboardViewTest(PortalTestCase):
         self.login_as_customer()
         response = self.client.get("/portal/")
         self.assertNotContains(response, other_order.order_number)
+
+    def test_dashboard_shows_upcoming_scheduled_visit(self):
+        self.login_as_customer()
+        future = timezone.now() + timezone.timedelta(days=3)
+        create_public_order(
+            service_category_id=self.category.id, description="x", phone="09120000000",
+            address="addr", city="tehran", customer_profile=self.customer,
+            elder_profile=self.care_recipient, created_by=self.customer.user, tenant_id=self.tenant.id,
+            scheduled_for=future,
+        )
+        response = self.client.get("/portal/")
+        self.assertEqual(len(response.context["upcoming_visits"]), 1)
+
+    def test_dashboard_does_not_show_past_scheduled_visit(self):
+        self.login_as_customer()
+        past = timezone.now() - timezone.timedelta(days=3)
+        create_public_order(
+            service_category_id=self.category.id, description="x", phone="09120000000",
+            address="addr", city="tehran", customer_profile=self.customer,
+            elder_profile=self.care_recipient, created_by=self.customer.user, tenant_id=self.tenant.id,
+            scheduled_for=past,
+        )
+        response = self.client.get("/portal/")
+        self.assertEqual(len(response.context["upcoming_visits"]), 0)

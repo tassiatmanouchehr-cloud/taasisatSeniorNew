@@ -1,0 +1,83 @@
+{% extends "provider_portal/base.html" %}
+
+{% block portal_title %}زمان‌بندی{% endblock %}
+{% block page_title %}زمان‌بندی و ظرفیت{% endblock %}
+
+{% block portal_content %}
+<div class="grid gap-4 grid-cols-1 lg:grid-cols-2">
+
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">ساعات کاری</h2>
+    {% if working_windows %}
+    <ul class="divide-y divide-border mb-4">
+      {% for window in working_windows %}
+      <li class="py-2 flex items-center justify-between">
+        <span class="text-sm text-text">{{ window.get_day_of_week_display }} — {{ window.start_time }} تا {{ window.end_time }}</span>
+        <form method="post" action="{% url 'provider_portal:working-window-remove' window_id=window.id %}">
+          {% csrf_token %}
+          <button type="submit" class="text-sm text-danger hover:underline">حذف</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-text-muted mb-4">هنوز ساعت کاری ثبت نکرده‌اید.</p>
+    {% endif %}
+
+    <form method="post" class="space-y-3 border-t border-border pt-4">
+      {% csrf_token %}
+      {% if window_form.non_field_errors %}
+      <div class="rounded-lg border border-danger-200 bg-danger-50 p-3 text-sm text-danger">
+        {% for error in window_form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+      </div>
+      {% endif %}
+      {% for field in window_form %}
+      <div>
+        <label class="block text-sm font-bold text-text">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}<p class="mt-1 text-xs text-danger">{{ field.errors.0 }}</p>{% endif %}
+      </div>
+      {% endfor %}
+      <button type="submit" class="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-700">افزودن ساعت کاری</button>
+    </form>
+  </div>
+
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">ظرفیت</h2>
+    <p class="text-sm text-text-muted mb-4">
+      {{ engagement_count }} تخصیص فعال
+      {% if capacity_exceeded %}<span class="text-danger font-medium">— ظرفیت تکمیل است</span>{% endif %}
+    </p>
+
+    <h2 class="text-base font-bold text-text mb-4 border-t border-border pt-4">مرخصی / عدم دسترسی</h2>
+    {% if blocked_periods %}
+    <ul class="divide-y divide-border mb-4">
+      {% for period in blocked_periods %}
+      <li class="py-2 flex items-center justify-between">
+        <span class="text-sm text-text">{{ period.start_at|date:"Y/m/d H:i" }} تا {{ period.end_at|date:"Y/m/d H:i" }} — {{ period.get_reason_display }}</span>
+        <form method="post" action="{% url 'provider_portal:blocked-period-remove' blocked_period_id=period.id %}">
+          {% csrf_token %}
+          <button type="submit" class="text-sm text-danger hover:underline">حذف</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-text-muted mb-4">مرخصی ثبت‌شده‌ای ندارید.</p>
+    {% endif %}
+
+    <form method="post" action="{% url 'provider_portal:blocked-period-create' %}" class="space-y-3 border-t border-border pt-4">
+      {% csrf_token %}
+      {% for field in blocked_period_form %}
+      <div>
+        <label class="block text-sm font-bold text-text">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}<p class="mt-1 text-xs text-danger">{{ field.errors.0 }}</p>{% endif %}
+      </div>
+      {% endfor %}
+      <button type="submit" class="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-700">ثبت مرخصی</button>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

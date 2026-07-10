@@ -9,6 +9,12 @@
 {% endblock %}
 
 {% block portal_content %}
+<div class="flex items-center gap-inline-2 text-sm mb-4">
+  <a href="{% url 'portal:requests' %}" class="{% if filter == 'all' %}font-bold text-primary{% else %}text-text-muted hover:text-text{% endif %}">همه</a>
+  <a href="{% url 'portal:requests' %}?filter=active" class="{% if filter == 'active' %}font-bold text-primary{% else %}text-text-muted hover:text-text{% endif %}">فعال</a>
+  <a href="{% url 'portal:requests' %}?filter=completed" class="{% if filter == 'completed' %}font-bold text-primary{% else %}text-text-muted hover:text-text{% endif %}">انجام‌شده</a>
+  <a href="{% url 'portal:requests' %}?filter=cancelled" class="{% if filter == 'cancelled' %}font-bold text-primary{% else %}text-text-muted hover:text-text{% endif %}">لغوشده</a>
+</div>
 {% if orders %}
 <div class="bg-surface border border-border rounded-lg overflow-hidden">
   <ul class="divide-y divide-border">

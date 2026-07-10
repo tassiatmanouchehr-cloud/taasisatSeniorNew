@@ -21,7 +21,13 @@
       {% if cr.is_primary %}<span class="text-xs font-medium text-primary">اصلی</span>{% endif %}
     </div>
     {% if cr.relationship %}<p class="mt-1 text-sm text-text-muted">{{ cr.get_relationship_display }}</p>{% endif %}
-    <a href="{% url 'portal:care-recipient-edit' care_recipient_id=cr.id %}" class="mt-3 inline-block text-sm font-medium text-primary hover:underline">ویرایش</a>
+    <div class="mt-3 flex items-center gap-inline-3">
+      <a href="{% url 'portal:care-recipient-edit' care_recipient_id=cr.id %}" class="text-sm font-medium text-primary hover:underline">ویرایش</a>
+      <form method="post" action="{% url 'portal:care-recipient-archive' care_recipient_id=cr.id %}">
+        {% csrf_token %}
+        <button type="submit" class="text-sm font-medium text-danger hover:underline">آرشیو</button>
+      </form>
+    </div>
   </div>
   {% endfor %}
 </div>

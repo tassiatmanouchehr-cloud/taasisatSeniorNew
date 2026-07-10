@@ -124,6 +124,61 @@ class UpdateCareRecipientTest(CareRecipientTestCase):
             CareRecipientService.update(recipient, not_a_real_field="y")
 
 
+class ArchiveCareRecipientTest(CareRecipientTestCase):
+    def test_archive_sets_status_archived(self):
+        from apps.accounts.models.profiles import ProfileStatus
+
+        recipient = CareRecipientService.create(customer_profile=self.customer, full_name="Old One")
+        CareRecipientService.archive(recipient)
+        recipient.refresh_from_db()
+        self.assertEqual(recipient.status, ProfileStatus.ARCHIVED)
+
+    def test_archived_recipient_excluded_from_default_list(self):
+        recipient = CareRecipientService.create(customer_profile=self.customer, full_name="Old One")
+        CareRecipientService.create(customer_profile=self.customer, full_name="Active One")
+        CareRecipientService.archive(recipient)
+
+        recipients = CareRecipientService.list_for_customer(self.customer)
+        self.assertEqual(recipients.count(), 1)
+        self.assertEqual(recipients.first().full_name, "Active One")
+
+    def test_archived_recipient_included_when_requested(self):
+        recipient = CareRecipientService.create(customer_profile=self.customer, full_name="Old One")
+        CareRecipientService.archive(recipient)
+
+        recipients = CareRecipientService.list_for_customer(self.customer, include_archived=True)
+        self.assertEqual(recipients.count(), 1)
+
+    def test_archived_recipient_still_reachable_by_id(self):
+        recipient = CareRecipientService.create(customer_profile=self.customer, full_name="Old One")
+        CareRecipientService.archive(recipient)
+        fetched = CareRecipientService.get_for_customer(self.customer, recipient.id)
+        self.assertEqual(fetched.id, recipient.id)
+
+
+class CareRecipientEventPublishingTest(CareRecipientTestCase):
+    def test_create_publishes_and_audits(self):
+        from apps.kernel.models.audit import AuditLog
+
+        with self.captureOnCommitCallbacks(execute=True):
+            recipient = CareRecipientService.create(customer_profile=self.customer, full_name="Audited One")
+
+        entry = AuditLog.objects.get(action="domain_event.CareRecipientCreated", resource_id=recipient.id)
+        self.assertEqual(entry.resource_type, "ElderProfile")
+        self.assertEqual(entry.actor_id, self.customer.person_id)
+
+    def test_update_publishes_and_audits(self):
+        from apps.kernel.models.audit import AuditLog
+
+        recipient = CareRecipientService.create(customer_profile=self.customer, full_name="Audited One")
+        with self.captureOnCommitCallbacks(execute=True):
+            CareRecipientService.update(recipient, medical_notes="Updated")
+
+        self.assertTrue(
+            AuditLog.objects.filter(action="domain_event.CareRecipientUpdated", resource_id=recipient.id).exists()
+        )
+
+
 class CareRecipientNotAUserAccountTest(CareRecipientTestCase):
     """Care recipients are data owned by the customer, never authenticated accounts."""
 

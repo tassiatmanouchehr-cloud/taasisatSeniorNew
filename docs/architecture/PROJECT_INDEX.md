@@ -1,8 +1,9 @@
 # Project Index
 
-Status: current as of PR #22's merge (Customer Experience Phase 1,
-including the post-review architecture remediation), `main` @
-`f5c68f19ce3df7ce44ab5c8faa35ccaf31b97e07` (PR #22's merge commit).
+Status: current as of the Epic 02 — Marketplace Operational Experience
+sprint (branch `claude/epic-02-marketplace-operational-experience`), based
+on `main` @ `73bb852ceeff3c551476a628a283a56248abdb6d` (PR #23's merge
+commit).
 
 **Start here.** This is the entry point to this repository's
 documentation — everything a new developer needs to understand where the

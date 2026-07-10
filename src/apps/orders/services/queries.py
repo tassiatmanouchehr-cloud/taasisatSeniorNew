@@ -26,12 +26,36 @@ class OrderQueryService:
         ).order_by("-created_at")[:limit]
 
     @classmethod
-    def list_for_customer(cls, *, customer_profile, tenant_id):
-        from ..models import Order
+    def list_for_customer(cls, *, customer_profile, tenant_id, only=None):
+        """`only`: None (all), "active", "completed", or "cancelled" — Customer
+        Experience Phase 2 order-history tabs."""
+        from ..models import FINAL_STATUSES, Order, OrderStatus
+
+        queryset = Order.objects.for_tenant(tenant_id).filter(
+            customer_profile=customer_profile,
+        ).order_by("-created_at")
+
+        if only == "active":
+            queryset = queryset.exclude(status__in=FINAL_STATUSES)
+        elif only == "completed":
+            queryset = queryset.filter(status=OrderStatus.COMPLETED)
+        elif only == "cancelled":
+            queryset = queryset.filter(status=OrderStatus.CANCELLED)
+
+        return queryset
+
+    @classmethod
+    def list_upcoming_for_customer(cls, *, customer_profile, tenant_id, limit):
+        """Orders with a future scheduled_for and a non-final status — the
+        dashboard's "upcoming visits" slice (Customer Experience Phase 2)."""
+        from django.utils import timezone
+
+        from ..models import FINAL_STATUSES, Order
 
         return Order.objects.for_tenant(tenant_id).filter(
             customer_profile=customer_profile,
-        ).order_by("-created_at")
+            scheduled_for__gte=timezone.now(),
+        ).exclude(status__in=FINAL_STATUSES).order_by("scheduled_for")[:limit]
 
     @classmethod
     def get_for_customer(cls, *, customer_profile, tenant_id, order_id):
@@ -41,6 +65,28 @@ class OrderQueryService:
             return Order.objects.for_tenant(tenant_id).get(id=order_id, customer_profile=customer_profile)
         except Order.DoesNotExist:
             raise OrderNotFoundError("Order not found.")
+
+    @classmethod
+    def list_unassigned_for_tenant(cls, *, tenant_id):
+        """Orders in this tenant with no supplier assigned yet and a non-final
+        status — the organization portal's Assignment Center (Epic 02).
+        Deliberately tenant-wide, not filtered by service category/
+        eligibility — every organization admin in the tenant sees the same
+        open-work list today; category-aware filtering is deferred (see
+        GAP_ANALYSIS.md)."""
+        from ..models import FINAL_STATUSES, Order
+
+        return Order.objects.for_tenant(tenant_id).filter(
+            assigned_supplier__isnull=True,
+        ).exclude(status__in=FINAL_STATUSES).order_by("created_at")
+
+    @classmethod
+    def list_recent_unassigned_for_tenant(cls, *, tenant_id, limit):
+        return cls.list_unassigned_for_tenant(tenant_id=tenant_id)[:limit]
+
+    @classmethod
+    def count_unassigned_for_tenant(cls, *, tenant_id):
+        return cls.list_unassigned_for_tenant(tenant_id=tenant_id).count()
 
 
 class CatalogNotFoundError(Exception):

@@ -1,0 +1,23 @@
+{% extends "provider_portal/base.html" %}
+
+{% block portal_title %}درآمد{% endblock %}
+{% block page_title %}خلاصه درآمد{% endblock %}
+
+{% block portal_content %}
+<div class="grid gap-4 grid-cols-1 sm:grid-cols-2">
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">موجودی کیف پول</h2>
+    {% if wallet %}
+    <p class="text-2xl font-bold text-text">{{ wallet.balance }} <span class="text-sm font-normal text-text-muted">{{ wallet.currency }}</span></p>
+    {% else %}
+    <p class="text-sm text-text-muted">کیف پولی برای شما ثبت نشده است.</p>
+    {% endif %}
+  </div>
+
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">خدمات انجام‌شده</h2>
+    <p class="text-2xl font-bold text-text">{{ performance.completed_services }}</p>
+    <p class="mt-2 text-xs text-text-muted">تسویه‌حساب معلق و پرداخت‌شده به‌صورت جداگانه در حال حاضر محاسبه نمی‌شود.</p>
+  </div>
+</div>
+{% endblock %}

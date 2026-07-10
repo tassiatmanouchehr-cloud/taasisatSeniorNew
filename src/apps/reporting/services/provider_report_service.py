@@ -33,6 +33,15 @@ class ProviderReportService:
         return tuple(cls._build_report(supplier) for supplier in suppliers)
 
     @classmethod
+    def list_reports_for_suppliers(cls, tenant_id: uuid.UUID, supplier_ids) -> tuple[ProviderPerformanceReport, ...]:
+        """Epic 02 (Marketplace Operational Experience): the organization
+        portal's staff-performance report — the same per-supplier aggregation
+        as list_reports(), scoped to a specific set of supplier ids instead of
+        every supplier in the tenant. No new reporting engine."""
+        suppliers = ServiceSupplier.objects.filter(tenant_id=tenant_id, id__in=supplier_ids).order_by("id")
+        return tuple(cls._build_report(supplier) for supplier in suppliers)
+
+    @classmethod
     def _build_report(cls, supplier: ServiceSupplier) -> ProviderPerformanceReport:
         tenant_id = supplier.tenant_id
 

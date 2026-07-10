@@ -1,0 +1,34 @@
+{# Shared nav-link list — included by both the desktop sidebar_nav block and the
+   mobile_sidebar_nav block in base.html. One link per module, deliberately —
+   future modules (branches, departments, teams, fleet, scheduling, finance,
+   compliance) each add one more link here, not a restructure. #}
+<a href="{% url 'organization_portal:dashboard' %}"
+   class="flex items-center gap-inline-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+          {% if request.resolver_match.url_name == 'dashboard' %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text-muted hover:bg-background-alt hover:text-text{% endif %}">
+  داشبورد
+</a>
+<a href="{% url 'organization_portal:staff' %}"
+   class="flex items-center gap-inline-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+          {% if 'staff' in request.resolver_match.url_name %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text-muted hover:bg-background-alt hover:text-text{% endif %}">
+  نیروها
+</a>
+<a href="{% url 'organization_portal:assignment-center' %}"
+   class="flex items-center gap-inline-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+          {% if 'assign' in request.resolver_match.url_name %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text-muted hover:bg-background-alt hover:text-text{% endif %}">
+  مرکز تخصیص
+</a>
+<a href="{% url 'organization_portal:capacity' %}"
+   class="flex items-center gap-inline-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+          {% if request.resolver_match.url_name == 'capacity' %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text-muted hover:bg-background-alt hover:text-text{% endif %}">
+  ظرفیت
+</a>
+<a href="{% url 'organization_portal:reports' %}"
+   class="flex items-center gap-inline-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+          {% if request.resolver_match.url_name == 'reports' %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text-muted hover:bg-background-alt hover:text-text{% endif %}">
+  گزارش‌ها
+</a>
+<a href="{% url 'organization_portal:notifications' %}"
+   class="flex items-center gap-inline-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+          {% if request.resolver_match.url_name == 'notifications' %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text-muted hover:bg-background-alt hover:text-text{% endif %}">
+  اعلان‌ها
+</a>

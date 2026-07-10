@@ -1,0 +1,59 @@
+{% extends "organization_portal/base.html" %}
+
+{% block portal_title %}داشبورد{% endblock %}
+{% block page_title %}{{ organization.name }}{% endblock %}
+{% block page_description %}
+<p class="mt-1 text-sm text-text-muted">خلاصه‌ای از نیروها، درخواست‌های باز و اعلان‌ها.</p>
+{% endblock %}
+
+{% block portal_content %}
+<div class="grid gap-4 grid-cols-1 lg:grid-cols-3">
+
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">نیروها</h2>
+    <p class="text-2xl font-bold text-text">{{ staff_total }}</p>
+    {% if staff_pending %}<p class="mt-1 text-sm text-primary">{{ staff_pending }} در انتظار تأیید</p>{% endif %}
+    <a href="{% url 'organization_portal:staff' %}" class="mt-3 inline-block text-sm font-medium text-primary hover:underline">مدیریت نیروها</a>
+  </div>
+
+  <div class="lg:col-span-2 bg-surface border border-border rounded-lg p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-bold text-text">درخواست‌های باز</h2>
+      <a href="{% url 'organization_portal:assignment-center' %}" class="text-sm font-medium text-primary hover:underline">مشاهده همه ({{ open_orders_count }})</a>
+    </div>
+    {% if open_orders %}
+    <ul class="divide-y divide-border">
+      {% for order in open_orders %}
+      <li class="py-3">
+        <p class="text-sm font-medium text-text">{{ order.order_number }} — {{ order.service_category.name }}</p>
+        <p class="text-xs text-text-muted mt-0.5">{{ order.created_at|date:"Y/m/d H:i" }}</p>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-text-muted">درخواست باز بدون تخصیصی وجود ندارد.</p>
+    {% endif %}
+  </div>
+
+  <div class="lg:col-span-3 bg-surface border border-border rounded-lg p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-bold text-text">اعلان‌های اخیر</h2>
+      <a href="{% url 'organization_portal:notifications' %}" class="text-sm font-medium text-primary hover:underline">
+        مشاهده همه{% if unread_notification_count %} ({{ unread_notification_count }} خوانده‌نشده){% endif %}
+      </a>
+    </div>
+    {% if recent_notifications %}
+    <ul class="divide-y divide-border">
+      {% for n in recent_notifications %}
+      <li class="py-3 text-sm text-text">
+        {{ n.get_channel_display }} — <span class="text-text-muted">{{ n.created_at|date:"Y/m/d H:i" }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-text-muted">اعلانی وجود ندارد.</p>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

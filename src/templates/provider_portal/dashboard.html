@@ -1,0 +1,86 @@
+{% extends "provider_portal/base.html" %}
+
+{% block portal_title %}داشبورد{% endblock %}
+{% block page_title %}سلام، {{ supplier.display_name }}{% endblock %}
+{% block page_description %}
+<p class="mt-1 text-sm text-text-muted">خلاصه‌ای از تخصیص‌ها، ویزیت‌ها و امتیاز شما.</p>
+{% endblock %}
+
+{% block portal_content %}
+<div class="grid gap-4 grid-cols-1 lg:grid-cols-3">
+
+  <div class="lg:col-span-2 bg-surface border border-border rounded-lg p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-bold text-text">تخصیص‌های در انتظار پاسخ</h2>
+      <a href="{% url 'provider_portal:assignments' %}" class="text-sm font-medium text-primary hover:underline">مشاهده همه</a>
+    </div>
+    {% if pending_assignments %}
+    <ul class="divide-y divide-border">
+      {% for assignment in pending_assignments %}
+      <li class="py-3">
+        <a href="{% url 'provider_portal:assignment-detail' order_id=assignment.order.id %}" class="flex items-center justify-between no-underline">
+          <div>
+            <p class="text-sm font-medium text-text">{{ assignment.order.order_number }} — {{ assignment.order.service_category.name }}</p>
+            <p class="text-xs text-text-muted mt-0.5">{{ assignment.created_at|date:"Y/m/d H:i" }}</p>
+          </div>
+          <span class="text-xs font-medium text-text-muted">{{ assignment.get_status_display }}</span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-text-muted">تخصیص در انتظار پاسخی ندارید.</p>
+    {% endif %}
+  </div>
+
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">امتیاز</h2>
+    <p class="text-2xl font-bold text-text">{{ reputation.average_score|default:"—" }}</p>
+    <p class="mt-1 text-sm text-text-muted">{{ reputation.review_count }} نظر</p>
+  </div>
+
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">ویزیت‌های فعال</h2>
+    {% if active_visits %}
+    <ul class="space-y-2">
+      {% for session in active_visits %}
+      <li class="text-sm">
+        <a href="{% url 'provider_portal:assignment-detail' order_id=session.order.id %}" class="text-text no-underline hover:underline">{{ session.order.order_number }}</a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-text-muted">ویزیت فعالی ندارید.</p>
+    {% endif %}
+  </div>
+
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">عملکرد</h2>
+    <dl class="space-y-2 text-sm">
+      <div class="flex justify-between"><dt class="text-text-muted">خدمات انجام‌شده</dt><dd class="text-text font-medium">{{ performance.completed_services }}</dd></div>
+      <div class="flex justify-between"><dt class="text-text-muted">تخصیص‌های فعال</dt><dd class="text-text font-medium">{{ performance.active_assignments }}</dd></div>
+    </dl>
+  </div>
+
+  <div class="lg:col-span-2 bg-surface border border-border rounded-lg p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-bold text-text">اعلان‌های اخیر</h2>
+      <a href="{% url 'provider_portal:notifications' %}" class="text-sm font-medium text-primary hover:underline">
+        مشاهده همه{% if unread_notification_count %} ({{ unread_notification_count }} خوانده‌نشده){% endif %}
+      </a>
+    </div>
+    {% if recent_notifications %}
+    <ul class="divide-y divide-border">
+      {% for n in recent_notifications %}
+      <li class="py-3 text-sm text-text">
+        {{ n.get_channel_display }} — <span class="text-text-muted">{{ n.created_at|date:"Y/m/d H:i" }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-text-muted">اعلانی وجود ندارد.</p>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

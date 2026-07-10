@@ -1,0 +1,35 @@
+{% extends "provider_portal/base.html" %}
+
+{% block portal_title %}تخصیص‌ها{% endblock %}
+{% block page_title %}تخصیص‌ها{% endblock %}
+{% block page_actions %}
+<div class="flex items-center gap-inline-2 text-sm">
+  <a href="{% url 'provider_portal:assignments' %}" class="{% if filter == 'all' %}font-bold text-primary{% else %}text-text-muted hover:text-text{% endif %}">همه</a>
+  <a href="{% url 'provider_portal:assignments' %}?filter=pending" class="{% if filter == 'pending' %}font-bold text-primary{% else %}text-text-muted hover:text-text{% endif %}">در انتظار پاسخ</a>
+  <a href="{% url 'provider_portal:assignments' %}?filter=confirmed" class="{% if filter == 'confirmed' %}font-bold text-primary{% else %}text-text-muted hover:text-text{% endif %}">تأییدشده</a>
+</div>
+{% endblock %}
+
+{% block portal_content %}
+{% if assignments %}
+<div class="bg-surface border border-border rounded-lg overflow-hidden">
+  <ul class="divide-y divide-border">
+    {% for assignment in assignments %}
+    <li>
+      <a href="{% url 'provider_portal:assignment-detail' order_id=assignment.order.id %}" class="flex items-center justify-between px-5 py-4 no-underline hover:bg-background-alt">
+        <div>
+          <p class="text-sm font-bold text-text">{{ assignment.order.order_number }} — {{ assignment.order.service_category.name }}</p>
+          <p class="text-xs text-text-muted mt-0.5">{{ assignment.created_at|date:"Y/m/d H:i" }}</p>
+        </div>
+        <span class="text-xs font-medium text-text-muted">{{ assignment.get_status_display }}</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% else %}
+<div class="bg-surface border border-border rounded-lg p-8 text-center">
+  <p class="text-sm text-text-muted">تخصیصی یافت نشد.</p>
+</div>
+{% endif %}
+{% endblock %}

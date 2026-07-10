@@ -132,6 +132,47 @@ class PortalOrmDisciplineTest(SimpleTestCase):
         self.assertEqual(violations, [], f"Forbidden ORM usage found in apps/portal/views.py: {violations}")
 
 
+class ProviderPortalOrmDisciplineTest(SimpleTestCase):
+    """
+    Epic 02 (Marketplace Operational Experience): apps/provider_portal/views.py
+    holds to the same zero-ORM standard as apps/portal/views.py — every view
+    calls a service/query-service method (apps.booking, apps.execution,
+    apps.availability, apps.finance, apps.wallet, apps.reporting,
+    apps.reviews, apps.notifications) and renders a template.
+    """
+
+    def test_no_orm_calls_in_provider_portal_views(self):
+        views_file = APPS_DIR / "provider_portal" / "views.py"
+        self.assertTrue(views_file.is_file(), f"expected {views_file} to exist")
+
+        source = _read(views_file)
+        violations = [pattern for pattern in THIN_CONTROLLER_FORBIDDEN_ORM_PATTERNS if re.search(pattern, source)]
+        if re.search(r"\.objects\.\w+\(", source):
+            violations.append(".objects. call found — provider_portal views should call services only")
+
+        self.assertEqual(violations, [], f"Forbidden ORM usage found in apps/provider_portal/views.py: {violations}")
+
+
+class OrganizationPortalOrmDisciplineTest(SimpleTestCase):
+    """
+    Epic 02 (Marketplace Operational Experience): apps/organization_portal
+    /views.py holds to the same zero-ORM standard as apps/portal/views.py.
+    """
+
+    def test_no_orm_calls_in_organization_portal_views(self):
+        views_file = APPS_DIR / "organization_portal" / "views.py"
+        self.assertTrue(views_file.is_file(), f"expected {views_file} to exist")
+
+        source = _read(views_file)
+        violations = [pattern for pattern in THIN_CONTROLLER_FORBIDDEN_ORM_PATTERNS if re.search(pattern, source)]
+        if re.search(r"\.objects\.\w+\(", source):
+            violations.append(".objects. call found — organization_portal views should call services only")
+
+        self.assertEqual(
+            violations, [], f"Forbidden ORM usage found in apps/organization_portal/views.py: {violations}",
+        )
+
+
 class NoReverseApiImportTest(SimpleTestCase):
     """
     docs/architecture/dependency-graph.md: apps.api sits at the top of the

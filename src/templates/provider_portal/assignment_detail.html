@@ -1,0 +1,66 @@
+{% extends "provider_portal/base.html" %}
+
+{% block portal_title %}{{ order.order_number }}{% endblock %}
+{% block page_title %}{{ order.order_number }}{% endblock %}
+{% block page_description %}
+<p class="mt-1 text-sm text-text-muted">{{ order.service_category.name }} — وضعیت تخصیص: {{ assignment.get_status_display }}</p>
+{% endblock %}
+
+{% block portal_content %}
+<div class="grid gap-4 grid-cols-1 lg:grid-cols-3">
+
+  <div class="lg:col-span-2 bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">جزئیات درخواست</h2>
+    <dl class="space-y-2 text-sm">
+      <div class="flex justify-between"><dt class="text-text-muted">گیرنده خدمت</dt><dd class="text-text font-medium">{{ order.elder_profile.full_name }}</dd></div>
+      <div class="flex justify-between"><dt class="text-text-muted">شهر</dt><dd class="text-text font-medium">{{ order.city }}</dd></div>
+      <div class="flex justify-between"><dt class="text-text-muted">آدرس</dt><dd class="text-text font-medium">{{ order.address }}</dd></div>
+      <div class="flex justify-between"><dt class="text-text-muted">تماس</dt><dd class="text-text font-medium">{{ order.phone }}</dd></div>
+      {% if order.scheduled_for %}<div class="flex justify-between"><dt class="text-text-muted">زمان‌بندی</dt><dd class="text-text font-medium">{{ order.scheduled_for|date:"Y/m/d H:i" }}</dd></div>{% endif %}
+    </dl>
+    {% if order.description %}
+    <h3 class="text-sm font-bold text-text mt-4 mb-1">توضیحات / دستورالعمل ویژه</h3>
+    <p class="text-sm text-text-muted">{{ order.description }}</p>
+    {% endif %}
+    {% if order.elder_profile.medical_notes %}
+    <h3 class="text-sm font-bold text-text mt-4 mb-1">یادداشت مراقبتی</h3>
+    <p class="text-sm text-text-muted">{{ order.elder_profile.medical_notes }}</p>
+    {% endif %}
+  </div>
+
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">اقدامات</h2>
+
+    {% if assignment.status == "proposed" or assignment.status == "assigned" %}
+    <form method="post" action="{% url 'provider_portal:assignment-confirm' order_id=order.id %}" class="mb-3">
+      {% csrf_token %}
+      <button type="submit" class="w-full inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-700">تأیید تخصیص</button>
+    </form>
+    <form method="post" action="{% url 'provider_portal:assignment-decline' order_id=order.id %}">
+      {% csrf_token %}
+      <textarea name="reason" placeholder="دلیل رد (اختیاری)" class="mb-2 block w-full rounded-2xl border border-border bg-background px-4 py-3 text-text text-sm"></textarea>
+      <button type="submit" class="w-full inline-flex items-center justify-center rounded-lg border border-danger text-danger px-4 py-2 text-sm font-bold hover:bg-danger-50">رد تخصیص</button>
+    </form>
+    {% elif assignment.status == "confirmed" %}
+      {% if not session %}
+      <p class="text-sm text-text-muted">در حال آماده‌سازی ویزیت…</p>
+      {% elif session.status == "scheduled" %}
+      <form method="post" action="{% url 'provider_portal:visit-start' order_id=order.id %}">
+        {% csrf_token %}
+        <button type="submit" class="w-full inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-700">شروع ویزیت</button>
+      </form>
+      {% elif session.status == "in_progress" %}
+      <form method="post" action="{% url 'provider_portal:visit-complete' order_id=order.id %}">
+        {% csrf_token %}
+        <button type="submit" class="w-full inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-700">پایان ویزیت</button>
+      </form>
+      {% else %}
+      <p class="text-sm font-medium text-text">{{ session.get_status_display }}</p>
+      {% endif %}
+    {% else %}
+    <p class="text-sm text-text-muted">وضعیت: {{ assignment.get_status_display }}</p>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

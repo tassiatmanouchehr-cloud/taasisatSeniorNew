@@ -1,0 +1,33 @@
+{% extends "organization_portal/base.html" %}
+
+{% block portal_title %}اعلان‌ها{% endblock %}
+{% block page_title %}اعلان‌ها{% endblock %}
+{% block page_actions %}
+<div class="flex items-center gap-inline-2 text-sm">
+  <a href="{% url 'organization_portal:notifications' %}" class="{% if filter == 'all' %}font-bold text-primary{% else %}text-text-muted hover:text-text{% endif %}">همه</a>
+  <a href="{% url 'organization_portal:notifications' %}?filter=unread" class="{% if filter == 'unread' %}font-bold text-primary{% else %}text-text-muted hover:text-text{% endif %}">خوانده‌نشده</a>
+  <a href="{% url 'organization_portal:notifications' %}?filter=read" class="{% if filter == 'read' %}font-bold text-primary{% else %}text-text-muted hover:text-text{% endif %}">خوانده‌شده</a>
+</div>
+{% endblock %}
+
+{% block portal_content %}
+{% if notifications %}
+<div class="bg-surface border border-border rounded-lg overflow-hidden">
+  <ul class="divide-y divide-border">
+    {% for n in notifications %}
+    <li class="px-5 py-4 flex items-center justify-between gap-inline-3">
+      <div>
+        <p class="text-sm text-text {% if n.status == 'PENDING' %}font-bold{% endif %}">{{ n.get_channel_display }}</p>
+        <p class="text-xs text-text-muted mt-0.5">{{ n.created_at|date:"Y/m/d H:i" }}</p>
+      </div>
+      {% if n.status == 'PENDING' %}<span class="w-2 h-2 rounded-full bg-primary"></span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% else %}
+<div class="bg-surface border border-border rounded-lg p-8 text-center">
+  <p class="text-sm text-text-muted">اعلانی وجود ندارد.</p>
+</div>
+{% endif %}
+{% endblock %}
