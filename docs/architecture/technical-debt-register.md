@@ -231,6 +231,66 @@ Phase 1; a good first task for whichever future sprint hardens the fake
 PSP callback's signature verification, since both are the same class of
 deferred hardening.
 
+## Settlement failure recovery — residual gaps (Epic 03 Sprint 1)
+
+**What**: `PaymentCallbackService._trigger_settlement()` enqueues a
+durable `payments.settlement.retry` job (`apps.jobs`) when a synchronous
+settlement attempt fails, closing the dominant failure mode (an
+exception raised during settlement). Two narrower gaps remain: (1) the
+`JobService.enqueue(...)` call itself is not wrapped in its own
+try/except — an enqueue failure (realistically, a database error) would
+propagate out of `process_callback()` uncaught, contradicting its stated
+"never re-raised" contract; (2) a process crash in the narrow window
+between the callback's own commit and the enqueue call completing would
+leave `PaymentIntent=SUCCEEDED` with neither a settlement nor a retry job,
+undetectable except by an ad hoc query.
+
+**Why**: Identified during Architecture Review remediation (Critical
+Finding 1) and confirmed still open during Architecture Re-Review. Judged
+non-blocking for Sprint 1 given the window is narrow (single-digit
+milliseconds, no I/O) and this system carries no production traffic yet.
+
+**Risk**: Low today; would become a real operational concern under real
+transaction volume without a closing mechanism.
+
+**Resolution**: Wrap the `enqueue()` call in its own try/except (small,
+low-risk fix). Add a periodic reconciliation job — `PaymentIntent`
+`SUCCEEDED` without a matching `SUCCEEDED` `PaymentTransaction`, enqueuing
+`payments.settlement.retry` for each (itself idempotent) — which would
+close both this gap and the general "settlement retry mechanism has no
+dedicated test coverage" item (also tracked, see `GAP_ANALYSIS.md`) once
+implemented and tested.
+
+## `LedgerEntry` uniqueness constraint not forward-compatible with multi-beneficiary accounting
+
+**What**: `finance/migrations/0002_settlement_idempotency_constraints.py`
+added `UniqueConstraint(fields=["payment_transaction", "account_code"], ...)`
+as a database-level backstop for concurrent-settlement idempotency
+(Architecture Review Critical Finding 2). As scoped, it would reject a
+legitimate future posting — e.g. two `provider.receivable.settled` CREDIT
+lines against the same `payment_transaction` for two different
+beneficiary parties (a split payment), or a DEBIT/CREDIT correction pair
+on the same `account_code` — because `party` and `entry_type` are not
+part of the constraint's key.
+
+**Why**: Added under time pressure during remediation to close a real
+concurrency gap; the `PaymentIntent` row lock (also added in the same
+remediation) is the actually load-bearing protection against duplicate
+postings in the current, single-caller-path system, making this
+constraint largely redundant for its stated purpose while also being
+too coarse for future accounting shapes.
+
+**Risk**: Medium — will surface as a hard migration/redesign problem the
+moment any future sprint implements split payments, multi-recipient
+commission, or correction postings, unless addressed first.
+
+**Resolution**: Before implementing split payments or multi-beneficiary
+settlement, either widen the constraint to `(payment_transaction,
+account_code, party, entry_type)`, or rescope it to key off
+`entry_group_id` instead (the field that already exists specifically to
+scope "the balanced set of entries posted together"), or remove it
+entirely in favor of relying solely on the `PaymentIntent` row lock.
+
 ## Resolved in Module 18
 
 - **`apps/api/views/reporting.py` hardcoded permission string**: replaced

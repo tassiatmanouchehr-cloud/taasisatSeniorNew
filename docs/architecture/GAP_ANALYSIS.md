@@ -1,8 +1,8 @@
 # Gap Analysis
 
-Status: current as of PR #24's merge (Epic 02 — Marketplace Operational
-Experience), `main` @ `bb95a902df4874076542884edaad81c4a6e9073d` (PR #24's
-merge commit).
+Status: current as of PR #26's merge (Epic 03 Sprint 1 — Financial
+Settlement & Money Flow), `main` @
+`36e07c68c40a72d896a03af2a484ba2e2ab2b2ca` (PR #26's merge commit).
 
 ## Where exactly are we today?
 
@@ -118,6 +118,15 @@ Registered, tracked debt:
 | Default roles ship with empty permissions | `apps/kernel/management/commands/seed_tenant.py` | Real gap for any fresh deployment wanting the API/RBAC-gated features usable | Product/security decision needed: which roles get which keys, seeded explicitly |
 | No permission-key registry | `apps.kernel.models.rbac.Role.permissions` (freeform JSON string list) | Low today, real long-term risk (a typo'd key silently grants nothing, forever) | A registry table validating `permission_key` against a canonical list — a real RBAC-hardening module |
 | Two parallel async-execution mechanisms | `apps.jobs` vs. `kernel.tasks`'s Celery/EventOutbox worker | Low today (each was a reasonable local decision), confusing long-term | Reconcile into one story before either grows further — see *Duplicated concepts* below |
+| Settlement retry-job mechanism has no dedicated test coverage | `apps.payments.jobs`, `PaymentCallbackService._trigger_settlement` | Medium — the recovery path for Critical Finding 1 is architecturally sound but unverified by test evidence | Add tests: job creation on callback-triggered failure, handler execution via `JobService.execute_job()`, idempotent re-enqueue, direct-call failures not enqueuing |
+| Settlement enqueue-failure not hardened | `PaymentCallbackService._trigger_settlement` | Low probability, real when it occurs — an enqueue failure propagates out of `process_callback()` uncaught, breaking its "never re-raised" contract | Wrap `JobService.enqueue(...)` in its own try/except inside the existing except-block |
+| Settlement process-crash window | Between callback commit and retry-job enqueue in `_trigger_settlement` | Low — narrow (single-digit ms), no real traffic yet | A periodic reconciliation sweep (`PaymentIntent` SUCCEEDED without a matching `PaymentTransaction`) would close it; not yet built |
+| `PaymentTransaction.provider_reference` semantic overload | `apps/finance/models/payment.py` | Low today (single producer, single meaning); will need attention once a real PSP integration needs the field for its original purpose | Separate the internal settlement-idempotency key from any future real external-provider reference field |
+| `LedgerEntry` uniqueness constraint not forward-compatible | `apps/finance/models/ledger.py`, `uq_ledger_entry_payment_txn_account_code` | Medium — as scoped (`payment_transaction`, `account_code`), it would block legitimate future split-payment/multi-beneficiary/correction postings | Add `party`/`entry_type` to the constraint, or rescope to `entry_group_id`-based, before any multi-beneficiary settlement work begins |
+| Settlement callback-status test gaps | `apps/payments/tests/test_settlement_orchestration.py` | Low — behavior is correct by code inspection (terminal-state transition guard), just unproven for these specific cases | Add tests for `AUTHORIZED`/`EXPIRED` callbacks and a differently-`provider_event_id`'d callback arriving after terminal `SUCCEEDED` |
+| Adjustment pipeline has no internal arithmetic invariants | `apps.payments.services.settlement_adjustments.SettlementAdjustmentPipeline` | Low today (identity function, trivially balanced); real risk once a non-trivial rule is added | Add a `net == gross - commission - tax + discount_recovery` consistency assertion inside `run()` |
+| Escrow warning is log-only and re-fires on every retry | `SettlementOrchestrationService.settle_payment_intent` | Low — operationally noisy, not incorrect; every settlement today logs it since `financial.escrow.enabled` is unseeded and defaults `True` | Persist a queryable/alertable record, or seed the config key explicitly per tenant, or deduplicate per intent |
+| Retry-triggered settlements not distinguishable from first-attempt in audit trail | `PermissionService.require(actor=None, ...)` system-context logging, used identically by both paths | Low — consistent with existing system-context precedent, just imprecise | Record `job.id`/a "settled_via" marker in the relevant audit/event payload if this distinction is ever needed operationally |
 
 ## Known limitations
 
@@ -162,12 +171,23 @@ adapter, not replace these in place):
 
 ## Deferred architecture
 
-- **Payment settlement bridge** — a `PaymentIntent` reaching `SUCCEEDED`
-  never credits a `Wallet` or creates a `finance.PaymentTransaction`.
-  ADR-005 names this explicitly: *"A future orchestration module would
-  call `PaymentService.record_payment()` once a `PaymentIntent` reaches
-  `SUCCEEDED` — deliberately not built now."* This is the single most
-  consequential deferred bridge in the codebase.
+- ~~**Payment settlement bridge**~~ — **closed by Epic 03 Sprint 1** (PR
+  #26, merged). A `PaymentIntent` reaching `SUCCEEDED` now resolves the
+  order's `FinancialDocument`/`FinancialObligation`, records a
+  `finance.PaymentTransaction`, posts a balanced `LedgerEntry` group, and
+  credits the beneficiary's canonical `apps.wallet.Wallet` —
+  `apps.payments.services.SettlementOrchestrationService`, triggered from
+  `PaymentCallbackService.process_callback()`. Direct Settlement only; all
+  commission/tax/discount adjustments still zero (see
+  `SettlementAdjustmentPipeline`, the preserved extension point).
+  Concurrent settlement attempts are serialized on a `PaymentIntent` row
+  lock, backed by two database `UniqueConstraint`s (verified by a real
+  multi-thread test). A failed settlement durably enqueues a
+  `payments.settlement.retry` job (`apps.jobs`) rather than only logging.
+  Still deferred, now tracked as their own technical-debt items below:
+  real commission/tax calculation, escrow execution (config seam exists
+  and is read, but always warns-and-falls-back to Direct Settlement),
+  provider payout batches, real PSP adapters.
 - **Real PSP signature/HMAC verification** — the fake payment callback
   endpoint requires no authentication by design (it simulates an
   unauthenticated PSP webhook). A real adapter's callback route must add
@@ -327,9 +347,13 @@ needing to bend:
 
 Ranked by leverage, not by module number:
 
-1. **Financial Operations** (Module 05) — close the payment-to-settlement
-   bridge. The prior art exists on both sides of the gap; this is
-   mechanical, not exploratory.
+1. **Financial Operations** (Module 05) — the payment-to-settlement bridge
+   is closed (Epic 03 Sprint 1, PR #26, Direct Settlement only). Remaining:
+   real commission/tax/discount rules behind the `SettlementAdjustmentPipeline`
+   extension point, escrow execution, provider payout batches, real PSP
+   adapters — plus the operational-hardening technical debt listed below
+   (retry-path test coverage, `LedgerEntry` constraint generalization,
+   `provider_reference` semantics).
 2. **Identity, Roles, Profiles & Access** (Module 08) — finish the
    permission-key registry and general default-role permission seeding.
    Every RBAC-gated feature in a fresh deployment is silently inert

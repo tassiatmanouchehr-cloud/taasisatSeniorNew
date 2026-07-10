@@ -1,10 +1,10 @@
 # Wallet / Finance / Payments Boundary
 
-Status: current as of Module 18. Three things in this codebase are easy to
-conflate because they're all "about money." This document is the
-disambiguation reference. See ADR-004 and ADR-005 for the decisions
-behind this, and `wallet-finance-boundary.md`'s cousin, `api-guidelines
-.md`, for how the API layer respects it.
+Status: current as of PR #26's merge (Epic 03 Sprint 1). Three things in
+this codebase are easy to conflate because they're all "about money."
+This document is the disambiguation reference. See ADR-004 and ADR-005
+for the decisions behind this, and `wallet-finance-boundary.md`'s cousin,
+`api-guidelines.md`, for how the API layer respects it.
 
 ## The three things
 
@@ -12,7 +12,7 @@ behind this, and `wallet-finance-boundary.md`'s cousin, `api-guidelines
 |---|---|---|---|
 | `apps.wallet.Wallet`/`WalletTransaction` | Internal stored value (customer credits, refunds-to-wallet, promotions) | A cached balance + append-only transaction ledger | **Canonical**, active |
 | `apps.finance.models.wallet.WalletAccount`/`WalletTransaction` | The same *shape* of thing, built first (Module 05) | Identical pattern, but coupled to `FinancialDocument`/`PaymentTransaction` and publishes a DomainEvent on every mutation | **Legacy/frozen** — see below |
-| `apps.payments.PaymentIntent`/`PaymentAttempt`/`PaymentCallback` | A gateway-facing request/callback state machine (CREATED→PENDING→AUTHORIZED/SUCCEEDED/FAILED/CANCELLED/EXPIRED) | Pre-settlement orchestration — "we're trying to collect a payment" | Active, but not wired to anything downstream yet |
+| `apps.payments.PaymentIntent`/`PaymentAttempt`/`PaymentCallback` | A gateway-facing request/callback state machine (CREATED→PENDING→AUTHORIZED/SUCCEEDED/FAILED/CANCELLED/EXPIRED) | Pre-settlement orchestration — "we're trying to collect a payment" | Active; wired to settlement as of Epic 03 Sprint 1 — see below |
 | `apps.finance.PaymentTransaction` | A settlement ledger row | Post-hoc — "a payment already happened, resolve the obligation/document" | Active, created only via `PaymentService.record_payment()` |
 
 ## Why the legacy Finance wallet still exists
@@ -49,27 +49,49 @@ customer initiates payment
         ▼
   PaymentIntent (SUCCEEDED/FAILED/...)
         │
-        │  [NOT YET WIRED — see technical-debt-register.md]
+        │  SettlementOrchestrationService.settle_payment_intent()
+        │  (Epic 03 Sprint 1 — triggered from PaymentCallbackService
+        │   after its own commit, SUCCEEDED + first-time only; a
+        │   PaymentIntent row lock serializes concurrent attempts)
         ▼
   finance.PaymentTransaction        ◄── apps.finance — post-hoc settlement
         │  (resolves FinancialObligation, marks FinancialDocument PAID)
         ▼
-  ledger entries, settlement batches
+  ledger entries (LedgerService.post_entries)
+        ▼
+  beneficiary Wallet credit (apps.wallet.WalletTransactionService)
 ```
 
-A future orchestration module would call `PaymentService.record_payment()`
-once a `PaymentIntent` reaches `SUCCEEDED` — deliberately not built yet
-(Module 15 explicitly forbade wiring into Finance settlement; Module 17B
-explicitly forbade it for the API layer too).
+`SettlementOrchestrationService` (`apps.payments.services`) is that
+orchestration module — built in Epic 03 Sprint 1 (PR #26). It calls
+`PaymentService.record_payment()` once a `PaymentIntent` reaches
+`SUCCEEDED` and references an `Order`, exactly as anticipated. Sprint 1
+is Direct Settlement only (escrow is read via `FinanceConfiguration.
+get_escrow_enabled()` but always warns and falls back); every
+commission/tax/discount adjustment is zero through the
+`SettlementAdjustmentPipeline` extension point. Settlement never
+fabricates a `FinancialDocument` — it resolves one already created via
+`FinancialDocumentService.create_invoice_from_execution()`, and raises a
+clear `SettlementError` if none exists yet for the order. If a
+synchronous settlement attempt fails, a durable `payments.settlement.retry`
+job is enqueued via `apps.jobs` rather than the failure only being logged.
 
-## No wallet mutation from the payment intent flow (yet)
+## Wallet mutation from the payment intent flow
 
-`apps.payments` does not create `Wallet`/`WalletTransaction` rows on a
-successful callback, and never has — tested explicitly
-(`apps/payments/tests/test_no_side_effects.py`). Crediting a customer's
-wallet from a successful payment is a real, expected future capability,
-deliberately deferred to a dedicated orchestration module rather than
-smuggled into either `PaymentCallbackService` or an API view.
+`apps.payments` now creates `finance.PaymentTransaction` rows and credits
+the beneficiary's canonical `apps.wallet.Wallet` — but only through
+`SettlementOrchestrationService`, and only for a `PaymentIntent` that
+references an `Order` (`reference_type="Order"`) and has a resolvable
+`FinancialDocument`. `apps/payments/tests/test_no_side_effects.py` guards
+the narrower, still-true invariant: a callback for a *non-Order* intent
+produces no wallet/`PaymentTransaction` side effects (settlement is
+skipped, not silently faked), and the legacy `apps.finance.models.wallet`
+is never touched by any payments flow. The full settle-and-credit path,
+including concurrency and rollback-on-failure behavior, is covered by
+`apps/payments/tests/test_settlement_orchestration.py`; the reporting
+side (a settlement's effect actually reaching `apps.provider_portal`'s
+earnings view) is covered by
+`apps/provider_portal/tests/test_settlement_earnings_integration.py`.
 
 ## Guardrail
 
