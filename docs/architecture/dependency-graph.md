@@ -105,6 +105,24 @@ a rejection. See `apps.payments.services.settlement_orchestration_service`
 and `apps.payments.jobs`'s own module docstrings for the full money-flow
 and recovery sequence.
 
+## Epic 04 (Enterprise Organization Isolation) — no new edges
+
+`OrderOrganizationEligibility` (`apps.orders.models`) FKs to
+`accounts.OrganizationProfile`, and `apps.orders.services
+.eligibility_service`/`apps.orders.services.queries` import from
+`apps.accounts` (`ProfileStatus`, `OrganizationStaffService`) — both
+already-existing-direction imports: `apps.orders` already depended on
+`apps.accounts` (e.g. `Order.customer_profile`), so this is not a new
+edge, just a new consumer of an edge that already existed.
+`apps.accounts.services.organization_rbac` (new) imports only
+`apps.kernel` — no edge change. `apps.accounts.services.supplier_bridge`'s
+new `CaregiverProviderType`-branching logic and
+`apps.kernel.services.supplier_registry`'s new `set_supplier_type()`
+method are both internal to their existing files/apps — no new imports.
+Verified by grepping `apps/orders`, `apps/accounts`, `apps/booking` for
+`from apps\.` on the Epic 04 branch: no new cross-app edge appears beyond
+what already existed pre-Epic.
+
 ## The one deliberate exception
 
 `apps.kernel.events.handlers` imports `apps.notifications.models`

@@ -203,6 +203,74 @@ class Order(models.Model):
         return entity if isinstance(entity, OrganizationProfile) else None
 
 
+# ============================================================
+# OrderOrganizationEligibility — Epic 04 (Enterprise Organization
+# Isolation). Explicit junction between Order and OrganizationProfile:
+# an organization may claim/assign an order only if an ACTIVE row exists
+# here for that (order, organization) pair, or the order is already
+# assigned to a supplier resolving to that organization (the
+# post-assignment ownership rule — evaluated in
+# apps.orders.services.queries.OrderQueryService, not here).
+#
+# The ONLY writer is apps.orders.services.eligibility_service
+# .OrderEligibilityService — no other caller may construct this model
+# directly (enforced by
+# apps.orders.tests.test_architecture_guardrails.EligibilityWriterGuardrailTest).
+#
+# No automatic/implicit grant rule exists anywhere in this Epic — see
+# OrderEligibilityService's own module docstring for why (verified: no
+# existing business signal at order-creation time identifies an eligible
+# organization). Every row is the result of an explicit, actor-attributed
+# grant() call.
+# ============================================================
+
+class EligibilityStatus(models.TextChoices):
+    ACTIVE = "active", "Active"
+    WITHDRAWN = "withdrawn", "Withdrawn"
+
+
+class OrderOrganizationEligibility(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "kernel.Tenant", on_delete=models.PROTECT, related_name="order_organization_eligibilities",
+    )
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="organization_eligibilities")
+    organization = models.ForeignKey(
+        "accounts.OrganizationProfile", on_delete=models.CASCADE, related_name="order_eligibilities",
+    )
+    status = models.CharField(
+        max_length=20, choices=EligibilityStatus.choices, default=EligibilityStatus.ACTIVE, db_index=True,
+    )
+    source = models.CharField(
+        max_length=20, default="manual",
+        help_text="Always 'manual' in this Epic — every row is an explicit grant() call. "
+                   "Plain string, not an enum: constraining it now would be speculative.",
+    )
+    granted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+    )
+    granted_at = models.DateTimeField(auto_now_add=True)
+    revoked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+    )
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    objects = TenantScopedManager()
+
+    class Meta:
+        db_table = "orders_organization_eligibility"
+        ordering = ["-granted_at"]
+        unique_together = [("order", "organization")]
+        indexes = [
+            models.Index(fields=["tenant", "order", "status"], name="idx_orgelig_tenant_order_st"),
+            models.Index(fields=["tenant", "organization", "status"], name="idx_orgelig_tenant_org_st"),
+        ]
+
+    def __str__(self):
+        return f"Eligibility(order={self.order_id}, org={self.organization_id}) [{self.status}]"
+
+
 class OrderStatusHistory(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(

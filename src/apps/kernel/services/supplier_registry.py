@@ -72,3 +72,22 @@ class SupplierRegistry:
             linked_entity_id=linked_entity_id,
             linked_entity_type=linked_entity_type,
         ).first()
+
+    @classmethod
+    def set_supplier_type(cls, supplier: ServiceSupplier, *, supplier_type: str) -> ServiceSupplier:
+        """
+        Reconcile an existing supplier's type in place — the generic
+        counterpart to get_or_create_supplier()'s "create with this type"
+        (whose `defaults` never apply to an already-existing row). A
+        no-op if the supplier already has the requested type.
+
+        Generic by the same rule as the rest of this module: this method
+        knows nothing about *why* a caller wants a type change (Epic 04's
+        organization-affiliation reconciliation is one reason; it is not
+        the only one this method need ever serve).
+        """
+        if supplier.supplier_type == supplier_type:
+            return supplier
+        supplier.supplier_type = supplier_type
+        supplier.save(update_fields=["supplier_type", "updated_at", "version"])
+        return supplier

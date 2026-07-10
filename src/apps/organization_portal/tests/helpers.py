@@ -63,6 +63,10 @@ class OrganizationPortalTestCase(TestCase):
             elder_profile=self.care_recipient, created_by=self.customer_user, tenant_id=self.tenant.id,
         )
 
+        from apps.orders.services.eligibility_service import OrderEligibilityService
+
+        OrderEligibilityService.grant(order=self.order, organization=self.organization, granted_by=self.admin_user)
+
     def _create_user(self, *, tenant, phone) -> UserAccount:
         person = Person.objects.create(tenant=tenant, full_name="Person")
         return UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)

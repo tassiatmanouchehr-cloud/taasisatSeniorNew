@@ -34,6 +34,29 @@ class SeedAuthRolesTest(TestCase):
         actual = set(Role.objects.filter(tenant=tenant).values_list("slug", flat=True))
         self.assertEqual(actual, expected)
 
+    def test_organization_admin_gets_epic04_permissions(self):
+        """Epic 04 (Enterprise Organization Isolation)."""
+        call_command("seed_auth_roles")
+        tenant = Tenant.objects.get(slug="salmandyar")
+        role = Role.objects.get(tenant=tenant, slug="organization_admin")
+        self.assertIn("organization.assignment.assign", role.permissions)
+        self.assertIn("organization.membership.approve", role.permissions)
+        self.assertIn("organization.membership.suspend", role.permissions)
+
+    def test_rerun_preserves_tenant_customized_permission(self):
+        """Additive merge: a permission a tenant granted manually must
+        survive a re-run of this idempotent seed command."""
+        call_command("seed_auth_roles")
+        tenant = Tenant.objects.get(slug="salmandyar")
+        role = Role.objects.get(tenant=tenant, slug="organization_admin")
+        role.permissions = [*role.permissions, "organization.custom.thing"]
+        role.save(update_fields=["permissions"])
+
+        call_command("seed_auth_roles")
+        role.refresh_from_db()
+        self.assertIn("organization.custom.thing", role.permissions)
+        self.assertIn("organization.assignment.assign", role.permissions)
+
 
 class CreatePlatformOwnerTest(TestCase):
     """Test create_platform_owner management command."""

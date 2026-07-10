@@ -13,7 +13,20 @@ OrgMembershipStatus has no distinct "APPROVED" value — approval is
 modeled as the existing PENDING -> ACTIVE transition plus the model's own
 approved_by/joined_at fields, both already present on OrganizationMembership
 since Module 08. Nothing new was added to the model for this.
+
+Epic 04 (Enterprise Organization Isolation): approve_membership()/
+suspend_membership() now run inside @transaction.atomic with a row lock on
+the membership itself (matching the rigor
+apps.accounts.services.affiliations.approve_affiliation_request() already
+had), and both call apps.accounts.services.organization_rbac
+.OrganizationRoleSyncService.sync_for_membership() in the same transaction
+— a synced RoleAssignment failure now correctly rolls back the membership
+transition too, rather than leaving the two out of sync.
 """
+
+from django.db import transaction
+
+from apps.kernel.services.audit_service import AuditService
 
 from .errors import AccountsError
 
@@ -59,23 +72,52 @@ class OrganizationStaffService:
             raise AccountsError("Staff member not found.")
 
     @classmethod
+    @transaction.atomic
     def approve_membership(cls, membership, *, approved_by=None):
         from django.utils import timezone
 
-        from ..models.profiles import OrgMembershipStatus
+        from ..models.profiles import OrganizationMembership, OrgMembershipStatus
+        from .organization_rbac import OrganizationRoleSyncService
 
+        membership = OrganizationMembership.objects.select_for_update().get(id=membership.id)
         membership.status = OrgMembershipStatus.ACTIVE
         membership.approved_by = approved_by
         membership.joined_at = timezone.now()
         membership.save(update_fields=["status", "approved_by", "joined_at", "updated_at"])
+
+        OrganizationRoleSyncService.sync_for_membership(membership)
+        AuditService.log(
+            tenant_id=membership.user.tenant_id,
+            action="organization.membership.approved",
+            resource_type="OrganizationMembership",
+            resource_id=membership.id,
+            module_id="M26",
+            actor_id=approved_by.person_id if approved_by else None,
+            actor_type="user" if approved_by else "system",
+            after={"organization_id": str(membership.organization_id), "user_id": str(membership.user_id), "role_type": membership.role_type},
+        )
         return membership
 
     @classmethod
+    @transaction.atomic
     def suspend_membership(cls, membership):
-        from ..models.profiles import OrgMembershipStatus
+        from ..models.profiles import OrganizationMembership, OrgMembershipStatus
+        from .organization_rbac import OrganizationRoleSyncService
 
+        membership = OrganizationMembership.objects.select_for_update().get(id=membership.id)
         membership.status = OrgMembershipStatus.SUSPENDED
         membership.save(update_fields=["status", "updated_at"])
+
+        OrganizationRoleSyncService.sync_for_membership(membership)
+        AuditService.log(
+            tenant_id=membership.user.tenant_id,
+            action="organization.membership.suspended",
+            resource_type="OrganizationMembership",
+            resource_id=membership.id,
+            module_id="M26",
+            actor_type="system",
+            after={"organization_id": str(membership.organization_id), "user_id": str(membership.user_id)},
+        )
         return membership
 
     @classmethod

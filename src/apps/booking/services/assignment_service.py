@@ -51,6 +51,7 @@ class AssignmentService:
         requested_start=None,
         requested_end=None,
         ownership_authorized_by=None,
+        scope=None,
     ) -> SupplierAssignment:
         """
         requested_start/requested_end are optional and conservative by
@@ -66,15 +67,30 @@ class AssignmentService:
         attribution (SupplierAssignment.assigned_by, OrderStatusHistory
         .changed_by, the published events' actor_id) — never silently
         recorded as an anonymous/system action.
+
+        scope: optional {"scope_type": ..., "scope_id": ...} passed through
+        to PermissionService.require() (Epic 04 — Enterprise Organization
+        Isolation). Lets an organization-scoped caller's real, synced
+        scoped role grant be consulted instead of only a platform-wide one.
+        Omitted (None) by every pre-Epic-04 call site — unchanged behavior
+        for those.
+
+        Concurrency (Epic 04): Order.objects.select_for_update() is the
+        first statement, before the eligibility/permission checks and
+        before assign_supplier() — serializes concurrent assignment
+        attempts against the same order, database-safe rather than
+        read-before-write. Mirrors the identical pattern used for
+        PaymentIntent in apps.payments.services
+        .settlement_orchestration_service (Epic 03 Sprint 1).
         """
         from apps.orders.models import Order
 
-        order = Order.objects.get(id=order_id)
+        order = Order.objects.select_for_update().get(id=order_id)
         cls._ensure_same_tenant(order=order, supplier=supplier)
 
         PermissionService.require(
             assigned_by, "booking.assignment.assign", tenant_id=order.tenant_id,
-            ownership_authorized_by=ownership_authorized_by,
+            ownership_authorized_by=ownership_authorized_by, scope=scope,
         )
         effective_actor = assigned_by or ownership_authorized_by
 
@@ -147,9 +163,12 @@ class AssignmentService:
         assignment_source=None,
         metadata=None,
     ) -> SupplierAssignment:
+        """Concurrency (Epic 04): Order.objects.select_for_update() is the
+        first statement, mirroring assign()'s own locking — see that
+        method's docstring for the full reasoning."""
         from apps.orders.models import Order
 
-        order = Order.objects.get(id=order_id)
+        order = Order.objects.select_for_update().get(id=order_id)
         cls._ensure_same_tenant(order=order, supplier=new_supplier)
 
         if not BookingConfiguration.get_reassignment_enabled(tenant_id=order.tenant_id):

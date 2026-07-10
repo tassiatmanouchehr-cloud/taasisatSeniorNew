@@ -51,6 +51,14 @@ CARE_RECIPIENT_ARCHIVED = "CareRecipientArchived"
 PAYMENT_SETTLED = "PaymentSettled"
 PROVIDER_EARNINGS_CREDITED = "ProviderEarningsCredited"
 
+# Epic 04 (Enterprise Organization Isolation). No notification handler is
+# registered for these yet — same reasoning as above: publish() still
+# audits unconditionally via AuditService.log(), which is the point of
+# using it even before a handler exists.
+ORDER_ELIGIBILITY_GRANTED = "OrderEligibilityGranted"
+ORDER_ELIGIBILITY_REVOKED = "OrderEligibilityRevoked"
+ORGANIZATION_ACCESS_DENIED = "OrganizationAccessDenied"
+
 
 @dataclass(frozen=True)
 class DomainEvent:

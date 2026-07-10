@@ -296,3 +296,38 @@ class ServiceSupplierProfileCouplingTest(SimpleTestCase):
             "Found a direct CaregiverProfile/OrganizationProfile import outside the documented "
             f"allowlist — use kernel.ServiceSupplier instead: {offenders}",
         )
+
+
+class OrderOrganizationEligibilitySoleWriterTest(SimpleTestCase):
+    """
+    Epic 04 (Enterprise Organization Isolation): OrderOrganizationEligibility
+    must have exactly one writer — apps.orders.services.eligibility_service
+    .OrderEligibilityService (System Architect Decision 1: "No caller may
+    create OrderOrganizationEligibility directly."). Allowlist is the
+    service's own file, the model's migration, and test files (which
+    legitimately construct rows directly for fixture/constraint testing).
+    """
+
+    ALLOWED_DIR_PARTS = ("tests", "migrations")
+    ALLOWED_FILES = {
+        APPS_DIR / "orders" / "services" / "eligibility_service.py",
+    }
+
+    def test_no_writes_outside_the_eligibility_service(self):
+        pattern = re.compile(r"OrderOrganizationEligibility\.objects\.(create|get_or_create|update_or_create|bulk_create)\(")
+        offenders = []
+
+        for path in _python_files(under=APPS_DIR):
+            relative_parts = path.relative_to(APPS_DIR).parts
+            if any(part in self.ALLOWED_DIR_PARTS for part in relative_parts):
+                continue
+            if path in self.ALLOWED_FILES:
+                continue
+            if pattern.search(_read(path)):
+                offenders.append(str(path.relative_to(APPS_DIR)))
+
+        self.assertEqual(
+            offenders, [],
+            "OrderOrganizationEligibility must only be written by "
+            f"OrderEligibilityService — found direct writes in: {offenders}",
+        )

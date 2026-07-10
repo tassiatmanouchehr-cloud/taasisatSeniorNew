@@ -49,6 +49,56 @@ real API endpoints needed RBAC checks:
 permission key — see `wallet-finance-boundary.md` and the view's own
 docstring for why (it simulates an unauthenticated PSP webhook).
 
+`apps/accounts/permission_keys.py`, introduced in Epic 04 (Enterprise
+Organization Isolation). Located in `apps.accounts` rather than
+`apps.organization_portal` because enforcement happens in service code in
+`apps.accounts`/`apps.booking`, not at the portal's view layer, and
+`apps.accounts` is the most upstream of the two consuming apps in the
+dependency graph — `apps.booking` importing from it does not invert the
+graph:
+
+| Constant | Value | Intended to guard | Actually enforced in Epic 04? |
+|---|---|---|---|
+| `ORGANIZATION_ASSIGNMENT_ASSIGN` | `organization.assignment.assign` | `AssignmentService.assign()`, when called with `scope={"scope_type": "organization", ...}` — the path `OrganizationAssignmentService.assign_manual()` always uses | **No** — see below |
+| `ORGANIZATION_MEMBERSHIP_APPROVE` | `organization.membership.approve` | `OrganizationStaffService.approve_membership()` | **No** — see below |
+| `ORGANIZATION_MEMBERSHIP_SUSPEND` | `organization.membership.suspend` | `OrganizationStaffService.suspend_membership()` | **No** — see below |
+
+Only these three keys exist because only these three enforcement points
+were planned for Epic 04's approved scope — `apps.organization_portal
+.permissions.resolve_organization()` already gates every
+organization-portal view to an `ACTIVE`, `ADMIN`-role
+`OrganizationMembership`, so no other `OrgMembershipRole` value
+(`OPERATOR`, `CAREGIVER`, `ACCOUNTANT`, `SUPPORT`, `MANAGER`) has an
+enforcement point to hold a permission for yet — a key was deliberately
+not added for `organization.order.view_eligible`/`organization.staff
+.view`/`organization.reports.view`/`organization.capacity.view` for
+exactly this reason (see `apps.accounts.permission_keys`'s own module
+docstring).
+
+The `organization_admin` `Role` (seeded by `apps/accounts/management
+/commands/seed_auth_roles.py`, also lazily created by
+`apps.accounts.services.organization_rbac.OrganizationRoleSyncService` if
+missing) is the only role carrying these three keys.
+
+**Architecture Review remediation (Epic 04, PR #28 required remediation
+item 2): none of these three keys is actually consulted by a
+`PermissionService.require()`/`.check()` call anywhere in this Epic's
+code, as merged.** `AssignmentService.assign()` checks the literal string
+`"booking.assignment.assign"`, not `ORGANIZATION_ASSIGNMENT_ASSIGN` — the
+two are different strings and never match. `approve_membership()` and
+`suspend_membership()` contain no `PermissionService` call of any kind.
+Every action these three keys were intended to gate is, today, authorized
+entirely through `PermissionService.require()`'s pre-existing
+`ownership_authorized_by` fallback — a real, already-verified,
+correctly tenant/organization-scoped actor, never an open bypass, never
+mislabeled as system context — not through a real `RoleAssignment` check
+against one of these keys. This is a deliberate, tracked, temporary
+limitation of Epic 04, not a security gap. Wiring these three call sites
+to check their intended key is Permission-Key Registry & Authorization
+Hardening (Epic 05) scope, not Epic 04's — see that Epic's own
+documentation once merged. See `apps.accounts.permission_keys`'s own
+per-constant docstrings for the identical statement kept next to each key.
+
 ## Naming convention
 
 `<domain>.<resource>.<action>` or `<domain>.<action>` when there's a
@@ -81,3 +131,45 @@ for anyone standing up a working deployment today — flagged in
 `technical-debt-register.md`, not fixed here (deciding which roles get
 which keys is a product/security decision, not an architecture-hygiene
 one).
+
+## Epic 04: organization-scoped RoleAssignment rows now have a writer (evaluation still not wired to a real call site)
+
+`RoleAssignment.scope_type="organization"`/`scope_id` and
+`PermissionService._scope_matches()` existed and were correctly evaluated
+since Module 08, but had zero production writers until Epic 04 (Enterprise
+Organization Isolation). `apps.accounts.services.organization_rbac
+.OrganizationRoleSyncService` is now the sole writer — see
+`docs/adr/ADR-009_ORGANIZATION_ELIGIBILITY_AND_SCOPED_RBAC.md` for the
+full design. This closes half of the gap: a real, correctly-scoped
+`RoleAssignment` row now exists for every synced `ADMIN`-role
+`OrganizationMembership`. It does **not** close the other half — see "The
+three organization permission keys" above: no production call site
+actually checks any of the three keys this row carries, so the row is
+written correctly but never yet consulted by a real authorization
+decision in this Epic. `PermissionService.check()`/`.require()` called
+directly with the correct key and a matching `scope` does correctly find
+and evaluate the row (proven by `apps.accounts.tests.test_organization_rbac
+.ScopedPermissionEvaluationTest`) — the gap is entirely in the calling
+code never doing that with the intended key, not in the evaluator or the
+row itself.
+
+One important, unchanged pre-existing behavior this newly-written row
+makes newly relevant even though it's not yet reachable through the
+intended call sites: `_scope_matches()` returns `True`
+immediately when the caller's `check()`/`require()` call passes no `scope`
+kwarg at all (`scope is None`), regardless of the assignment's own
+`scope_type` — an organization-scoped `RoleAssignment` therefore also
+satisfies any *unscoped* check for the same `permission_key`. Not
+exploitable today (every organization-isolation call site always passes
+an explicit `scope`), but a real gap for a future Permission-Key Registry
+& Authorization Hardening Epic to close, not something Epic 04 changed
+(see its own explicit "Do not replace the RBAC model" constraint).
+
+Two independent, unreconciled role-seeding catalogs exist in this
+codebase — `apps.kernel.management.commands.seed_tenant`'s hyphenated
+`DEFAULT_ROLES` (seeded against a `dev`-slug tenant) and
+`apps.accounts.management.commands.seed_auth_roles`'s underscored `ROLES`
+(seeded against the real default `salmandyar` tenant,
+`apps.kernel.services.tenant_service.TenantService`'s own default). Epic
+04 extends only the latter — see `technical-debt-register.md` for the
+tracked divergence.

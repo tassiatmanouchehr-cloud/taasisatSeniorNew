@@ -1,4 +1,8 @@
-"""Assignment center — manual staff assignment via the organization portal, Epic 02."""
+"""Assignment center — manual staff assignment via the organization portal, Epic 02.
+
+Epic 04 (Enterprise Organization Isolation) additions: eligibility
+enforcement, cross-organization denial, and organization-scoped Assignment
+Center visibility."""
 
 from apps.booking.models import SupplierAssignment
 
@@ -196,3 +200,125 @@ class AssignmentActorAndRbacTest(OrganizationPortalTestCase):
         self.assertFalse(
             AuditLog.objects.filter(tenant_id=self.tenant.id, action="rbac.permission.system_context").exists(),
         )
+
+
+class EligibilityEnforcementTest(OrganizationPortalTestCase):
+    """Epic 04 (Enterprise Organization Isolation): the actual fix for
+    GAP_ANALYSIS.md's "Organization Assignment Center is tenant-wide, not
+    organization-scoped" finding."""
+
+    def _revoke_default_eligibility(self):
+        from apps.orders.services.eligibility_service import OrderEligibilityService
+
+        OrderEligibilityService.revoke(order=self.order, organization=self.organization)
+
+    def test_order_without_eligibility_is_absent_from_assignment_center(self):
+        self._revoke_default_eligibility()
+        self.login_as_admin()
+        response = self.client.get("/organization/assignments/")
+        self.assertNotContains(response, self.order.order_number)
+
+    def test_cannot_assign_own_staff_to_ineligible_order(self):
+        self._revoke_default_eligibility()
+        self.login_as_admin()
+        response = self.client.post(
+            f"/organization/assignments/{self.order.id}/assign/", {"membership_id": str(self.staff_membership.id)},
+        )
+        self.assertEqual(response.status_code, 200)  # renders action_error.html, not a redirect
+
+        self.order.refresh_from_db()
+        self.assertIsNone(self.order.assigned_supplier_id)
+        self.assertFalse(SupplierAssignment.objects.filter(order=self.order).exists())
+
+    def test_second_organization_cannot_see_first_organizations_eligible_order(self):
+        """Two organizations, one tenant: org B has no eligibility grant for
+        org A's order and must not see it in its own Assignment Center."""
+        from apps.accounts.models.profiles import OrganizationMembership, OrganizationProfile, OrgMembershipRole, OrgMembershipStatus
+
+        other_admin = self._create_user(tenant=self.tenant, phone="09121110010")
+        other_org = OrganizationProfile.objects.create(
+            name="Other Co", code="other-co-elig", admin_user=other_admin, tenant=self.tenant,
+        )
+        OrganizationMembership.objects.create(
+            organization=other_org, user=other_admin, role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+        )
+
+        self.client.force_login(other_admin)
+        response = self.client.get("/organization/assignments/")
+        self.assertNotContains(response, self.order.order_number)
+
+    def test_second_organization_cannot_assign_to_first_organizations_order(self):
+        from apps.accounts.models.profiles import (
+            CaregiverProfile,
+            OrganizationMembership,
+            OrganizationProfile,
+            OrgMembershipRole,
+            OrgMembershipStatus,
+        )
+
+        other_admin = self._create_user(tenant=self.tenant, phone="09121110011")
+        other_org = OrganizationProfile.objects.create(
+            name="Other Co 2", code="other-co-elig-2", admin_user=other_admin, tenant=self.tenant,
+        )
+        OrganizationMembership.objects.create(
+            organization=other_org, user=other_admin, role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+        )
+        other_staff_user = self._create_user(tenant=self.tenant, phone="09121110012")
+        CaregiverProfile.objects.create(
+            user=other_staff_user, person=other_staff_user.person, phone="09121110012", display_name="Other Staff",
+        )
+        other_membership = OrganizationMembership.objects.create(
+            organization=other_org, user=other_staff_user, role_type=OrgMembershipRole.CAREGIVER, status=OrgMembershipStatus.ACTIVE,
+        )
+
+        self.client.force_login(other_admin)
+        response = self.client.post(
+            f"/organization/assignments/{self.order.id}/assign/", {"membership_id": str(other_membership.id)},
+        )
+        self.assertEqual(response.status_code, 200)
+
+        self.order.refresh_from_db()
+        self.assertIsNone(self.order.assigned_supplier_id)
+
+    def test_access_denial_publishes_audited_domain_event(self):
+        from apps.kernel.models.audit import AuditLog
+
+        self._revoke_default_eligibility()
+        self.login_as_admin()
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(
+                f"/organization/assignments/{self.order.id}/assign/", {"membership_id": str(self.staff_membership.id)},
+            )
+
+        self.assertTrue(
+            AuditLog.objects.filter(
+                tenant_id=self.tenant.id, action="domain_event.OrganizationAccessDenied",
+            ).exists(),
+        )
+
+    def test_reassignment_to_own_organization_does_not_require_fresh_eligibility(self):
+        """The reassignment case: once assigned to this organization's own
+        staff, a later eligibility revoke must not block acting on it again
+        (e.g. reassigning to a different staff member of the same org)."""
+        from apps.accounts.models.profiles import CaregiverProfile, OrganizationMembership, OrgMembershipRole, OrgMembershipStatus
+        from apps.booking.services.assignment_service import AssignmentService
+        from apps.accounts.services.provider_identity import resolve_supplier_for_user
+
+        supplier = resolve_supplier_for_user(self.caregiver_user)
+        AssignmentService.assign(order_id=self.order.id, supplier=supplier)
+        self._revoke_default_eligibility()
+
+        second_staff_user = self._create_user(tenant=self.tenant, phone="09121110013")
+        CaregiverProfile.objects.create(
+            user=second_staff_user, person=second_staff_user.person, phone="09121110013", display_name="Second Staff",
+        )
+        second_membership = OrganizationMembership.objects.create(
+            organization=self.organization, user=second_staff_user,
+            role_type=OrgMembershipRole.CAREGIVER, status=OrgMembershipStatus.ACTIVE,
+        )
+
+        self.login_as_admin()
+        response = self.client.post(
+            f"/organization/assignments/{self.order.id}/assign/", {"membership_id": str(second_membership.id)},
+        )
+        self.assertRedirects(response, "/organization/assignments/")
