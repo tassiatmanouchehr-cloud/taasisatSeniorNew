@@ -154,29 +154,18 @@ class ScopedPermissionEvaluationTest(OrganizationRbacTestCase):
             ),
         )
 
-    def test_unscoped_check_matches_any_assignment_pre_existing_behavior(self):
-        """Documents PermissionService's existing, unchanged _scope_matches()
-        behavior (Module 08, pre-Epic-04): an UNSCOPED check (no `scope`
-        kwarg at all) matches ANY assignment regardless of the assignment's
-        own scope_type — `_scope_matches()` short-circuits `True` whenever
-        `scope is None`, before ever inspecting the assignment. This means
-        an organization-scoped RoleAssignment DOES satisfy an unscoped
-        check today; only a caller that explicitly passes a *different*
-        scope (see test_scoped_permission_check_fails_for_a_different_
-        organization above) is correctly denied. Not exploitable by
-        anything in this Epic's own code (every organization-isolation
-        call site that checks these three keys always passes an explicit
-        scope), but it is exactly the gap
-        docs/architecture/... Epic 05 (Permission-Key Registry &
-        Authorization Hardening)'s "platform scope cannot be satisfied by
-        organization-scoped assignment" requirement targets — deliberately
-        left unchanged here, not fixed, since redesigning
-        PermissionService's scope evaluation is out of Epic 04's approved
-        scope (System Architect: "Do not replace the RBAC model")."""
+    def test_unscoped_check_no_longer_matches_an_organization_scoped_assignment(self):
+        """Epic 05 (Permission-Key Registry & Authorization Hardening)
+        scope validation hardening: an organization-scoped RoleAssignment
+        must NOT satisfy an unscoped (platform-wide) permission check —
+        fixed in apps.kernel.services.permission_service.PermissionService
+        ._scope_matches(). Before this fix, `scope is None` short-circuited
+        `True` for any assignment regardless of its own scope_type; this
+        test documented that gap in Epic 04 and now documents the fix."""
         membership = self._create_membership()
         OrganizationRoleSyncService.sync_for_membership(membership)
 
-        self.assertTrue(
+        self.assertFalse(
             PermissionService.check(self.admin_user, "booking.assignment.assign", tenant_id=self.tenant.id),
         )
 

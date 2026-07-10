@@ -134,6 +134,17 @@ class PermissionService:
             # shape before scoped RBAC seeding exists) or mislabel this as
             # system context, audit it explicitly and honestly as a real,
             # ownership-authorized human action.
+            #
+            # Epic 05 (Permission-Key Registry & Authorization Hardening)
+            # ownership-fallback observability: has_any_role_assignment
+            # distinguishes "this actor has zero RBAC setup at all" from
+            # "this actor holds some RoleAssignment, just not one matching
+            # this permission_key/scope" — the second case is the more
+            # actionable signal (a scope or permission-grant mistake,
+            # rather than a backfill that simply hasn't run yet).
+            has_any_role_assignment = cls._actor_filter(effective_actor) is not None and RoleAssignment.objects.filter(
+                tenant_id=tenant_id, is_active=True, **cls._actor_filter(effective_actor),
+            ).exists()
             AuditService.log_security(
                 tenant_id=tenant_id,
                 action="rbac.permission.ownership_authorized",
@@ -146,6 +157,7 @@ class PermissionService:
                     "Actor authorized by a verified ownership check upstream, "
                     "not by an RBAC role assignment."
                 ),
+                metadata={"has_any_role_assignment": has_any_role_assignment},
             )
             return
 
@@ -194,11 +206,47 @@ class PermissionService:
 
     @staticmethod
     def _scope_matches(assignment: RoleAssignment, scope: dict[str, Any] | None) -> bool:
-        if scope is None:
-            return True
+        """
+        Epic 05 (Permission-Key Registry & Authorization Hardening) scope
+        validation hardening. An unscoped or explicitly platform-scoped
+        assignment is the broadest possible grant and satisfies any
+        request, scoped or not — unchanged from before this Epic.
+
+        Everything below this point is new: an assignment carrying a real,
+        narrower scope (e.g. "organization") can only satisfy a request
+        that asks for that exact scope. Previously, `scope is None`
+        short-circuited `True` unconditionally — meaning an
+        organization-scoped RoleAssignment also satisfied a platform-wide
+        (unscoped) check, a gap identified and deliberately left unfixed
+        during Epic 04 (Enterprise Organization Isolation) pending this
+        Epic. Not exploitable by any call site that existed before this
+        Epic (every organization-scoped grant was new in Epic 04, and
+        every organization-isolation enforcement point already passes an
+        explicit scope) — closed here before a future caller could depend
+        on the looser behavior.
+
+        Fails closed, explicitly, for every malformed shape: a `scope`
+        dict missing `scope_type`/`scope_id` entirely, and an assignment
+        row whose own `scope_id` is None despite carrying a real
+        `scope_type` (a malformed RoleAssignment, not a valid platform
+        grant) — the previous implementation only failed on these
+        incidentally, via `str(None) == str(some_uuid)` comparisons, which
+        breaks the moment both sides are coincidentally None.
+        """
         if not assignment.scope_type or assignment.scope_type == "platform":
             return True
+
+        if scope is None:
+            return False
+
+        if "scope_type" not in scope or "scope_id" not in scope:
+            return False
+
+        if assignment.scope_id is None:
+            return False
+
         return (
             assignment.scope_type == scope.get("scope_type")
+            and scope.get("scope_id") is not None
             and str(assignment.scope_id) == str(scope.get("scope_id"))
         )

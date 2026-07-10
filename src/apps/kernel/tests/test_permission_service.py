@@ -121,6 +121,90 @@ class PermissionServiceCheckTest(TestCase):
             ),
         )
 
+    def test_check_unscoped_call_does_not_match_organization_scoped_assignment(self):
+        """Epic 05 (Permission-Key Registry & Authorization Hardening)
+        scope validation hardening: an org-scoped RoleAssignment must not
+        satisfy a platform-wide (unscoped) check — previously it did,
+        since `scope is None` short-circuited True unconditionally."""
+        import uuid
+
+        grant_permissions(self.tenant, self.actor, [PERMISSION_KEY], scope_type="organization", scope_id=uuid.uuid4())
+
+        self.assertFalse(
+            PermissionService.check(self.actor, PERMISSION_KEY, tenant_id=self.tenant.id),
+        )
+
+    def test_check_scope_dict_missing_scope_type_fails_closed(self):
+        import uuid
+
+        org_a = uuid.uuid4()
+        grant_permissions(self.tenant, self.actor, [PERMISSION_KEY], scope_type="organization", scope_id=org_a)
+
+        self.assertFalse(
+            PermissionService.check(
+                self.actor, PERMISSION_KEY, tenant_id=self.tenant.id, scope={"scope_id": str(org_a)},
+            ),
+        )
+
+    def test_check_scope_dict_missing_scope_id_fails_closed(self):
+        import uuid
+
+        org_a = uuid.uuid4()
+        grant_permissions(self.tenant, self.actor, [PERMISSION_KEY], scope_type="organization", scope_id=org_a)
+
+        self.assertFalse(
+            PermissionService.check(
+                self.actor, PERMISSION_KEY, tenant_id=self.tenant.id, scope={"scope_type": "organization"},
+            ),
+        )
+
+    def test_check_null_scope_id_in_request_fails_closed(self):
+        import uuid
+
+        grant_permissions(self.tenant, self.actor, [PERMISSION_KEY], scope_type="organization", scope_id=uuid.uuid4())
+
+        self.assertFalse(
+            PermissionService.check(
+                self.actor, PERMISSION_KEY, tenant_id=self.tenant.id,
+                scope={"scope_type": "organization", "scope_id": None},
+            ),
+        )
+
+    def test_check_malformed_assignment_with_null_scope_id_never_matches(self):
+        """A RoleAssignment carrying a real scope_type but a null scope_id
+        is malformed (should never have been created that way) — it must
+        never authorize anything, even a request that also (coincidentally
+        or maliciously) supplies scope_id=None."""
+        grant_permissions(self.tenant, self.actor, [PERMISSION_KEY], scope_type="organization", scope_id=None)
+
+        self.assertFalse(
+            PermissionService.check(
+                self.actor, PERMISSION_KEY, tenant_id=self.tenant.id,
+                scope={"scope_type": "organization", "scope_id": None},
+            ),
+        )
+
+    def test_check_string_and_uuid_scope_id_are_equivalent(self):
+        """scope_id may be passed as a real UUID or its string form —
+        both must be treated identically."""
+        import uuid
+
+        org_a = uuid.uuid4()
+        grant_permissions(self.tenant, self.actor, [PERMISSION_KEY], scope_type="organization", scope_id=org_a)
+
+        self.assertTrue(
+            PermissionService.check(
+                self.actor, PERMISSION_KEY, tenant_id=self.tenant.id,
+                scope={"scope_type": "organization", "scope_id": str(org_a)},
+            ),
+        )
+        self.assertTrue(
+            PermissionService.check(
+                self.actor, PERMISSION_KEY, tenant_id=self.tenant.id,
+                scope={"scope_type": "organization", "scope_id": org_a},
+            ),
+        )
+
     def test_check_supports_person_actor(self):
         grant_permissions(self.tenant, self.actor, [PERMISSION_KEY])
 
@@ -212,6 +296,32 @@ class PermissionServiceOwnershipAuthorizedTest(TestCase):
         self.assertFalse(
             AuditLog.objects.filter(tenant_id=self.tenant.id, action="rbac.permission.system_context").exists(),
         )
+
+    def test_ownership_fallback_audit_flags_when_actor_has_no_role_assignment_at_all(self):
+        """Epic 05 (Permission-Key Registry & Authorization Hardening)
+        ownership-fallback observability: has_any_role_assignment=False
+        when the actor genuinely has zero RBAC setup — distinguishing
+        "backfill hasn't run yet" from a scope/grant mismatch."""
+        PermissionService.require(
+            None, PERMISSION_KEY, tenant_id=self.tenant.id, ownership_authorized_by=self.actor,
+        )
+
+        entry = AuditLog.objects.get(tenant_id=self.tenant.id, action="rbac.permission.ownership_authorized")
+        self.assertFalse(entry.metadata["has_any_role_assignment"])
+
+    def test_ownership_fallback_audit_flags_when_actor_has_a_non_matching_role_assignment(self):
+        """The actor holds a real RoleAssignment — just not one granting
+        this permission_key/scope. has_any_role_assignment=True is the
+        more actionable signal here (a grant mistake, not a missing
+        backfill)."""
+        grant_permissions(self.tenant, self.actor, ["some.other.permission"])
+
+        PermissionService.require(
+            None, PERMISSION_KEY, tenant_id=self.tenant.id, ownership_authorized_by=self.actor,
+        )
+
+        entry = AuditLog.objects.get(tenant_id=self.tenant.id, action="rbac.permission.ownership_authorized")
+        self.assertTrue(entry.metadata["has_any_role_assignment"])
 
     def test_ownership_fallback_does_not_emit_permission_denied_event(self):
         PermissionService.require(
