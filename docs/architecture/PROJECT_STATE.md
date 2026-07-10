@@ -1,8 +1,9 @@
 # Project State
 
-Status: current as of PR #22's merge (Customer Experience Phase 1,
-including the post-review architecture remediation), `main` @
-`f5c68f19ce3df7ce44ab5c8faa35ccaf31b97e07` (PR #22's merge commit). This document is the
+Status: current as of the Epic 02 — Marketplace Operational Experience
+sprint (branch `claude/epic-02-marketplace-operational-experience`), based
+on `main` @ `73bb852ceeff3c551476a628a283a56248abdb6d` (PR #23's merge
+commit, itself the post-merge documentation sync for PR #22). This document is the
 **single source of truth** for "where the project stands." It supersedes any
 verbal summary given in chat, a PR description, or a prior conversation —
 if this file and a conversation disagree, this file is right (or needs
@@ -23,14 +24,14 @@ Verification** rather than assumed.
 |---|---|
 | Repository URL | `github.com/tassiatmanouchehr-cloud/taasisatSenior` |
 | Default Branch | `main` |
-| Current `main` HEAD | `f5c68f19ce3df7ce44ab5c8faa35ccaf31b97e07` (PR #22's merge commit) |
-| Current Test Count | **1024 passing**, 0 failing (`python manage.py test`, run against this HEAD — includes 59 new tests from the Customer Experience Phase 1 sprint: 14 for `CareRecipientService`, 19 for `OrderShareLink`/`OrderShareLinkService` (incl. event-publishing/audit and race-condition coverage from the post-review architecture remediation), 25 for `apps.portal` views, and 1 `PortalOrmDisciplineTest` architecture guardrail in `apps.kernel.tests.test_architecture_guardrails`) |
+| Current `main` HEAD | `73bb852ceeff3c551476a628a283a56248abdb6d` (PR #23's merge commit) — this branch (`claude/epic-02-marketplace-operational-experience`) is not yet merged |
+| Current Test Count | **1130 passing**, 0 failing (`python manage.py test`, run on this branch — 106 new tests over the `main` baseline of 1024: 76 from the Epic 02 implementation (22 for the new `apps.provider_portal` app, 16 for the new `apps.organization_portal` app, 14 for `ProviderAssignmentActionService`, 8 for `ProviderExecutionService`, and 16 spread across `apps.portal`/`apps.accounts` extensions and the two new `*PortalOrmDisciplineTest` guardrails) plus 30 from the subsequent Enterprise Architecture Review remediation pass (cross-tenant regression coverage, `CareRecipientArchived` event publishing, and the `PermissionService.require()` `ownership_authorized_by` mechanism — see `DECISION_HISTORY.md`) |
 | Python Version | **3.12** is the project's canonical version — declared in `pyproject.toml` (`requires-python = ">=3.12"`), pinned in CI (`.github/workflows/ci.yml`, `python-version: "3.12"`), and pinned in `src/docker/Dockerfile.dev` (`FROM python:3.12-slim`). Three independent sources agree. The one execution environment that disagrees is this specific sandboxed session, which runs **3.11.15** — a fact about this session's container, not about the repository's declared target. Not flagged as uncertain: the repository is internally consistent on 3.12; only this particular runtime differs from it. |
 | Django Version | Installed: **5.2.16**. Declared requirement (`requirements/base.txt`): `django>=5.1,<5.3`. Consistent. |
 | Database | **PostgreSQL 16**, optionally with **PostGIS** (`GIS_ENABLED` env var switches `django.db.backends.postgresql` ↔ `django.contrib.gis.db.backends.postgis`; CI uses the `postgis/postgis:16-3.4` image with `GIS_ENABLED=true`). SQLite is supported as a settings-level fallback (`DATABASE_ENGINE=sqlite`) but is not the platform's real target and is not exercised by CI. |
-| Architecture Style | **Modular monolith** — a single Django project (`config/`) composed of 22 apps under `src/apps/`, each owning its own models/services/tests, communicating through service-layer calls and two deliberately separate event systems (see [Domain Events](#domain-events) below), not through network calls. No microservices, no separate deployable units. |
-| Current Development Phase | **Foundation phase, largely complete → transitioning to Product Experience phase.** See [Current Development Phase](#current-development-phase) below. |
-| Current Project Status | Active development. 21 merged pull requests on `main` (PR #22 just merged); one documentation-maintenance PR (#21) remains open, not yet merged. No open incidents or known production deployment (no evidence of a live/production environment in this repository — infra config exists for one, but nothing indicates it is running). |
+| Architecture Style | **Modular monolith** — a single Django project (`config/`) composed of 24 apps under `src/apps/`, each owning its own models/services/tests, communicating through service-layer calls and two deliberately separate event systems (see [Domain Events](#domain-events) below), not through network calls. No microservices, no separate deployable units. |
+| Current Development Phase | **Product Experience phase, in progress.** Customer Experience Phase 1 and Phase 2, Provider Experience Phase 1, and Organization Experience Phase 1 are now built. See [Current Development Phase](#current-development-phase) below. |
+| Current Project Status | Active development. 23 merged pull requests on `main`; this branch (Epic 02 — Marketplace Operational Experience) is complete, tested, and pending review/PR. No open incidents or known production deployment (no evidence of a live/production environment in this repository — infra config exists for one, but nothing indicates it is running). |
 | Current Branching Strategy | Trunk-based: every unit of work branches from `main` (branch naming has drifted over time — see [Repository Structure](#repository-structure) → *A note on module numbering*), is reviewed as a pull request, and merges back to `main`. No long-lived release branches exist. `.github/workflows/ci.yml` also recognizes `phase-*/**` branches as a push trigger, though none currently exist. |
 | Repository Structure | See [below](#repository-structure). |
 | Current CI/Test Status | See [below](#current-ci--test-status). |
@@ -54,7 +55,7 @@ taasisatSenior/
 │   ├── adr/                                   # ADR-002 .. ADR-008 — decisions made *during* build
 │   └── architecture/                          # living reference docs + this file
 └── src/                                        # the actual Django project
-    ├── apps/                                    # 22 apps — see table below
+    ├── apps/                                    # 24 apps — see table below
     ├── config/                                   # settings, urls, celery, wsgi
     ├── templates/, static/, ui/                   # server-rendered UI (Django + HTMX + Alpine + Tailwind)
     ├── tests/visual/                               # Playwright visual/accessibility tests
@@ -86,6 +87,8 @@ taasisatSenior/
 | `api` | The `/api/v1/` DRF surface |
 | `admin_portal` | Server-rendered, read-only internal dashboards |
 | `portal` | Server-rendered customer dashboard, care recipient management, service request wizard, order timeline, share links, notification center |
+| `provider_portal` | Server-rendered, supplier-generic provider workspace: dashboard, assignment accept/decline, visit start/complete, availability management, earnings summary, notifications |
+| `organization_portal` | Server-rendered organization admin workspace: dashboard, staff (membership) management, manual assignment center, capacity overview, performance reports, notifications |
 | `common` | Abstract base models (TimestampedModel, TenantAwareModel, SoftDeleteMixin) |
 | `public_site` | Static, server-rendered marketing pages |
 | `showcase` | Development-only UI component/design-system browser |
@@ -116,7 +119,7 @@ Filtering)** shipped under the branch name `module-12-search-discovery`.
 | `test` | `python manage.py check` → `migrate` → `test --verbosity=2`, against a real `postgis/postgis:16` + `redis:7` service pair |
 | `visual-regression` | Playwright accessibility/visual-snapshot tests against a running dev server, gated on `tailwind` + `test` passing |
 
-**Verified directly against the GitHub Actions API**: this workflow has **never actually run** — `GET /repos/tassiatmanouchehr-cloud/taasisatSenior/actions/workflows` returns zero registered workflows and zero runs. `ci.yml` is a real, complete, checked-in pipeline definition that GitHub has not yet executed even once (most likely because Actions has never been enabled/triggered for this repository, not because of a failure). There is therefore no CI pass/fail history to report — "green" or "red" does not yet apply. What *is* independently confirmed, locally, against this exact HEAD: `python manage.py check` reports 0 issues and `python manage.py test` reports **965 passed, 0 failed**.
+**Verified directly against the GitHub Actions API**: this workflow has **never actually run** — `GET /repos/tassiatmanouchehr-cloud/taasisatSenior/actions/workflows` returns zero registered workflows and zero runs. `ci.yml` is a real, complete, checked-in pipeline definition that GitHub has not yet executed even once (most likely because Actions has never been enabled/triggered for this repository, not because of a failure). There is therefore no CI pass/fail history to report — "green" or "red" does not yet apply. What *is* independently confirmed, locally, on this branch: `python manage.py check` reports 0 issues and `python manage.py test` reports **1130 passed, 0 failed**.
 
 ### Known, harmless migration-check quirk
 
@@ -293,6 +296,43 @@ no OpenAPI schema (`drf-spectacular` is installed and unused).
 dashboards over `apps.reporting`. No write capability exists in this app
 today.
 
+### Provider Portal
+`apps.provider_portal` — Provider Experience Phase 1. Built entirely
+around `kernel.ServiceSupplier`, never `CaregiverProfile`, directly:
+`apps.accounts.services.provider_identity.resolve_supplier_for_user()` is
+the one boundary that turns a `UserAccount` into a `ServiceSupplier`, so
+the portal itself is supplier-generic and reusable for future non-caregiver
+supplier types without change. Assignment accept/decline is an explicit,
+extensible transition table (`apps.booking.services.provider_actions.
+ALLOWED_PROVIDER_TRANSITIONS`), not ad-hoc status writes — a new
+`SupplierAssignmentStatus.DECLINED` value was added to support it. Visit
+start/complete reuse `apps.execution.services.ExecutionService` unchanged
+(`apps.execution.services.provider_actions.ProviderExecutionService` adds
+only ownership verification). Availability management reuses
+`apps.availability` services directly (two additive query-service methods
+were the only availability change). Earnings reuse `apps.reporting`'s
+existing `ProviderReportService`. No RBAC permission keys — ownership
+(`resolve_supplier_for_user`) is the security boundary, mirroring
+`apps.portal`'s established pattern.
+
+### Organization Portal
+`apps.organization_portal` — Organization Experience Phase 1. Staff
+management reuses `OrganizationMembership` (`apps.accounts.services.
+organization_staff.OrganizationStaffService`) — no new membership model;
+approve/suspend use the model's pre-existing `status`/`approved_by`/
+`joined_at` fields. The assignment center
+(`apps.booking.services.organization_assignment.OrganizationAssignmentService.
+assign_manual()`) is one named strategy behind a service boundary designed
+to hold future strategies (automatic, bulk, shift) without a breaking
+change; it calls the existing `AssignmentService.assign()` unmodified — no
+second booking/assignment engine. Capacity reuses
+`apps.availability.services.capacity_service.CapacityService`. Reports
+reuse `apps.reporting.services.provider_report_service.ProviderReportService`
+(one new `list_reports_for_suppliers()` batch method). No RBAC permission
+keys — an admin's own `OrganizationMembership` (role=ADMIN, status=ACTIVE)
+is the security boundary. Deliberately scoped to exactly one organization
+per admin in this phase (see `DECISION_HISTORY.md`).
+
 ### Architecture Guardrails
 `apps/kernel/tests/test_architecture_guardrails.py` — automated,
 source-inspection-based tests enforcing several of the rules below at CI
@@ -319,7 +359,9 @@ Where a guardrail exists, it's named.
 
 | Rule | Enforcement |
 |---|---|
-| **Thin controllers** — a view never contains a loop, a business-rule conditional, or a multi-row ORM query. | Guardrail: `ApiViewOrmDisciplineTest`, `AdminPortalOrmDisciplineTest` |
+| **Thin controllers** — a view never contains a loop, a business-rule conditional, or a multi-row ORM query. | Guardrail: `ApiViewOrmDisciplineTest`, `AdminPortalOrmDisciplineTest`, `PortalOrmDisciplineTest`, `ProviderPortalOrmDisciplineTest`, `OrganizationPortalOrmDisciplineTest` |
+| **Supplier-generic provider surfaces** — code that acts on behalf of "a provider" operates on `kernel.ServiceSupplier`, never a concrete profile type (`CaregiverProfile`, etc.) directly. | Convention: `apps.accounts.services.provider_identity.resolve_supplier_for_user()` is the one bridge; `apps.provider_portal` imports no concrete supplier-profile model |
+| **Extensible transition tables for cross-actor actions** — an action one actor takes on another actor's record (accept/decline an assignment, assign staff to an order) is a named entry in a service-level table, not an inline status write in a view. | Convention: `apps.booking.services.provider_actions.ALLOWED_PROVIDER_TRANSITIONS`, mirroring the pre-existing `apps.payments.services.transitions.ALLOWED_TRANSITIONS` |
 | **Services own business logic** — every mutating operation lives in a `services/` package, never in a model or a view. | Convention (`service-layer-guidelines.md`), ADR-007 |
 | **Repository layering** — dependencies flow one way, roughly in Blueprint-adjacent order; a lower-numbered app never imports a higher-numbered one, with two named, guarded exceptions. | Convention (`dependency-graph.md`); guardrail: `NoReverseApiImportTest` |
 | **Bounded contexts** — each app owns a clearly stated set of models and never reaches into another app's internals. | Convention (`bounded-contexts.md`) |
@@ -336,7 +378,8 @@ Where a guardrail exists, it's named.
 
 ## Current Development Phase
 
-**Foundation is largely complete. Future work shifts toward Product Experience.**
+**Foundation is largely complete. Product Experience is now in progress
+across all three sides of the marketplace.**
 
 Concretely: the demand-side transaction loop — a customer can exist
 (identity + multi-role profile), request something (via `Order`, standing
@@ -348,14 +391,27 @@ map/geocoding service, or a real background-job consumer beyond
 notification dispatch. Every one of those edges is a documented,
 intentional fake.
 
+Epic 02 (Marketplace Operational Experience — this sprint) added the
+operator-facing side of that same loop on top of the existing services,
+with no duplicated architecture: a provider can now see and act on their
+own assignments and visits (`apps.provider_portal`), and an organization
+admin can manage staff and assign work (`apps.organization_portal`),
+alongside the customer-facing work `apps.portal` already covered. The
+platform now has a walkable, three-sided operational surface — customer
+requests, provider/organization actions, and the notifications/timeline
+that connect them — even though none of it yet reaches a real external
+provider (payment, SMS, geocoding).
+
 This means the highest-leverage next work is not "build another
 foundation module" — most of the foundation-shaped work left (Trust &
 Governance, Document/Media, Workflow Automation, AI, Subscriptions,
 Geospatial) is real, but lower urgency than **finishing the loops the
 existing foundation already implies**: a payment that actually settles, a
-notification that actually reaches someone, a match that a customer can
-actually select, and an RBAC system where a fresh deployment's roles
-actually carry permissions. See
+notification that actually reaches someone, and an RBAC system where a
+fresh deployment's roles actually carry permissions — plus, now that all
+three portals exist, wiring a real permission-key registry under them
+(today each portal's security boundary is ownership, not RBAC — see
+`GAP_ANALYSIS.md`). See
 [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md) and
 [`PRODUCT_ROADMAP.md`](PRODUCT_ROADMAP.md) for the detailed breakdown and
 prioritization.

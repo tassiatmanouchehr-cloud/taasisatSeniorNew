@@ -32,6 +32,18 @@ SHARE_LINK_CREATED = "ShareLinkCreated"
 SHARE_LINK_REVOKED = "ShareLinkRevoked"
 SHARE_LINK_ACCESSED = "ShareLinkAccessed"
 
+# Epic 02 (Marketplace Operational Experience). No notification handler is
+# registered for these yet — same reasoning as the share-link events above:
+# publish() still audits unconditionally, which is the point of using it.
+PROVIDER_ASSIGNMENT_ACCEPTED = "ProviderAssignmentAccepted"
+PROVIDER_ASSIGNMENT_REJECTED = "ProviderAssignmentRejected"
+PROVIDER_VISIT_STARTED = "ProviderVisitStarted"
+PROVIDER_VISIT_COMPLETED = "ProviderVisitCompleted"
+ORGANIZATION_ASSIGNMENT_CHANGED = "OrganizationAssignmentChanged"
+CARE_RECIPIENT_CREATED = "CareRecipientCreated"
+CARE_RECIPIENT_UPDATED = "CareRecipientUpdated"
+CARE_RECIPIENT_ARCHIVED = "CareRecipientArchived"
+
 
 @dataclass(frozen=True)
 class DomainEvent:

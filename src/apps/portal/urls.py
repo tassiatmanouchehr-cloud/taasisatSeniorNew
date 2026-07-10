@@ -12,6 +12,7 @@ urlpatterns = [
     path("care-recipients/", views.care_recipients_list_view, name="care-recipients"),
     path("care-recipients/new/", views.care_recipient_create_view, name="care-recipient-create"),
     path("care-recipients/<uuid:care_recipient_id>/edit/", views.care_recipient_edit_view, name="care-recipient-edit"),
+    path("care-recipients/<uuid:care_recipient_id>/archive/", views.care_recipient_archive_view, name="care-recipient-archive"),
     path("requests/", views.requests_list_view, name="requests"),
     path("requests/<uuid:order_id>/", views.request_detail_view, name="request-detail"),
     path("requests/<uuid:order_id>/share/", views.share_link_create_view, name="share-link-create"),

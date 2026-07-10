@@ -1,0 +1,25 @@
+{% extends "organization_portal/base.html" %}
+
+{% block portal_title %}ظرفیت{% endblock %}
+{% block page_title %}ظرفیت نیروها{% endblock %}
+
+{% block portal_content %}
+{% if rows %}
+<div class="bg-surface border border-border rounded-lg overflow-hidden">
+  <ul class="divide-y divide-border">
+    {% for row in rows %}
+    <li class="px-5 py-4 flex items-center justify-between">
+      <span class="text-sm font-medium text-text">{{ row.membership.user.caregiver_profile.display_name|default:row.membership.user.person.full_name|default:row.membership.user.phone|default:"—" }}</span>
+      <span class="text-sm {% if row.capacity_exceeded %}text-danger font-medium{% else %}text-text-muted{% endif %}">
+        {{ row.engagement_count }} تخصیص فعال{% if row.capacity_exceeded %} — ظرفیت تکمیل{% endif %}
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% else %}
+<div class="bg-surface border border-border rounded-lg p-8 text-center">
+  <p class="text-sm text-text-muted">نیروی فعالی ثبت نشده است.</p>
+</div>
+{% endif %}
+{% endblock %}

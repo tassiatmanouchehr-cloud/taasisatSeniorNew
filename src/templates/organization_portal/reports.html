@@ -1,0 +1,33 @@
+{% extends "organization_portal/base.html" %}
+
+{% block portal_title %}گزارش‌ها{% endblock %}
+{% block page_title %}عملکرد نیروها{% endblock %}
+
+{% block portal_content %}
+{% if reports %}
+<div class="bg-surface border border-border rounded-lg overflow-hidden">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="border-b border-border text-text-muted text-xs">
+        <th class="px-5 py-3 text-start">خدمات انجام‌شده</th>
+        <th class="px-5 py-3 text-start">تخصیص‌های فعال</th>
+        <th class="px-5 py-3 text-start">میانگین امتیاز</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-border">
+      {% for report in reports %}
+      <tr>
+        <td class="px-5 py-3 text-text">{{ report.completed_services }}</td>
+        <td class="px-5 py-3 text-text">{{ report.active_assignments }}</td>
+        <td class="px-5 py-3 text-text">{{ report.reputation_average|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="bg-surface border border-border rounded-lg p-8 text-center">
+  <p class="text-sm text-text-muted">داده‌ای برای گزارش وجود ندارد.</p>
+</div>
+{% endif %}
+{% endblock %}

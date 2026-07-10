@@ -1,0 +1,42 @@
+{% extends "ui/layouts/portal.html" %}
+{# Provider portal shared shell — Epic 02 (Marketplace Operational
+   Experience). Mirrors templates/portal/base.html's exact shape. #}
+
+{% block title %}{% block portal_title %}{% endblock %} | پنل ارائه‌دهنده{% endblock %}
+
+{% block sidebar_title %}پنل ارائه‌دهنده{% endblock %}
+
+{% block sidebar_nav %}{% include "provider_portal/_sidebar_nav.html" %}{% endblock %}
+{% block mobile_sidebar_nav %}{% include "provider_portal/_sidebar_nav.html" %}{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'provider_portal:notifications' %}" class="p-2 rounded text-text-muted hover:bg-background" aria-label="اعلان‌ها">
+  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+  </svg>
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-bold text-text">{% block page_title %}{% endblock %}</h1>
+      {% block page_description %}{% endblock %}
+    </div>
+    <div class="flex items-center gap-inline-3">
+      {% block page_actions %}{% endblock %}
+    </div>
+  </div>
+
+  {% if messages %}
+  <div class="space-y-2">
+    {% for message in messages %}
+    <div class="rounded-lg border border-border bg-surface px-4 py-3 text-sm text-text">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% block portal_content %}{% endblock %}
+</div>
+{% endblock %}

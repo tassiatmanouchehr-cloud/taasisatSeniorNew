@@ -1,0 +1,38 @@
+{% extends "organization_portal/base.html" %}
+
+{% block portal_title %}نیروها{% endblock %}
+{% block page_title %}نیروها{% endblock %}
+
+{% block portal_content %}
+{% if staff %}
+<div class="bg-surface border border-border rounded-lg overflow-hidden">
+  <ul class="divide-y divide-border">
+    {% for member in staff %}
+    <li class="px-5 py-4 flex items-center justify-between gap-inline-3">
+      <div>
+        <p class="text-sm font-bold text-text">{{ member.user.caregiver_profile.display_name|default:member.user.person.full_name|default:member.user.phone|default:"—" }}</p>
+        <p class="text-xs text-text-muted mt-0.5">{{ member.get_role_type_display }} — {{ member.get_status_display }}</p>
+      </div>
+      <div class="flex items-center gap-inline-2">
+        {% if member.status == "pending" %}
+        <form method="post" action="{% url 'organization_portal:staff-approve' membership_id=member.id %}">
+          {% csrf_token %}
+          <button type="submit" class="text-sm font-medium text-primary hover:underline">تأیید</button>
+        </form>
+        {% elif member.status == "active" %}
+        <form method="post" action="{% url 'organization_portal:staff-suspend' membership_id=member.id %}">
+          {% csrf_token %}
+          <button type="submit" class="text-sm font-medium text-danger hover:underline">تعلیق</button>
+        </form>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% else %}
+<div class="bg-surface border border-border rounded-lg p-8 text-center">
+  <p class="text-sm text-text-muted">هنوز نیرویی ثبت نشده است.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -53,6 +53,7 @@ from .permissions import require_authenticated, resolve_customer_profile, resolv
 WIZARD_SESSION_KEY = "portal_request_wizard"
 RECENT_ORDERS_LIMIT = 5
 RECENT_NOTIFICATIONS_LIMIT = 5
+UPCOMING_VISITS_LIMIT = 5
 
 
 def _guard(request):
@@ -77,6 +78,9 @@ def dashboard_view(request):
     recent_orders = OrderQueryService.list_recent_for_customer(
         customer_profile=customer, tenant_id=tenant_id, limit=RECENT_ORDERS_LIMIT,
     )
+    upcoming_visits = OrderQueryService.list_upcoming_for_customer(
+        customer_profile=customer, tenant_id=tenant_id, limit=UPCOMING_VISITS_LIMIT,
+    )
     care_recipients = CareRecipientService.list_for_customer(customer)
 
     party = FinancialPartyService.resolve_party_for_customer(customer)
@@ -90,6 +94,7 @@ def dashboard_view(request):
     )
 
     context = {
+        "upcoming_visits": upcoming_visits,
         "customer": customer,
         "recent_orders": recent_orders,
         "care_recipients": care_recipients,
@@ -163,6 +168,19 @@ def care_recipient_edit_view(request, care_recipient_id):
     })
 
 
+@require_http_methods(["POST"])
+def care_recipient_archive_view(request, care_recipient_id):
+    customer, tenant_id = _guard(request)
+
+    try:
+        care_recipient = CareRecipientService.get_for_customer(customer, care_recipient_id)
+    except AccountsError:
+        raise Http404("Care recipient not found.")
+
+    CareRecipientService.archive(care_recipient)
+    return redirect("portal:care-recipients")
+
+
 # ============================================================
 # My Requests + Order Timeline — Phase 5
 # ============================================================
@@ -170,8 +188,10 @@ def care_recipient_edit_view(request, care_recipient_id):
 @require_http_methods(["GET"])
 def requests_list_view(request):
     customer, tenant_id = _guard(request)
-    orders = OrderQueryService.list_for_customer(customer_profile=customer, tenant_id=tenant_id)
-    return render(request, "portal/requests_list.html", {"orders": orders})
+    filter_param = request.GET.get("filter", "all")
+    only = filter_param if filter_param in ("active", "completed", "cancelled") else None
+    orders = OrderQueryService.list_for_customer(customer_profile=customer, tenant_id=tenant_id, only=only)
+    return render(request, "portal/requests_list.html", {"orders": orders, "filter": filter_param})
 
 
 @require_http_methods(["GET"])

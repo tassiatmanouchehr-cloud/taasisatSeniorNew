@@ -1,0 +1,321 @@
+"""
+Provider portal views — Epic 02 (Marketplace Operational Experience).
+
+Every view: authenticate -> resolve the caller's own ServiceSupplier ->
+call service methods -> render a template. No ORM access of any kind
+(enforced by ProviderPortalOrmDisciplineTest, mirroring
+apps.kernel.tests.test_architecture_guardrails.PortalOrmDisciplineTest).
+
+Assignment-confirmation orchestration note: confirming an assignment
+(apps.booking.services.provider_actions.ProviderAssignmentActionService
+.confirm) and creating the ExecutionSession that follows from it
+(apps.execution.services.session_service.ExecutionService.create_session)
+are two separate service calls made here, in that order, rather than one
+call inside apps.booking. apps.execution already depends on apps.booking
+(imports its models); apps.booking must never import apps.execution back —
+seedocs/architecture/dependency-graph.md. This view is the orchestration
+point precisely because apps.provider_portal sits above both in the
+dependency graph, the same role apps.portal already plays for
+accounts/orders/finance/wallet/notifications/pricing.
+"""
+
+from django.http import Http404
+from django.shortcuts import redirect, render
+from django.views.decorators.http import require_http_methods
+
+from apps.availability.services.capacity_service import CapacityService
+from apps.availability.services.errors import AvailabilityError
+from apps.availability.services.mutation_service import AvailabilityMutationService
+from apps.availability.services.query_service import AvailabilityQueryService
+from apps.booking.services.provider_actions import ProviderAssignmentActionError, ProviderAssignmentActionService
+from apps.booking.services.queries import ProviderAssignmentNotFoundError, ProviderAssignmentQueryService
+from apps.execution.models import ExecutionSource
+from apps.execution.services.provider_actions import ProviderExecutionActionError, ProviderExecutionService
+from apps.execution.services.queries import ProviderExecutionQueryService
+from apps.execution.services.session_service import ExecutionService
+from apps.finance.services.party_service import FinancialPartyService
+from apps.notifications.services.queries import NotificationQueryService
+from apps.reporting.services.provider_report_service import ProviderReportService
+from apps.reviews.services.reputation_service import ReputationService
+from apps.wallet.services.wallet_service import WalletService
+
+from .forms import BlockedPeriodForm, DeclineAssignmentForm, WorkingWindowForm
+from .permissions import require_authenticated, resolve_supplier, resolve_tenant_id
+
+COMPLETED_VISITS_LIMIT = 5
+RECENT_NOTIFICATIONS_LIMIT = 5
+
+
+def _guard(request):
+    require_authenticated(request)
+    tenant_id = resolve_tenant_id(request)
+    supplier = resolve_supplier(request)
+    return supplier, tenant_id
+
+
+# ============================================================
+# Dashboard
+# ============================================================
+
+@require_http_methods(["GET"])
+def dashboard_view(request):
+    supplier, tenant_id = _guard(request)
+
+    pending_assignments = ProviderAssignmentQueryService.list_for_supplier(
+        supplier=supplier, tenant_id=tenant_id, only="pending",
+    )
+    active_visits = ProviderExecutionQueryService.list_active_for_supplier(supplier=supplier, tenant_id=tenant_id)
+    completed_visits = ProviderExecutionQueryService.list_completed_for_supplier(
+        supplier=supplier, tenant_id=tenant_id, limit=COMPLETED_VISITS_LIMIT,
+    )
+    working_windows = AvailabilityQueryService.get_working_windows(supplier=supplier)
+    reputation = ReputationService.get_reputation_summary(supplier)
+    performance = ProviderReportService.get_report_for_supplier(tenant_id, supplier.id)
+
+    recent_notifications = NotificationQueryService.list_recent_for_recipient(
+        tenant_id=tenant_id, recipient_id=request.user.person_id, limit=RECENT_NOTIFICATIONS_LIMIT,
+    )
+    unread_notification_count = NotificationQueryService.count_unread_for_recipient(
+        tenant_id=tenant_id, recipient_id=request.user.person_id,
+    )
+
+    context = {
+        "supplier": supplier,
+        "pending_assignments": pending_assignments,
+        "active_visits": active_visits,
+        "completed_visits": completed_visits,
+        "working_windows": working_windows,
+        "reputation": reputation,
+        "performance": performance,
+        "recent_notifications": recent_notifications,
+        "unread_notification_count": unread_notification_count,
+    }
+    return render(request, "provider_portal/dashboard.html", context)
+
+
+# ============================================================
+# Assignments + visit detail
+# ============================================================
+
+@require_http_methods(["GET"])
+def assignments_list_view(request):
+    supplier, tenant_id = _guard(request)
+    filter_param = request.GET.get("filter", "all")
+    only = filter_param if filter_param in ("pending", "confirmed") else None
+    assignments = ProviderAssignmentQueryService.list_for_supplier(supplier=supplier, tenant_id=tenant_id, only=only)
+    return render(request, "provider_portal/assignments_list.html", {
+        "assignments": assignments, "filter": filter_param,
+    })
+
+
+@require_http_methods(["GET"])
+def assignment_detail_view(request, order_id):
+    supplier, tenant_id = _guard(request)
+    try:
+        assignment = ProviderAssignmentQueryService.get_for_supplier(
+            supplier=supplier, tenant_id=tenant_id, order_id=order_id,
+        )
+    except ProviderAssignmentNotFoundError:
+        raise Http404("Assignment not found.")
+
+    session = ProviderExecutionQueryService.get_for_order_and_supplier(
+        order_id=order_id, supplier=supplier, tenant_id=tenant_id,
+    )
+    return render(request, "provider_portal/assignment_detail.html", {
+        "assignment": assignment, "order": assignment.order, "session": session,
+        "decline_form": DeclineAssignmentForm(),
+    })
+
+
+@require_http_methods(["POST"])
+def assignment_confirm_view(request, order_id):
+    supplier, tenant_id = _guard(request)
+    try:
+        assignment = ProviderAssignmentQueryService.get_for_supplier(
+            supplier=supplier, tenant_id=tenant_id, order_id=order_id,
+        )
+    except ProviderAssignmentNotFoundError:
+        raise Http404("Assignment not found.")
+
+    try:
+        assignment = ProviderAssignmentActionService.confirm(assignment_id=assignment.id, actor=request.user)
+    except ProviderAssignmentActionError as exc:
+        return render(request, "provider_portal/action_error.html", {"error": str(exc)})
+
+    ExecutionService.create_session(
+        supplier_assignment=assignment, execution_source=ExecutionSource.BOOKING, triggered_by=request.user,
+    )
+    return redirect("provider_portal:assignment-detail", order_id=order_id)
+
+
+@require_http_methods(["POST"])
+def assignment_decline_view(request, order_id):
+    supplier, tenant_id = _guard(request)
+    try:
+        assignment = ProviderAssignmentQueryService.get_for_supplier(
+            supplier=supplier, tenant_id=tenant_id, order_id=order_id,
+        )
+    except ProviderAssignmentNotFoundError:
+        raise Http404("Assignment not found.")
+
+    form = DeclineAssignmentForm(request.POST)
+    reason = form.cleaned_data.get("reason", "") if form.is_valid() else ""
+
+    try:
+        ProviderAssignmentActionService.decline(assignment_id=assignment.id, actor=request.user, reason=reason)
+    except ProviderAssignmentActionError as exc:
+        return render(request, "provider_portal/action_error.html", {"error": str(exc)})
+
+    return redirect("provider_portal:assignments")
+
+
+# ============================================================
+# Execution actions
+# ============================================================
+
+@require_http_methods(["POST"])
+def visit_start_view(request, order_id):
+    supplier, tenant_id = _guard(request)
+    session = ProviderExecutionQueryService.get_for_order_and_supplier(
+        order_id=order_id, supplier=supplier, tenant_id=tenant_id,
+    )
+    if session is None:
+        raise Http404("Visit not found.")
+
+    try:
+        ProviderExecutionService.start_visit(session_id=session.id, actor=request.user)
+    except ProviderExecutionActionError as exc:
+        return render(request, "provider_portal/action_error.html", {"error": str(exc)})
+
+    return redirect("provider_portal:assignment-detail", order_id=order_id)
+
+
+@require_http_methods(["POST"])
+def visit_complete_view(request, order_id):
+    supplier, tenant_id = _guard(request)
+    session = ProviderExecutionQueryService.get_for_order_and_supplier(
+        order_id=order_id, supplier=supplier, tenant_id=tenant_id,
+    )
+    if session is None:
+        raise Http404("Visit not found.")
+
+    try:
+        ProviderExecutionService.complete_visit(session_id=session.id, actor=request.user)
+    except ProviderExecutionActionError as exc:
+        return render(request, "provider_portal/action_error.html", {"error": str(exc)})
+
+    return redirect("provider_portal:assignment-detail", order_id=order_id)
+
+
+# ============================================================
+# Availability management
+# ============================================================
+
+@require_http_methods(["GET", "POST"])
+def availability_view(request):
+    supplier, tenant_id = _guard(request)
+
+    window_form = WorkingWindowForm()
+    if request.method == "POST":
+        window_form = WorkingWindowForm(request.POST)
+        if window_form.is_valid():
+            try:
+                AvailabilityMutationService.add_working_window(
+                    supplier=supplier,
+                    day_of_week=int(window_form.cleaned_data["day_of_week"]),
+                    start_time=window_form.cleaned_data["start_time"],
+                    end_time=window_form.cleaned_data["end_time"],
+                )
+                return redirect("provider_portal:availability")
+            except AvailabilityError as exc:
+                window_form.add_error(None, str(exc))
+
+    working_windows = AvailabilityQueryService.get_working_windows(supplier=supplier)
+    blocked_periods = AvailabilityQueryService.get_blocked_periods(supplier=supplier)
+    engagement_count = CapacityService.get_active_engagement_count(supplier=supplier)
+    capacity_exceeded = CapacityService.is_capacity_exceeded(supplier=supplier)
+
+    return render(request, "provider_portal/availability.html", {
+        "window_form": window_form,
+        "blocked_period_form": BlockedPeriodForm(),
+        "working_windows": working_windows,
+        "blocked_periods": blocked_periods,
+        "engagement_count": engagement_count,
+        "capacity_exceeded": capacity_exceeded,
+    })
+
+
+@require_http_methods(["POST"])
+def working_window_remove_view(request, window_id):
+    supplier, tenant_id = _guard(request)
+    window = AvailabilityQueryService.get_working_window_for_supplier(supplier=supplier, window_id=window_id)
+    if window is None:
+        raise Http404("Working window not found.")
+    AvailabilityMutationService.remove_working_window(window_id=window.id)
+    return redirect("provider_portal:availability")
+
+
+@require_http_methods(["POST"])
+def blocked_period_create_view(request):
+    supplier, tenant_id = _guard(request)
+    form = BlockedPeriodForm(request.POST)
+    if form.is_valid():
+        try:
+            AvailabilityMutationService.add_blocked_period(
+                supplier=supplier,
+                start_at=form.cleaned_data["start_at"],
+                end_at=form.cleaned_data["end_at"],
+                reason=form.cleaned_data["reason"] or "OTHER",
+                notes=form.cleaned_data.get("notes", ""),
+            )
+        except AvailabilityError as exc:
+            return render(request, "provider_portal/action_error.html", {"error": str(exc)})
+    return redirect("provider_portal:availability")
+
+
+@require_http_methods(["POST"])
+def blocked_period_remove_view(request, blocked_period_id):
+    supplier, tenant_id = _guard(request)
+    period = AvailabilityQueryService.get_blocked_period_for_supplier(
+        supplier=supplier, blocked_period_id=blocked_period_id,
+    )
+    if period is None:
+        raise Http404("Blocked period not found.")
+    AvailabilityMutationService.remove_blocked_period(blocked_period_id=period.id)
+    return redirect("provider_portal:availability")
+
+
+# ============================================================
+# Earnings summary
+# ============================================================
+
+@require_http_methods(["GET"])
+def earnings_view(request):
+    supplier, tenant_id = _guard(request)
+
+    party = FinancialPartyService.resolve_party_for_supplier(supplier)
+    wallet = WalletService.get_wallet_or_none(party=party)
+    performance = ProviderReportService.get_report_for_supplier(tenant_id, supplier.id)
+
+    return render(request, "provider_portal/earnings.html", {
+        "wallet": wallet, "performance": performance,
+    })
+
+
+# ============================================================
+# Notification center
+# ============================================================
+
+@require_http_methods(["GET"])
+def notifications_view(request):
+    supplier, tenant_id = _guard(request)
+
+    filter_param = request.GET.get("filter", "all")
+    only = filter_param if filter_param in ("unread", "read") else None
+    notifications = NotificationQueryService.list_for_recipient(
+        tenant_id=tenant_id, recipient_id=request.user.person_id, only=only,
+    )
+
+    return render(request, "provider_portal/notifications.html", {
+        "notifications": notifications, "filter": filter_param,
+    })

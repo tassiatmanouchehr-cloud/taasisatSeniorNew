@@ -50,3 +50,20 @@ class CareRecipientsListViewTest(PortalTestCase):
         response = self.client.get("/portal/care-recipients/")
         self.assertContains(response, "مادر بزرگ")
         self.assertNotContains(response, "Someone Else")
+
+    def test_archived_recipient_is_hidden_from_list(self):
+        from apps.accounts.models.profiles import ProfileStatus
+
+        self.login_as_customer()
+        response = self.client.post(f"/portal/care-recipients/{self.care_recipient.id}/archive/")
+        self.assertRedirects(response, "/portal/care-recipients/")
+        self.care_recipient.refresh_from_db()
+        self.assertEqual(self.care_recipient.status, ProfileStatus.ARCHIVED)
+
+        response = self.client.get("/portal/care-recipients/")
+        self.assertNotContains(response, "مادر بزرگ")
+
+    def test_cannot_archive_another_customers_recipient(self):
+        self.client.force_login(self.other_customer.user)
+        response = self.client.post(f"/portal/care-recipients/{self.care_recipient.id}/archive/")
+        self.assertEqual(response.status_code, 404)

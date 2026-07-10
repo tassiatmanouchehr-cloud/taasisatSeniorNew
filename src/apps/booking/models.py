@@ -25,11 +25,19 @@ class SupplierAssignmentStatus(models.TextChoices):
     Per the approved Module 03 refinement — ACTIVE is intentionally not a
     status here; CONFIRMED covers the "this is the operative assignment"
     meaning once a real commitment step exists.
+
+    DECLINED (Epic 02 — Marketplace Operational Experience): the real
+    commitment step CONFIRMED was reserved for. A provider explicitly
+    confirms (-> CONFIRMED) or declines (-> DECLINED) an assignment via
+    apps.booking.services.provider_actions.ProviderAssignmentActionService.
+    Additive: existing rows are unaffected, this only adds a new reachable
+    value.
     """
 
     PROPOSED = "proposed", "Proposed"
     ASSIGNED = "assigned", "Assigned"
     CONFIRMED = "confirmed", "Confirmed"
+    DECLINED = "declined", "Declined"
     REPLACED = "replaced", "Replaced"
     CANCELLED = "cancelled", "Cancelled"
     EXPIRED = "expired", "Expired"

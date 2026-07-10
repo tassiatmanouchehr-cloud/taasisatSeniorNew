@@ -50,25 +50,39 @@ class AssignmentService:
         metadata=None,
         requested_start=None,
         requested_end=None,
+        ownership_authorized_by=None,
     ) -> SupplierAssignment:
         """
         requested_start/requested_end are optional and conservative by
         design: availability/capacity validation (Module 10) only runs when
         BOTH are explicitly supplied by the caller. Every existing call site
         that omits them keeps today's exact behavior — nothing new runs.
+
+        ownership_authorized_by: only consulted when assigned_by is None —
+        see PermissionService.require()'s docstring for the full reasoning.
+        A real, named actor authorized by a verified ownership check
+        upstream (not an RBAC role, which may not exist for them yet).
+        Becomes the effective actor for permission evaluation *and*
+        attribution (SupplierAssignment.assigned_by, OrderStatusHistory
+        .changed_by, the published events' actor_id) — never silently
+        recorded as an anonymous/system action.
         """
         from apps.orders.models import Order
 
         order = Order.objects.get(id=order_id)
         cls._ensure_same_tenant(order=order, supplier=supplier)
 
-        PermissionService.require(assigned_by, "booking.assignment.assign", tenant_id=order.tenant_id)
+        PermissionService.require(
+            assigned_by, "booking.assignment.assign", tenant_id=order.tenant_id,
+            ownership_authorized_by=ownership_authorized_by,
+        )
+        effective_actor = assigned_by or ownership_authorized_by
 
         if requested_start is not None and requested_end is not None:
             cls._validate_availability(supplier=supplier, requested_start=requested_start, requested_end=requested_end)
 
         # The ONLY mutation of Order.assigned_supplier / Order.status.
-        assign_supplier(order_id=order.id, supplier=supplier, changed_by=assigned_by)
+        assign_supplier(order_id=order.id, supplier=supplier, changed_by=effective_actor)
 
         resolved_source = cls._resolve_source(assignment_source, match_candidate)
         status = cls._initial_status(tenant_id=order.tenant_id)
@@ -82,7 +96,7 @@ class AssignmentService:
             status=status,
             assignment_source=resolved_source,
             assignment_sequence=sequence,
-            assigned_by=assigned_by,
+            assigned_by=effective_actor,
             metadata=metadata or {},
         )
 
@@ -102,7 +116,7 @@ class AssignmentService:
                 "status": status,
                 "assignment_sequence": sequence,
             },
-            actor_id=cls._actor_id(assigned_by),
+            actor_id=cls._actor_id(effective_actor),
         )
 
         domain_event = DomainEvent(
@@ -110,7 +124,7 @@ class AssignmentService:
             tenant_id=order.tenant_id,
             aggregate_type="Order",
             aggregate_id=order.id,
-            actor_id=cls._actor_id(assigned_by),
+            actor_id=cls._actor_id(effective_actor),
             payload={
                 "supplier_id": str(supplier.id),
                 "assignment_id": str(assignment.id),

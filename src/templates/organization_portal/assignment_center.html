@@ -1,0 +1,41 @@
+{% extends "organization_portal/base.html" %}
+
+{% block portal_title %}مرکز تخصیص{% endblock %}
+{% block page_title %}مرکز تخصیص{% endblock %}
+{% block page_description %}
+<p class="mt-1 text-sm text-text-muted">درخواست‌های بدون تخصیص و نیروهای در دسترس سازمان.</p>
+{% endblock %}
+
+{% block portal_content %}
+{% if open_orders %}
+<div class="space-y-4">
+  {% for order in open_orders %}
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <div class="flex items-center justify-between mb-3">
+      <div>
+        <p class="text-sm font-bold text-text">{{ order.order_number }} — {{ order.service_category.name }}</p>
+        <p class="text-xs text-text-muted mt-0.5">{{ order.city }} — {{ order.created_at|date:"Y/m/d H:i" }}</p>
+      </div>
+    </div>
+    {% if available_staff %}
+    <form method="post" action="{% url 'organization_portal:assign-staff' order_id=order.id %}" class="flex items-center gap-inline-3">
+      {% csrf_token %}
+      <select name="membership_id" class="block w-full rounded-2xl border border-border bg-background px-4 py-2 text-sm text-text">
+        {% for member in available_staff %}
+        <option value="{{ member.id }}">{{ member.user.caregiver_profile.display_name|default:member.user.person.full_name|default:member.user.phone|default:"—" }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="shrink-0 inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-700">تخصیص</button>
+    </form>
+    {% else %}
+    <p class="text-sm text-text-muted">نیروی فعالی برای تخصیص ندارید.</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="bg-surface border border-border rounded-lg p-8 text-center">
+  <p class="text-sm text-text-muted">درخواست باز بدون تخصیصی وجود ندارد.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -124,6 +124,117 @@ class UpdateCareRecipientTest(CareRecipientTestCase):
             CareRecipientService.update(recipient, not_a_real_field="y")
 
 
+class ArchiveCareRecipientTest(CareRecipientTestCase):
+    def test_archive_sets_status_archived(self):
+        from apps.accounts.models.profiles import ProfileStatus
+
+        recipient = CareRecipientService.create(customer_profile=self.customer, full_name="Old One")
+        CareRecipientService.archive(recipient)
+        recipient.refresh_from_db()
+        self.assertEqual(recipient.status, ProfileStatus.ARCHIVED)
+
+    def test_archived_recipient_excluded_from_default_list(self):
+        recipient = CareRecipientService.create(customer_profile=self.customer, full_name="Old One")
+        CareRecipientService.create(customer_profile=self.customer, full_name="Active One")
+        CareRecipientService.archive(recipient)
+
+        recipients = CareRecipientService.list_for_customer(self.customer)
+        self.assertEqual(recipients.count(), 1)
+        self.assertEqual(recipients.first().full_name, "Active One")
+
+    def test_archived_recipient_included_when_requested(self):
+        recipient = CareRecipientService.create(customer_profile=self.customer, full_name="Old One")
+        CareRecipientService.archive(recipient)
+
+        recipients = CareRecipientService.list_for_customer(self.customer, include_archived=True)
+        self.assertEqual(recipients.count(), 1)
+
+    def test_archived_recipient_still_reachable_by_id(self):
+        recipient = CareRecipientService.create(customer_profile=self.customer, full_name="Old One")
+        CareRecipientService.archive(recipient)
+        fetched = CareRecipientService.get_for_customer(self.customer, recipient.id)
+        self.assertEqual(fetched.id, recipient.id)
+
+    def test_cannot_archive_another_customers_recipient_via_get_for_customer(self):
+        """archive() itself takes a resolved model instance, not an id — the
+        ownership boundary is get_for_customer(), which callers (the portal
+        view) must call first. This proves that boundary rejects a
+        cross-customer id before archive() would ever be reached."""
+        recipient = CareRecipientService.create(customer_profile=self.other_customer, full_name="Not Mine")
+        with self.assertRaises(AccountsError):
+            CareRecipientService.get_for_customer(self.customer, recipient.id)
+
+    def test_cannot_archive_another_tenants_recipient_via_get_for_customer(self):
+        other_tenant = Tenant.objects.create(slug=f"t-other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
+        other_tenant_person = Person.objects.create(tenant=other_tenant, full_name="Reza Rahimi")
+        other_tenant_user = UserAccount.objects.create_user(
+            email="reza@example.com", person=other_tenant_person, tenant=other_tenant,
+        )
+        from apps.accounts.models.profiles import CustomerProfile
+
+        other_tenant_customer = CustomerProfile.objects.create(
+            user=other_tenant_user, person=other_tenant_person, phone="09123338888", display_name="Reza Rahimi",
+        )
+        recipient = CareRecipientService.create(customer_profile=other_tenant_customer, full_name="Not Mine Either")
+
+        with self.assertRaises(AccountsError):
+            CareRecipientService.get_for_customer(self.customer, recipient.id)
+
+        # The recipient itself is untouched — still active, still belongs to the other tenant's customer.
+        from apps.accounts.models.profiles import ProfileStatus
+
+        recipient.refresh_from_db()
+        self.assertEqual(recipient.status, ProfileStatus.ACTIVE)
+        self.assertEqual(recipient.customer_profile_id, other_tenant_customer.id)
+
+
+class CareRecipientEventPublishingTest(CareRecipientTestCase):
+    def test_create_publishes_and_audits(self):
+        from apps.kernel.models.audit import AuditLog
+
+        with self.captureOnCommitCallbacks(execute=True):
+            recipient = CareRecipientService.create(customer_profile=self.customer, full_name="Audited One")
+
+        entry = AuditLog.objects.get(action="domain_event.CareRecipientCreated", resource_id=recipient.id)
+        self.assertEqual(entry.resource_type, "ElderProfile")
+        self.assertEqual(entry.actor_id, self.customer.person_id)
+
+    def test_update_publishes_and_audits(self):
+        from apps.kernel.models.audit import AuditLog
+
+        recipient = CareRecipientService.create(customer_profile=self.customer, full_name="Audited One")
+        with self.captureOnCommitCallbacks(execute=True):
+            CareRecipientService.update(recipient, medical_notes="Updated")
+
+        self.assertTrue(
+            AuditLog.objects.filter(action="domain_event.CareRecipientUpdated", resource_id=recipient.id).exists()
+        )
+
+    def test_archive_publishes_and_audits(self):
+        from apps.kernel.models.audit import AuditLog
+
+        recipient = CareRecipientService.create(customer_profile=self.customer, full_name="Audited One")
+        with self.captureOnCommitCallbacks(execute=True):
+            CareRecipientService.archive(recipient)
+
+        entry = AuditLog.objects.get(action="domain_event.CareRecipientArchived", resource_id=recipient.id)
+        self.assertEqual(entry.resource_type, "ElderProfile")
+        self.assertEqual(entry.actor_id, self.customer.person_id)
+
+    def test_archive_does_not_publish_before_commit(self):
+        """The event is queued via transaction.on_commit — outside a
+        captureOnCommitCallbacks(execute=True) block, TestCase's own
+        wrapping transaction never commits, so no AuditLog should appear."""
+        from apps.kernel.models.audit import AuditLog
+
+        recipient = CareRecipientService.create(customer_profile=self.customer, full_name="Audited One")
+        CareRecipientService.archive(recipient)
+
+        self.assertFalse(
+            AuditLog.objects.filter(action="domain_event.CareRecipientArchived", resource_id=recipient.id).exists()
+        )
+
+
 class CareRecipientNotAUserAccountTest(CareRecipientTestCase):
     """Care recipients are data owned by the customer, never authenticated accounts."""
 
