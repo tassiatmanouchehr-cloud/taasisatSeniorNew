@@ -123,6 +123,19 @@ Verified by grepping `apps/orders`, `apps/accounts`, `apps/booking` for
 `from apps\.` on the Epic 04 branch: no new cross-app edge appears beyond
 what already existed pre-Epic.
 
+## Epic 05 (Permission-Key Registry & Authorization Hardening) — no new edges
+
+`apps.kernel.permissions` (new package) and `apps.kernel.role_catalog`
+(new module) both live in `apps.kernel` itself — the root of this graph —
+and import nothing outside it (verified by a dedicated guardrail test,
+`apps.kernel.tests.test_permission_registry_guardrails
+.NoDependencyCycleFromPermissionsPackageTest`). New per-app
+`permission_keys.py` facades in `apps.booking`, `apps.finance`,
+`apps.execution` import only `apps.kernel.permissions.keys` — every one
+of those apps already depended on `apps.kernel` (every app does; kernel
+is the root), so this is not a new edge, just a new specific import path
+within an edge that already existed.
+
 ## The one deliberate exception
 
 `apps.kernel.events.handlers` imports `apps.notifications.models`

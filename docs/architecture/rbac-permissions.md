@@ -1,9 +1,12 @@
 # RBAC & Permission Taxonomy
 
-Status: current as of Module 18. This sprint documents the existing
-taxonomy and fixes one small inconsistency (a stray literal string). It
-does **not** redesign RBAC — see `technical-debt-register.md` for what a
-future RBAC hardening module might address.
+Status: current as of Epic 05 (Permission-Key Registry & Authorization
+Hardening). Does **not** redesign RBAC — `Role`/`RoleAssignment`/
+`PermissionService`'s public evaluation contract is unchanged; Epic 05
+centralized the key inventory, fixed three concrete authorization defects
+the centralization surfaced, and made targeted, tested hardening changes
+to scope evaluation. See `docs/adr/ADR-010_CANONICAL_PERMISSION_REGISTRY.md`
+for the full decision record.
 
 ## The evaluator
 
@@ -20,14 +23,44 @@ that predate a real actor being available.
 
 `actor` may be a `kernel.UserAccount` or a `kernel.Person` instance.
 
-## There is no permission registry table
+**Epic 05 scope-evaluation hardening** (`_scope_matches()`, targeted, not
+a redesign): an unscoped (`scope=None`) check now matches only an
+unscoped/platform-scoped `RoleAssignment`, not a narrower one (e.g.
+`scope_type="organization"`) — previously any assignment matched an
+unscoped check regardless of its own scope. A malformed `scope` dict
+(missing `scope_type`/`scope_id`) and a malformed `RoleAssignment` row
+(real `scope_type`, null `scope_id`) now fail closed explicitly rather
+than incidentally.
 
-`Role.permissions` is a **freeform JSON string list** — any string can be
-granted to a role, and `PermissionService` never validates a `permission_key`
-against a canonical list. Nothing stops a typo from silently creating a
-permission nobody can ever be granted correctly. This has been true since
-Module 08 and remains true after this sprint (documenting, not fixing —
-see the constraint against RBAC redesign).
+## Canonical permission-key registry
+
+`apps.kernel.permissions` (Epic 05) is the single source of truth for
+every real permission key in the platform — a lightweight, in-memory
+Python registry (`PermissionRegistry`), **not** a database table and
+**not** a policy engine. Populated once via `KernelConfig.ready()`
+importing `apps.kernel.permissions.keys`, where every key is registered
+with its `domain`/`resource`/`action`/`description` and scope hints.
+Duplicate or malformed keys (not matching `<domain>.<action>` or
+`<domain>.<resource>.<action>`, lowercase, dot-separated) fail at import
+time — a startup failure, not a silent runtime gap.
+
+`apps.kernel.models.rbac.Permission` — the pre-existing, migrated
+"protected operations registry" model — remains dormant and unused by
+design; nothing at runtime reads it (`PermissionService` evaluates
+`Role.permissions`, a freeform JSON string list, exclusively). See
+ADR-010 for why the Python registry, not this model, is authoritative.
+
+Every existing per-app `permission_keys.py` module (`apps.api`,
+`apps.admin_portal`, `apps.accounts`) is now a re-export facade over this
+registry — same public names, same string values, zero behavior change
+for any existing import. New facades exist for `apps.booking`,
+`apps.finance`, `apps.execution`, replacing seven previously-hardcoded
+literal permission-key strings in those apps' service modules.
+
+A guardrail test (`apps.kernel.tests.test_permission_registry_guardrails`)
+proves no production `PermissionService.require()`/`.check()` call site
+uses a raw string literal, and that every facade constant resolves in the
+registry.
 
 ## The only taxonomy that exists today
 
@@ -50,18 +83,29 @@ permission key — see `wallet-finance-boundary.md` and the view's own
 docstring for why (it simulates an unauthenticated PSP webhook).
 
 `apps/accounts/permission_keys.py`, introduced in Epic 04 (Enterprise
-Organization Isolation). Located in `apps.accounts` rather than
-`apps.organization_portal` because enforcement happens in service code in
-`apps.accounts`/`apps.booking`, not at the portal's view layer, and
-`apps.accounts` is the most upstream of the two consuming apps in the
-dependency graph — `apps.booking` importing from it does not invert the
-graph:
+Organization Isolation), corrected in Epic 05. Located in `apps.accounts`
+rather than `apps.organization_portal` because enforcement happens in
+service code in `apps.accounts`/`apps.booking`, not at the portal's view
+layer, and `apps.accounts` is the most upstream of the two consuming apps
+in the dependency graph — `apps.booking` importing from it does not
+invert the graph:
 
-| Constant | Value | Intended to guard | Actually enforced in Epic 04? |
-|---|---|---|---|
-| `ORGANIZATION_ASSIGNMENT_ASSIGN` | `organization.assignment.assign` | `AssignmentService.assign()`, when called with `scope={"scope_type": "organization", ...}` — the path `OrganizationAssignmentService.assign_manual()` always uses | **No** — see below |
-| `ORGANIZATION_MEMBERSHIP_APPROVE` | `organization.membership.approve` | `OrganizationStaffService.approve_membership()` | **No** — see below |
-| `ORGANIZATION_MEMBERSHIP_SUSPEND` | `organization.membership.suspend` | `OrganizationStaffService.suspend_membership()` | **No** — see below |
+| Constant | Value | Guards |
+|---|---|---|
+| `BOOKING_ASSIGNMENT_ASSIGN` | `booking.assignment.assign` | `AssignmentService.assign()`/`.replace()`, when called with `scope={"scope_type": "organization", ...}` — the path `OrganizationAssignmentService.assign_manual()` always uses. Re-exported from `apps.booking.permission_keys` — this is the same key every non-organization caller of `assign()` also checks, not a separate organization-specific key (see below). |
+| `ORGANIZATION_MEMBERSHIP_APPROVE` | `organization.membership.approve` | `OrganizationStaffService.approve_membership()` |
+| `ORGANIZATION_MEMBERSHIP_SUSPEND` | `organization.membership.suspend` | `OrganizationStaffService.suspend_membership()` |
+
+**Epic 05 correction**: Epic 04 originally defined and granted a fourth,
+separate key, `ORGANIZATION_ASSIGNMENT_ASSIGN = "organization.assignment
+.assign"` — but `AssignmentService.assign()` has always checked the
+literal `"booking.assignment.assign"` regardless of the `scope` kwarg;
+`scope` only narrows *which* `RoleAssignment` can satisfy that one key, it
+never introduced a second key. The grant never activated real RBAC for
+`assign_manual()` — every call silently fell through to the
+`ownership_authorized_by` audit path instead. Retired the phantom key;
+`organization_admin` is now granted the canonical `BOOKING_ASSIGNMENT_ASSIGN`.
+See `docs/adr/ADR-010_CANONICAL_PERMISSION_REGISTRY.md`.
 
 Only these three keys exist because only these three enforcement points
 were planned for Epic 04's approved scope — `apps.organization_portal
@@ -140,36 +184,39 @@ since Module 08, but had zero production writers until Epic 04 (Enterprise
 Organization Isolation). `apps.accounts.services.organization_rbac
 .OrganizationRoleSyncService` is now the sole writer — see
 `docs/adr/ADR-009_ORGANIZATION_ELIGIBILITY_AND_SCOPED_RBAC.md` for the
-full design. This closes half of the gap: a real, correctly-scoped
-`RoleAssignment` row now exists for every synced `ADMIN`-role
-`OrganizationMembership`. It does **not** close the other half — see "The
-three organization permission keys" above: no production call site
-actually checks any of the three keys this row carries, so the row is
-written correctly but never yet consulted by a real authorization
-decision in this Epic. `PermissionService.check()`/`.require()` called
-directly with the correct key and a matching `scope` does correctly find
-and evaluate the row (proven by `apps.accounts.tests.test_organization_rbac
-.ScopedPermissionEvaluationTest`) — the gap is entirely in the calling
-code never doing that with the intended key, not in the evaluator or the
-row itself.
+full design.
 
-One important, unchanged pre-existing behavior this newly-written row
-makes newly relevant even though it's not yet reachable through the
-intended call sites: `_scope_matches()` returns `True`
-immediately when the caller's `check()`/`require()` call passes no `scope`
-kwarg at all (`scope is None`), regardless of the assignment's own
-`scope_type` — an organization-scoped `RoleAssignment` therefore also
-satisfies any *unscoped* check for the same `permission_key`. Not
-exploitable today (every organization-isolation call site always passes
-an explicit `scope`), but a real gap for a future Permission-Key Registry
-& Authorization Hardening Epic to close, not something Epic 04 changed
-(see its own explicit "Do not replace the RBAC model" constraint).
+## Epic 05: canonical registry, three authorization defects, scope hardening
 
-Two independent, unreconciled role-seeding catalogs exist in this
-codebase — `apps.kernel.management.commands.seed_tenant`'s hyphenated
-`DEFAULT_ROLES` (seeded against a `dev`-slug tenant) and
-`apps.accounts.management.commands.seed_auth_roles`'s underscored `ROLES`
-(seeded against the real default `salmandyar` tenant,
-`apps.kernel.services.tenant_service.TenantService`'s own default). Epic
-04 extends only the latter — see `technical-debt-register.md` for the
-tracked divergence.
+See `docs/adr/ADR-010_CANONICAL_PERMISSION_REGISTRY.md` for the full
+decision record. In summary:
+
+- The unscoped-check-matches-any-assignment gap Epic 04 identified and
+  deliberately deferred is now fixed (see "The evaluator" above).
+- Three concrete authorization defects, surfaced by migrating every real
+  enforcement call site to a canonical constant, are fixed with dedicated
+  tests: the phantom `organization.assignment.assign` key (see the
+  `apps/accounts/permission_keys.py` table above), `OrganizationStaffService
+  .approve_membership()`/`suspend_membership()` having zero enforcement
+  despite granted keys, and `AssignmentService.replace()` having zero
+  authorization of any kind.
+- The role-catalog divergence noted below is now centralized (not
+  resolved — the two catalogs remain intentionally distinct) in
+  `apps.kernel.role_catalog`, with a `reconcile_role_permissions`
+  management command for operational drift correction.
+
+## Role-seeding catalogs
+
+`apps.kernel.role_catalog` (Epic 05) is now the single module both
+role-seeding commands import their role definitions from:
+`apps.kernel.management.commands.seed_tenant` (`DEV_BOOTSTRAP_ROLES`,
+hyphenated slugs, seeds a `dev`-slug bootstrap tenant) and
+`apps.accounts.management.commands.seed_auth_roles`
+(`DEFAULT_TENANT_ROLES`, underscored slugs, seeds the real default
+`salmandyar` tenant, `apps.kernel.services.tenant_service.TenantService`'s
+own default). These remain two genuinely distinct role sets, not one
+merged/renamed taxonomy — see ADR-010 for why forcing a merge would be a
+destructive database rename out of Epic 05's scope. The one clear-cut
+divergence (`"platform-owner"` vs `"platform_owner"`, almost certainly the
+same real-world role) is recorded in `apps.kernel.role_catalog
+.KNOWN_SLUG_ALIASES` as a known, deliberate, not-yet-resolved alias.

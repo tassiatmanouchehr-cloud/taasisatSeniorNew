@@ -182,6 +182,7 @@ class PermissionService:
             module_id=SOURCE_MODULE,
             actor_id=actor_id,
             after={"permission_key": permission_key, "scope": scope or {}},
+            reason="No active RoleAssignment grants this permission_key in the requested scope.",
         )
 
         raise PermissionDenied(f"Actor is not authorized for '{permission_key}'.")

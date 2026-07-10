@@ -242,6 +242,14 @@ class PermissionServiceRequireTest(TestCase):
             ).exists(),
         )
 
+    def test_require_denial_audit_includes_a_reason(self):
+        """Epic 05 (Permission-Key Registry & Authorization Hardening)."""
+        with self.assertRaises(PermissionDenied):
+            PermissionService.require(self.actor, PERMISSION_KEY, tenant_id=self.tenant.id)
+
+        entry = AuditLog.objects.get(tenant_id=self.tenant.id, action="rbac.permission.denied")
+        self.assertTrue(entry.reason)
+
     def test_require_is_noop_when_enforcement_disabled(self):
         with patch(
             "apps.kernel.services.permission_service.RBACConfiguration.get_enforcement_enabled",
