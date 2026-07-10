@@ -123,18 +123,25 @@ class OrganizationScopedKeysRemainScopedTest(SimpleTestCase):
 class SeededRolePermissionsResolveTest(SimpleTestCase):
     """Every permission key seeded onto a Role by either role-seeding
     command must be a real, registered key — catches a typo or a
-    retired/renamed key silently persisting in a seed list."""
+    retired/renamed key silently persisting in the shared catalog."""
 
-    def test_seed_auth_roles_permissions_all_registered(self):
-        from apps.accounts.management.commands.seed_auth_roles import ROLES
+    def test_all_role_catalog_permissions_are_registered(self):
+        from apps.kernel.role_catalog import all_role_definitions
 
         unknown = []
-        for role_data in ROLES:
-            for key in role_data.get("permissions", []):
+        for role_def in all_role_definitions():
+            for key in role_def.permissions:
                 if not PermissionRegistry.exists(key):
-                    unknown.append(f"{role_data['slug']}: {key}")
+                    unknown.append(f"{role_def.slug}: {key}")
 
-        self.assertEqual(unknown, [], f"seed_auth_roles.py grants unknown permission keys: {unknown}")
+        self.assertEqual(unknown, [], f"Role catalog grants unknown permission keys: {unknown}")
+
+    def test_no_duplicate_slugs_within_a_single_catalog(self):
+        from apps.kernel.role_catalog import DEFAULT_TENANT_ROLES, DEV_BOOTSTRAP_ROLES
+
+        for catalog in (DEFAULT_TENANT_ROLES, DEV_BOOTSTRAP_ROLES):
+            slugs = [role_def.slug for role_def in catalog]
+            self.assertEqual(len(slugs), len(set(slugs)), f"Duplicate slug(s) in {catalog!r}")
 
 
 class NoDependencyCycleFromPermissionsPackageTest(SimpleTestCase):
