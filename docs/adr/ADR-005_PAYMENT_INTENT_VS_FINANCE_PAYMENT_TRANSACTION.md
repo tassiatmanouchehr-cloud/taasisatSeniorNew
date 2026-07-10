@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted — Module 15, reaffirmed in Module 18.
+Accepted — Module 15, reaffirmed in Module 18. The bridge named as
+deferred in this ADR's Consequences was built in Epic 03 Sprint 1 — see
+the Update note at the end of this document.
 
 ## Context
 
@@ -57,3 +59,23 @@ duplicated — the same pattern `apps.wallet` already established).
   ever touch `apps.payments`, never `apps.finance`.
 - See `docs/architecture/wallet-finance-boundary.md` for the full picture
   including the wallet side of this triangle.
+
+## Update — Epic 03 Sprint 1 (Financial Settlement & Money Flow)
+
+The "future orchestration module" named above is now
+`apps.payments.services.SettlementOrchestrationService`, invoked from
+`PaymentCallbackService.process_callback()` once its own atomic block has
+committed and the intent has genuinely reached `SUCCEEDED` (never on an
+idempotent replay). It lives inside `apps.payments` (not a new app),
+consistent with `dependency-graph.md`'s existing `payments (→ finance,
+wallet)` edge — this decision did not require inverting that graph. It
+does call `PaymentService.record_payment()`, `LedgerService.
+post_entries()`, and `apps.wallet.services.WalletTransactionService.
+credit()` on a `SUCCEEDED` `PaymentIntent`, exactly as anticipated above.
+`apps.payments` still never creates a `FinancialDocument` — settlement
+resolves an already-created document (via
+`FinancialDocumentService.create_invoice_from_execution()`, called
+elsewhere), it does not fabricate one. See
+`docs/architecture/DECISION_HISTORY.md` for the full set of decisions
+made in this sprint, and `SettlementOrchestrationService`'s own docstring
+for the exact money-flow sequence.

@@ -44,6 +44,13 @@ CARE_RECIPIENT_CREATED = "CareRecipientCreated"
 CARE_RECIPIENT_UPDATED = "CareRecipientUpdated"
 CARE_RECIPIENT_ARCHIVED = "CareRecipientArchived"
 
+# Epic 03 (Financial Settlement & Money Flow), Sprint 1. No notification
+# handler is registered for these yet — same reasoning as above: publish()
+# still audits unconditionally via AuditService.log(), which is the point
+# of using it even before a handler exists.
+PAYMENT_SETTLED = "PaymentSettled"
+PROVIDER_EARNINGS_CREDITED = "ProviderEarningsCredited"
+
 
 @dataclass(frozen=True)
 class DomainEvent:

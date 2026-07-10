@@ -4,7 +4,9 @@ Status: current as of PR #24's merge (Epic 02 — Marketplace Operational
 Experience, `main` @ `bb95a902df4874076542884edaad81c4a6e9073d`), plus
 the `apps.provider_portal`/`apps.organization_portal` additions below (the
 `apps.portal` section was added in the Customer Experience Phase 1
-remediation and remains unchanged). Derived by grepping every
+remediation and remains unchanged), plus the `apps.payments -> apps.orders`
+and `apps.payments -> apps.jobs` edges added below (Epic 03 Sprint 1 —
+Financial Settlement, PR pending). Derived by grepping every
 `from apps.X` import across the codebase (production code, not tests) on
 2026-07-10.
 Re-derive with:
@@ -30,7 +32,7 @@ kernel
               └── matching, booking (→ matching), execution (→ booking),
                   availability, pricing, discovery, reviews
                         └── finance (→ execution, booking, orders)
-                              └── wallet, payments (→ finance, wallet)
+                              └── wallet, payments (→ finance, wallet, orders, jobs)
                                     └── notifications (read by portal below;
                                         also reached by kernel.events.handlers,
                                         see the one deliberate exception below)
@@ -65,6 +67,43 @@ execution session" as two sequential calls at the view layer, since
 `apps.booking` itself cannot import `apps.execution` (see *the one
 deliberate exception*-style note in `apps.provider_portal.views.
 assignment_confirm_view`'s docstring).
+
+## `apps.payments` import shape (Epic 03 Sprint 1)
+
+`apps.payments` gained two new import edges, both verified by grepping
+`apps/payments` for `from apps\.`:
+
+- **`apps.orders`** (previously it depended only on `apps.finance`/
+  `apps.wallet`, per ADR-005). `SettlementOrchestrationService`
+  (`apps/payments/services/settlement_orchestration_service.py`) imports
+  `apps.orders.models.Order` to resolve the `Order` a
+  `PaymentIntent.reference_id` names before settling. This does not
+  invert the graph: `orders` already sits upstream of `finance`, which
+  already sits upstream of `payments`, so `payments` importing `orders`
+  directly is a shortcut through an already-established one-way
+  dependency, not a new direction.
+- **`apps.jobs`** (Architecture Review remediation, Critical Finding 1 —
+  settlement failure recovery). `apps/payments/jobs.py` imports
+  `apps.jobs.registry.JobRegistry` (to register a
+  `payments.settlement.retry` handler from `PaymentsConfig.ready()`) and
+  `apps.payments/services/payment_callback_service.py` imports
+  `apps.jobs.services.job_service.JobService` (to durably, idempotently
+  enqueue a retry when synchronous settlement fails). `apps.jobs` owns no
+  models outside its own `JobDefinition`/`JobRun` and imports no business
+  app itself (`apps.jobs.registry`'s own docstring: "deliberately
+  dependency-free... must never import from any business app") — it is a
+  dependency-free infrastructure module, safely importable from any
+  business app without inversion risk, the same role `apps.kernel` plays
+  at the root of this graph. `apps.payments` is the first business app to
+  actually enqueue/register against it (previously only
+  `apps.jobs.handlers`' own demo handlers were registered).
+
+`PaymentCallbackService.process_callback()` triggers
+`SettlementOrchestrationService` after its own atomic block commits, on a
+first-time `SUCCEEDED` acceptance only — never on an idempotent replay or
+a rejection. See `apps.payments.services.settlement_orchestration_service`
+and `apps.payments.jobs`'s own module docstrings for the full money-flow
+and recovery sequence.
 
 ## The one deliberate exception
 

@@ -12,6 +12,7 @@ document, payment, or obligation.
 import uuid
 
 from django.db import models
+from django.db.models import Q
 
 from apps.common.managers import TenantScopedManager
 
@@ -65,6 +66,17 @@ class LedgerEntry(models.Model):
         indexes = [
             models.Index(fields=["tenant", "entry_group_id"], name="idx_finledger_tenant_group"),
             models.Index(fields=["tenant", "party", "account_code"], name="idx_finledger_party_acct"),
+        ]
+        constraints = [
+            # Database-level backstop (Epic 03 Sprint 1 remediation): the same
+            # payment_transaction can never post the same account_code twice.
+            # Scoped to payment_transaction IS NOT NULL — postings referencing
+            # only a source_document/obligation are unaffected.
+            models.UniqueConstraint(
+                fields=["payment_transaction", "account_code"],
+                condition=Q(payment_transaction__isnull=False),
+                name="uq_ledger_entry_payment_txn_account_code",
+            ),
         ]
 
     def __str__(self):
