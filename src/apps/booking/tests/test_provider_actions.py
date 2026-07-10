@@ -113,6 +113,79 @@ class ProviderAssignmentEventPublishingTest(ProviderAssignmentActionTestCase):
         self.assertEqual(entry.resource_type, "SupplierAssignment")
 
 
+class CrossTenantAssignmentIsolationTest(TestCase):
+    """A provider registered in Tenant A must not be able to view, confirm,
+    or decline a SupplierAssignment that belongs to Tenant B — even when
+    passing their own (correct) tenant_id and their own (correct) supplier,
+    and even when they know the order_id (e.g. by guessing a sequential id
+    or via a leaked URL). This is the production-shape scenario: the portal
+    always passes the acting provider's own tenant_id/supplier, so the only
+    realistic attack is targeting another tenant's order_id."""
+
+    def setUp(self):
+        self.tenant_a = Tenant.objects.create(slug=f"tena-{uuid.uuid4().hex[:8]}", name="Tenant A")
+        self.tenant_b = Tenant.objects.create(slug=f"tenb-{uuid.uuid4().hex[:8]}", name="Tenant B")
+
+        self.category_a = ServiceCategory.objects.create(
+            tenant=self.tenant_a, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+        )
+        self.category_b = ServiceCategory.objects.create(
+            tenant=self.tenant_b, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+        )
+
+        self.order_a = Order.objects.create(
+            tenant=self.tenant_a, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
+            service_category=self.category_a, description="x", city="tehran", address="addr", phone="0912",
+        )
+        self.order_b = Order.objects.create(
+            tenant=self.tenant_b, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
+            service_category=self.category_b, description="x", city="tehran", address="addr", phone="0912",
+        )
+
+        self.provider_a, self.supplier_a = self._create_provider(tenant=self.tenant_a, phone="09121110001")
+        self.provider_b, self.supplier_b = self._create_provider(tenant=self.tenant_b, phone="09121110002")
+
+        self.assignment_a = AssignmentService.assign(order_id=self.order_a.id, supplier=self.supplier_a)
+        self.assignment_b = AssignmentService.assign(order_id=self.order_b.id, supplier=self.supplier_b)
+
+    def _create_provider(self, *, tenant, phone):
+        person = Person.objects.create(tenant=tenant, full_name="Provider")
+        user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
+        CaregiverProfile.objects.create(user=user, person=person, phone=phone, display_name="Provider")
+        supplier = resolve_supplier_for_user(user)
+        return user, supplier
+
+    def test_list_for_supplier_never_includes_another_tenants_assignment(self):
+        from apps.booking.services.queries import ProviderAssignmentQueryService
+
+        results = ProviderAssignmentQueryService.list_for_supplier(supplier=self.supplier_a, tenant_id=self.tenant_a.id)
+        self.assertEqual([a.id for a in results], [self.assignment_a.id])
+
+    def test_get_for_supplier_cannot_view_another_tenants_order(self):
+        """Provider A, using their OWN tenant_id and supplier, asks for
+        order_b's assignment (order_b only exists in tenant B)."""
+        from apps.booking.services.queries import ProviderAssignmentNotFoundError, ProviderAssignmentQueryService
+
+        with self.assertRaises(ProviderAssignmentNotFoundError):
+            ProviderAssignmentQueryService.get_for_supplier(
+                supplier=self.supplier_a, tenant_id=self.tenant_a.id, order_id=self.order_b.id,
+            )
+
+    def test_confirm_cannot_reach_another_tenants_assignment(self):
+        with self.assertRaises(ProviderAssignmentActionError):
+            ProviderAssignmentActionService.confirm(assignment_id=self.assignment_b.id, actor=self.provider_a)
+
+        self.assignment_b.refresh_from_db()
+        self.assertEqual(self.assignment_b.status, SupplierAssignmentStatus.ASSIGNED)
+
+    def test_decline_cannot_reach_another_tenants_assignment(self):
+        with self.assertRaises(ProviderAssignmentActionError):
+            ProviderAssignmentActionService.decline(assignment_id=self.assignment_b.id, actor=self.provider_a)
+
+        self.assignment_b.refresh_from_db()
+        self.assertEqual(self.assignment_b.status, SupplierAssignmentStatus.ASSIGNED)
+
+
 class ProviderIdentityResolutionTest(ProviderAssignmentActionTestCase):
     def test_resolve_supplier_for_user_is_idempotent(self):
         first = resolve_supplier_for_user(self.provider_user)

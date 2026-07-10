@@ -4,10 +4,10 @@ OrganizationStaffService — Epic 02 (Marketplace Operational Experience).
 Read/write operations on OrganizationMembership rows, always scoped to a
 specific OrganizationProfile the caller already administers — ownership of
 the *organization itself* is verified once, upstream, by
-apps.accounts.services.organization_identity.resolve_admin_organization()
-before any of these methods are ever called; this module only adds the
-second-level check that a given membership/staff row actually belongs to
-that same organization.
+apps.organization_portal.permissions.resolve_organization() before any of
+these methods are ever called; this module only adds the second-level
+check that a given membership/staff row actually belongs to that same
+organization.
 
 OrgMembershipStatus has no distinct "APPROVED" value — approval is
 modeled as the existing PENDING -> ACTIVE transition plus the model's own

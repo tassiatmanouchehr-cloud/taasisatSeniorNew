@@ -16,15 +16,20 @@ attachments, care plans, historical-order views) is expected to arrive as
 new FK-related models pointing back at ElderProfile, which this service
 layer does not need to anticipate or change shape for today.
 
-Publishes CareRecipientCreated/CareRecipientUpdated (audit-only, no
-notification handler registered — same reasoning as the share-link and
-provider-action events: publish() audits unconditionally regardless of
-whether a handler exists).
+Publishes CareRecipientCreated/CareRecipientUpdated/CareRecipientArchived
+(audit-only, no notification handler registered — same reasoning as the
+share-link and provider-action events: publish() audits unconditionally
+regardless of whether a handler exists).
 """
 
 from django.db import transaction
 
-from apps.kernel.events.base import CARE_RECIPIENT_CREATED, CARE_RECIPIENT_UPDATED, DomainEvent
+from apps.kernel.events.base import (
+    CARE_RECIPIENT_ARCHIVED,
+    CARE_RECIPIENT_CREATED,
+    CARE_RECIPIENT_UPDATED,
+    DomainEvent,
+)
 from apps.kernel.events.publisher import publish as publish_domain_event
 
 from .errors import AccountsError
@@ -112,6 +117,7 @@ class CareRecipientService:
         return care_recipient
 
     @classmethod
+    @transaction.atomic
     def archive(cls, care_recipient):
         """Soft-removes a care recipient from the customer's active list without
         deleting it (order history referencing it must keep working)."""
@@ -119,4 +125,8 @@ class CareRecipientService:
 
         care_recipient.status = ProfileStatus.ARCHIVED
         care_recipient.save(update_fields=["status", "updated_at"])
+        _publish(
+            CARE_RECIPIENT_ARCHIVED,
+            customer_profile=care_recipient.customer_profile, care_recipient=care_recipient,
+        )
         return care_recipient

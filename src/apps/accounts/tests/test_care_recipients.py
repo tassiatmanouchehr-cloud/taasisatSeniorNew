@@ -155,6 +155,38 @@ class ArchiveCareRecipientTest(CareRecipientTestCase):
         fetched = CareRecipientService.get_for_customer(self.customer, recipient.id)
         self.assertEqual(fetched.id, recipient.id)
 
+    def test_cannot_archive_another_customers_recipient_via_get_for_customer(self):
+        """archive() itself takes a resolved model instance, not an id — the
+        ownership boundary is get_for_customer(), which callers (the portal
+        view) must call first. This proves that boundary rejects a
+        cross-customer id before archive() would ever be reached."""
+        recipient = CareRecipientService.create(customer_profile=self.other_customer, full_name="Not Mine")
+        with self.assertRaises(AccountsError):
+            CareRecipientService.get_for_customer(self.customer, recipient.id)
+
+    def test_cannot_archive_another_tenants_recipient_via_get_for_customer(self):
+        other_tenant = Tenant.objects.create(slug=f"t-other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
+        other_tenant_person = Person.objects.create(tenant=other_tenant, full_name="Reza Rahimi")
+        other_tenant_user = UserAccount.objects.create_user(
+            email="reza@example.com", person=other_tenant_person, tenant=other_tenant,
+        )
+        from apps.accounts.models.profiles import CustomerProfile
+
+        other_tenant_customer = CustomerProfile.objects.create(
+            user=other_tenant_user, person=other_tenant_person, phone="09123338888", display_name="Reza Rahimi",
+        )
+        recipient = CareRecipientService.create(customer_profile=other_tenant_customer, full_name="Not Mine Either")
+
+        with self.assertRaises(AccountsError):
+            CareRecipientService.get_for_customer(self.customer, recipient.id)
+
+        # The recipient itself is untouched — still active, still belongs to the other tenant's customer.
+        from apps.accounts.models.profiles import ProfileStatus
+
+        recipient.refresh_from_db()
+        self.assertEqual(recipient.status, ProfileStatus.ACTIVE)
+        self.assertEqual(recipient.customer_profile_id, other_tenant_customer.id)
+
 
 class CareRecipientEventPublishingTest(CareRecipientTestCase):
     def test_create_publishes_and_audits(self):
@@ -176,6 +208,30 @@ class CareRecipientEventPublishingTest(CareRecipientTestCase):
 
         self.assertTrue(
             AuditLog.objects.filter(action="domain_event.CareRecipientUpdated", resource_id=recipient.id).exists()
+        )
+
+    def test_archive_publishes_and_audits(self):
+        from apps.kernel.models.audit import AuditLog
+
+        recipient = CareRecipientService.create(customer_profile=self.customer, full_name="Audited One")
+        with self.captureOnCommitCallbacks(execute=True):
+            CareRecipientService.archive(recipient)
+
+        entry = AuditLog.objects.get(action="domain_event.CareRecipientArchived", resource_id=recipient.id)
+        self.assertEqual(entry.resource_type, "ElderProfile")
+        self.assertEqual(entry.actor_id, self.customer.person_id)
+
+    def test_archive_does_not_publish_before_commit(self):
+        """The event is queued via transaction.on_commit — outside a
+        captureOnCommitCallbacks(execute=True) block, TestCase's own
+        wrapping transaction never commits, so no AuditLog should appear."""
+        from apps.kernel.models.audit import AuditLog
+
+        recipient = CareRecipientService.create(customer_profile=self.customer, full_name="Audited One")
+        CareRecipientService.archive(recipient)
+
+        self.assertFalse(
+            AuditLog.objects.filter(action="domain_event.CareRecipientArchived", resource_id=recipient.id).exists()
         )
 
 

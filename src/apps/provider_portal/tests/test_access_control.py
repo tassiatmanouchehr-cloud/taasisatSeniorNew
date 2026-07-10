@@ -37,3 +37,20 @@ class AuthenticatedAccessTest(ProviderPortalTestCase):
         self.client.force_login(self.other_provider_user)
         response = self.client.get(f"/provider/assignments/{self.order.id}/")
         self.assertEqual(response.status_code, 404)
+
+    def test_assignment_detail_denies_cross_tenant_order(self):
+        """self.provider_user (tenant A) requesting an order that belongs to
+        a wholly different tenant B, assigned to a tenant-B supplier —
+        must 404, not leak the other tenant's assignment."""
+        self.assign_cross_tenant_order_to_supplier()
+        self.login_as_provider()
+        response = self.client.get(f"/provider/assignments/{self.other_tenant_order.id}/")
+        self.assertEqual(response.status_code, 404)
+
+    def test_assignments_list_never_contains_cross_tenant_order(self):
+        self.assign_order_to_supplier()
+        self.assign_cross_tenant_order_to_supplier()
+        self.login_as_provider()
+        response = self.client.get("/provider/assignments/")
+        self.assertContains(response, self.order.order_number)
+        self.assertNotContains(response, self.other_tenant_order.order_number)

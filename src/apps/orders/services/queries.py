@@ -72,8 +72,11 @@ class OrderQueryService:
         status — the organization portal's Assignment Center (Epic 02).
         Deliberately tenant-wide, not filtered by service category/
         eligibility — every organization admin in the tenant sees the same
-        open-work list today; category-aware filtering is deferred (see
-        GAP_ANALYSIS.md)."""
+        open-work list today. NOT organization-scoped and not yet safe for
+        a tenant hosting more than one organization with unrelated or
+        competing interests — see GAP_ANALYSIS.md's "Organization
+        Assignment Center is tenant-wide, not organization-scoped" section
+        for the full risk writeup and what's required to close it."""
         from ..models import FINAL_STATUSES, Order
 
         return Order.objects.for_tenant(tenant_id).filter(

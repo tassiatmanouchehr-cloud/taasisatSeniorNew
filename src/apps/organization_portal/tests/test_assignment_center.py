@@ -72,3 +72,127 @@ class AssignmentEventPublishingTest(OrganizationPortalTestCase):
         self.assertTrue(
             AuditLog.objects.filter(action="domain_event.OrganizationAssignmentChanged").exists()
         )
+
+
+class AssignmentActorAndRbacTest(OrganizationPortalTestCase):
+    """Enterprise Architecture Review follow-up, finding #5: the real
+    organization admin — not "system" — must be the recorded actor for a
+    manual assignment, whether or not organization-scoped RBAC seeding
+    exists for them yet."""
+
+    def test_unauthenticated_user_cannot_assign(self):
+        response = self.client.post(
+            f"/organization/assignments/{self.order.id}/assign/", {"membership_id": str(self.staff_membership.id)},
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertIsNone(SupplierAssignment.objects.filter(order=self.order).first())
+
+    def test_non_admin_staff_member_cannot_assign(self):
+        self.client.force_login(self.caregiver_user)
+        response = self.client.post(
+            f"/organization/assignments/{self.order.id}/assign/", {"membership_id": str(self.staff_membership.id)},
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertIsNone(SupplierAssignment.objects.filter(order=self.order).first())
+
+    def test_admin_from_another_tenant_cannot_assign_this_orders_staff(self):
+        """A cross-tenant attempt: an admin who administers an organization
+        in a wholly different tenant, attempting to hit this order's assign
+        URL with their own (tenant-B) staff membership. AssignmentService
+        .assign()'s pre-existing _ensure_same_tenant check must reject it —
+        the order belongs to tenant A, the resolved supplier to tenant B."""
+        from apps.accounts.models.profiles import (
+            CaregiverProfile,
+            OrganizationMembership,
+            OrganizationProfile,
+            OrgMembershipRole,
+            OrgMembershipStatus,
+        )
+        from apps.kernel.models import Person, Tenant, UserAccount
+
+        other_tenant = Tenant.objects.create(slug="orgportal-cross-tenant", name="Cross Tenant")
+        other_admin = UserAccount.objects.create_user(
+            phone="09121119991", person=Person.objects.create(tenant=other_tenant, full_name="Other Admin"),
+            tenant=other_tenant,
+        )
+        other_org = OrganizationProfile.objects.create(
+            name="Cross Tenant Co", code="cross-tenant-co", admin_user=other_admin, tenant=other_tenant,
+        )
+        OrganizationMembership.objects.create(
+            organization=other_org, user=other_admin, role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+        )
+        other_staff_person = Person.objects.create(tenant=other_tenant, full_name="Cross Tenant Staff")
+        other_staff_user = UserAccount.objects.create_user(
+            phone="09121119992", person=other_staff_person, tenant=other_tenant,
+        )
+        CaregiverProfile.objects.create(
+            user=other_staff_user, person=other_staff_person, phone="09121119992", display_name="Cross Tenant Staff",
+        )
+        other_membership = OrganizationMembership.objects.create(
+            organization=other_org, user=other_staff_user,
+            role_type=OrgMembershipRole.CAREGIVER, status=OrgMembershipStatus.ACTIVE,
+        )
+
+        self.client.force_login(other_admin)
+        response = self.client.post(
+            f"/organization/assignments/{self.order.id}/assign/", {"membership_id": str(other_membership.id)},
+        )
+        self.assertEqual(response.status_code, 200)  # action_error.html, not a redirect
+
+        self.order.refresh_from_db()
+        self.assertIsNone(self.order.assigned_supplier_id)
+        self.assertFalse(SupplierAssignment.objects.filter(order=self.order).exists())
+
+    def test_assignment_records_the_real_admin_as_assigned_by(self):
+        self.login_as_admin()
+        self.client.post(
+            f"/organization/assignments/{self.order.id}/assign/", {"membership_id": str(self.staff_membership.id)},
+        )
+
+        assignment = SupplierAssignment.objects.get(order=self.order)
+        self.assertEqual(assignment.assigned_by_id, self.admin_user.id)
+
+    def test_assignment_is_ownership_authorized_not_system_context(self):
+        """No organization-scoped RBAC seeding exists for self.admin_user —
+        the fallback must be an explicit, correctly-attributed
+        'ownership_authorized' audit entry, never a 'system_context' one."""
+        from apps.kernel.models.audit import AuditLog
+
+        self.login_as_admin()
+        self.client.post(
+            f"/organization/assignments/{self.order.id}/assign/", {"membership_id": str(self.staff_membership.id)},
+        )
+
+        entry = AuditLog.objects.get(
+            tenant_id=self.tenant.id, action="rbac.permission.ownership_authorized",
+        )
+        self.assertEqual(entry.actor_id, self.admin_user.person_id)
+        self.assertFalse(
+            AuditLog.objects.filter(tenant_id=self.tenant.id, action="rbac.permission.system_context").exists(),
+        )
+
+    def test_real_rbac_role_is_used_and_preferred_over_ownership_fallback(self):
+        """If organization-scoped RBAC seeding DID exist for this admin
+        (simulated here with a tenant-wide grant, since no seeding
+        mechanism exists yet), the real permission check succeeds and the
+        ownership-authorized fallback is never reached."""
+        from apps.kernel.models.audit import AuditLog
+        from apps.kernel.tests.rbac_helpers import grant_permissions
+
+        grant_permissions(self.tenant, self.admin_user, ["booking.assignment.assign"])
+
+        self.login_as_admin()
+        self.client.post(
+            f"/organization/assignments/{self.order.id}/assign/", {"membership_id": str(self.staff_membership.id)},
+        )
+
+        assignment = SupplierAssignment.objects.get(order=self.order)
+        self.assertEqual(assignment.assigned_by_id, self.admin_user.id)
+        self.assertFalse(
+            AuditLog.objects.filter(
+                tenant_id=self.tenant.id, action="rbac.permission.ownership_authorized",
+            ).exists(),
+        )
+        self.assertFalse(
+            AuditLog.objects.filter(tenant_id=self.tenant.id, action="rbac.permission.system_context").exists(),
+        )

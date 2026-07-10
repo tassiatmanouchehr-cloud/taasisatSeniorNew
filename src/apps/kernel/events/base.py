@@ -42,6 +42,7 @@ PROVIDER_VISIT_COMPLETED = "ProviderVisitCompleted"
 ORGANIZATION_ASSIGNMENT_CHANGED = "OrganizationAssignmentChanged"
 CARE_RECIPIENT_CREATED = "CareRecipientCreated"
 CARE_RECIPIENT_UPDATED = "CareRecipientUpdated"
+CARE_RECIPIENT_ARCHIVED = "CareRecipientArchived"
 
 
 @dataclass(frozen=True)

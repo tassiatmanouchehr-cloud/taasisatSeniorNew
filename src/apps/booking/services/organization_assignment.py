@@ -5,11 +5,11 @@ staff to an order.
 
 Ownership-checked at two levels: the caller already administers
 `organization` (verified by
-apps.accounts.services.organization_identity.resolve_admin_organization
-before this is ever called — apps.organization_portal never accepts an
-organization id from the request, it always resolves "my organization"),
-and the chosen staff membership actually belongs to that same
-organization (verified here, via
+apps.organization_portal.permissions.resolve_organization() before this
+is ever called — apps.organization_portal never accepts an organization
+id from the request, it always resolves "my organization"), and the
+chosen staff membership actually belongs to that same organization
+(verified here, via
 apps.accounts.services.organization_staff.OrganizationStaffService
 .resolve_staff_supplier).
 
@@ -20,6 +20,20 @@ of this one. Delegates to the existing, unmodified
 apps.booking.services.assignment_service.AssignmentService.assign() —
 never duplicates assignment logic, never mutates Order.assigned_supplier
 itself.
+
+Actor/RBAC (Enterprise Architecture Review follow-up, finding #5): `actor`
+is passed to AssignmentService.assign() as `ownership_authorized_by`, not
+`assigned_by`. This means the "booking.assignment.assign" RBAC check
+genuinely runs — if organization-scoped RoleAssignment seeding exists for
+this actor (it does not, for any tenant, as of this epic; see
+GAP_ANALYSIS.md), it is fully, normally enforced. Until then,
+PermissionService.require() falls back to an explicit, correctly
+actor-attributed "ownership_authorized" audit entry instead of denying
+(which would break every organization admin today) or mislabeling this as
+system context (which would misrepresent a real human action). Either
+way, `actor` ends up as SupplierAssignment.assigned_by and as the actor_id
+on every event AssignmentService.assign() publishes — never null, never
+attributed to "system" for a real admin-initiated call.
 """
 
 from django.db import transaction
@@ -59,6 +73,7 @@ class OrganizationAssignmentService:
         try:
             assignment = AssignmentService.assign(
                 order_id=order_id, supplier=supplier, assignment_source=AssignmentSource.MANUAL,
+                ownership_authorized_by=actor,
             )
         except AssignmentError as exc:
             raise OrganizationAssignmentError(str(exc))

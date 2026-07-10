@@ -183,3 +183,77 @@ class PermissionServiceRequireTest(TestCase):
                 tenant_id=self.tenant.id, event_type="RBAC.PermissionDenied.v1",
             ).exists(),
         )
+
+
+class PermissionServiceOwnershipAuthorizedTest(TestCase):
+    """ownership_authorized_by — Enterprise Architecture Review follow-up,
+    finding #5. A real, named actor whose authority comes from a verified
+    ownership check upstream, not (yet) an RBAC role."""
+
+    def setUp(self):
+        self.tenant = make_tenant()
+        self.actor = make_actor(self.tenant)
+
+    def test_ownership_fallback_does_not_raise_when_actor_has_no_role(self):
+        PermissionService.require(
+            None, PERMISSION_KEY, tenant_id=self.tenant.id, ownership_authorized_by=self.actor,
+        )  # must not raise
+
+    def test_ownership_fallback_is_audited_as_ownership_authorized_not_system(self):
+        PermissionService.require(
+            None, PERMISSION_KEY, tenant_id=self.tenant.id, ownership_authorized_by=self.actor,
+        )
+
+        entry = AuditLog.objects.get(tenant_id=self.tenant.id, action="rbac.permission.ownership_authorized")
+        self.assertEqual(entry.actor_id, self.actor.person_id)
+        self.assertEqual(entry.actor_type, "user")
+
+        # The point of this finding: no "system" mislabeling for this call.
+        self.assertFalse(
+            AuditLog.objects.filter(tenant_id=self.tenant.id, action="rbac.permission.system_context").exists(),
+        )
+
+    def test_ownership_fallback_does_not_emit_permission_denied_event(self):
+        PermissionService.require(
+            None, PERMISSION_KEY, tenant_id=self.tenant.id, ownership_authorized_by=self.actor,
+        )
+
+        self.assertFalse(
+            EventOutbox.objects.filter(
+                tenant_id=self.tenant.id, event_type="RBAC.PermissionDenied.v1",
+            ).exists(),
+        )
+
+    def test_real_rbac_role_is_used_when_present_no_ownership_audit_entry(self):
+        """The whole point of trying ownership_authorized_by as a normal
+        actor first: the moment a real RoleAssignment exists, enforcement
+        just works, and the ownership-authorized fallback path is never
+        reached at all."""
+        grant_permissions(self.tenant, self.actor, [PERMISSION_KEY])
+
+        PermissionService.require(
+            None, PERMISSION_KEY, tenant_id=self.tenant.id, ownership_authorized_by=self.actor,
+        )  # must not raise
+
+        self.assertFalse(
+            AuditLog.objects.filter(
+                tenant_id=self.tenant.id, action="rbac.permission.ownership_authorized",
+            ).exists(),
+        )
+        self.assertFalse(
+            AuditLog.objects.filter(tenant_id=self.tenant.id, action="rbac.permission.system_context").exists(),
+        )
+
+    def test_explicit_actor_takes_precedence_over_ownership_authorized_by(self):
+        """If both are somehow supplied, the explicit actor is authoritative
+        — ownership_authorized_by is only ever a fallback for actor=None."""
+        other_actor = make_actor(self.tenant, full_name="Other Actor")
+
+        with self.assertRaises(PermissionDenied):
+            PermissionService.require(
+                self.actor, PERMISSION_KEY, tenant_id=self.tenant.id, ownership_authorized_by=other_actor,
+            )
+
+        self.assertTrue(
+            AuditLog.objects.filter(tenant_id=self.tenant.id, action="rbac.permission.denied").exists(),
+        )

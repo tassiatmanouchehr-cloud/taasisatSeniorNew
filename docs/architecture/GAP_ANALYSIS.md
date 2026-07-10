@@ -239,6 +239,54 @@ proposal stage* (Module 02) — what Epic 02 built is acceptance of an
 already-created `SupplierAssignment`, one step downstream of Matching
 itself, which remains unchanged. See `PROJECT_MODULE_STATUS.md` Module 02.
 
+### Organization Assignment Center is tenant-wide, not organization-scoped
+
+**Current behavior** (verified against `apps.orders.services.queries.
+OrderQueryService.list_unassigned_for_tenant()`, which
+`apps.organization_portal.views.assignment_center_view` calls directly):
+the Assignment Center shows *every* unassigned, non-final order in the
+caller's tenant — filtered only by `tenant_id` and `assigned_supplier
+__isnull=True`, with no filter on which organization the order is
+"for," no service-category eligibility filter, and no concept of "orders
+this organization should see" versus "orders any organization could see."
+Any organization admin in a tenant sees the identical open-work list as
+every other organization admin in that same tenant.
+
+**Why this is acceptable for the first vertical slice**: this epic's
+scope was proving the assign-a-staff-member-to-an-order mechanism end to
+end (`OrganizationAssignmentService.assign_manual()` → the existing,
+unmodified `AssignmentService.assign()`), reusing the existing `Order`
+model, which has no organization-eligibility field to filter on yet. Every
+test fixture and every demo scenario built against this epic assumes a
+single organization per tenant, so the gap has not yet been exercised
+against real data.
+
+**Multi-organization visibility risk**: in any tenant that hosts more
+than one organization — which the platform's multi-tenant/white-label
+design otherwise supports — every organization admin can currently see
+(though not directly read customer PII beyond what `Order` already
+exposes) and, critically, *assign their own staff to*, an order that a
+competing organization has no claim to. This is a real business-logic
+gap, not merely a cosmetic one: the assignment center as built does not
+distinguish "an order this organization should compete for or has been
+routed to" from "any unclaimed order in the tenant."
+
+**Required future improvement**: an eligibility/routing concept between
+`Order` and `OrganizationProfile` (e.g., service-category-to-organization
+routing, an explicit "open to bid" vs. "assigned to this organization"
+order state, or a matching-engine hand-off restricted to one organization)
+must exist before `list_unassigned_for_tenant()` can be narrowed from
+tenant-wide to organization-scoped. No such concept exists in the domain
+model today — this is model work, not a query-filter change.
+
+**Production readiness**: this feature is **not yet production-ready for
+any tenant containing more than one organization with unrelated or
+competing interests.** It is safe and correct only for the case this
+epic actually targeted: a tenant operating as (or standing in for) a
+single organization. Deploying it as-is to a tenant with multiple
+independent organizations would let each one see and act on every other
+one's open orders.
+
 ## Duplicated concepts
 
 | Concept | Where | Status |
@@ -326,8 +374,31 @@ Ranked by leverage, not by module number:
   ownership as their security boundary instead of RBAC permission keys —
   a deliberate, consistent choice (see `DECISION_HISTORY.md`), not drift —
   because no infrastructure exists yet to seed org/provider-scoped role
-  assignments. `RoleAssignment.scope_type`/`scope_id` exists on the model
-  but is unused by any current code path.
+  assignments.
+- **Organization-scoped RBAC seeding does not exist yet** (Enterprise
+  Architecture Review follow-up, finding #5). `RoleAssignment.scope_type`/
+  `scope_id` and `PermissionService`'s own `_scope_matches()` evaluation
+  logic are real and exercised (`PermissionService.check()`/`require()`
+  both honor an explicit `scope` kwarg) — but nothing in the codebase
+  today creates a `RoleAssignment(scope_type="organization",
+  scope_id=<org.id>)` row for an organization admin, and
+  `OrganizationAssignmentService.assign_manual()` doesn't pass a `scope`
+  kwarg either. Building this properly requires real product decisions
+  (a `Role` taxonomy for organization admins, a hook point — likely
+  wherever an `OrganizationMembership` becomes `ADMIN`/`ACTIVE` — that
+  creates the `RoleAssignment`, and a backfill story for any admin
+  memberships that predate the mechanism) — judged too large to safely
+  improvise as part of a remediation pass. Until it lands,
+  `OrganizationAssignmentService.assign_manual()` calls
+  `AssignmentService.assign(ownership_authorized_by=actor)`:
+  `PermissionService.require()` tries the real actor as a normal RBAC
+  actor first (so this starts enforcing for free the moment seeding
+  exists — no code change needed at that point) and only falls back to an
+  explicit, correctly actor-attributed `rbac.permission.ownership_authorized`
+  audit entry when no matching role exists — never silently logged as
+  `system_context`, and the real actor is always the recorded
+  `SupplierAssignment.assigned_by`. See `DECISION_HISTORY.md` for the full
+  reasoning.
 - No public API surface — nothing external can integrate with this
   platform today.
 - No metrics, tracing, or alerting beyond a single health-check endpoint
