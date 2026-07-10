@@ -52,6 +52,29 @@ class ReviewSubmitEndpointTest(ApiTestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["error"]["code"], "domain_error")
 
+    def test_a_different_customer_in_the_same_tenant_cannot_review_this_order(self):
+        """Epic 05 (Permission-Key Registry & Authorization Hardening)
+        confirmed authorization defect fix — previously any authenticated
+        customer with reviews.submit in the same tenant could review any
+        completed order, not just their own. See
+        docs/architecture/technical-debt-register.md's
+        "ReviewSubmissionService reviewer-vs-order-customer ownership
+        gap" for the original writeup."""
+        other_customer = self._create_customer(tenant=self.tenant, display_name="Other Customer")
+        self._grant(other_customer.user, self.tenant, [REVIEWS_SUBMIT])
+        self._complete_order()
+        self.client.force_login(other_customer.user)
+
+        response = self.client.post(
+            "/api/v1/reviews/",
+            {"order_id": str(self.order.id), "dimension_scores": {"QUALITY": 5}},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error"]["code"], "domain_error")
+        self.assertFalse(Review.objects.filter(order=self.order).exists())
+
     def test_order_in_another_tenant_404s(self):
         self._grant(self.customer_profile.user, self.tenant, [REVIEWS_SUBMIT])
         self.client.force_login(self.customer_profile.user)

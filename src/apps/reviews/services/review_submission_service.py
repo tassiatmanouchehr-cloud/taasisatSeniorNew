@@ -41,6 +41,17 @@ class ReviewSubmissionService:
         if not order.assigned_supplier_id:
             raise ReviewError("Order has no assigned supplier to review.")
 
+        # Epic 05 (Permission-Key Registry & Authorization Hardening)
+        # confirmed authorization defect fix, previously documented in
+        # technical-debt-register.md: reviewer_person_id was never checked
+        # against the order's own customer, so any authenticated user with
+        # the reviews.submit permission could review any completed order
+        # in the tenant. apps.api.views.reviews.ReviewSubmitView already
+        # only ever passes the caller's own person id — the gap was here,
+        # not accepting an arbitrary id from the request.
+        if order.customer_profile_id is None or order.customer_profile.person_id != reviewer_person_id:
+            raise ReviewError("Only the order's own customer may submit a review for it.")
+
         supplier = order.assigned_supplier
 
         if Review.objects.filter(order=order, supplier=supplier).exists():
