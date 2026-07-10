@@ -8,8 +8,19 @@ PaymentCallback row *before* any error is raised to the caller: the
 `with transaction.atomic()` block below is deliberately not a decorator on
 the whole method, so a rejection's audit row commits even though the
 method then raises PaymentError.
+
+Sprint 1 (Epic 03, Financial Settlement): once the callback's own atomic
+block has committed and the intent has genuinely (not a replay) reached
+SUCCEEDED, this triggers SettlementOrchestrationService to connect the
+payment to the finance/wallet money flow. Settlement failures are logged,
+never re-raised — the callback's own durability guarantee (the provider
+gets a definitive accept/reject) must stay independent of settlement
+succeeding; a failed settlement is fixable later against the same
+idempotent PaymentTransaction.provider_reference, without re-processing
+the callback.
 """
 
+import logging
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.db import transaction
@@ -18,7 +29,10 @@ from ..models import PaymentAttempt, PaymentCallback, PaymentIntent, PaymentStat
 from .dto import PaymentResult
 from .errors import PaymentError
 from .provider_registry import PaymentProviderRegistry
+from .settlement_orchestration_service import SettlementOrchestrationService
 from .transitions import is_transition_allowed
+
+logger = logging.getLogger(__name__)
 
 QUANT = Decimal("0.01")
 
@@ -104,8 +118,27 @@ class PaymentCallbackService:
 
         intent.refresh_from_db()
         attempt.refresh_from_db()
+
+        if intent.status == PaymentStatus.SUCCEEDED:
+            cls._trigger_settlement(intent)
+
         return PaymentResult(
             intent_id=intent.id, attempt_id=attempt.id, status=intent.status,
             amount=intent.amount, currency=intent.currency,
             provider_reference=attempt.provider_reference, message="Callback processed.",
         )
+
+    @staticmethod
+    def _trigger_settlement(intent: PaymentIntent) -> None:
+        """Best-effort: a settlement failure must never undo an already-accepted callback.
+
+        Logged, not re-raised. Safe to retry later against the same
+        PaymentIntent — SettlementOrchestrationService is itself idempotent.
+        """
+        try:
+            SettlementOrchestrationService.settle_payment_intent(payment_intent_id=intent.id)
+        except Exception:
+            logger.exception(
+                "Settlement orchestration failed for PaymentIntent %s; callback acceptance stands.",
+                intent.id,
+            )

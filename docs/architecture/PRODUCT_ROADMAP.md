@@ -50,13 +50,19 @@ it existing first.
   action, all reusing/extending the existing `apps.portal`/`apps.orders`/
   `apps.notifications` query services — no new engines.
 - Geo-aware search and proximity-based discovery.
-- Real payment methods at checkout, with a payment that actually resolves
-  to a settled, wallet-reflected transaction.
+- ~~A payment that actually resolves to a settled, wallet-reflected
+  transaction~~ — **done, mechanically** (Epic 03 Sprint 1): a
+  `PaymentIntent` reaching `SUCCEEDED` now settles end-to-end (invoice
+  resolution, `PaymentTransaction`, ledger, wallet credit) through
+  `SettlementOrchestrationService`. Still blocked on a real PSP adapter —
+  the only registered provider today is `FakePaymentProviderAdapter`, so
+  no real money moves yet; see Production Readiness below.
 
 **Modules involved**: 01 (Request), 02 (Matching), 05 (Financial Ops), 09
 (Search/Discovery), 10 (Geospatial), 12 (Communication).
 
-**Dependencies**: Financial settlement bridge (Production phase), real
+**Dependencies**: A real PSP adapter (Production phase) — the settlement
+bridge itself is no longer a dependency, it now exists. Real
 communication providers (Production phase), Geospatial foundation (no
 dependency — can start independently).
 
@@ -274,10 +280,16 @@ failing loudly — the most dangerous kind of gap to leave in place.
 
 **Features**:
 - A real PSP adapter (Zarinpal, Mellat, Stripe, or similar) with
-  signature/HMAC callback verification.
+  signature/HMAC callback verification. The settlement bridge it plugs
+  into (`PaymentIntent` → `SettlementOrchestrationService` → wallet
+  credit / `finance.PaymentTransaction`) is done as of Epic 03 Sprint 1 —
+  only the adapter itself remains fake.
 - A real SMS/email/push provider.
-- The payment-settlement bridge (`PaymentIntent` → wallet credit /
-  `finance.PaymentTransaction`).
+- Real commission/tax/discount calculation (the
+  `SettlementAdjustmentPipeline` extension point exists and always
+  returns zero today) and escrow execution (`FinanceConfiguration.
+  get_escrow_enabled()` is read but always warns-and-falls-back to Direct
+  Settlement).
 - Permission-key registry and default-role permission seeding for real
   tenants (today, a fresh deployment's RBAC-gated features are silently
   inert).
