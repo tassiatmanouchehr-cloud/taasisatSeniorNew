@@ -69,14 +69,14 @@ class OrderQueryService:
     @classmethod
     def list_unassigned_for_tenant(cls, *, tenant_id):
         """Orders in this tenant with no supplier assigned yet and a non-final
-        status — the organization portal's Assignment Center (Epic 02).
-        Deliberately tenant-wide, not filtered by service category/
-        eligibility — every organization admin in the tenant sees the same
-        open-work list today. NOT organization-scoped and not yet safe for
-        a tenant hosting more than one organization with unrelated or
-        competing interests — see GAP_ANALYSIS.md's "Organization
-        Assignment Center is tenant-wide, not organization-scoped" section
-        for the full risk writeup and what's required to close it."""
+        status. Tenant-wide, not organization-scoped — retained for any
+        genuinely tenant-wide/platform-admin caller (none exist today).
+        apps.organization_portal must never call this directly — see
+        list_eligible_for_organization(), which replaced it as the
+        Assignment Center's query as of Epic 04 (Enterprise Organization
+        Isolation). See GAP_ANALYSIS.md's "Organization Assignment Center
+        is tenant-wide, not organization-scoped" section for the gap this
+        closed."""
         from ..models import FINAL_STATUSES, Order
 
         return Order.objects.for_tenant(tenant_id).filter(
@@ -90,6 +90,39 @@ class OrderQueryService:
     @classmethod
     def count_unassigned_for_tenant(cls, *, tenant_id):
         return cls.list_unassigned_for_tenant(tenant_id=tenant_id).count()
+
+    @classmethod
+    def list_eligible_for_organization(cls, *, organization, tenant_id):
+        """Epic 04 (Enterprise Organization Isolation): the organization
+        portal's Assignment Center query — replaces
+        list_unassigned_for_tenant() as that view's source. Returns
+        unassigned, non-final orders with an ACTIVE
+        OrderOrganizationEligibility row for `organization`: the claimable
+        work list, organization-scoped instead of tenant-wide.
+
+        Deliberately excludes already-assigned orders, matching the
+        pre-Epic-04 "open orders" semantics exactly (an assigned order is
+        no longer open work) — the organization does not lose the ability
+        to *act on* an order it already owns once assigned (see
+        apps.booking.services.organization_assignment
+        .OrganizationAssignmentService._already_assigned_to_organization,
+        the reassignment-permission guarantee), it simply drops off this
+        specific "still claimable" list, exactly as before."""
+        from ..models import FINAL_STATUSES, EligibilityStatus, Order
+
+        return Order.objects.for_tenant(tenant_id).filter(
+            assigned_supplier__isnull=True,
+            organization_eligibilities__organization=organization,
+            organization_eligibilities__status=EligibilityStatus.ACTIVE,
+        ).exclude(status__in=FINAL_STATUSES).order_by("created_at")
+
+    @classmethod
+    def list_recent_eligible_for_organization(cls, *, organization, tenant_id, limit):
+        return cls.list_eligible_for_organization(organization=organization, tenant_id=tenant_id)[:limit]
+
+    @classmethod
+    def count_eligible_for_organization(cls, *, organization, tenant_id):
+        return cls.list_eligible_for_organization(organization=organization, tenant_id=tenant_id).count()
 
 
 class CatalogNotFoundError(Exception):

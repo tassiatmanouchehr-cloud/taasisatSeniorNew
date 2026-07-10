@@ -43,8 +43,10 @@ def dashboard_view(request):
 
     staff_total = OrganizationStaffService.count_staff(organization)
     staff_pending = OrganizationStaffService.count_pending_staff(organization)
-    open_orders = OrderQueryService.list_recent_unassigned_for_tenant(tenant_id=tenant_id, limit=5)
-    open_orders_count = OrderQueryService.count_unassigned_for_tenant(tenant_id=tenant_id)
+    open_orders = OrderQueryService.list_recent_eligible_for_organization(
+        organization=organization, tenant_id=tenant_id, limit=5,
+    )
+    open_orders_count = OrderQueryService.count_eligible_for_organization(organization=organization, tenant_id=tenant_id)
 
     recent_notifications = NotificationQueryService.list_recent_for_recipient(
         tenant_id=tenant_id, recipient_id=request.user.person_id, limit=RECENT_NOTIFICATIONS_LIMIT,
@@ -108,7 +110,7 @@ def staff_suspend_view(request, membership_id):
 def assignment_center_view(request):
     organization, tenant_id = _guard(request)
 
-    open_orders = OrderQueryService.list_unassigned_for_tenant(tenant_id=tenant_id)
+    open_orders = OrderQueryService.list_eligible_for_organization(organization=organization, tenant_id=tenant_id)
     available_staff = OrganizationStaffService.list_active_caregivers(organization)
 
     return render(request, "organization_portal/assignment_center.html", {
