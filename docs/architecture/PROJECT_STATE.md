@@ -63,7 +63,7 @@ taasisatSenior/
     └── .github/workflows/ci.yml                       # CI pipeline
 ```
 
-### The 22 apps, one line each
+### The 24 apps, one line each
 
 | App | Owns |
 |---|---|
