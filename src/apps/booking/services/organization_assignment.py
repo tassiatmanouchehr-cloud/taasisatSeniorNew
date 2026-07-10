@@ -24,20 +24,24 @@ itself.
 Actor/RBAC (Enterprise Architecture Review follow-up, finding #5): `actor`
 is passed to AssignmentService.assign() as `ownership_authorized_by`, not
 `assigned_by`. This means the "booking.assignment.assign" RBAC check
-genuinely runs — if organization-scoped RoleAssignment seeding exists for
-this actor, it is fully, normally enforced (Epic 04 Sprint 2 activates
-this seeding via apps.accounts.services.organization_rbac
-.OrganizationRoleSyncService; a `scope` kwarg is also passed through here
-so a real scoped RoleAssignment is actually consulted, not just a
-platform-wide one). Until an actor's RoleAssignment exists (e.g. a window
-between deployment and backfill completing), PermissionService.require()
-falls back to an explicit, correctly actor-attributed
-"ownership_authorized" audit entry instead of denying (which would break
-every organization admin) or mislabeling this as system context (which
-would misrepresent a real human action). Either way, `actor` ends up as
-SupplierAssignment.assigned_by and as the actor_id on every event
-AssignmentService.assign() publishes — never null, never attributed to
-"system" for a real admin-initiated call.
+genuinely runs against that literal key. A `scope` kwarg is also passed
+through here so, if an actor ever did carry a real RoleAssignment for
+that exact key, a scoped grant would be consulted and not only a
+platform-wide one — but as of this Epic no call site grants
+"booking.assignment.assign" to an organization-scoped RoleAssignment (the
+key Epic 04 Sprint 2 seeds via apps.accounts.services.organization_rbac
+.OrganizationRoleSyncService is the distinct, not-yet-enforced
+"organization.assignment.assign" — see apps.accounts.permission_keys's
+own module docstring for the full accounting of this gap and why it is a
+tracked Epic 05 remediation item, not a defect introduced here). In
+practice, today, every call reaches PermissionService.require()'s
+`ownership_authorized_by` fallback instead of a real RoleAssignment match
+— an explicit, correctly actor-attributed "ownership_authorized" audit
+entry, never a denial (which would break every organization admin) and
+never mislabeled as system context (which would misrepresent a real human
+action). Either way, `actor` ends up as SupplierAssignment.assigned_by and
+as the actor_id on every event AssignmentService.assign() publishes —
+never null, never attributed to "system" for a real admin-initiated call.
 
 Eligibility enforcement (Epic 04 — Enterprise Organization Isolation):
 before delegating to AssignmentService.assign(), this method verifies the

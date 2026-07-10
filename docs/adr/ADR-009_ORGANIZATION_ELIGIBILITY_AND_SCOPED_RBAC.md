@@ -91,6 +91,25 @@ caregiver's earnings continue to settle to their own
 
 ## Consequences
 
+- **Architecture Review remediation (PR #28 required remediation item
+  2)**: "activates the pre-existing scope machinery" above describes the
+  *writer* side only — `OrganizationRoleSyncService` correctly creates and
+  maintains organization-scoped `RoleAssignment` rows. It does not, by
+  itself, mean any of the three organization permission keys these rows
+  carry (`ORGANIZATION_ASSIGNMENT_ASSIGN`, `ORGANIZATION_MEMBERSHIP
+  _APPROVE`, `ORGANIZATION_MEMBERSHIP_SUSPEND`) is actually checked by a
+  `PermissionService.require()`/`.check()` call anywhere in this Epic —
+  none is. `AssignmentService.assign()` checks the literal
+  `"booking.assignment.assign"`, a different string;
+  `approve_membership()`/`suspend_membership()` have no permission check
+  at all. Every action these keys were meant to gate remains authorized
+  through the pre-existing `ownership_authorized_by` fallback in this
+  Epic — safe (the fallback is itself correctly scoped), but not the
+  keyed RBAC check this ADR's title describes. See
+  `docs/architecture/rbac-permissions.md`'s "The three organization
+  permission keys" section for the full accounting. Wiring these three
+  call sites to their intended key is Permission-Key Registry &
+  Authorization Hardening (Epic 05) scope.
 - Existing single-organization tenants see a real, deliberate behavior
   change: an order has zero eligible organizations by default and is
   invisible to the Assignment Center until an operator explicitly grants
