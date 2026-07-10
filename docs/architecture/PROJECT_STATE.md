@@ -1,8 +1,8 @@
 # Project State
 
-Status: current as of PR #24's merge (Epic 02 — Marketplace Operational
-Experience), `main` @ `bb95a902df4874076542884edaad81c4a6e9073d` (PR #24's
-merge commit). This document is the
+Status: current as of PR #26's merge (Epic 03 Sprint 1 — Financial
+Settlement & Money Flow), `main` @
+`36e07c68c40a72d896a03af2a484ba2e2ab2b2ca` (PR #26's merge commit). This document is the
 **single source of truth** for "where the project stands." It supersedes any
 verbal summary given in chat, a PR description, or a prior conversation —
 if this file and a conversation disagree, this file is right (or needs
@@ -23,14 +23,14 @@ Verification** rather than assumed.
 |---|---|
 | Repository URL | `github.com/tassiatmanouchehr-cloud/taasisatSenior` |
 | Default Branch | `main` |
-| Current `main` HEAD | `bb95a902df4874076542884edaad81c4a6e9073d` (PR #24's merge commit) |
-| Current Test Count | **1130 passing**, 0 failing (`python manage.py test`, run on this branch — 106 new tests over the `main` baseline of 1024: 76 from the Epic 02 implementation (22 for the new `apps.provider_portal` app, 16 for the new `apps.organization_portal` app, 14 for `ProviderAssignmentActionService`, 8 for `ProviderExecutionService`, and 16 spread across `apps.portal`/`apps.accounts` extensions and the two new `*PortalOrmDisciplineTest` guardrails) plus 30 from the subsequent Enterprise Architecture Review remediation pass (cross-tenant regression coverage, `CareRecipientArchived` event publishing, and the `PermissionService.require()` `ownership_authorized_by` mechanism — see `DECISION_HISTORY.md`) |
+| Current `main` HEAD | `36e07c68c40a72d896a03af2a484ba2e2ab2b2ca` (PR #26's merge commit) |
+| Current Test Count | **1151 passing**, 0 failing (`python manage.py test`, run on this branch — 21 new tests over the PR #24 baseline of 1130: 12 from the Epic 03 Sprint 1 implementation (`apps/payments/tests/test_settlement_orchestration.py`'s happy-path/idempotency/escrow/failure-mode/tenant-isolation/adjustment-pipeline coverage) plus 9 from the subsequent Architecture Review remediation pass (concurrent-settlement locking, rollback-on-failure, organization-beneficiary, no-beneficiary, cross-tenant-reference, FAILED/CANCELLED-callback, and a real end-to-end reporting-integration test in `apps.provider_portal` — see `DECISION_HISTORY.md`) |
 | Python Version | **3.12** is the project's canonical version — declared in `pyproject.toml` (`requires-python = ">=3.12"`), pinned in CI (`.github/workflows/ci.yml`, `python-version: "3.12"`), and pinned in `src/docker/Dockerfile.dev` (`FROM python:3.12-slim`). Three independent sources agree. The one execution environment that disagrees is this specific sandboxed session, which runs **3.11.15** — a fact about this session's container, not about the repository's declared target. Not flagged as uncertain: the repository is internally consistent on 3.12; only this particular runtime differs from it. |
 | Django Version | Installed: **5.2.16**. Declared requirement (`requirements/base.txt`): `django>=5.1,<5.3`. Consistent. |
 | Database | **PostgreSQL 16**, optionally with **PostGIS** (`GIS_ENABLED` env var switches `django.db.backends.postgresql` ↔ `django.contrib.gis.db.backends.postgis`; CI uses the `postgis/postgis:16-3.4` image with `GIS_ENABLED=true`). SQLite is supported as a settings-level fallback (`DATABASE_ENGINE=sqlite`) but is not the platform's real target and is not exercised by CI. |
 | Architecture Style | **Modular monolith** — a single Django project (`config/`) composed of 24 apps under `src/apps/`, each owning its own models/services/tests, communicating through service-layer calls and two deliberately separate event systems (see [Domain Events](#domain-events) below), not through network calls. No microservices, no separate deployable units. |
-| Current Development Phase | **Product Experience phase, in progress.** Customer Experience Phase 1 and Phase 2, Provider Experience Phase 1, and Organization Experience Phase 1 are now built. See [Current Development Phase](#current-development-phase) below. |
-| Current Project Status | Active development. 23 merged pull requests on `main` (PR #24, Epic 02 — Marketplace Operational Experience, just merged); one documentation-maintenance PR (#21, opened after PR #20, predating this epic) remains open and now has merge conflicts against current `main` — not touched by this epic. No open incidents or known production deployment (no evidence of a live/production environment in this repository — infra config exists for one, but nothing indicates it is running). |
+| Current Development Phase | **Product Experience phase, in progress; first Financial Settlement sprint now merged.** Customer Experience Phase 1 and Phase 2, Provider Experience Phase 1, Organization Experience Phase 1, and Epic 03 Sprint 1 (Financial Settlement & Money Flow) are now built. See [Current Development Phase](#current-development-phase) below. |
+| Current Project Status | Active development. 25 merged pull requests on `main` (PR #26, Epic 03 Sprint 1 — Financial Settlement & Money Flow, just merged; PR #25 was the preceding documentation-sync PR); PR #27 (this documentation sync, covering PR #26) is open. One documentation-maintenance PR (#21, opened after PR #20, predating Epic 02) remains open and now has merge conflicts against current `main` — not touched by this or the prior epic. No open incidents or known production deployment (no evidence of a live/production environment in this repository — infra config exists for one, but nothing indicates it is running). |
 | Current Branching Strategy | Trunk-based: every unit of work branches from `main` (branch naming has drifted over time — see [Repository Structure](#repository-structure) → *A note on module numbering*), is reviewed as a pull request, and merges back to `main`. No long-lived release branches exist. `.github/workflows/ci.yml` also recognizes `phase-*/**` branches as a push trigger, though none currently exist. |
 | Repository Structure | See [below](#repository-structure). |
 | Current CI/Test Status | See [below](#current-ci--test-status). |
@@ -118,7 +118,7 @@ Filtering)** shipped under the branch name `module-12-search-discovery`.
 | `test` | `python manage.py check` → `migrate` → `test --verbosity=2`, against a real `postgis/postgis:16` + `redis:7` service pair |
 | `visual-regression` | Playwright accessibility/visual-snapshot tests against a running dev server, gated on `tailwind` + `test` passing |
 
-**Verified directly against the GitHub Actions API**: this workflow has **never actually run** — `GET /repos/tassiatmanouchehr-cloud/taasisatSenior/actions/workflows` returns zero registered workflows and zero runs. `ci.yml` is a real, complete, checked-in pipeline definition that GitHub has not yet executed even once (most likely because Actions has never been enabled/triggered for this repository, not because of a failure). There is therefore no CI pass/fail history to report — "green" or "red" does not yet apply. What *is* independently confirmed, locally, on this branch: `python manage.py check` reports 0 issues and `python manage.py test` reports **1130 passed, 0 failed**.
+**Verified directly against the GitHub Actions API**: this workflow has **never actually run** — `GET /repos/tassiatmanouchehr-cloud/taasisatSenior/actions/workflows` returns zero registered workflows and zero runs. `ci.yml` is a real, complete, checked-in pipeline definition that GitHub has not yet executed even once (most likely because Actions has never been enabled/triggered for this repository, not because of a failure). There is therefore no CI pass/fail history to report — "green" or "red" does not yet apply. What *is* independently confirmed, locally, on this branch: `python manage.py check` reports 0 issues and `python manage.py test` reports **1151 passed, 0 failed**.
 
 ### Known, harmless migration-check quirk
 
@@ -209,9 +209,11 @@ Two deliberately separate systems (see `event-architecture.md`):
 ### Background Jobs
 `apps.jobs` — `JobDefinition`/`JobRun`, a handler registry, retry with
 exponential backoff, dead-lettering, and a `run_due_jobs` management
-command. Built deliberately without a Celery/Redis dependency. Only one
-real handler is registered today (`notifications.dispatch_pending`); all
-others are demo/no-op.
+command. Built deliberately without a Celery/Redis dependency. Two real
+handlers are registered today: `notifications.dispatch_pending` and, as
+of Epic 03 Sprint 1, `payments.settlement.retry` (`apps.payments.jobs`,
+settlement-failure recovery — see Payments below); all others remain
+demo/no-op.
 
 ### Notification Dispatch
 `apps.notifications` — `NotificationDeliveryAttempt` audit trail,
@@ -251,9 +253,18 @@ abstraction shared with `finance` and `payments`.
 `apps.payments` — `PaymentIntent`/`PaymentAttempt`/`PaymentCallback`, a
 provider-agnostic pre-settlement state machine, deliberately separate from
 `finance.PaymentTransaction` (ADR-005). Only provider: a fake adapter. The
-bridge from a successful payment to an actual wallet credit or finance
-settlement record **does not exist yet** — the single most consequential
-open gap in the Financial Operations area.
+bridge from a successful payment to an actual wallet credit and finance
+settlement record was closed in Epic 03 Sprint 1 (PR #26,
+`apps.payments.services.SettlementOrchestrationService`): a `PaymentIntent`
+reaching `SUCCEEDED` now resolves the order's `FinancialDocument`, records
+a `finance.PaymentTransaction`, posts a balanced `LedgerEntry` group, and
+credits the beneficiary's canonical `apps.wallet.Wallet` — Direct
+Settlement only, with a `PaymentIntent` row lock plus two database
+`UniqueConstraint`s guaranteeing concurrent-settlement safety, and a
+durable `payments.settlement.retry` job (`apps.jobs`) recovering a failed
+attempt rather than only logging it. Real commission/tax calculation,
+escrow execution, provider payouts, and a real PSP adapter remain the
+open gaps in the Financial Operations area — see `GAP_ANALYSIS.md`.
 
 ### Pricing
 `apps.pricing` — `PricingRule`, `Promotion`, `Quote`. Deliberately upstream
@@ -377,40 +388,53 @@ Where a guardrail exists, it's named.
 
 ## Current Development Phase
 
-**Foundation is largely complete. Product Experience is now in progress
-across all three sides of the marketplace.**
+**Foundation is largely complete. Product Experience is in progress
+across all three sides of the marketplace, and the first Financial
+Settlement sprint has landed on top of it.**
 
 Concretely: the demand-side transaction loop — a customer can exist
 (identity + multi-role profile), request something (via `Order`, standing
 in for the not-yet-built Request aggregate), have it matched, assigned,
-executed, priced, and reviewed — is real, tested, end-to-end walkable
-code. What it is *not* yet connected to is the outside world: no request
-reaches a real payment processor, a real SMS/email/push provider, a real
-map/geocoding service, or a real background-job consumer beyond
-notification dispatch. Every one of those edges is a documented,
+executed, priced, reviewed, and now **actually paid and settled** — is
+real, tested, end-to-end walkable code. What it is *not* yet connected to
+is the outside world: no request reaches a real payment processor (the
+settlement mechanics are real, but only the fake PSP adapter exists), a
+real SMS/email/push provider, a real map/geocoding service, or most
+real background-job consumers. Every one of those edges is a documented,
 intentional fake.
 
-Epic 02 (Marketplace Operational Experience — this sprint) added the
-operator-facing side of that same loop on top of the existing services,
-with no duplicated architecture: a provider can now see and act on their
-own assignments and visits (`apps.provider_portal`), and an organization
-admin can manage staff and assign work (`apps.organization_portal`),
-alongside the customer-facing work `apps.portal` already covered. The
-platform now has a walkable, three-sided operational surface — customer
-requests, provider/organization actions, and the notifications/timeline
-that connect them — even though none of it yet reaches a real external
-provider (payment, SMS, geocoding).
+Epic 02 (Marketplace Operational Experience) added the operator-facing
+side of the loop on top of the existing services, with no duplicated
+architecture: a provider can now see and act on their own assignments and
+visits (`apps.provider_portal`), and an organization admin can manage
+staff and assign work (`apps.organization_portal`), alongside the
+customer-facing work `apps.portal` already covered.
+
+Epic 03 Sprint 1 (Financial Settlement & Money Flow — PR #26, merged)
+closed the single most consequential gap that remained after Epic 02:
+`apps.payments.services.SettlementOrchestrationService` now connects a
+successful `PaymentIntent` all the way through to a real
+`finance.PaymentTransaction`, balanced `LedgerEntry` postings, and a
+credited `apps.wallet.Wallet`, wired from `PaymentCallbackService`,
+concurrency-safe (`PaymentIntent` row lock plus two database
+constraints), and recoverable on failure (a durable `apps.jobs` retry).
+The platform now has a walkable, three-sided operational surface that
+also actually moves and settles money internally — even though none of
+it yet reaches a real external PSP, SMS, or geocoding provider. See
+`GAP_ANALYSIS.md`'s technical-debt register for what remains open in the
+settlement path specifically (retry-path test coverage, a periodic
+reconciliation job, `LedgerEntry` constraint generalization, and others).
 
 This means the highest-leverage next work is not "build another
 foundation module" — most of the foundation-shaped work left (Trust &
 Governance, Document/Media, Workflow Automation, AI, Subscriptions,
 Geospatial) is real, but lower urgency than **finishing the loops the
-existing foundation already implies**: a payment that actually settles, a
-notification that actually reaches someone, and an RBAC system where a
-fresh deployment's roles actually carry permissions — plus, now that all
-three portals exist, wiring a real permission-key registry under them
-(today each portal's security boundary is ownership, not RBAC — see
-`GAP_ANALYSIS.md`). See
+existing foundation already implies**: a real PSP adapter behind the now-
+real settlement bridge, a notification that actually reaches someone, and
+an RBAC system where a fresh deployment's roles actually carry
+permissions — plus, now that all three portals exist, wiring a real
+permission-key registry under them (today each portal's security
+boundary is ownership, not RBAC — see `GAP_ANALYSIS.md`). See
 [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md) and
 [`PRODUCT_ROADMAP.md`](PRODUCT_ROADMAP.md) for the detailed breakdown and
 prioritization.
