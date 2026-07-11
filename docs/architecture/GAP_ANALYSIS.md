@@ -1,8 +1,8 @@
 # Gap Analysis
 
-Status: current as of PR #29's merge (Epic 05 — Permission-Key Registry
-& Authorization Hardening), `main` @
-`9342c5880f33e604f7448b684bd031481ea2abd9` (PR #29's merge commit).
+Status: current as of PR #32's merge (kernel.0010 `UserAccount.email`
+migration ordering/rollback fix), `main` @
+`72c90f9ed97381ba55466fc680de90f38511b5e7` (PR #32's merge commit).
 
 ## Where exactly are we today?
 
@@ -129,6 +129,7 @@ Registered, tracked debt:
 | Two role-seeding catalogs remain intentionally distinct role sets | `apps.kernel.role_catalog.DEV_BOOTSTRAP_ROLES` (hyphenated, `dev` tenant) vs. `DEFAULT_TENANT_ROLES` (underscored, real `salmandyar` tenant) — centralized into one shared module by Epic 05, but deliberately not merged/renamed (would mean renaming live `Role`/`RoleAssignment` database rows) | Low — `reconcile_role_permissions` keeps each catalog's own permissions in sync with its own roles; the one known slug alias (`platform-owner`/`platform_owner`) is recorded but not merged | A future, dedicated, database-safe rename/merge decision if the two are ever meant to become one taxonomy — see ADR-010 |
 | Raw-literal `PermissionService` guardrail is regex-based, not AST-based | `apps.kernel.tests.test_permission_registry_guardrails.NoRawLiteralPermissionKeysTest` | Low — no current call site uses variable indirection or keyword-argument form to pass a key, but neither would be caught if one did | Harden to an AST-based check, or add a convention note, if a bypass is ever found |
 | `PermissionService` does not validate a `permission_key` against the canonical registry at evaluation time | `apps.kernel.services.permission_service.PermissionService.check()`/`.require()` | Low — an unknown/unregistered key fails closed by construction (behaves exactly like a legitimate-but-ungranted key), but this is implicit and untested, not an explicit, tested policy | Add a test asserting the fail-closed behavior for an unregistered key; document it in `rbac-permissions.md` |
+| No preflight check for pre-existing duplicate non-blank emails | `apps/kernel/migrations/0010_useraccount_email_unique.py` | Low — `email` was never unique before this migration, so a duplicate is plausible but unconfirmed on any given database; if one exists, the migration's `ADD CONSTRAINT UNIQUE` step fails safely (transactional abort, no corruption) but with no operator-facing guidance | A separate preflight/reporting tool if this is ever hit in practice — reconciling real duplicate user data is a product decision, not a mechanical migration fix (PR #32 Architecture Review Minor finding) |
 
 ## Known limitations
 
