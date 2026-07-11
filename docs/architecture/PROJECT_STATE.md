@@ -1,8 +1,9 @@
 # Project State
 
-Status: current as of PR #32's merge (kernel.0010 `UserAccount.email`
-migration ordering/rollback fix), `main` @
-`72c90f9ed97381ba55466fc680de90f38511b5e7` (PR #32's merge commit). This document is the
+Status: current as of PR #34's merge (`seed_product_walkthrough` — local
+product-walkthrough demo-data management command, with Architecture
+Review remediation), `main` @
+`35925feab428bf31e02d81359d3ff36b8aa0932c` (PR #34's merge commit). This document is the
 **single source of truth** for "where the project stands." It supersedes any
 verbal summary given in chat, a PR description, or a prior conversation —
 if this file and a conversation disagree, this file is right (or needs
@@ -23,14 +24,14 @@ Verification** rather than assumed.
 |---|---|
 | Repository URL | `github.com/tassiatmanouchehr-cloud/taasisatSenior` |
 | Default Branch | `main` |
-| Current `main` HEAD | `72c90f9ed97381ba55466fc680de90f38511b5e7` (PR #32's merge commit) |
-| Current Test Count | **1250 passing**, 0 failing (`python manage.py test`, run on this branch — unchanged from the PR #29/Epic 05 baseline; PR #32 is a migration-only correctness fix, not a feature, and touches no test file — see `DECISION_HISTORY.md`) |
+| Current `main` HEAD | `35925feab428bf31e02d81359d3ff36b8aa0932c` (PR #34's merge commit) |
+| Current Test Count | **1277 passing**, 0 failing (`python manage.py test`, run on this branch — up from the 1250/PR #29 baseline: +13 from PR #34's initial `seed_product_walkthrough` tests, +14 from its Architecture Review remediation — see `DECISION_HISTORY.md`) |
 | Python Version | **3.12** is the project's canonical version — declared in `pyproject.toml` (`requires-python = ">=3.12"`), pinned in CI (`.github/workflows/ci.yml`, `python-version: "3.12"`), and pinned in `src/docker/Dockerfile.dev` (`FROM python:3.12-slim`). Three independent sources agree. The one execution environment that disagrees is this specific sandboxed session, which runs **3.11.15** — a fact about this session's container, not about the repository's declared target. Not flagged as uncertain: the repository is internally consistent on 3.12; only this particular runtime differs from it. |
 | Django Version | Installed: **5.2.16**. Declared requirement (`requirements/base.txt`): `django>=5.1,<5.3`. Consistent. |
 | Database | **PostgreSQL 16**, optionally with **PostGIS** (`GIS_ENABLED` env var switches `django.db.backends.postgresql` ↔ `django.contrib.gis.db.backends.postgis`; CI uses the `postgis/postgis:16-3.4` image with `GIS_ENABLED=true`). SQLite is supported as a settings-level fallback (`DATABASE_ENGINE=sqlite`) but is not the platform's real target and is not exercised by CI. |
 | Architecture Style | **Modular monolith** — a single Django project (`config/`) composed of 24 apps under `src/apps/`, each owning its own models/services/tests, communicating through service-layer calls and two deliberately separate event systems (see [Domain Events](#domain-events) below), not through network calls. No microservices, no separate deployable units. |
 | Current Development Phase | **Product Experience phase, in progress; Financial Settlement Sprint 1, Enterprise Organization Isolation (Epic 04), and Permission-Key Registry & Authorization Hardening (Epic 05) now merged.** Customer Experience Phase 1 and Phase 2, Provider Experience Phase 1, Organization Experience Phase 1, Epic 03 Sprint 1 (Financial Settlement & Money Flow), Epic 04 (Enterprise Organization Isolation), and Epic 05 (Permission-Key Registry & Authorization Hardening) are now built. See [Current Development Phase](#current-development-phase) below. |
-| Current Project Status | Active development. 31 merged pull requests on `main` (PR #32, a migration correctness fix for `kernel.0010_useraccount_email_unique`, just merged; PR #31 was the preceding documentation-sync PR covering PR #29/Epic 05, merged before PR #32); this documentation-sync PR (covering PR #32) is open. One documentation-maintenance PR (#21, opened after PR #20, predating Epic 02) remains open and now has merge conflicts against current `main` — not touched by this or any subsequent work. No open incidents or known production deployment (no evidence of a live/production environment in this repository — infra config exists for one, but nothing indicates it is running). |
+| Current Project Status | Active development. 33 merged pull requests on `main` (PR #34 is pull request number 34, but — since PR #21 remains open and unmerged — it is the 33rd *merged* pull request; it adds the `seed_product_walkthrough` local demo-data management command, plus an Architecture Review remediation commit fixing three idempotency defects found in review, and was just merged; PR #33 was the preceding documentation-sync PR covering PR #32, merged before PR #34); this documentation-sync PR (covering PR #34) is open. One documentation-maintenance PR (#21, opened after PR #20, predating Epic 02) remains open and now has merge conflicts against current `main` — not touched by this or any subsequent work. No open incidents or known production deployment (no evidence of a live/production environment in this repository — infra config exists for one, but nothing indicates it is running). |
 | Current Branching Strategy | Trunk-based: every unit of work branches from `main` (branch naming has drifted over time — see [Repository Structure](#repository-structure) → *A note on module numbering*), is reviewed as a pull request, and merges back to `main`. No long-lived release branches exist. `.github/workflows/ci.yml` also recognizes `phase-*/**` branches as a push trigger, though none currently exist. |
 | Repository Structure | See [below](#repository-structure). |
 | Current CI/Test Status | See [below](#current-ci--test-status). |
@@ -118,7 +119,7 @@ Filtering)** shipped under the branch name `module-12-search-discovery`.
 | `test` | `python manage.py check` → `migrate` → `test --verbosity=2`, against a real `postgis/postgis:16` + `redis:7` service pair |
 | `visual-regression` | Playwright accessibility/visual-snapshot tests against a running dev server, gated on `tailwind` + `test` passing |
 
-**Verified directly against the GitHub Actions API**: this workflow has **never actually run** — `GET /repos/tassiatmanouchehr-cloud/taasisatSenior/actions/workflows` returns zero registered workflows and zero runs. `ci.yml` is a real, complete, checked-in pipeline definition that GitHub has not yet executed even once (most likely because Actions has never been enabled/triggered for this repository, not because of a failure). There is therefore no CI pass/fail history to report — "green" or "red" does not yet apply. What *is* independently confirmed, locally, on this branch: `python manage.py check` reports 0 issues and `python manage.py test` reports **1250 passed, 0 failed**.
+**Verified directly against the GitHub Actions API**: this workflow has **never actually run** — `GET /repos/tassiatmanouchehr-cloud/taasisatSenior/actions/workflows` returns zero registered workflows and zero runs. `ci.yml` is a real, complete, checked-in pipeline definition that GitHub has not yet executed even once (most likely because Actions has never been enabled/triggered for this repository, not because of a failure). There is therefore no CI pass/fail history to report — "green" or "red" does not yet apply. What *is* independently confirmed, locally, on this branch: `python manage.py check` reports 0 issues and `python manage.py test` reports **1277 passed, 0 failed**.
 
 ### Known, harmless migration-check quirk
 
@@ -148,6 +149,45 @@ PR #32 — no new migration file, no model change, no test change. See
 `technical-debt-register.md` for the one residual, explicitly
 non-blocking gap this fix's Architecture Review surfaced (no preflight
 check for pre-existing duplicate non-blank emails).
+
+### `seed_product_walkthrough` local demo-data command (PR #34)
+
+A new, local-development-only, `DEBUG`-gated management command
+(`apps.kernel.management.commands.seed_product_walkthrough`) that
+populates a dedicated `demo-senior-platform` tenant with a full,
+deterministic dataset — customers, independent and organization-affiliated
+providers, organizations with scoped RBAC, orders across every lifecycle
+state, a real execution → invoice → settlement chain via the repository's
+own `FakePaymentProviderAdapter`, and a review — so a developer can browse
+the existing customer/provider/organization/admin experiences without
+hand-seeding data. Every write goes through an existing service (no model
+written to directly outside an approved service-layer writer); no UI,
+route, template, model, or migration was touched. `--reset-demo` rebuilds
+only the demo tenant's own content.
+
+The Architecture Review of the initial implementation found three
+idempotency defects — fixed in a follow-up commit within the same PR, all
+independently re-verified against a live three-run database snapshot (not
+just the command's own counters) during Architecture Re-Review and
+Acceptance Review: (1) the in-progress example order's execution session
+was silently skipped on the very first run because the code checked a
+stale in-memory `Order` object rather than re-fetching it after
+`AssignmentService.assign()` mutated the database row; (2) the
+revoked-eligibility example unconditionally ran a real
+`grant()`→`revoke()` round trip through `OrderEligibilityService` on
+every re-run, growing `AuditLog`/`EventOutbox` without bound even though
+the observable end state never changed; (3) `FinancialPartyService
+.resolve_party_for_supplier()` was called unconditionally for every demo
+provider on every run, which is correct-by-design for its real
+production callers (it publishes `Finance.Party.Resolved.v1` on every
+invocation, not only on creation) but not appropriate for a seed script's
+own re-run behavior. A fourth, closely related fix (an equivalent
+existing-state guard before calling `OrganizationRoleSyncService
+.sync_for_membership()`, which similarly audits unconditionally on every
+call) was made during remediation to satisfy the same AuditLog-stability
+bar. Neither `FinancialPartyService` nor `OrganizationRoleSyncService`
+was modified — only the seed script's own calling pattern. See
+`DECISION_HISTORY.md` for the full defect/fix record.
 
 ---
 
