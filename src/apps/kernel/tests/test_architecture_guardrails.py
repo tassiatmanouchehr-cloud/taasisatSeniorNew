@@ -169,8 +169,30 @@ class OrganizationPortalOrmDisciplineTest(SimpleTestCase):
             violations.append(".objects. call found — organization_portal views should call services only")
 
         self.assertEqual(
-            violations, [], f"Forbidden ORM usage found in apps/organization_portal/views.py: {violations}",
+            violations,
+            [],
+            f"Forbidden ORM usage found in apps/organization_portal/views.py: {violations}",
         )
+
+
+class PublicSiteOrmDisciplineTest(SimpleTestCase):
+    """
+    Epic 06 (Marketplace Profiles & Discovery): apps/public_site/views.py
+    holds to the same zero-ORM standard as apps/portal/views.py — every
+    view calls a service method (HomePageService, CaregiverDirectoryService,
+    CaregiverPublicProfileService) and renders a template.
+    """
+
+    def test_no_orm_calls_in_public_site_views(self):
+        views_file = APPS_DIR / "public_site" / "views.py"
+        self.assertTrue(views_file.is_file(), f"expected {views_file} to exist")
+
+        source = _read(views_file)
+        violations = [pattern for pattern in THIN_CONTROLLER_FORBIDDEN_ORM_PATTERNS if re.search(pattern, source)]
+        if re.search(r"\.objects\.\w+\(", source):
+            violations.append(".objects. call found — public_site views should call services only")
+
+        self.assertEqual(violations, [], f"Forbidden ORM usage found in apps/public_site/views.py: {violations}")
 
 
 class NoReverseApiImportTest(SimpleTestCase):
@@ -216,7 +238,8 @@ class NoDuplicateWalletModelTest(SimpleTestCase):
                 offenders.append(str(path.relative_to(APPS_DIR)))
 
         self.assertEqual(
-            offenders, [],
+            offenders,
+            [],
             "A new Wallet/WalletTransaction model was found outside the two documented "
             f"locations {sorted(str(p.relative_to(APPS_DIR)) for p in self.ALLOWED_FILES)}: {offenders}",
         )
@@ -247,14 +270,17 @@ class EventSystemSeparationTest(SimpleTestCase):
             if pattern.search(_read(path)):
                 offenders.append(str(path.relative_to(APPS_DIR)))
 
-        self.assertEqual(offenders, [], f"Found direct EventOutbox access outside EventPublisher/kernel.tasks: {offenders}")
+        self.assertEqual(
+            offenders, [], f"Found direct EventOutbox access outside EventPublisher/kernel.tasks: {offenders}"
+        )
 
     def test_domain_event_module_does_not_import_event_outbox(self):
         for filename in ("base.py", "publisher.py", "registry.py"):
             path = APPS_DIR / "kernel" / "events" / filename
             source = _read(path)
             self.assertNotIn(
-                "kernel.models.event_outbox import", source,
+                "kernel.models.event_outbox import",
+                source,
                 f"{filename} should not import the EventOutbox model — the two event systems are separate.",
             )
 
@@ -292,7 +318,8 @@ class ServiceSupplierProfileCouplingTest(SimpleTestCase):
                 offenders.append(str(path.relative_to(APPS_DIR)))
 
         self.assertEqual(
-            offenders, [],
+            offenders,
+            [],
             "Found a direct CaregiverProfile/OrganizationProfile import outside the documented "
             f"allowlist — use kernel.ServiceSupplier instead: {offenders}",
         )
@@ -314,7 +341,9 @@ class OrderOrganizationEligibilitySoleWriterTest(SimpleTestCase):
     }
 
     def test_no_writes_outside_the_eligibility_service(self):
-        pattern = re.compile(r"OrderOrganizationEligibility\.objects\.(create|get_or_create|update_or_create|bulk_create)\(")
+        pattern = re.compile(
+            r"OrderOrganizationEligibility\.objects\.(create|get_or_create|update_or_create|bulk_create)\("
+        )
         offenders = []
 
         for path in _python_files(under=APPS_DIR):
@@ -327,7 +356,8 @@ class OrderOrganizationEligibilitySoleWriterTest(SimpleTestCase):
                 offenders.append(str(path.relative_to(APPS_DIR)))
 
         self.assertEqual(
-            offenders, [],
+            offenders,
+            [],
             "OrderOrganizationEligibility must only be written by "
             f"OrderEligibilityService — found direct writes in: {offenders}",
         )

@@ -1,0 +1,116 @@
+{% extends "public_site/base_public.html" %}
+{% block public_title %}{{ profile.display_name }}{% endblock %}
+
+{% block page_meta %}
+{% include "ui/components/public/seo_meta.html" with page_title=profile.display_name|add:" — سالمندیار" page_description=profile.bio|default:"پروفایل عمومی مراقب در سالمندیار" page_url="/find-a-caregiver/" %}
+{% endblock %}
+
+{% block content %}
+{# === Cover === #}
+<div class="h-32 w-full bg-gradient-to-l from-primary-700 to-primary-400 sm:h-44" aria-hidden="true"></div>
+
+<section class="bg-background">
+  <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+    <div class="-mt-14 flex flex-col items-start gap-4 sm:-mt-16 sm:flex-row sm:items-end sm:gap-6">
+      <div class="ring-4 ring-background rounded-full">
+        {% include "ui/components/data/avatar.html" with name=profile.display_name size="xl" status=profile.avatar_status_dot ring=True %}
+      </div>
+      <div class="flex-1 pb-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <h1 class="text-2xl font-black text-text sm:text-3xl">{{ profile.display_name }}</h1>
+          {% if profile.is_verified %}
+          {% include "ui/components/feedback/badge.html" with label="تأییدشده" variant="info" pill=True %}
+          {% endif %}
+        </div>
+        <p class="mt-1 text-sm text-text-muted">
+          {% if profile.city %}{{ profile.city }}{% endif %}
+          {% if profile.specialty %}{% if profile.city %}·{% endif %} {{ profile.specialty }}{% endif %}
+        </p>
+      </div>
+    </div>
+
+    <div class="mt-6 flex flex-wrap items-center gap-3">
+      {% include "ui/components/feedback/badge.html" with label=profile.availability_label variant="success" %}
+      {% include "ui/components/feedback/badge.html" with label=profile.is_organization_affiliated|yesno:"وابسته به سازمان,مستقل" variant="neutral" %}
+      {% include "ui/components/feedback/badge.html" with label=profile.verification_label variant=profile.is_verified|yesno:"info,warning" %}
+    </div>
+
+    <div class="mt-8 grid gap-8 lg:grid-cols-3">
+      {# === Main column === #}
+      <div class="space-y-8 lg:col-span-2">
+        {% if profile.bio %}
+        <div>
+          <h2 class="text-lg font-black text-text">درباره {{ profile.display_name }}</h2>
+          <p class="mt-3 whitespace-pre-line text-sm leading-8 text-text-muted">{{ profile.bio }}</p>
+        </div>
+        {% endif %}
+
+        {% if profile.service_names %}
+        <div>
+          <h2 class="text-lg font-black text-text">خدمات قابل ارائه</h2>
+          <div class="mt-3 flex flex-wrap gap-2">
+            {% for service_name in profile.service_names %}
+            {% include "ui/components/feedback/chip.html" with label=service_name %}
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        <div>
+          <h2 class="text-lg font-black text-text">نظرات مشتریان</h2>
+          {% if profile.reviews %}
+          <div class="mt-4 space-y-4">
+            {% for review in profile.reviews %}
+            <article class="rounded-2xl border border-border bg-surface p-5">
+              <div class="flex items-center justify-between">
+                <p class="text-sm font-bold text-text">{{ review.reviewer_name }}</p>
+                <span class="text-xs text-text-muted ltr-value">{{ review.created_at_display }}</span>
+              </div>
+              <div class="mt-2">
+                {% include "ui/components/public/rating_stars.html" with average=review.rating stars_rounded=review.rating_stars_rounded review_count=1 %}
+              </div>
+              {% if review.written_text %}
+              <p class="mt-3 text-sm leading-8 text-text-muted">{{ review.written_text }}</p>
+              {% endif %}
+            </article>
+            {% endfor %}
+          </div>
+          {% else %}
+          {% include "ui/components/data/empty_state.html" with title="هنوز نظری ثبت نشده" description="این مراقب هنوز نظر تأییدشده‌ای دریافت نکرده است." size="sm" %}
+          {% endif %}
+        </div>
+      </div>
+
+      {# === Sidebar === #}
+      <aside class="space-y-6">
+        <div class="rounded-2xl border border-border bg-surface p-6">
+          <h2 class="text-sm font-black text-text">امتیاز و سابقه</h2>
+          <div class="mt-4">
+            {% include "ui/components/public/rating_stars.html" with average=profile.rating.average stars_rounded=profile.rating.stars_rounded review_count=profile.rating.review_count size="md" %}
+          </div>
+          <dl class="mt-5 grid grid-cols-2 gap-4 border-t border-border pt-5">
+            <div>
+              <dt class="text-xs text-text-muted">خدمات تکمیل‌شده</dt>
+              <dd class="mt-1 text-lg font-black text-text ltr-value">{{ profile.completed_jobs }}</dd>
+            </div>
+            {% if profile.years_experience %}
+            <div>
+              <dt class="text-xs text-text-muted">سابقه کاری</dt>
+              <dd class="mt-1 text-lg font-black text-text ltr-value">{{ profile.years_experience }} سال</dd>
+            </div>
+            {% endif %}
+            {% if profile.service_radius_km %}
+            <div>
+              <dt class="text-xs text-text-muted">شعاع خدمت‌رسانی</dt>
+              <dd class="mt-1 text-lg font-black text-text ltr-value">{{ profile.service_radius_km }} کیلومتر</dd>
+            </div>
+            {% endif %}
+          </dl>
+        </div>
+
+        {% include "ui/components/public/cta_section.html" with title="نیاز به مشاوره دارید؟" subtitle="برای هماهنگی و دریافت این مراقب، با ما تماس بگیرید." primary_cta_text="شروع گفتگو" primary_cta_url="/contact/" %}
+      </aside>
+    </div>
+  </div>
+</section>
+{% endblock %}
