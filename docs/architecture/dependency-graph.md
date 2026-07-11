@@ -8,7 +8,10 @@ remediation and remains unchanged), plus the `apps.payments -> apps.orders`
 and `apps.payments -> apps.jobs` edges added below (Epic 03 Sprint 1 —
 Financial Settlement, PR #26, merged), plus the second "deliberate
 exception" documented below (`apps.kernel.management.commands
-.seed_product_walkthrough`'s nine-app fan-out, PR #34, merged). Derived by
+.seed_product_walkthrough`'s nine-app fan-out, PR #34, merged), plus the
+new `apps.public_site` import shape below (Epic 06 Sprint 1 — Marketplace
+Profiles & Discovery, PR #36, merged — `apps.public_site`'s first
+cross-app production imports). Derived by
 grepping every real `from apps.X import` statement across the codebase
 (production code, not tests, and not prose inside comments/docstrings
 that merely mentions another app's name) on 2026-07-11.
@@ -317,6 +320,25 @@ Both new portals are held to the same `*OrmDisciplineTest` standard as
 `apps.portal`/`apps.api`/`apps.admin_portal` —
 `ProviderPortalOrmDisciplineTest` and `OrganizationPortalOrmDisciplineTest`
 in `apps/kernel/tests/test_architecture_guardrails.py`.
+
+## `apps.public_site` import shape (Epic 06 Sprint 1, PR #36)
+
+Previously a purely static marketing app with zero cross-app imports; PR
+#36 added `apps/public_site/services/` and its first real `from apps\.`
+edges. Verified by grepping `apps/public_site` for `from apps\.`
+(production code, not tests): `apps.accounts`, `apps.discovery`,
+`apps.kernel`, `apps.orders`, `apps.reviews`. Same zero-ORM-in-views
+discipline as the other portals — `apps/public_site/views.py` imports
+zero models directly, enforced by the new `PublicSiteOrmDisciplineTest` in
+`apps/kernel/tests/test_architecture_guardrails.py`:
+
+| Domain | Service(s) called from `apps/public_site/services/*.py` |
+|---|---|
+| `apps.discovery` | `SupplierSearchService.filter_suppliers()`, `DiscoveryRankingService.rank()` — called directly rather than the higher-level `DiscoveryService.search()`, which only accepts one `supplier_type` (see that file's module docstring for the justification) |
+| `apps.accounts` | `apps.accounts.services.supplier_bridge.resolve_supplier_entities_bulk()` (added in the remediation commit — the sanctioned, and now only, translator between `ServiceSupplier` and `CaregiverProfile`/`OrganizationProfile`; `apps.public_site` never imports those model classes directly, enforced by the pre-existing `ServiceSupplierProfileCouplingTest`), plus a direct read of `apps.accounts.models.profiles.OrganizationMembership` (not restricted by that same guardrail) |
+| `apps.orders` | `CatalogQueryService` (service categories), `Order`/`OrderStatus` (completed-jobs count) |
+| `apps.reviews` | `ReputationService.get_reputation_summary()`, `Review`/`ReviewModerationStatus` (approved-only reviews) |
+| `apps.kernel` | `TenantService.get_default_tenant_id()`, `Person` (reviewer display-name resolution), `AvailabilityStatus`/`SupplierType` |
 
 ## Verified clean
 
