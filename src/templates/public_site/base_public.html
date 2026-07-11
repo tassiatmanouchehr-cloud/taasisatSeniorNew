@@ -31,6 +31,12 @@
 
 {# Desktop CTA actions #}
 {% block nav_actions %}
+<a href="{% url 'accounts:login' %}" class="inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm font-bold text-text-muted transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface">
+  ورود
+</a>
+<a href="{% url 'accounts:register' %}" class="hidden lg:inline-flex items-center justify-center rounded-xl border border-border bg-surface px-4 py-2 text-sm font-bold text-text transition-all hover:border-border-strong hover:bg-background focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface">
+  ثبت‌نام
+</a>
 <a href="/contact/" class="hidden lg:inline-flex items-center justify-center rounded-xl border border-border bg-surface px-4 py-2 text-sm font-bold text-text transition-all hover:border-border-strong hover:bg-background focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface">
   مشاوره رایگان
 </a>
@@ -55,6 +61,12 @@
 
 {# Mobile CTA #}
 {% block mobile_nav_actions %}
+<a href="{% url 'accounts:login' %}" @click="mobileNav = false" class="block w-full rounded-xl border border-border bg-surface px-4 py-3 text-center text-sm font-bold text-text transition-all hover:bg-background-alt">
+  ورود به حساب
+</a>
+<a href="{% url 'accounts:register' %}" @click="mobileNav = false" class="block w-full rounded-xl border border-border bg-surface px-4 py-3 text-center text-sm font-bold text-text transition-all hover:bg-background-alt">
+  ثبت‌نام (خانواده، مراقب یا سازمان)
+</a>
 <a href="/services/" @click="mobileNav = false" class="block w-full rounded-xl bg-primary px-4 py-3 text-center text-sm font-bold text-white shadow-md transition-all hover:bg-primary-700">
   شروع درخواست
 </a>

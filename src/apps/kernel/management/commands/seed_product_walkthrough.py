@@ -55,7 +55,10 @@ from apps.accounts.services.care_recipients import CareRecipientService
 from apps.accounts.services.organization_rbac import OrganizationRoleSyncService
 from apps.accounts.services.organization_staff import OrganizationStaffService
 from apps.accounts.services.profiles import ensure_caregiver_profile, ensure_customer_profile
-from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_caregiver
+from apps.accounts.services.supplier_bridge import (
+    get_or_create_supplier_for_caregiver,
+    get_or_create_supplier_for_organization,
+)
 from apps.availability.models import BlockedPeriodReason
 from apps.availability.services import AvailabilityMutationService
 from apps.booking.services import AssignmentService, OrganizationAssignmentService
@@ -177,11 +180,15 @@ ROUTE_NAMES = {
     "provider_availability": "provider_portal:availability",
     "provider_assignments": "provider_portal:assignments",
     "provider_earnings": "provider_portal:earnings",
+    "provider_profile": "provider_portal:profile",
+    "provider_profile_edit": "provider_portal:profile-edit-basic",
     "organization_dashboard": "organization_portal:dashboard",
     "organization_staff": "organization_portal:staff",
     "assignment_center": "organization_portal:assignment-center",
     "organization_capacity": "organization_portal:capacity",
     "organization_reports": "organization_portal:reports",
+    "organization_profile": "organization_portal:profile",
+    "organization_profile_edit": "organization_portal:profile-edit",
 }
 
 
@@ -1095,6 +1102,12 @@ class Command(BaseCommand):
         except NoReverseMatch:
             return "(route not found)"
 
+    def _route_kw(self, name, **kwargs):
+        try:
+            return reverse(name, kwargs=kwargs)
+        except NoReverseMatch:
+            return "(route not found)"
+
     def _print_report(
         self,
         tenant,
@@ -1153,14 +1166,23 @@ class Command(BaseCommand):
         for role, name, email, url, notes in rows:
             w(f"{role:<28} {name:<22} {email:<32} {url:<28} {notes}")
         w("")
+        provider_supplier_id = independent_providers[0]["supplier"].id
+        organization_supplier = get_or_create_supplier_for_organization(organizations[0]["org"], tenant_id=tenant.id)
         w(
             "NOTE (route discovery): the customer/provider/organization portals use phone+OTP login "
             f"({self._route(ROUTE_NAMES['login'])}), not email+password — OTP delivery is console-only in "
             "this environment. The demo password above is set on every account and works for Django admin "
             "(/admin/) sign-in for staff/superuser accounts; it does not, by itself, log into the customer/"
-            "provider/organization portals, since those never authenticate via email+password. No customer/"
-            'provider/organization "profile" page exists as a distinct URL in this codebase (confirmed by '
-            "inspecting each app's urls.py) — reported here rather than inventing one."
+            "provider/organization portals, since those never authenticate via email+password. Provider and "
+            "organization self-profile pages exist as distinct URLs (added in Epic 06 Sprint 2): "
+            f"provider self-profile {self._route(ROUTE_NAMES['provider_profile'])}, provider profile editing "
+            f"{self._route(ROUTE_NAMES['provider_profile_edit'])}, provider public preview "
+            f"{self._route_kw('public_site:caregiver-profile', supplier_id=provider_supplier_id)}, organization "
+            f"self-profile {self._route(ROUTE_NAMES['organization_profile'])}, organization profile editing "
+            f"{self._route(ROUTE_NAMES['organization_profile_edit'])}, organization public preview "
+            f"{self._route_kw('public_site:organization-profile', supplier_id=organization_supplier.id)}. "
+            'No customer "profile" page exists as a distinct URL in this codebase (confirmed by inspecting '
+            "apps/portal/urls.py) — reported here rather than inventing one."
         )
         w("")
         w("--- Dataset ---")

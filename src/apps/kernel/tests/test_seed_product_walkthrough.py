@@ -423,3 +423,43 @@ class SeedProductWalkthroughRevokedEligibilityStabilityTest(TestCase):
         self.assertEqual(eligibility_after.status, status_before)
         self.assertEqual(eligibility_after.granted_at, granted_at_before)
         self.assertEqual(eligibility_after.revoked_at, revoked_at_before)
+
+
+@override_settings(DEBUG=True)
+class SeedProductWalkthroughRouteDiscoveryOutputTest(TestCase):
+    """Frontend remediation follow-up (Defect 4): the route-discovery output
+    must reflect the provider/organization profile pages added in Epic 06
+    Sprint 2, and must stop claiming they don't exist."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.output = _run_command()
+
+    def test_stale_no_profile_page_claim_is_removed(self):
+        self.assertNotIn(
+            'No customer/provider/organization "profile" page exists as a distinct URL',
+            self.output,
+        )
+
+    def test_customer_profile_page_absence_still_stated_accurately(self):
+        self.assertIn('No customer "profile" page exists as a distinct URL', self.output)
+
+    def test_output_lists_provider_profile_route(self):
+        self.assertIn("/provider/profile/", self.output)
+
+    def test_output_lists_provider_profile_edit_route(self):
+        self.assertIn("/provider/profile/edit/basic/", self.output)
+
+    def test_output_lists_provider_public_preview_route(self):
+        self.assertIn("/find-a-caregiver/", self.output)
+        self.assertIn("provider public preview", self.output)
+
+    def test_output_lists_organization_profile_route(self):
+        self.assertIn("/organization/profile/", self.output)
+
+    def test_output_lists_organization_profile_edit_route(self):
+        self.assertIn("/organization/profile/edit/", self.output)
+
+    def test_output_lists_organization_public_preview_route(self):
+        self.assertIn("/find-an-organization/", self.output)
+        self.assertIn("organization public preview", self.output)
