@@ -1,0 +1,30 @@
+{% comment %} Rating Stars Component
+   Usage:
+     {% include "ui/components/public/rating_stars.html" with average=4.5 stars_rounded=5 review_count=12 %}
+     {% include "ui/components/public/rating_stars.html" with average=None review_count=0 %}
+
+   Props:
+     average       — Decimal|None average rating (None = no reviews yet)
+     stars_rounded — int 0-5, nearest whole star to fill
+     review_count  — int, shown in parentheses
+     size          — sm|md (default: sm)
+{% endcomment %}
+{% with size=size|default:"sm" %}
+<div class="inline-flex items-center gap-1.5" role="img"
+     aria-label="{% if average %}امتیاز {{ average }} از ۵ بر اساس {{ review_count }} نظر{% else %}هنوز امتیازی ثبت نشده{% endif %}">
+  {% if average %}
+  <span class="inline-flex items-center gap-0.5">
+    {% for i in "12345" %}
+    <svg class="{% if size == 'sm' %}h-4 w-4{% else %}h-5 w-5{% endif %} {% if forloop.counter <= stars_rounded %}text-warning{% else %}text-border{% endif %}"
+         fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.955a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.367 2.447a1 1 0 00-.363 1.118l1.287 3.955c.3.922-.755 1.688-1.539 1.118l-3.367-2.446a1 1 0 00-1.176 0l-3.367 2.446c-.784.57-1.838-.196-1.539-1.118l1.287-3.955a1 1 0 00-.363-1.118L2.063 9.382c-.783-.57-.38-1.81.588-1.81h4.163a1 1 0 00.95-.69l1.285-3.955z"/>
+    </svg>
+    {% endfor %}
+  </span>
+  <span class="text-sm font-bold text-text ltr-value">{{ average }}</span>
+  <span class="text-xs text-text-muted">({{ review_count }} نظر)</span>
+  {% else %}
+  <span class="text-xs text-text-muted">هنوز امتیازی ثبت نشده</span>
+  {% endif %}
+</div>
+{% endwith %}

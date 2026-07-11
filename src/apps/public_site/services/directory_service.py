@@ -1,0 +1,269 @@
+"""
+CaregiverDirectoryService — Epic 06 (Marketplace Profiles & Discovery).
+
+Builds the public Caregiver Directory page. Reuses apps.discovery's
+existing search/ranking building blocks directly (SupplierSearchService
+.filter_suppliers() + DiscoveryRankingService.rank()) rather than
+apps.discovery.services.discovery_service.DiscoveryService.search()
+itself, because that orchestration accepts exactly one supplier_type
+value. This directory must show both INDEPENDENT_PROVIDER and
+ORGANIZATION_PROVIDER suppliers together (real caregivers) while never
+showing a plain ORGANIZATION supplier (a company has no bio/specialty/
+years_experience — it isn't a caregiver profile) — so the two allowed
+types are queried and ranked together here instead. Nothing in
+apps.discovery is modified.
+"""
+
+import math
+from urllib.parse import urlencode
+
+from apps.discovery.services.query_normalizer import normalize_query
+from apps.discovery.services.ranking_service import DiscoveryRankingService
+from apps.discovery.services.search_service import SupplierSearchService
+from apps.kernel.models.supplier import AvailabilityStatus, SupplierType
+from apps.kernel.services.tenant_service import TenantService
+from apps.orders.services.queries import CatalogQueryService
+
+from . import common
+from .viewmodels import (
+    CaregiverCardViewModel,
+    DirectoryFiltersViewModel,
+    DirectoryPageViewModel,
+    FilterOptionViewModel,
+    PaginationLinkViewModel,
+    PaginationViewModel,
+)
+
+CAREGIVER_SUPPLIER_TYPES = (SupplierType.INDEPENDENT_PROVIDER, SupplierType.ORGANIZATION_PROVIDER)
+
+PAGE_SIZE = 12
+
+TYPE_LABELS = {
+    SupplierType.INDEPENDENT_PROVIDER: "مستقل",
+    SupplierType.ORGANIZATION_PROVIDER: "وابسته به سازمان",
+}
+
+
+class CaregiverDirectoryService:
+    """Read-only: search + filter + paginate the public caregiver directory."""
+
+    @classmethod
+    def search(
+        cls,
+        *,
+        tenant_id=None,
+        text="",
+        city=None,
+        supplier_type=None,
+        service_category_id=None,
+        availability_status=None,
+        page=1,
+        base_url="/find-a-caregiver/",
+    ) -> DirectoryPageViewModel:
+        tenant_id = tenant_id or TenantService.get_default_tenant_id()
+
+        allowed_types = (supplier_type,) if supplier_type in CAREGIVER_SUPPLIER_TYPES else CAREGIVER_SUPPLIER_TYPES
+        candidates = cls._filter_candidates(
+            tenant_id=tenant_id,
+            allowed_types=allowed_types,
+            text=text,
+            city=city,
+            service_category_id=service_category_id,
+            availability_status=availability_status,
+        )
+        candidates_by_id = {supplier.id: supplier for supplier in candidates}
+        ranked = DiscoveryRankingService.rank(tenant_id=tenant_id, suppliers=candidates)
+
+        total_count = len(ranked)
+        total_pages = max(1, math.ceil(total_count / PAGE_SIZE))
+        current_page = max(1, min(int(page or 1), total_pages))
+        offset = (current_page - 1) * PAGE_SIZE
+        page_items = ranked[offset : offset + PAGE_SIZE]
+
+        cards = tuple(
+            cls._build_card(candidates_by_id[item.supplier_id], tenant_id=tenant_id)
+            for item in page_items
+            if item.supplier_id in candidates_by_id
+        )
+
+        filters = cls._build_filters(
+            tenant_id=tenant_id,
+            text=text,
+            city=city,
+            supplier_type=supplier_type,
+            service_category_id=service_category_id,
+            availability_status=availability_status,
+        )
+        pagination = cls._build_pagination(
+            current_page=current_page,
+            total_pages=total_pages,
+            total_count=total_count,
+            base_url=base_url,
+            text=text,
+            city=city,
+            supplier_type=supplier_type,
+            service_category_id=service_category_id,
+            availability_status=availability_status,
+        )
+
+        return DirectoryPageViewModel(caregivers=cards, filters=filters, pagination=pagination)
+
+    @classmethod
+    def available_cities(cls, *, tenant_id=None) -> tuple[str, ...]:
+        """Distinct cities among all currently active, publicly-visible
+        caregivers — used to populate the city selector on both this
+        directory and the Home Page, unaffected by any active filter."""
+        tenant_id = tenant_id or TenantService.get_default_tenant_id()
+        candidates = cls._filter_candidates(
+            tenant_id=tenant_id,
+            allowed_types=CAREGIVER_SUPPLIER_TYPES,
+            text="",
+            city=None,
+            service_category_id=None,
+            availability_status=None,
+        )
+        return common.distinct_cities(candidates)
+
+    @classmethod
+    def featured(cls, *, tenant_id=None, limit=4) -> tuple[CaregiverCardViewModel, ...]:
+        """Top-ranked caregivers for the Home Page's "Featured Caregivers"
+        section — same ranking as the directory itself, no filters."""
+        tenant_id = tenant_id or TenantService.get_default_tenant_id()
+
+        candidates = cls._filter_candidates(
+            tenant_id=tenant_id,
+            allowed_types=CAREGIVER_SUPPLIER_TYPES,
+            text="",
+            city=None,
+            service_category_id=None,
+            availability_status=None,
+        )
+        candidates_by_id = {supplier.id: supplier for supplier in candidates}
+        ranked = DiscoveryRankingService.rank(tenant_id=tenant_id, suppliers=candidates)
+
+        return tuple(
+            cls._build_card(candidates_by_id[item.supplier_id], tenant_id=tenant_id)
+            for item in ranked[:limit]
+            if item.supplier_id in candidates_by_id
+        )
+
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def _filter_candidates(cls, *, tenant_id, allowed_types, text, city, service_category_id, availability_status):
+        candidates = []
+        for a_type in allowed_types:
+            query = normalize_query(
+                tenant_id=tenant_id,
+                text=text,
+                service_category_id=service_category_id,
+                supplier_type=a_type,
+                availability_status=availability_status,
+                city=city,
+            )
+            candidates.extend(SupplierSearchService.filter_suppliers(query))
+        return [supplier for supplier in candidates if common.is_publicly_visible(supplier)]
+
+    @classmethod
+    def _build_card(cls, supplier, *, tenant_id) -> CaregiverCardViewModel:
+        attrs = common.supplier_entity_attrs(supplier)
+        rating = common.rating_summary(supplier)
+        return CaregiverCardViewModel(
+            supplier_id=supplier.id,
+            display_name=supplier.display_name,
+            avatar_initial=common.avatar_initial(supplier.display_name),
+            city=attrs["city"],
+            specialty=attrs["specialty"],
+            bio_snippet=common.bio_snippet(attrs["bio"]),
+            is_organization_affiliated=common.is_organization_affiliated(supplier),
+            availability_status=supplier.availability_status,
+            availability_label=common.availability_label(supplier.availability_status),
+            avatar_status_dot=common.avatar_status_dot(supplier.availability_status),
+            verification_status=attrs["verification_status"],
+            verification_label=common.verification_label(attrs["verification_status"]),
+            is_verified=attrs["verification_status"] == "verified",
+            rating=rating,
+            completed_jobs=common.completed_jobs_count(tenant_id=tenant_id, supplier_id=supplier.id),
+            profile_url=f"/find-a-caregiver/{supplier.id}/",
+        )
+
+    @classmethod
+    def _build_filters(cls, *, tenant_id, text, city, supplier_type, service_category_id, availability_status):
+        cities = cls.available_cities(tenant_id=tenant_id)
+        normalized_city = " ".join((city or "").split()).casefold() or None
+
+        city_options = tuple(
+            FilterOptionViewModel(value=c, label=c, selected=(normalized_city == c.casefold())) for c in cities
+        )
+        categories = CatalogQueryService.list_active_categories(tenant_id=tenant_id).order_by("sort_order", "name")
+        service_options = tuple(
+            FilterOptionViewModel(value=str(cat.id), label=cat.name, selected=(str(cat.id) == str(service_category_id)))
+            for cat in categories
+        )
+        type_options = tuple(
+            FilterOptionViewModel(value=t, label=TYPE_LABELS[t], selected=(supplier_type == t))
+            for t in CAREGIVER_SUPPLIER_TYPES
+        )
+        availability_options = tuple(
+            FilterOptionViewModel(
+                value=status,
+                label=common.availability_label(status),
+                selected=(availability_status == status),
+            )
+            for status in AvailabilityStatus.values
+        )
+
+        return DirectoryFiltersViewModel(
+            city_options=city_options,
+            service_options=service_options,
+            type_options=type_options,
+            availability_options=availability_options,
+            search_text=text or "",
+            gender_filter_supported=False,
+        )
+
+    @classmethod
+    def _build_pagination(
+        cls,
+        *,
+        current_page,
+        total_pages,
+        total_count,
+        base_url,
+        text,
+        city,
+        supplier_type,
+        service_category_id,
+        availability_status,
+    ):
+        params = {}
+        if text:
+            params["q"] = text
+        if city:
+            params["city"] = city
+        if supplier_type:
+            params["type"] = supplier_type
+        if service_category_id:
+            params["service"] = str(service_category_id)
+        if availability_status:
+            params["availability"] = availability_status
+
+        def _url_for(page_number):
+            page_params = {**params, "page": page_number}
+            return f"{base_url}?{urlencode(page_params)}"
+
+        window_start = max(1, current_page - 2)
+        window_end = min(total_pages, current_page + 2)
+        page_links = tuple(
+            PaginationLinkViewModel(number=n, url=_url_for(n), is_current=(n == current_page))
+            for n in range(window_start, window_end + 1)
+        )
+
+        return PaginationViewModel(
+            current_page=current_page,
+            total_pages=total_pages,
+            total_count=total_count,
+            previous_url=_url_for(current_page - 1) if current_page > 1 else None,
+            next_url=_url_for(current_page + 1) if current_page < total_pages else None,
+            page_links=page_links,
+        )

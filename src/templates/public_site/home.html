@@ -7,78 +7,90 @@
 
 {% block content %}
 {# === Hero Section === #}
-{% include "ui/components/public/hero.html" with badge="بازار خدمات مراقبت، همراهی و پشتیبانی سالمندان" title="مراقبت مطمئن برای سالمند، آرامش واقعی برای خانواده." subtitle="سالمندیار خانواده‌ها را به مراقبان مستقل و سازمان‌های معتبر متصل می‌کند؛ با تجربه فارسی، طراحی راست‌به‌چپ، فرآیند شفاف و زیرساخت آماده پیگیری کیفیت." primary_cta_text="دریافت مشاوره و شروع درخواست" primary_cta_url="/contact/" secondary_cta_text="مشاهده خدمات" secondary_cta_url="/services/" has_pattern="true" %}
+{% include "ui/components/public/hero.html" with badge="بازار خدمات مراقبت، همراهی و پشتیبانی سالمندان" title="مراقبت مطمئن برای سالمند، آرامش واقعی برای خانواده." subtitle="سالمندیار خانواده‌ها را به مراقبان مستقل و سازمان‌های معتبر متصل می‌کند؛ با تجربه فارسی، طراحی راست‌به‌چپ، فرآیند شفاف و زیرساخت آماده پیگیری کیفیت." has_pattern="true" %}
 
-{# === Statistics === #}
-<section class="border-y border-border bg-surface">
-  <div class="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
-    <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-      {% include "ui/components/public/stat_item.html" with value="۲۴/۷" label="آماده طراحی برای پشتیبانی" %}
-      {% include "ui/components/public/stat_item.html" with value="RTL" label="فارسی و راست‌به‌چپ بومی" %}
-      {% include "ui/components/public/stat_item.html" with value="۳ مدل" label="مستقل، سازمانی، ترکیبی" %}
-      {% include "ui/components/public/stat_item.html" with value="Enterprise" label="معماری سازمانی آماده رشد" %}
-    </div>
+{# === Search bar + city selector === #}
+<section class="border-b border-border bg-surface">
+  <div class="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+    <form method="get" action="/find-a-caregiver/" class="flex flex-col gap-3 sm:flex-row" role="search" aria-label="جستجوی مراقب">
+      <div class="flex-1">
+        {% include "ui/components/forms/input.html" with name="q" label="جستجوی مراقب" placeholder="جستجو بر اساس نام مراقب" type="search" %}
+      </div>
+      <div class="sm:w-56">
+        {% include "ui/components/forms/select.html" with name="city" label="شهر" options=home.city_options placeholder="انتخاب شهر" %}
+      </div>
+      {% include "ui/components/forms/button.html" with label="جستجوی مراقب" type="submit" variant="primary" size="lg" %}
+    </form>
   </div>
 </section>
 
-{# === Key Features === #}
+{# === Service categories (real) === #}
 <section class="bg-background py-16 lg:py-24">
   <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-    {% include "ui/components/public/section_header.html" with eyebrow="چرا سالمندیار" title="ساخته‌شده برای اعتماد خانواده‌ها" subtitle="یک پلتفرم واقعی مراقبت — نه فقط یک وبسایت ساده." align="center" size="md" %}
-    <div class="mt-12 grid gap-6 md:grid-cols-3">
-      {% include "ui/components/public/feature_card.html" with icon="🛡️" title="اعتماد و کنترل کیفیت" description="ساختار نقش‌ها، سیاست‌ها و گزارش‌ها برای کاهش ابهام و افزایش اطمینان خانواده‌ها." %}
-      {% include "ui/components/public/feature_card.html" with icon="👵" title="طراحی انسان‌محور" description="تمرکز روی نیاز سالمند، آرامش خانواده و ساده‌سازی تصمیم‌گیری در شرایط حساس." %}
-      {% include "ui/components/public/feature_card.html" with icon="🏢" title="آماده رشد سازمانی" description="قابل توسعه برای مراقبان مستقل، شرکت‌های ارائه‌دهنده خدمات و مدل‌های ترکیبی." %}
+    {% include "ui/components/public/section_header.html" with eyebrow="دسته‌های خدمات" title="برای نیازهای واقعی خانواده‌ها" align="center" size="md" %}
+    {% if home.service_categories %}
+    <div class="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {% for category in home.service_categories %}
+      {% include "ui/components/public/service_card.html" with icon=category.icon title=category.name description=category.description cta_text="مشاهده مراقبان" cta_url=category.directory_url %}
+      {% endfor %}
     </div>
+    {% else %}
+    {% include "ui/components/data/empty_state.html" with title="هنوز خدمتی ثبت نشده" size="sm" %}
+    {% endif %}
   </div>
 </section>
 
-{# === Services Preview === #}
+{# === Featured caregivers (real) === #}
 <section class="border-t border-border bg-surface py-16 lg:py-24">
   <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-    <div class="grid gap-10 lg:grid-cols-3 lg:items-start">
-      <div class="lg:col-span-1">
-        {% include "ui/components/public/section_header.html" with eyebrow="خدمات منتخب" title="برای نیازهای واقعی خانواده‌ها" subtitle="این بخش معرفی عمومی خدمات است. در مراحل بعدی به کاتالوگ و فرآیند سفارش متصل می‌شود." align="start" size="sm" %}
-        <a href="/services/" class="mt-6 inline-flex items-center gap-2 rounded-2xl border border-border bg-background px-5 py-3 text-sm font-black text-text transition-all hover:border-border-strong hover:shadow-sm">
-          دیدن همه خدمات
-          <svg class="h-4 w-4 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
-        </a>
-      </div>
-      <div class="grid gap-5 sm:grid-cols-2 lg:col-span-2">
-        {% include "ui/components/public/service_card.html" with icon="🏠" title="مراقبت در منزل" description="همراهی، مراقبت و پشتیبانی روزمره در محیط امن خانه." cta_text="درخواست مشاوره" cta_url="/contact/" %}
-        {% include "ui/components/public/service_card.html" with icon="🚕" title="همراهی درمانی" description="کمک در مراجعه، رفت‌وآمد و پیگیری امور درمانی." cta_text="هماهنگی اولیه" cta_url="/contact/" %}
-        {% include "ui/components/public/service_card.html" with icon="👨‍👩‍👧" title="پشتیبانی خانواده" description="شفاف‌سازی وضعیت خدمت برای افراد معتمد خانواده." cta_text="شروع گفتگو" cta_url="/contact/" %}
-        {% include "ui/components/public/service_card.html" with icon="🧭" title="ارزیابی نیاز" description="کمک به انتخاب خدمت مناسب پیش از شروع فرآیند." cta_text="مشاهده فرآیند" cta_url="/how-it-works/" %}
-      </div>
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      {% include "ui/components/public/section_header.html" with eyebrow="مراقبان برگزیده" title="مراقبان با بالاترین امتیاز و اعتبار" align="start" size="md" %}
+      <a href="/find-a-caregiver/" class="inline-flex items-center gap-2 rounded-2xl border border-border bg-background px-5 py-3 text-sm font-black text-text no-underline transition-all hover:border-border-strong hover:shadow-sm">
+        مشاهده همه مراقبان
+        <svg class="h-4 w-4 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+      </a>
     </div>
+    {% if home.featured_caregivers %}
+    <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      {% for caregiver in home.featured_caregivers %}
+      {% include "ui/components/public/caregiver_card.html" with caregiver=caregiver %}
+      {% endfor %}
+    </div>
+    {% else %}
+    {% include "ui/components/data/empty_state.html" with title="هنوز مراقبی ثبت نشده" description="به‌زودی مراقبان فعال در این بخش نمایش داده می‌شوند." size="sm" %}
+    {% endif %}
   </div>
 </section>
 
-{# === How it works preview === #}
+{# === Trust section === #}
 <section class="bg-background py-16 lg:py-24">
   <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-    {% include "ui/components/public/section_header.html" with eyebrow="نحوه کار" title="مسیر ساده از نیاز تا خدمت" align="center" size="md" %}
-    <div class="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-      {% include "ui/components/public/step_card.html" with number="۱" title="ثبت نیاز" description="خانواده نوع خدمت، زمان و محل را مشخص می‌کند." %}
-      {% include "ui/components/public/step_card.html" with number="۲" title="بررسی و هماهنگی" description="سفارش بررسی و آماده تخصیص می‌شود." %}
-      {% include "ui/components/public/step_card.html" with number="۳" title="ارائه خدمت" description="مراقب یا سازمان، خدمت را انجام می‌دهد." %}
-      {% include "ui/components/public/step_card.html" with number="۴" title="بازخورد و کیفیت" description="مسیر امتیازدهی و بهبود کیفیت فعال می‌شود." %}
+    {% include "ui/components/public/section_header.html" with eyebrow="اعتماد و امنیت" title="چرا خانواده‌ها به سالمندیار اعتماد می‌کنند" align="center" size="md" %}
+    <div class="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      {% include "ui/components/public/trust_item.html" with icon="✅" title="پروفایل واقعی مراقبان" description="اطلاعات هر مراقب مستقیماً از پلتفرم و قابل مشاهده عمومی است." %}
+      {% include "ui/components/public/trust_item.html" with icon="🛡️" title="وضعیت تأیید شفاف" description="وضعیت تأیید هویت هر مراقب یا سازمان به‌صورت واضح نمایش داده می‌شود." %}
+      {% include "ui/components/public/trust_item.html" with icon="⭐" title="نظرات واقعی مشتریان" description="امتیازها و نظرات از سفارش‌های واقعی و تأییدشده محاسبه می‌شوند." %}
+      {% include "ui/components/public/trust_item.html" with icon="🔒" title="حریم خصوصی حفظ‌شده" description="مدارک هویتی خصوصی هرگز به‌صورت عمومی نمایش داده نمی‌شوند." %}
     </div>
   </div>
 </section>
 
-{# === Testimonials (demo) === #}
+{# === Customer reviews (real, approved only) === #}
 <section class="border-y border-border bg-surface py-16 lg:py-24">
   <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-    {% include "ui/components/public/section_header.html" with eyebrow="تجربه کاربران" title="صدای خانواده‌ها و مراقبان" subtitle="نمونه‌های نمایشی برای نشان دادن ساختار بخش نظرات. در آینده با داده واقعی جایگزین می‌شود." align="center" size="md" %}
+    {% include "ui/components/public/section_header.html" with eyebrow="تجربه کاربران" title="صدای خانواده‌ها" align="center" size="md" %}
+    {% if home.reviews %}
     <div class="mt-12 grid gap-6 md:grid-cols-3">
-      {% include "ui/components/public/testimonial_card.html" with quote="پیدا کردن مراقب مطمئن همیشه نگرانی اصلی ما بود. ساختار این پلتفرم حس اعتماد و شفافیت بیشتری ایجاد می‌کند." author="خانواده نمونه" role="خانواده سالمند" avatar_initial="خ" is_demo="true" %}
-      {% include "ui/components/public/testimonial_card.html" with quote="به‌عنوان پرستار مستقل، داشتن یک پروفایل حرفه‌ای و مسیر مشخص دریافت درخواست خیلی مهم است." author="مراقب نمونه" role="پرستار سالمند" avatar_initial="م" is_demo="true" %}
-      {% include "ui/components/public/testimonial_card.html" with quote="مدیریت تیم مراقبان در یک پلتفرم واحد و دریافت بازخورد ساختاریافته، کار ما را آسان‌تر می‌کند." author="سازمان نمونه" role="مدیر آژانس مراقبتی" avatar_initial="س" is_demo="true" %}
+      {% for review in home.reviews %}
+      {% include "ui/components/public/testimonial_card.html" with quote=review.written_text author=review.reviewer_name role="مشتری سالمندیار" avatar_initial=review.reviewer_name|first %}
+      {% endfor %}
     </div>
+    {% else %}
+    {% include "ui/components/data/empty_state.html" with title="هنوز نظری تأیید نشده" description="نظرات تأییدشده مشتریان در این بخش نمایش داده می‌شوند." size="sm" %}
+    {% endif %}
   </div>
 </section>
 
 {# === CTA === #}
-{% include "ui/components/public/cta_section.html" with eyebrow="آماده شروع هستید؟" title="اولین قدم، توضیح نیاز خانواده است." subtitle="فرم تماس فعلاً نمایشی است؛ در مراحل بعدی به درخواست خدمت، احراز هویت و پیگیری سفارش متصل می‌شود." primary_cta_text="ثبت درخواست مشاوره" primary_cta_url="/contact/" secondary_cta_text="آشنایی با فرآیند" secondary_cta_url="/how-it-works/" variant="highlight" %}
+{% include "ui/components/public/cta_section.html" with eyebrow="آماده شروع هستید؟" title="همین حالا شروع کنید" subtitle="مراقب مناسب را پیدا کنید یا به‌عنوان مراقب به پلتفرم بپیوندید." primary_cta_text="رزرو مراقب" primary_cta_url="/find-a-caregiver/" secondary_cta_text="مراقب شوید" secondary_cta_url="/caregivers/" variant="highlight" %}
 {% endblock %}
