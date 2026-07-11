@@ -272,8 +272,8 @@ previously documented gap:
   dedicated section immediately below.
 - **Organization-scoped RBAC seeding** — a real production writer now
   exists (`OrganizationRoleSyncService`); the three keys it grants are
-  not yet enforced at their intended call sites — see "Architecture
-  gaps" below.
+  now genuinely enforced at their intended call sites — see "Future
+  placeholders — resolved by Epic 05" below.
 
 **New capability delivered by Epic 04 (not a previously tracked gap):**
 
