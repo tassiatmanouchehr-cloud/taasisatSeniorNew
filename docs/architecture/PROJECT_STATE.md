@@ -1,8 +1,8 @@
 # Project State
 
-Status: current as of PR #28's merge (Epic 04 — Enterprise Organization
-Isolation), `main` @
-`13e91de8b6d2ff31091d70afa9b0bc53ab07ae8e` (PR #28's merge commit). This document is the
+Status: current as of PR #29's merge (Epic 05 — Permission-Key Registry &
+Authorization Hardening), `main` @
+`9342c5880f33e604f7448b684bd031481ea2abd9` (PR #29's merge commit). This document is the
 **single source of truth** for "where the project stands." It supersedes any
 verbal summary given in chat, a PR description, or a prior conversation —
 if this file and a conversation disagree, this file is right (or needs
@@ -23,14 +23,14 @@ Verification** rather than assumed.
 |---|---|
 | Repository URL | `github.com/tassiatmanouchehr-cloud/taasisatSenior` |
 | Default Branch | `main` |
-| Current `main` HEAD | `13e91de8b6d2ff31091d70afa9b0bc53ab07ae8e` (PR #28's merge commit) |
-| Current Test Count | **1209 passing**, 0 failing (`python manage.py test`, run on this branch — 58 new tests over the PR #26 baseline of 1151, all from Epic 04 — Enterprise Organization Isolation: order-organization eligibility CRUD/query, real-thread `TransactionTestCase` assignment-concurrency proofs, organization-scoped RBAC sync mechanics, assignment-center eligibility enforcement, the `backfill_organization_role_assignments`/`reconcile_organization_provider_suppliers` commands, cross-organization affiliated-provider isolation, and provider-affiliation financial-isolation regression — see `DECISION_HISTORY.md`) |
+| Current `main` HEAD | `9342c5880f33e604f7448b684bd031481ea2abd9` (PR #29's merge commit) |
+| Current Test Count | **1250 passing**, 0 failing (`python manage.py test`, run on this branch — 41 new tests over the PR #28 baseline of 1209, all from Epic 05 — Permission-Key Registry & Authorization Hardening: canonical permission-registry validation, permission-registry guardrails, `PermissionService` scope-hardening cases, organization-scoped RBAC enforcement at the intended call sites, `AssignmentService.replace()` authorization, `reconcile_role_permissions` command coverage, and reviewer-ownership authorization — see `DECISION_HISTORY.md`) |
 | Python Version | **3.12** is the project's canonical version — declared in `pyproject.toml` (`requires-python = ">=3.12"`), pinned in CI (`.github/workflows/ci.yml`, `python-version: "3.12"`), and pinned in `src/docker/Dockerfile.dev` (`FROM python:3.12-slim`). Three independent sources agree. The one execution environment that disagrees is this specific sandboxed session, which runs **3.11.15** — a fact about this session's container, not about the repository's declared target. Not flagged as uncertain: the repository is internally consistent on 3.12; only this particular runtime differs from it. |
 | Django Version | Installed: **5.2.16**. Declared requirement (`requirements/base.txt`): `django>=5.1,<5.3`. Consistent. |
 | Database | **PostgreSQL 16**, optionally with **PostGIS** (`GIS_ENABLED` env var switches `django.db.backends.postgresql` ↔ `django.contrib.gis.db.backends.postgis`; CI uses the `postgis/postgis:16-3.4` image with `GIS_ENABLED=true`). SQLite is supported as a settings-level fallback (`DATABASE_ENGINE=sqlite`) but is not the platform's real target and is not exercised by CI. |
 | Architecture Style | **Modular monolith** — a single Django project (`config/`) composed of 24 apps under `src/apps/`, each owning its own models/services/tests, communicating through service-layer calls and two deliberately separate event systems (see [Domain Events](#domain-events) below), not through network calls. No microservices, no separate deployable units. |
-| Current Development Phase | **Product Experience phase, in progress; Financial Settlement Sprint 1 and Enterprise Organization Isolation (Epic 04) now merged.** Customer Experience Phase 1 and Phase 2, Provider Experience Phase 1, Organization Experience Phase 1, Epic 03 Sprint 1 (Financial Settlement & Money Flow), and Epic 04 (Enterprise Organization Isolation) are now built. See [Current Development Phase](#current-development-phase) below. |
-| Current Project Status | Active development. 27 merged pull requests on `main` (PR #28, Epic 04 — Enterprise Organization Isolation, just merged; PR #27 was the preceding documentation-sync PR covering PR #26); this documentation-sync PR (covering PR #28) is open. A second Epic (PR #29, Epic 05 — Permission-Key Registry & Authorization Hardening) is open, stacked on the pre-merge Epic 04 branch, and awaits rebase onto this new `main` plus its own Architecture Review cycle before merge — not included in this document, per this repo's established "no unmerged work described as fact" rule. One documentation-maintenance PR (#21, opened after PR #20, predating Epic 02) remains open and now has merge conflicts against current `main` — not touched by this or any subsequent epic. No open incidents or known production deployment (no evidence of a live/production environment in this repository — infra config exists for one, but nothing indicates it is running). |
+| Current Development Phase | **Product Experience phase, in progress; Financial Settlement Sprint 1, Enterprise Organization Isolation (Epic 04), and Permission-Key Registry & Authorization Hardening (Epic 05) now merged.** Customer Experience Phase 1 and Phase 2, Provider Experience Phase 1, Organization Experience Phase 1, Epic 03 Sprint 1 (Financial Settlement & Money Flow), Epic 04 (Enterprise Organization Isolation), and Epic 05 (Permission-Key Registry & Authorization Hardening) are now built. See [Current Development Phase](#current-development-phase) below. |
+| Current Project Status | Active development. 29 merged pull requests on `main` (PR #29, Epic 05 — Permission-Key Registry & Authorization Hardening, just merged; PR #30 was the preceding documentation-sync PR covering PR #28, merged before PR #29 per the established merge order); this documentation-sync PR (covering PR #29) is open. One documentation-maintenance PR (#21, opened after PR #20, predating Epic 02) remains open and now has merge conflicts against current `main` — not touched by this or any subsequent epic. No open incidents or known production deployment (no evidence of a live/production environment in this repository — infra config exists for one, but nothing indicates it is running). |
 | Current Branching Strategy | Trunk-based: every unit of work branches from `main` (branch naming has drifted over time — see [Repository Structure](#repository-structure) → *A note on module numbering*), is reviewed as a pull request, and merges back to `main`. No long-lived release branches exist. `.github/workflows/ci.yml` also recognizes `phase-*/**` branches as a push trigger, though none currently exist. |
 | Repository Structure | See [below](#repository-structure). |
 | Current CI/Test Status | See [below](#current-ci--test-status). |
@@ -118,7 +118,7 @@ Filtering)** shipped under the branch name `module-12-search-discovery`.
 | `test` | `python manage.py check` → `migrate` → `test --verbosity=2`, against a real `postgis/postgis:16` + `redis:7` service pair |
 | `visual-regression` | Playwright accessibility/visual-snapshot tests against a running dev server, gated on `tailwind` + `test` passing |
 
-**Verified directly against the GitHub Actions API**: this workflow has **never actually run** — `GET /repos/tassiatmanouchehr-cloud/taasisatSenior/actions/workflows` returns zero registered workflows and zero runs. `ci.yml` is a real, complete, checked-in pipeline definition that GitHub has not yet executed even once (most likely because Actions has never been enabled/triggered for this repository, not because of a failure). There is therefore no CI pass/fail history to report — "green" or "red" does not yet apply. What *is* independently confirmed, locally, on this branch: `python manage.py check` reports 0 issues and `python manage.py test` reports **1209 passed, 0 failed**.
+**Verified directly against the GitHub Actions API**: this workflow has **never actually run** — `GET /repos/tassiatmanouchehr-cloud/taasisatSenior/actions/workflows` returns zero registered workflows and zero runs. `ci.yml` is a real, complete, checked-in pipeline definition that GitHub has not yet executed even once (most likely because Actions has never been enabled/triggered for this repository, not because of a failure). There is therefore no CI pass/fail history to report — "green" or "red" does not yet apply. What *is* independently confirmed, locally, on this branch: `python manage.py check` reports 0 issues and `python manage.py test` reports **1250 passed, 0 failed**.
 
 ### Known, harmless migration-check quirk
 
@@ -172,19 +172,30 @@ on manual `tenant_id=` filtering at every call site (see
 ### RBAC
 `apps.kernel.services.permission_service.PermissionService` is the sole
 evaluator of `Role`/`RoleAssignment` for any authorization decision —
-fail-closed, no `is_superuser` bypass. `Role.permissions` is a freeform
-JSON string list (no permission-key registry table exists — a documented
-gap, see `rbac-permissions.md`). As of Epic 04, `RoleAssignment
-.scope_type="organization"` finally has a production writer
-(`apps.accounts.services.organization_rbac.OrganizationRoleSyncService`,
-sole writer, idempotent, concurrency-safe via a partial unique
-constraint) — but the three organization-facing permission keys it grants
-are not yet checked by any `PermissionService.require()`/`.check()` call
-site; every affected action is still authorized through the pre-existing
-`ownership_authorized_by` fallback. See `rbac-permissions.md`'s "The
-three organization permission keys" section and `GAP_ANALYSIS.md` for the
-full accounting — wiring those call sites is Permission-Key Registry &
-Authorization Hardening (Epic 05, not yet merged) scope.
+fail-closed, no `is_superuser` bypass. `Role.permissions` remains a
+freeform JSON string list at the database level (`kernel.Permission`, a
+migrated "protected operations registry" model, stays deliberately
+dormant — nothing at runtime reads it; see `docs/adr
+/ADR-010_CANONICAL_PERMISSION_REGISTRY.md` for why), but as of Epic 05 a
+canonical, in-memory Python registry (`apps.kernel.permissions`, 23 keys)
+is now the single source of truth for every real permission key, with
+duplicate/malformed-key rejection at Django startup and a guardrail test
+proving no production `PermissionService` call site uses a raw string
+literal. `RoleAssignment.scope_type="organization"` has had a production
+writer since Epic 04 (`OrganizationRoleSyncService`); as of Epic 05 the
+three organization-facing permission keys it grants are now genuinely
+checked at their intended enforcement points (`AssignmentService.assign()`
+/`.replace()`, `OrganizationStaffService.approve_membership()`/
+`suspend_membership()`) — the `ownership_authorized_by` fallback is now
+the exception path (used only until an admin's `RoleAssignment` has
+synced), not the normal path. Epic 05 also fixed a previously tracked
+defect: `ReviewSubmissionService.submit_review()` now verifies the
+reviewer is the order's own customer. See `rbac-permissions.md` for the
+full registry/defect/scope-hardening writeup and `technical-debt
+-register.md` for what remains open (the two role-seeding catalogs stay
+intentionally distinct; the `ownership_authorized_by` fallback is not a
+standalone authorization boundary on its own — see that document's
+"security contract" section).
 
 ### Authentication
 Two independent, non-overlapping login paths: (1) phone/OTP for
@@ -358,11 +369,13 @@ organization-scoped." Capacity reuses
 `apps.availability.services.capacity_service.CapacityService`. Reports
 reuse `apps.reporting.services.provider_report_service.ProviderReportService`
 (one new `list_reports_for_suppliers()` batch method). An admin's own
-`OrganizationMembership` (role=ADMIN, status=ACTIVE) remains the primary
-security boundary — RBAC permission keys now exist for three
-organization-admin actions but are not yet the enforcement mechanism in
-practice (see the RBAC section above). Deliberately scoped to exactly one
-organization per admin (see `DECISION_HISTORY.md`).
+`OrganizationMembership` (role=ADMIN, status=ACTIVE) remains the
+upstream ownership boundary (`apps.organization_portal.permissions
+.resolve_organization()`, unchanged) — as of Epic 05, the three
+organization-admin RBAC permission keys are also genuinely enforced at
+their service-layer call sites (see the RBAC section above), not merely
+defined and granted. Deliberately scoped to exactly one organization per
+admin (see `DECISION_HISTORY.md`).
 
 ### Architecture Guardrails
 `apps/kernel/tests/test_architecture_guardrails.py` — automated,
@@ -457,27 +470,43 @@ Center to explicit, actor-attributed grants per (order, organization)
 pair. `AssignmentService.assign()`/`replace()` gained
 `Order.objects.select_for_update()` row-locking, proven safe under real
 concurrent Postgres transactions. `RoleAssignment.scope_type="organization"`
-evaluation — real since Module 08 but never written to — now has a
+evaluation — real since Module 08 but never written to — got its first
 production writer (`OrganizationRoleSyncService`), though the permission
-keys it grants are not yet consulted by any real call site (see the RBAC
-section above). `SupplierType.ORGANIZATION_PROVIDER` (previously
-unreachable) is now created for organization-affiliated caregivers, with
-financial isolation verified unchanged by regression test. A stacked
-follow-on Epic (05 — Permission-Key Registry & Authorization Hardening,
-PR #29) is implemented and pending its own Architecture Review/merge
-cycle; it closes the RBAC-enforcement gap Epic 04 left open, among other
-authorization-hardening work, but is not yet part of `main` and is not
-described as fact anywhere in this document.
+keys it grants were not yet consulted by any real call site at the time.
+`SupplierType.ORGANIZATION_PROVIDER` (previously unreachable) is now
+created for organization-affiliated caregivers, with financial isolation
+verified unchanged by regression test.
+
+Epic 05 (Permission-Key Registry & Authorization Hardening — PR #29,
+merged) closed the RBAC-enforcement gap Epic 04 left open, among other
+authorization hardening. A canonical, in-memory Python permission-key
+registry (`apps.kernel.permissions`, 23 keys) is now the single source of
+truth for every real permission key — the pre-existing, migrated
+`kernel.Permission` model stays deliberately dormant (see `docs/adr
+/ADR-010_CANONICAL_PERMISSION_REGISTRY.md`). Migrating every real
+`PermissionService` call site to a canonical constant surfaced three
+authorization defects, all fixed with dedicated tests: the phantom
+`organization.assignment.assign` key Epic 04 granted but nothing ever
+checked (retired; `organization_admin` now carries the actual checked
+key, `booking.assignment.assign`), `OrganizationStaffService
+.approve_membership()`/`suspend_membership()` having granted keys with
+zero enforcement, and `AssignmentService.replace()` having no
+authorization at all. A fourth, previously tracked defect was also fixed
+under this Epic's scope: `ReviewSubmissionService.submit_review()` now
+verifies the reviewer is the order's own customer. `PermissionService
+._scope_matches()` was hardened so an unscoped check no longer matches an
+organization-scoped assignment. The two previously divergent role-seeding
+commands now share one catalog module (`apps.kernel.role_catalog`,
+remaining intentionally distinct role sets, not merged/renamed), with a
+new `reconcile_role_permissions` operational command.
 
 This means the highest-leverage next work is not "build another
 foundation module" — most of the foundation-shaped work left (Trust &
 Governance, Document/Media, Workflow Automation, AI, Subscriptions,
 Geospatial) is real, but lower urgency than **finishing the loops the
 existing foundation already implies**: a real PSP adapter behind the now-
-real settlement bridge, a notification that actually reaches someone, and
-wiring the organization-scoped permission keys Epic 04 introduced to
-their real enforcement call sites (Epic 05, pending merge) — see
-`GAP_ANALYSIS.md`. See
+real settlement bridge, and a notification that actually reaches someone
+— see `GAP_ANALYSIS.md`. See
 [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md) and
 [`PRODUCT_ROADMAP.md`](PRODUCT_ROADMAP.md) for the detailed breakdown and
 prioritization.

@@ -1,8 +1,8 @@
 # Gap Analysis
 
-Status: current as of PR #28's merge (Epic 04 — Enterprise Organization
-Isolation), `main` @
-`13e91de8b6d2ff31091d70afa9b0bc53ab07ae8e` (PR #28's merge commit).
+Status: current as of PR #29's merge (Epic 05 — Permission-Key Registry
+& Authorization Hardening), `main` @
+`9342c5880f33e604f7448b684bd031481ea2abd9` (PR #29's merge commit).
 
 ## Where exactly are we today?
 
@@ -113,10 +113,8 @@ Registered, tracked debt:
 |---|---|---|---|
 | Accounts/kernel migration-check drift | `makemigrations --check --dry-run` | Low — cosmetic, `migrate` always reports no real changes | Would require pinning/regenerating a clean Django-version baseline; out of scope for a docs sprint |
 | Legacy frozen Finance wallet | `apps/finance/models/wallet.py`, `apps/finance/services/wallet_service.py` | Low — guardrail-enforced against accidental reuse | Would require a real migration (dropping tables); not worth doing without an unrelated reason to touch Finance |
-| Review reviewer-ownership gap | `apps.reviews.ReviewSubmissionService.submit_review()` | Medium in production (reputation integrity), low today (no real external API consumers yet) | Small, targeted service-layer fix — add `order.customer_profile.person_id == reviewer_person_id` |
 | Tenant-scoping manager inconsistency | 10 models across `kernel`/`accounts`/`reviews`/`wallet`/`finance`/`pricing` | Low today (every call site filters correctly by hand), structurally fragile | Additive `TenantScopedManager` retrofit — schema-safe, no migration required |
-| Default roles ship with empty permissions | `apps/kernel/management/commands/seed_tenant.py` | Real gap for any fresh deployment wanting the API/RBAC-gated features usable | Product/security decision needed: which roles get which keys, seeded explicitly |
-| No permission-key registry | `apps.kernel.models.rbac.Role.permissions` (freeform JSON string list) | Low today, real long-term risk (a typo'd key silently grants nothing, forever) | A registry table validating `permission_key` against a canonical list — a real RBAC-hardening module |
+| Default roles ship with empty permissions | `apps/kernel/role_catalog.py`'s `DEV_BOOTSTRAP_ROLES` (most non-`organization_admin`/`platform-owner` entries) | Real gap for any fresh deployment wanting the API/RBAC-gated features usable | Product/security decision needed: which roles get which keys, seeded explicitly |
 | Two parallel async-execution mechanisms | `apps.jobs` vs. `kernel.tasks`'s Celery/EventOutbox worker | Low today (each was a reasonable local decision), confusing long-term | Reconcile into one story before either grows further — see *Duplicated concepts* below |
 | Settlement retry-job mechanism has no dedicated test coverage | `apps.payments.jobs`, `PaymentCallbackService._trigger_settlement` | Medium — the recovery path for Critical Finding 1 is architecturally sound but unverified by test evidence | Add tests: job creation on callback-triggered failure, handler execution via `JobService.execute_job()`, idempotent re-enqueue, direct-call failures not enqueuing |
 | Settlement enqueue-failure not hardened | `PaymentCallbackService._trigger_settlement` | Low probability, real when it occurs — an enqueue failure propagates out of `process_callback()` uncaught, breaking its "never re-raised" contract | Wrap `JobService.enqueue(...)` in its own try/except inside the existing except-block |
@@ -127,10 +125,10 @@ Registered, tracked debt:
 | Adjustment pipeline has no internal arithmetic invariants | `apps.payments.services.settlement_adjustments.SettlementAdjustmentPipeline` | Low today (identity function, trivially balanced); real risk once a non-trivial rule is added | Add a `net == gross - commission - tax + discount_recovery` consistency assertion inside `run()` |
 | Escrow warning is log-only and re-fires on every retry | `SettlementOrchestrationService.settle_payment_intent` | Low — operationally noisy, not incorrect; every settlement today logs it since `financial.escrow.enabled` is unseeded and defaults `True` | Persist a queryable/alertable record, or seed the config key explicitly per tenant, or deduplicate per intent |
 | Retry-triggered settlements not distinguishable from first-attempt in audit trail | `PermissionService.require(actor=None, ...)` system-context logging, used identically by both paths | Low — consistent with existing system-context precedent, just imprecise | Record `job.id`/a "settled_via" marker in the relevant audit/event payload if this distinction is ever needed operationally |
-| Three organization-facing permission keys granted but not yet enforced | `apps.accounts.permission_keys` (`organization.assignment.assign`, `organization.membership.approve`, `organization.membership.suspend`); no `PermissionService` call site checks any of them | Low today — every affected action remains safely authorized via the pre-existing `ownership_authorized_by` fallback or the portal's own ownership gate | Wire `AssignmentService.assign()`/`replace()`, `approve_membership()`, `suspend_membership()` to their intended keys — implemented and tested on the pending Epic 05 branch (PR #29) |
-| `RoleAssignment` sync audit misattributes suspension actor | `apps.accounts.services.organization_rbac.OrganizationRoleSyncService._audit()`, reached via `suspend_membership()` | Low — cosmetic audit-trail nuance, no data-integrity or authorization impact | Thread a real actor through `suspend_membership()` (implemented on the pending Epic 05 branch) |
 | No single test chains real affiliation-approval to financial-party resolution end-to-end | `apps.accounts.tests.test_supplier_bridge` (real flow, no financial assertion) vs. `apps.finance.tests.test_organization_provider_financial_isolation` (financial assertion, direct fixture) | Low — both halves independently, correctly tested | Add one test combining both, once convenient |
-| Two independent, unreconciled role-seeding catalogs | `apps.kernel.management.commands.seed_tenant` (hyphenated `DEFAULT_ROLES`, `dev` tenant) vs. `apps.accounts.management.commands.seed_auth_roles` (underscored `ROLES`, real `salmandyar` tenant) | Low today (only the latter is extended/used by the real default tenant) | Reconcile into one catalog — addressed on the pending Epic 05 branch |
+| Two role-seeding catalogs remain intentionally distinct role sets | `apps.kernel.role_catalog.DEV_BOOTSTRAP_ROLES` (hyphenated, `dev` tenant) vs. `DEFAULT_TENANT_ROLES` (underscored, real `salmandyar` tenant) — centralized into one shared module by Epic 05, but deliberately not merged/renamed (would mean renaming live `Role`/`RoleAssignment` database rows) | Low — `reconcile_role_permissions` keeps each catalog's own permissions in sync with its own roles; the one known slug alias (`platform-owner`/`platform_owner`) is recorded but not merged | A future, dedicated, database-safe rename/merge decision if the two are ever meant to become one taxonomy — see ADR-010 |
+| Raw-literal `PermissionService` guardrail is regex-based, not AST-based | `apps.kernel.tests.test_permission_registry_guardrails.NoRawLiteralPermissionKeysTest` | Low — no current call site uses variable indirection or keyword-argument form to pass a key, but neither would be caught if one did | Harden to an AST-based check, or add a convention note, if a bypass is ever found |
+| `PermissionService` does not validate a `permission_key` against the canonical registry at evaluation time | `apps.kernel.services.permission_service.PermissionService.check()`/`.require()` | Low — an unknown/unregistered key fails closed by construction (behaves exactly like a legitimate-but-ungranted key), but this is implicit and untested, not an explicit, tested policy | Add a test asserting the fail-closed behavior for an unregistered key; document it in `rbac-permissions.md` |
 
 ## Known limitations
 
@@ -274,8 +272,8 @@ previously documented gap:
   dedicated section immediately below.
 - **Organization-scoped RBAC seeding** — a real production writer now
   exists (`OrganizationRoleSyncService`); the three keys it grants are
-  not yet enforced at their intended call sites — see "Architecture
-  gaps" below.
+  now genuinely enforced at their intended call sites — see "Future
+  placeholders — resolved by Epic 05" below.
 
 **New capability delivered by Epic 04 (not a previously tracked gap):**
 
@@ -323,6 +321,20 @@ see or claim another organization's orders. See `docs/adr
 record and the alternatives considered (a direct `Order.organization` FK,
 a formal bidding/routing model) and why the explicit-grant junction model
 was chosen over both.
+
+## Future placeholders — resolved by Epic 05 (Permission-Key Registry & Authorization Hardening)
+
+- **No permission-key registry** and **organization-scoped RBAC seeding
+  exists but enforcement does not** — both closed; see "Architecture
+  gaps" above for the full writeup.
+- **Reviewer-ownership defect** — `ReviewSubmissionService.submit_review()`
+  previously never verified the reviewer was the order's own customer;
+  now fixed at the service level, with dedicated allow/deny tests. See
+  `docs/adr/ADR-010_CANONICAL_PERMISSION_REGISTRY.md`'s defect writeup
+  #4 for the full previous-behavior/risk/remediation account.
+- **`AssignmentService.replace()` had zero authorization** — now enforces
+  the same canonical key `assign()` does. No production caller exists yet
+  (confirmed by inspection), closed before one is ever wired up.
 
 ## Duplicated concepts
 
@@ -372,13 +384,14 @@ Ranked by leverage, not by module number:
    adapters — plus the operational-hardening technical debt listed below
    (retry-path test coverage, `LedgerEntry` constraint generalization,
    `provider_reference` semantics).
-2. **Identity, Roles, Profiles & Access** (Module 08) — finish the
-   permission-key registry and general default-role permission seeding.
-   Every RBAC-gated feature in a fresh deployment is silently inert
-   without it. Epic 04 built the organization-scoped `RoleAssignment`
-   writer; wiring the three keys it grants to a real
-   `PermissionService.require()` call site at each intended enforcement
-   point remains open (Epic 05 territory, PR #29 pending merge).
+2. **Identity, Roles, Profiles & Access** (Module 08) — the canonical
+   permission-key registry now exists (Epic 05) and every organization
+   permission key is now genuinely enforced. What remains: general
+   default-role permission seeding for the broader `DEV_BOOTSTRAP_ROLES`
+   catalog (most non-`organization_admin`/`platform-owner` roles still
+   ship with empty `permissions`) and the two server-rendered
+   portals-still-ownership-scoped-rather-than-RBAC-scoped choice
+   (deliberate, see `DECISION_HISTORY.md`, not a defect).
 3. **Background Jobs & Scheduler** (Module 22) — register real handlers.
    The hard infrastructure work is already done; only consumers are
    missing.
@@ -412,49 +425,41 @@ Ranked by leverage, not by module number:
 
 ## Architecture gaps
 
-- No permission-key registry — a typo in a granted permission string
-  fails silently, forever. All three server-rendered portals today
-  (`apps.portal`, `apps.provider_portal`, `apps.organization_portal`) use
-  ownership as their security boundary instead of RBAC permission keys —
-  a deliberate, consistent choice (see `DECISION_HISTORY.md`), not drift —
-  because no infrastructure exists yet to seed org/provider-scoped role
-  assignments.
-- **Organization-scoped RBAC seeding now exists (Epic 04); enforcement at
-  the intended call sites does not yet (tracked, Epic 05 territory).**
-  `RoleAssignment.scope_type="organization"`/`scope_id` and
-  `PermissionService`'s own `_scope_matches()` evaluation logic were real
-  and exercised since Module 08, but had zero production writers until
-  Epic 04 (Enterprise Organization Isolation, PR #28, merged):
-  `apps.accounts.services.organization_rbac.OrganizationRoleSyncService`
-  is now the sole writer, hooked into the two places an `ADMIN`-role
-  `OrganizationMembership` transitions status, idempotent and
-  concurrency-safe (a new partial `UniqueConstraint` on `RoleAssignment`),
-  with a one-time `backfill_organization_role_assignments` command for
-  memberships that predate the mechanism. **However**: the three
-  permission keys this grants (`organization.assignment.assign`,
-  `organization.membership.approve`, `organization.membership.suspend`
-  — `apps.accounts.permission_keys`) are not yet checked by any
-  `PermissionService.require()`/`.check()` call site.
-  `AssignmentService.assign()`/`replace()` check the literal
-  `"booking.assignment.assign"`, a different string that never matches;
-  `approve_membership()`/`suspend_membership()` have no permission check
-  of any kind. Confirmed safe regardless (`OrganizationAssignmentService
-  .assign_manual()` calls `AssignmentService.assign(ownership_authorized_by
-  =actor)`: `PermissionService.require()` tries the real actor as a
-  normal RBAC actor first — currently always falls through, given the
-  above — and only then falls back to an explicit, correctly
-  actor-attributed `rbac.permission.ownership_authorized` audit entry,
-  never silently logged as `system_context`; `approve_membership()`/
-  `suspend_membership()` remain gated by `apps.organization_portal
-  .permissions.resolve_organization()`'s ownership check at the portal
-  view layer). This is now accurately documented at the point of
-  definition (`apps.accounts.permission_keys`, `rbac-permissions.md`,
-  `ADR-009`) rather than a silent gap. Closing it — wiring these three
-  call sites to their intended keys — is Permission-Key Registry &
-  Authorization Hardening (Epic 05) scope; a fix already exists,
-  implemented and tested, on the not-yet-merged Epic 05 branch. See
-  `DECISION_HISTORY.md` for the full reasoning and `technical-debt
-  -register.md` for this item's tracked entry.
+- ~~No permission-key registry~~ — **closed by Epic 05** (Permission-Key
+  Registry & Authorization Hardening, PR #29, merged). A canonical,
+  in-memory Python registry (`apps.kernel.permissions`, 23 keys) is now
+  the single source of truth for every real permission key, with
+  duplicate/malformed-key rejection at Django startup and a guardrail
+  test proving no production `PermissionService` call site uses a raw
+  string literal. The pre-existing, migrated `kernel.Permission` model
+  remains deliberately dormant — see `docs/adr
+  /ADR-010_CANONICAL_PERMISSION_REGISTRY.md` for why. The three
+  server-rendered portals (`apps.portal`, `apps.provider_portal`,
+  `apps.organization_portal`) still use ownership as their primary
+  security boundary — a deliberate, consistent choice (see
+  `DECISION_HISTORY.md`), not drift.
+- ~~Organization-scoped RBAC seeding exists but enforcement at the
+  intended call sites does not~~ — **closed by Epic 05**.
+  `RoleAssignment.scope_type="organization"`/`scope_id` evaluation and
+  its production writer (`OrganizationRoleSyncService`, since Epic 04)
+  now have their consumer side wired up too: `AssignmentService.assign()`
+  /`.replace()` and `OrganizationStaffService.approve_membership()`/
+  `suspend_membership()` all check their intended canonical permission
+  key. Migrating every real `PermissionService` call site to a canonical
+  constant surfaced three real, independent authorization defects (all
+  fixed with dedicated tests) — the phantom
+  `organization.assignment.assign` key Epic 04 granted but
+  `AssignmentService.assign()` never checked (retired; `organization_admin`
+  now carries the actual checked key), the two membership methods having
+  granted keys with zero enforcement, and `AssignmentService.replace()`
+  having no authorization at all. The pre-existing `ownership_authorized_by`
+  fallback remains in place and is now the exception path (used only
+  until an admin's `RoleAssignment` has synced), not the normal path —
+  see `rbac-permissions.md`'s "The `ownership_authorized_by` security
+  contract" section for the exact, explicit guarantee (and non-guarantee)
+  this fallback provides. See `docs/adr
+  /ADR-010_CANONICAL_PERMISSION_REGISTRY.md` for the full defect writeups
+  and `DECISION_HISTORY.md` for the decision record.
 - No public API surface — nothing external can integrate with this
   platform today.
 - No metrics, tracing, or alerting beyond a single health-check endpoint
