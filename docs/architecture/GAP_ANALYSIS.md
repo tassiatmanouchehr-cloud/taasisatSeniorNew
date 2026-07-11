@@ -264,7 +264,11 @@ itself, which remains unchanged. See `PROJECT_MODULE_STATUS.md` Module 02.
 
 ## Future placeholders — resolved by Epic 04 (Enterprise Organization Isolation)
 
-Three items from Epic 02's own gap list are now closed:
+Two previously tracked gaps from Epic 02's own gap list are now closed,
+plus one new capability Epic 04 delivered that was not itself a
+previously documented gap:
+
+**Previously tracked Epic 02 gaps, now closed:**
 
 - **Organization Assignment Center tenant-wide visibility** — see the
   dedicated section immediately below.
@@ -272,6 +276,9 @@ Three items from Epic 02's own gap list are now closed:
   exists (`OrganizationRoleSyncService`); the three keys it grants are
   not yet enforced at their intended call sites — see "Architecture
   gaps" below.
+
+**New capability delivered by Epic 04 (not a previously tracked gap):**
+
 - **Affiliated-provider financial identity** — `SupplierType
   .ORGANIZATION_PROVIDER` (a Module 03 enum value, previously
   unreachable) is now created for organization-affiliated caregivers
