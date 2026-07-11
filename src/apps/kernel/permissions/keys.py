@@ -18,7 +18,10 @@ from .registry import register
 # --- apps.booking ------------------------------------------------------
 
 BOOKING_ASSIGNMENT_ASSIGN = register(
-    "booking.assignment.assign", domain="booking", resource="assignment", action="assign",
+    "booking.assignment.assign",
+    domain="booking",
+    resource="assignment",
+    action="assign",
     description="Assign a supplier to an order. Guards AssignmentService.assign()/replace().",
     organization_scope=True,
 )
@@ -26,43 +29,78 @@ BOOKING_ASSIGNMENT_ASSIGN = register(
 # --- apps.finance --------------------------------------------------------
 
 FINANCE_LEDGER_POST = register(
-    "finance.ledger.post", domain="finance", resource="ledger", action="post",
+    "finance.ledger.post",
+    domain="finance",
+    resource="ledger",
+    action="post",
     description="Post balanced ledger entries. Guards LedgerService.post_entries().",
 )
 FINANCE_PAYMENT_RECORD = register(
-    "finance.payment.record", domain="finance", resource="payment", action="record",
+    "finance.payment.record",
+    domain="finance",
+    resource="payment",
+    action="record",
     description="Record a payment transaction. Guards PaymentService.record_payment() (or equivalent).",
 )
 FINANCE_SETTLEMENT_CREATE_BATCH = register(
-    "finance.settlement.create_batch", domain="finance", resource="settlement", action="create_batch",
+    "finance.settlement.create_batch",
+    domain="finance",
+    resource="settlement",
+    action="create_batch",
     description="Create a settlement batch. Guards SettlementService.create_batch().",
 )
 FINANCE_DOCUMENT_ISSUE = register(
-    "finance.document.issue", domain="finance", resource="document", action="issue",
+    "finance.document.issue",
+    domain="finance",
+    resource="document",
+    action="issue",
     description="Issue a financial document. Guards FinancialDocumentService's issue transition.",
 )
 FINANCE_DOCUMENT_LOCK = register(
-    "finance.document.lock", domain="finance", resource="document", action="lock",
+    "finance.document.lock",
+    domain="finance",
+    resource="document",
+    action="lock",
     description="Lock a financial document. Guards FinancialDocumentService's lock transition.",
 )
 
 # --- apps.execution --------------------------------------------------------
 
 EXECUTION_SESSION_CLOSE = register(
-    "execution.session.close", domain="execution", resource="session", action="close",
+    "execution.session.close",
+    domain="execution",
+    resource="session",
+    action="close",
     description="Close an execution session. Guards ExecutionService's close transition.",
 )
 
 # --- apps.accounts / organization isolation (Epic 04, corrected in Epic 05) --
 
 ORGANIZATION_MEMBERSHIP_APPROVE = register(
-    "organization.membership.approve", domain="organization", resource="membership", action="approve",
+    "organization.membership.approve",
+    domain="organization",
+    resource="membership",
+    action="approve",
     description="Approve an OrganizationMembership. Guards OrganizationStaffService.approve_membership().",
     organization_scope=True,
 )
 ORGANIZATION_MEMBERSHIP_SUSPEND = register(
-    "organization.membership.suspend", domain="organization", resource="membership", action="suspend",
+    "organization.membership.suspend",
+    domain="organization",
+    resource="membership",
+    action="suspend",
     description="Suspend an OrganizationMembership. Guards OrganizationStaffService.suspend_membership().",
+    organization_scope=True,
+)
+ORGANIZATION_PROFILE_UPDATE = register(
+    "organization.profile.update",
+    domain="organization",
+    resource="profile",
+    action="update",
+    description=(
+        "Edit an OrganizationProfile's own public/contact fields, media, or documents. "
+        "Guards OrganizationProfileUpdateService.update_profile() (Epic 06 Sprint 2)."
+    ),
     organization_scope=True,
 )
 
@@ -72,61 +110,109 @@ ORGANIZATION_MEMBERSHIP_SUSPEND = register(
 # becomes a re-export facade over these, see that module.
 
 REPORTING_READ = register(
-    "reporting.read", domain="reporting", resource="reporting", action="read",
+    "reporting.read",
+    domain="reporting",
+    resource="reporting",
+    action="read",
     description="Read reporting endpoints. Guards GET /api/v1/sample/order-counts/, /providers/.",
 )
 DISCOVERY_SUPPLIERS_READ = register(
-    "discovery.suppliers.read", domain="discovery", resource="suppliers", action="read",
+    "discovery.suppliers.read",
+    domain="discovery",
+    resource="suppliers",
+    action="read",
     description="Read discovery supplier listings. Guards GET /api/v1/discovery/suppliers/.",
 )
 PRICING_QUOTES_CREATE = register(
-    "pricing.quotes.create", domain="pricing", resource="quotes", action="create",
+    "pricing.quotes.create",
+    domain="pricing",
+    resource="quotes",
+    action="create",
     description="Create a pricing quote. Guards POST /api/v1/pricing/quotes/.",
 )
 REVIEWS_SUBMIT = register(
-    "reviews.submit", domain="reviews", resource="reviews", action="submit",
+    "reviews.submit",
+    domain="reviews",
+    resource="reviews",
+    action="submit",
     description="Submit a review. Guards POST /api/v1/reviews/.",
 )
 REVIEWS_READ = register(
-    "reviews.read", domain="reviews", resource="reviews", action="read",
+    "reviews.read",
+    domain="reviews",
+    resource="reviews",
+    action="read",
     description="Read supplier reputation. Guards GET /api/v1/suppliers/{id}/reputation/.",
 )
 WALLET_READ = register(
-    "wallet.read", domain="wallet", resource="wallet", action="read",
+    "wallet.read",
+    domain="wallet",
+    resource="wallet",
+    action="read",
     description="Read wallet balance/transactions. Guards GET /api/v1/wallet/balance/, /transactions/.",
 )
 PAYMENTS_INTENTS_CREATE = register(
-    "payments.intents.create", domain="payments", resource="intents", action="create",
+    "payments.intents.create",
+    domain="payments",
+    resource="intents",
+    action="create",
     description="Create a payment intent. Guards POST /api/v1/payments/intents/.",
 )
 PAYMENTS_ATTEMPTS_CREATE = register(
-    "payments.attempts.create", domain="payments", resource="attempts", action="create",
+    "payments.attempts.create",
+    domain="payments",
+    resource="attempts",
+    action="create",
     description="Create a payment attempt. Guards POST /api/v1/payments/intents/{id}/attempts/.",
 )
 
 # --- apps.admin_portal (Module 19) ---------------------------------------
 
 ADMIN_PORTAL_ACCESS = register(
-    "admin.portal.access", domain="admin", resource="portal", action="access",
-    description="Access the admin portal at all.", platform_scope=True,
+    "admin.portal.access",
+    domain="admin",
+    resource="portal",
+    action="access",
+    description="Access the admin portal at all.",
+    platform_scope=True,
 )
 ADMIN_TENANTS_READ = register(
-    "admin.tenants.read", domain="admin", resource="tenants", action="read",
-    description="Read tenant data in the admin portal.", platform_scope=True,
+    "admin.tenants.read",
+    domain="admin",
+    resource="tenants",
+    action="read",
+    description="Read tenant data in the admin portal.",
+    platform_scope=True,
 )
 ADMIN_SUPPLIERS_READ = register(
-    "admin.suppliers.read", domain="admin", resource="suppliers", action="read",
-    description="Read supplier data in the admin portal.", platform_scope=True,
+    "admin.suppliers.read",
+    domain="admin",
+    resource="suppliers",
+    action="read",
+    description="Read supplier data in the admin portal.",
+    platform_scope=True,
 )
 ADMIN_ORDERS_READ = register(
-    "admin.orders.read", domain="admin", resource="orders", action="read",
-    description="Read order data in the admin portal.", platform_scope=True,
+    "admin.orders.read",
+    domain="admin",
+    resource="orders",
+    action="read",
+    description="Read order data in the admin portal.",
+    platform_scope=True,
 )
 ADMIN_FINANCE_READ = register(
-    "admin.finance.read", domain="admin", resource="finance", action="read",
-    description="Read finance data in the admin portal.", platform_scope=True,
+    "admin.finance.read",
+    domain="admin",
+    resource="finance",
+    action="read",
+    description="Read finance data in the admin portal.",
+    platform_scope=True,
 )
 ADMIN_SYSTEM_READ = register(
-    "admin.system.read", domain="admin", resource="system", action="read",
-    description="Read system data in the admin portal.", platform_scope=True,
+    "admin.system.read",
+    domain="admin",
+    resource="system",
+    action="read",
+    description="Read system data in the admin portal.",
+    platform_scope=True,
 )

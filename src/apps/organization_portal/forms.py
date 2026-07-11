@@ -21,3 +21,29 @@ class StyledForm(forms.Form):
 
 class AssignStaffForm(StyledForm):
     membership_id = forms.UUIDField(error_messages={"required": "لطفاً یک نیرو انتخاب کنید."})
+
+
+class OrganizationProfileForm(StyledForm):
+    name = forms.CharField(max_length=255, label="نام سازمان", error_messages={"required": "نام سازمان الزامی است."})
+    description = forms.CharField(widget=forms.Textarea, label="توضیحات", required=False, max_length=2000)
+    city = forms.CharField(max_length=100, label="شهر", required=False)
+    phone = forms.CharField(max_length=20, label="تلفن", required=False)
+    address = forms.CharField(widget=forms.Textarea, label="آدرس", required=False)
+    company_type = forms.CharField(max_length=100, label="نوع فعالیت", required=False)
+    team_size = forms.CharField(max_length=20, label="اندازه تیم", required=False)
+
+
+class OrganizationServicesForm(StyledForm):
+    service_category_ids = forms.MultipleChoiceField(label="خدمات", required=False, choices=())
+
+    def __init__(self, *args, service_category_choices=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["service_category_ids"].choices = service_category_choices
+
+
+class OrganizationImageUploadForm(StyledForm):
+    image = forms.ImageField(label="تصویر", error_messages={"required": "لطفاً یک تصویر انتخاب کنید."})
+
+
+class OrganizationDocumentUploadForm(StyledForm):
+    file = forms.FileField(label="فایل", error_messages={"required": "لطفاً یک فایل انتخاب کنید."})

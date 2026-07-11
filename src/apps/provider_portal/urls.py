@@ -16,9 +16,23 @@ urlpatterns = [
     path("assignments/<uuid:order_id>/start/", views.visit_start_view, name="visit-start"),
     path("assignments/<uuid:order_id>/complete/", views.visit_complete_view, name="visit-complete"),
     path("availability/", views.availability_view, name="availability"),
-    path("availability/windows/<uuid:window_id>/remove/", views.working_window_remove_view, name="working-window-remove"),
+    path(
+        "availability/windows/<uuid:window_id>/remove/", views.working_window_remove_view, name="working-window-remove"
+    ),
     path("availability/blocked-periods/add/", views.blocked_period_create_view, name="blocked-period-create"),
-    path("availability/blocked-periods/<uuid:blocked_period_id>/remove/", views.blocked_period_remove_view, name="blocked-period-remove"),
+    path(
+        "availability/blocked-periods/<uuid:blocked_period_id>/remove/",
+        views.blocked_period_remove_view,
+        name="blocked-period-remove",
+    ),
     path("earnings/", views.earnings_view, name="earnings"),
     path("notifications/", views.notifications_view, name="notifications"),
+    path("profile/", views.profile_view, name="profile"),
+    path("profile/edit/basic/", views.profile_edit_basic_view, name="profile-edit-basic"),
+    path("profile/edit/professional/", views.profile_edit_professional_view, name="profile-edit-professional"),
+    path("profile/avatar/", views.avatar_upload_view, name="profile-avatar-upload"),
+    path("profile/avatar/remove/", views.avatar_remove_view, name="profile-avatar-remove"),
+    path("profile/cover/", views.cover_upload_view, name="profile-cover-upload"),
+    path("profile/cover/remove/", views.cover_remove_view, name="profile-cover-remove"),
+    path("documents/<str:document_type>/", views.document_manage_view, name="document-manage"),
 ]

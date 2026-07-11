@@ -36,3 +36,30 @@ class BlockedPeriodForm(StyledForm):
 
 class DeclineAssignmentForm(StyledForm):
     reason = forms.CharField(widget=forms.Textarea, required=False)
+
+
+class BasicInfoForm(StyledForm):
+    display_name = forms.CharField(
+        max_length=255, label="نام نمایشی", error_messages={"required": "نام نمایشی الزامی است."}
+    )
+    city = forms.CharField(max_length=100, label="شهر", required=False)
+
+
+class ProfessionalInfoForm(StyledForm):
+    bio = forms.CharField(widget=forms.Textarea, label="بیوگرافی", required=False, max_length=2000)
+    specialty = forms.CharField(max_length=100, label="تخصص", required=False)
+    years_experience = forms.IntegerField(label="سابقه کار (سال)", required=False, min_value=0, max_value=80)
+    service_radius_km = forms.IntegerField(label="شعاع خدمت‌رسانی (کیلومتر)", required=False, min_value=0, max_value=500)
+    service_category_ids = forms.MultipleChoiceField(label="خدمات", required=False, choices=())
+
+    def __init__(self, *args, service_category_choices=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["service_category_ids"].choices = service_category_choices
+
+
+class ImageUploadForm(StyledForm):
+    image = forms.ImageField(label="تصویر", error_messages={"required": "لطفاً یک تصویر انتخاب کنید."})
+
+
+class DocumentUploadForm(StyledForm):
+    file = forms.FileField(label="فایل", error_messages={"required": "لطفاً یک فایل انتخاب کنید."})

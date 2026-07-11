@@ -11,6 +11,13 @@ import uuid
 from django.conf import settings
 from django.db import models
 
+from .media_paths import (
+    caregiver_avatar_path,
+    caregiver_cover_path,
+    organization_cover_path,
+    organization_logo_path,
+)
+
 
 class ProfileStatus(models.TextChoices):
     DRAFT = "draft", "Draft"
@@ -112,13 +119,18 @@ class PlatformTeamStatus(models.TextChoices):
 # CustomerProfile
 # ============================================================
 
+
 class CustomerProfile(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="customer_profile",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="customer_profile",
     )
     person = models.OneToOneField(
-        "kernel.Person", on_delete=models.CASCADE, related_name="customer_profile",
+        "kernel.Person",
+        on_delete=models.CASCADE,
+        related_name="customer_profile",
     )
     phone = models.CharField(max_length=20, db_index=True)
     display_name = models.CharField(max_length=255)
@@ -150,17 +162,22 @@ class CustomerProfile(models.Model):
 # vocabulary in the customer portal calls it "Care Recipient" throughout.
 # ============================================================
 
+
 class ElderProfile(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     customer_profile = models.ForeignKey(
-        CustomerProfile, on_delete=models.CASCADE, related_name="elder_profiles",
+        CustomerProfile,
+        on_delete=models.CASCADE,
+        related_name="elder_profiles",
     )
     full_name = models.CharField(max_length=255)
     gender = models.CharField(max_length=20, blank=True)
     birth_date = models.DateField(null=True, blank=True)
     approximate_age = models.IntegerField(null=True, blank=True)
     relationship = models.CharField(
-        max_length=20, choices=CareRecipientRelationship.choices, blank=True,
+        max_length=20,
+        choices=CareRecipientRelationship.choices,
+        blank=True,
         help_text="The requesting customer's relationship to this care recipient.",
     )
     phone = models.CharField(max_length=20, blank=True)
@@ -171,10 +188,14 @@ class ElderProfile(models.Model):
     disabilities = models.TextField(blank=True)
     allergies = models.TextField(blank=True)
     mobility_level = models.CharField(
-        max_length=30, choices=MobilityLevel.choices, default=MobilityLevel.UNKNOWN,
+        max_length=30,
+        choices=MobilityLevel.choices,
+        default=MobilityLevel.UNKNOWN,
     )
     preferred_caregiver_gender = models.CharField(
-        max_length=20, choices=CaregiverGenderPreference.choices, default=CaregiverGenderPreference.NO_PREFERENCE,
+        max_length=20,
+        choices=CaregiverGenderPreference.choices,
+        default=CaregiverGenderPreference.NO_PREFERENCE,
     )
     preferred_language = models.CharField(max_length=50, blank=True)
     communication_notes = models.TextField(blank=True)
@@ -197,13 +218,20 @@ class ElderProfile(models.Model):
 # TrustedContact
 # ============================================================
 
+
 class TrustedContact(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     customer_profile = models.ForeignKey(
-        CustomerProfile, on_delete=models.CASCADE, related_name="trusted_contacts",
+        CustomerProfile,
+        on_delete=models.CASCADE,
+        related_name="trusted_contacts",
     )
     elder_profile = models.ForeignKey(
-        ElderProfile, on_delete=models.SET_NULL, null=True, blank=True, related_name="trusted_contacts",
+        ElderProfile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="trusted_contacts",
     )
     full_name = models.CharField(max_length=255)
     phone = models.CharField(max_length=20)
@@ -211,7 +239,9 @@ class TrustedContact(models.Model):
     can_receive_sms = models.BooleanField(default=True)
     can_receive_emergency_notifications = models.BooleanField(default=False)
     access_level = models.CharField(
-        max_length=20, choices=TrustedContactAccessLevel.choices, default=TrustedContactAccessLevel.NOTIFY_ONLY,
+        max_length=20,
+        choices=TrustedContactAccessLevel.choices,
+        default=TrustedContactAccessLevel.NOTIFY_ONLY,
     )
     status = models.CharField(max_length=20, choices=ProfileStatus.choices, default=ProfileStatus.ACTIVE)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -228,29 +258,40 @@ class TrustedContact(models.Model):
 # CaregiverProfile
 # ============================================================
 
+
 class CaregiverProfile(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="caregiver_profile",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="caregiver_profile",
     )
     person = models.OneToOneField(
-        "kernel.Person", on_delete=models.CASCADE, related_name="caregiver_profile",
+        "kernel.Person",
+        on_delete=models.CASCADE,
+        related_name="caregiver_profile",
     )
     phone = models.CharField(max_length=20, db_index=True)
     display_name = models.CharField(max_length=255)
     specialty = models.CharField(max_length=100, blank=True)
     city = models.CharField(max_length=100, blank=True)
     provider_type = models.CharField(
-        max_length=30, choices=CaregiverProviderType.choices, default=CaregiverProviderType.INDEPENDENT,
+        max_length=30,
+        choices=CaregiverProviderType.choices,
+        default=CaregiverProviderType.INDEPENDENT,
     )
     profile_completion_percent = models.IntegerField(default=0)
     verification_status = models.CharField(
-        max_length=20, choices=VerificationStatus.choices, default=VerificationStatus.UNVERIFIED,
+        max_length=20,
+        choices=VerificationStatus.choices,
+        default=VerificationStatus.UNVERIFIED,
     )
     bio = models.TextField(blank=True)
     years_experience = models.IntegerField(null=True, blank=True)
     service_radius_km = models.IntegerField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=ProfileStatus.choices, default=ProfileStatus.ACTIVE)
+    avatar = models.ImageField(upload_to=caregiver_avatar_path, null=True, blank=True)
+    cover_image = models.ImageField(upload_to=caregiver_cover_path, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -265,12 +306,15 @@ class CaregiverProfile(models.Model):
 # OrganizationProfile
 # ============================================================
 
+
 class OrganizationProfile(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     code = models.CharField(max_length=50, unique=True, db_index=True)
     admin_user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="administered_organizations",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="administered_organizations",
     )
     company_type = models.CharField(max_length=100, blank=True)
     city = models.CharField(max_length=100, blank=True)
@@ -280,12 +324,20 @@ class OrganizationProfile(models.Model):
     address = models.TextField(blank=True)
     description = models.TextField(blank=True)
     verification_status = models.CharField(
-        max_length=20, choices=VerificationStatus.choices, default=VerificationStatus.UNVERIFIED,
+        max_length=20,
+        choices=VerificationStatus.choices,
+        default=VerificationStatus.UNVERIFIED,
     )
     status = models.CharField(max_length=20, choices=ProfileStatus.choices, default=ProfileStatus.ACTIVE)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.CASCADE, related_name="organizations", null=True, blank=True,
+        "kernel.Tenant",
+        on_delete=models.CASCADE,
+        related_name="organizations",
+        null=True,
+        blank=True,
     )
+    logo = models.ImageField(upload_to=organization_logo_path, null=True, blank=True)
+    cover_image = models.ImageField(upload_to=organization_cover_path, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -300,26 +352,45 @@ class OrganizationProfile(models.Model):
 # OrganizationMembership
 # ============================================================
 
+
 class OrganizationMembership(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(
-        OrganizationProfile, on_delete=models.CASCADE, related_name="memberships",
+        OrganizationProfile,
+        on_delete=models.CASCADE,
+        related_name="memberships",
     )
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="org_memberships",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="org_memberships",
     )
     person = models.ForeignKey(
-        "kernel.Person", on_delete=models.SET_NULL, null=True, blank=True, related_name="org_memberships",
+        "kernel.Person",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="org_memberships",
     )
     role_type = models.CharField(max_length=20, choices=OrgMembershipRole.choices)
     status = models.CharField(
-        max_length=20, choices=OrgMembershipStatus.choices, default=OrgMembershipStatus.ACTIVE,
+        max_length=20,
+        choices=OrgMembershipStatus.choices,
+        default=OrgMembershipStatus.ACTIVE,
     )
     invited_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
     )
     approved_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
     )
     joined_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -337,14 +408,21 @@ class OrganizationMembership(models.Model):
 # CompanyAffiliationRequest
 # ============================================================
 
+
 class CompanyAffiliationRequest(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     caregiver_profile = models.ForeignKey(
-        CaregiverProfile, on_delete=models.CASCADE, related_name="affiliation_requests",
+        CaregiverProfile,
+        on_delete=models.CASCADE,
+        related_name="affiliation_requests",
     )
     requested_company_name_or_code = models.CharField(max_length=255)
     organization = models.ForeignKey(
-        OrganizationProfile, on_delete=models.SET_NULL, null=True, blank=True, related_name="affiliation_requests",
+        OrganizationProfile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="affiliation_requests",
     )
     status = models.CharField(max_length=20, choices=AffiliationStatus.choices, default=AffiliationStatus.PENDING)
     reviewer_note = models.TextField(blank=True)
@@ -352,7 +430,11 @@ class CompanyAffiliationRequest(models.Model):
     requested_at = models.DateTimeField(auto_now_add=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
     reviewed_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="reviewed_affiliations",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_affiliations",
     )
 
     class Meta:
@@ -367,20 +449,31 @@ class CompanyAffiliationRequest(models.Model):
 # PlatformTeamMember
 # ============================================================
 
+
 class PlatformTeamMember(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="platform_team_member",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="platform_team_member",
     )
     person = models.ForeignKey(
-        "kernel.Person", on_delete=models.CASCADE, related_name="platform_team_memberships",
+        "kernel.Person",
+        on_delete=models.CASCADE,
+        related_name="platform_team_memberships",
     )
     team_area = models.CharField(max_length=20, choices=PlatformTeamArea.choices)
     status = models.CharField(
-        max_length=20, choices=PlatformTeamStatus.choices, default=PlatformTeamStatus.ACTIVE,
+        max_length=20,
+        choices=PlatformTeamStatus.choices,
+        default=PlatformTeamStatus.ACTIVE,
     )
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

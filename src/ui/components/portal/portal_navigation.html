@@ -1,0 +1,28 @@
+{% comment %} Portal Navigation Component — Epic 06 Sprint 2
+   Schema-driven nav-link list, reusable by any authenticated portal's
+   desktop sidebar and mobile drawer. Renders exactly the visual output
+   apps.provider_portal/apps.organization_portal's own hand-written
+   _sidebar_nav.html partials already used — this component only removes
+   the hardcoding, it does not redesign the look.
+
+   Contains zero role-specific menu items itself — every item comes from
+   the caller's own navigation schema (see apps.provider_portal.services
+   .viewmodels.build_provider_nav_items() / apps.organization_portal's
+   equivalent). This component never decides which links exist for which
+   role; it only renders whatever list it's given.
+
+   Usage:
+     {% include "ui/components/portal/portal_navigation.html" with items=nav_items %}
+
+   Props:
+     items — iterable of {label, url, is_active} dicts
+{% endcomment %}
+{% for item in items %}
+<a href="{{ item.url }}"
+   {% if item.is_active %}aria-current="page"{% endif %}
+   class="flex items-center gap-inline-3 rounded-lg px-3 py-2 text-sm font-medium no-underline transition-colors
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-inset
+          {% if item.is_active %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text-muted hover:bg-background-alt hover:text-text{% endif %}">
+  {{ item.label }}
+</a>
+{% endfor %}

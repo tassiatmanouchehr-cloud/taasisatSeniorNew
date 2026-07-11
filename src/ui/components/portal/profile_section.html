@@ -1,0 +1,35 @@
+{% comment %} Profile Section Component — Epic 06 Sprint 2
+   A titled card wrapper grouping one logical block of profile content
+   (e.g. "Professional Information", "Documents"). Purely structural —
+   never contains business logic.
+
+   Usage:
+     {% include "ui/components/portal/profile_section.html" with title="اطلاعات پایه" %}
+     ... then render section body via a separate include/block in the
+     calling template (Django includes can't take arbitrary block content,
+     so callers wrap this component's open/close manually — see
+     provider_portal/organization_portal profile templates for the exact
+     pattern already used by ui/components/overlays/modal.html).
+
+   Props:
+     title       — section heading (required)
+     description — optional one-line helper text under the title
+     action_label / action_href — optional single action link (e.g. "ویرایش")
+{% endcomment %}
+<section class="rounded-2xl border border-border bg-surface p-5 sm:p-6">
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <h2 class="text-base font-black text-text">{{ title }}</h2>
+      {% if description %}
+      <p class="mt-0.5 text-sm text-text-muted">{{ description }}</p>
+      {% endif %}
+    </div>
+    {% if action_label and action_href %}
+    <a href="{{ action_href }}"
+       class="inline-flex items-center gap-1 text-sm font-bold text-primary no-underline hover:underline
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded">
+      {{ action_label }}
+    </a>
+    {% endif %}
+  </div>
+</section>

@@ -1,27 +1,8 @@
-{# Shared nav-link list — included by both the desktop sidebar_nav block and the
-   mobile_sidebar_nav block in base.html. #}
-<a href="{% url 'provider_portal:dashboard' %}"
-   class="flex items-center gap-inline-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-          {% if request.resolver_match.url_name == 'dashboard' %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text-muted hover:bg-background-alt hover:text-text{% endif %}">
-  داشبورد
-</a>
-<a href="{% url 'provider_portal:assignments' %}"
-   class="flex items-center gap-inline-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-          {% if 'assignment' in request.resolver_match.url_name %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text-muted hover:bg-background-alt hover:text-text{% endif %}">
-  تخصیص‌ها
-</a>
-<a href="{% url 'provider_portal:availability' %}"
-   class="flex items-center gap-inline-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-          {% if 'availability' in request.resolver_match.url_name or 'window' in request.resolver_match.url_name or 'blocked-period' in request.resolver_match.url_name %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text-muted hover:bg-background-alt hover:text-text{% endif %}">
-  زمان‌بندی
-</a>
-<a href="{% url 'provider_portal:earnings' %}"
-   class="flex items-center gap-inline-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-          {% if request.resolver_match.url_name == 'earnings' %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text-muted hover:bg-background-alt hover:text-text{% endif %}">
-  درآمد
-</a>
-<a href="{% url 'provider_portal:notifications' %}"
-   class="flex items-center gap-inline-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-          {% if request.resolver_match.url_name == 'notifications' %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text-muted hover:bg-background-alt hover:text-text{% endif %}">
-  اعلان‌ها
-</a>
+{% comment %}
+Shared nav-link list — included by both the desktop sidebar_nav block and
+the mobile_sidebar_nav block in base.html. Schema-driven (Epic 06 Sprint 2):
+every view supplies its own `nav_items` (built by
+ProviderProfilePresentationService.build_nav_items()) — this partial only
+renders whatever list it's given, never hardcodes a role-specific link.
+{% endcomment %}
+{% include "ui/components/portal/portal_navigation.html" with items=nav_items %}

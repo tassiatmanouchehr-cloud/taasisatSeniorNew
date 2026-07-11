@@ -91,3 +91,14 @@ class SupplierRegistry:
         supplier.supplier_type = supplier_type
         supplier.save(update_fields=["supplier_type", "updated_at", "version"])
         return supplier
+
+    @classmethod
+    def set_service_categories(cls, supplier: ServiceSupplier, *, service_category_ids: list[str]) -> ServiceSupplier:
+        """Reconcile an existing supplier's offered service categories in
+        place — generic by the same rule as set_supplier_type() (this
+        method knows nothing about *why* a caller wants the list changed;
+        Epic 06 Sprint 2's provider self-profile editing is one reason,
+        it is not the only one this method need ever serve)."""
+        supplier.service_categories = list(service_category_ids)
+        supplier.save(update_fields=["service_categories", "updated_at", "version"])
+        return supplier

@@ -1,0 +1,82 @@
+{% extends "provider_portal/base.html" %}
+
+{% block portal_title %}نمایه من{% endblock %}
+{% block page_title %}نمایه من{% endblock %}
+{% block page_description %}
+<p class="mt-1 text-sm text-text-muted">این اطلاعات به مشتریان در نمایه عمومی شما نمایش داده می‌شود.</p>
+{% endblock %}
+
+{% block portal_content %}
+<div class="space-y-6">
+  {% include "ui/components/portal/profile_header.html" with avatar_url=profile.avatar_url cover_url=profile.cover_url name=profile.display_name avatar_type="user" avatar_status=profile.avatar_status_dot subtitle=profile.city badges=profile.badges public_preview_url=profile.public_preview_url %}
+
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'provider_portal:profile-avatar-upload' %}"
+       class="rounded-lg border border-border px-3 py-2 text-sm font-bold text-text no-underline hover:bg-background-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
+      تغییر عکس پروفایل
+    </a>
+    {% if profile.avatar_url %}
+    <div x-data="{ open: false }" class="contents">
+      <button type="button" @click="open = true"
+              class="rounded-lg border border-border px-3 py-2 text-sm font-bold text-danger hover:bg-background-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
+        حذف عکس پروفایل
+      </button>
+      {% include "ui/components/portal/confirmation_dialog.html" with dialog_id="remove-avatar" title="حذف عکس پروفایل" message="عکس پروفایل شما حذف خواهد شد." confirm_label="حذف" confirm_action_url="/provider/profile/avatar/remove/" danger=True %}
+    </div>
+    {% endif %}
+    <a href="{% url 'provider_portal:profile-cover-upload' %}"
+       class="rounded-lg border border-border px-3 py-2 text-sm font-bold text-text no-underline hover:bg-background-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
+      تغییر تصویر کاور
+    </a>
+    {% if profile.cover_url %}
+    <div x-data="{ open: false }" class="contents">
+      <button type="button" @click="open = true"
+              class="rounded-lg border border-border px-3 py-2 text-sm font-bold text-danger hover:bg-background-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
+        حذف تصویر کاور
+      </button>
+      {% include "ui/components/portal/confirmation_dialog.html" with dialog_id="remove-cover" title="حذف تصویر کاور" message="تصویر کاور شما حذف خواهد شد." confirm_label="حذف" confirm_action_url="/provider/profile/cover/remove/" danger=True %}
+    </div>
+    {% endif %}
+  </div>
+
+  {% include "ui/components/portal/profile_completion.html" with percent=profile.completion_percent missing_labels=profile.completion_missing_labels %}
+
+  <div class="grid gap-6 lg:grid-cols-3">
+    <div class="lg:col-span-2 space-y-6">
+      {% include "ui/components/portal/profile_section.html" with title="اطلاعات پایه" action_label="ویرایش" action_href="/provider/profile/edit/basic/" %}
+      {% include "ui/components/portal/data_summary.html" with items=profile.summary_items %}
+
+      {% include "ui/components/portal/profile_section.html" with title="اطلاعات حرفه‌ای" description=profile.specialty action_label="ویرایش" action_href="/provider/profile/edit/professional/" %}
+      <div class="rounded-2xl border border-border bg-surface p-5">
+        {% if profile.bio %}
+        <p class="text-sm leading-7 text-text">{{ profile.bio }}</p>
+        {% else %}
+        <p class="text-sm text-text-muted">هنوز بیوگرافی ثبت نشده است.</p>
+        {% endif %}
+        {% if profile.service_names %}
+        <div class="mt-4 flex flex-wrap gap-1.5">
+          {% for name in profile.service_names %}
+          {% include "ui/components/feedback/badge.html" with label=name variant="neutral" %}
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+
+      {% include "ui/components/portal/profile_section.html" with title="مدارک و تأییدیه‌ها" description="وضعیت بررسی هر مدرک توسط پلتفرم" %}
+      <div class="space-y-3">
+        {% for doc in profile.documents %}
+        {% include "ui/components/portal/document_status.html" with label=doc.label status=doc.status expiry_label=doc.expiry_label action_message=doc.action_message replace_url=doc.replace_url %}
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="space-y-4">
+      {% include "ui/components/portal/profile_stat.html" with label="امتیاز" value=profile.rating.average|default:"—" %}
+      {% include "ui/components/portal/profile_stat.html" with label="خدمات تکمیل‌شده" value=profile.completed_jobs %}
+      {% if profile.is_organization_affiliated %}
+      {% include "ui/components/portal/profile_stat.html" with label="سازمان" value=profile.organization_name %}
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

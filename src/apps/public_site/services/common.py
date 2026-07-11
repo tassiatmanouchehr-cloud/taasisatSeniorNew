@@ -93,6 +93,7 @@ def bulk_supplier_attrs(suppliers) -> dict:
             "city": getattr(entity, "city", "") or "",
             "specialty": getattr(entity, "specialty", "") or "",
             "bio": getattr(entity, "bio", "") or "",
+            "description": getattr(entity, "description", "") or "",
             "years_experience": getattr(entity, "years_experience", None),
             "service_radius_km": getattr(entity, "service_radius_km", None),
             "verification_status": getattr(entity, "verification_status", "unverified") or "unverified",

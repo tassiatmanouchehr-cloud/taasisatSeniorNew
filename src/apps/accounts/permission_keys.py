@@ -34,12 +34,22 @@ back it; apps.organization_portal.permissions.resolve_organization()
 already gates every organization-portal view to an ACTIVE, ADMIN-role
 OrganizationMembership, so no other OrgMembershipRole value has an
 enforcement point to hold a permission for in this Epic.
+
+Epic 06 Sprint 2: `ORGANIZATION_PROFILE_UPDATE` added, guarding
+`OrganizationProfileUpdateService.update_profile()` — same
+ownership-fallback shape as `ORGANIZATION_MEMBERSHIP_APPROVE`/`_SUSPEND`.
 """
 
 from apps.kernel.permissions.keys import (
     BOOKING_ASSIGNMENT_ASSIGN,
     ORGANIZATION_MEMBERSHIP_APPROVE,
     ORGANIZATION_MEMBERSHIP_SUSPEND,
+    ORGANIZATION_PROFILE_UPDATE,
 )
 
-__all__ = ["BOOKING_ASSIGNMENT_ASSIGN", "ORGANIZATION_MEMBERSHIP_APPROVE", "ORGANIZATION_MEMBERSHIP_SUSPEND"]
+__all__ = [
+    "BOOKING_ASSIGNMENT_ASSIGN",
+    "ORGANIZATION_MEMBERSHIP_APPROVE",
+    "ORGANIZATION_MEMBERSHIP_SUSPEND",
+    "ORGANIZATION_PROFILE_UPDATE",
+]

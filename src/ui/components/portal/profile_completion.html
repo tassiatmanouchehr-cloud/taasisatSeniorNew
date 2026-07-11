@@ -1,0 +1,22 @@
+{% comment %} Profile Completion Component — Epic 06 Sprint 2
+   Thin wrapper over the existing generic progress.html, plus an optional
+   list of missing-field hints — all values are pre-computed by a
+   presentation service, never derived in this template.
+
+   Usage:
+     {% include "ui/components/portal/profile_completion.html" with
+        percent=72 missing_labels=profile.completion_missing_labels %}
+
+   Props:
+     percent        — 0-100 (required, pre-computed)
+     missing_labels — iterable of short strings naming incomplete fields
+{% endcomment %}
+<div class="rounded-2xl border border-border bg-surface p-5">
+  {% include "ui/components/feedback/progress.html" with value=percent label="تکمیل نمایه" show_value=True variant="primary" size="md" %}
+  {% if missing_labels %}
+  <p class="mt-3 text-xs text-text-muted">
+    برای تکمیل نمایه:
+    {% for item in missing_labels %}{{ item }}{% if not forloop.last %}، {% endif %}{% endfor %}
+  </p>
+  {% endif %}
+</div>

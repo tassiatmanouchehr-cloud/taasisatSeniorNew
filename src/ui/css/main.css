@@ -4,14 +4,16 @@
  * Build: npx tailwindcss -i ui/css/main.css -o static/css/output.css --watch
  *
  * Import order:
- * 1. Tailwind base (reset/normalize)
- * 2. Theme system (CSS variables for all colors/shadows)
+ * 1. Theme system (CSS variables for all colors/shadows) — @import must
+ *    precede all other statements per the CSS spec, so this now comes
+ *    before @tailwind base (postcss-import silently drops @import rules
+ *    that aren't first, which previously made every --color-* token
+ *    undefined sitewide).
+ * 2. Tailwind base (reset/normalize)
  * 3. Tailwind components
  * 4. Tailwind utilities
  * 5. Custom layers
  */
-
-@tailwind base;
 
 /* === Theme System === */
 /* Base theme variables (structural, non-color) */
@@ -29,6 +31,7 @@
 /* Motion design system (transitions, animations, reduced-motion) */
 @import './motion.css';
 
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 

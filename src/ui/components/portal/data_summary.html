@@ -1,0 +1,18 @@
+{% comment %} Data Summary Component — Epic 06 Sprint 2
+   A responsive key/value grid for read-only profile facts (city, years of
+   experience, service radius, staff count, ...).
+
+   Usage:
+     {% include "ui/components/portal/data_summary.html" with items=profile.summary_items %}
+
+   Props:
+     items — iterable of {label, value} dicts
+{% endcomment %}
+<dl class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+  {% for item in items %}
+  <div class="rounded-xl border border-border p-3">
+    <dt class="text-xs font-medium text-text-muted">{{ item.label }}</dt>
+    <dd class="mt-1 text-sm font-bold text-text ltr-value">{{ item.value }}</dd>
+  </div>
+  {% endfor %}
+</dl>

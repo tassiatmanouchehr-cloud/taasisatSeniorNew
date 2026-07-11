@@ -1,0 +1,32 @@
+{% extends "provider_portal/base.html" %}
+
+{% block portal_title %}{{ title }}{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block portal_content %}
+<div class="mx-auto max-w-lg">
+  <form method="post" enctype="multipart/form-data" class="space-y-4 rounded-2xl border border-border bg-surface p-6">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <div role="alert" class="rounded-lg border border-danger-200 bg-danger-50 p-3 text-sm text-danger">
+      {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+    </div>
+    {% endif %}
+    <div>
+      <label for="{{ form.image.id_for_label }}" class="block text-sm font-bold text-text">فایل تصویر</label>
+      {{ form.image }}
+      <p class="mt-1 text-xs text-text-muted">JPEG، PNG یا WEBP — حداکثر ۵ مگابایت.</p>
+      {% if form.image.errors %}<p class="mt-1 text-xs text-danger">{{ form.image.errors.0 }}</p>{% endif %}
+    </div>
+
+    <div class="flex items-center justify-end gap-2 border-t border-border pt-4">
+      <a href="{% url 'provider_portal:profile' %}"
+         class="rounded-lg px-4 py-2 text-sm font-bold text-text-muted no-underline hover:bg-background-alt">انصراف</a>
+      <button type="submit" class="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-700
+                                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2">
+        بارگذاری
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -16,6 +16,7 @@ from django.shortcuts import render
 
 from .services.directory_service import CAREGIVER_SUPPLIER_TYPES, CaregiverDirectoryService
 from .services.home_service import HomePageService
+from .services.organization_profile_service import OrganizationPublicProfileService
 from .services.profile_service import CaregiverPublicProfileService
 
 
@@ -44,6 +45,13 @@ def caregiver_profile(request, supplier_id):
     if profile is None:
         raise Http404("Caregiver profile not found.")
     return render(request, "public_site/caregiver_profile.html", {"profile": profile})
+
+
+def organization_profile(request, supplier_id):
+    profile = OrganizationPublicProfileService.get_profile(supplier_id)
+    if profile is None:
+        raise Http404("Organization profile not found.")
+    return render(request, "public_site/organization_profile.html", {"profile": profile})
 
 
 def about(request):

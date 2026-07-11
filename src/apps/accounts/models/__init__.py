@@ -1,5 +1,6 @@
 """Accounts models."""
 
+from .media import DocumentStatus, DocumentType, VerificationDocument
 from .otp import OTPChallenge, OTPPurpose
 from .profiles import (
     AffiliationStatus,
@@ -25,6 +26,9 @@ from .profiles import (
 __all__ = [
     "OTPChallenge",
     "OTPPurpose",
+    "DocumentType",
+    "DocumentStatus",
+    "VerificationDocument",
     "ProfileStatus",
     "CaregiverProviderType",
     "VerificationStatus",

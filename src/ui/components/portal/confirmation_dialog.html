@@ -1,0 +1,77 @@
+{% comment %} Confirmation Dialog Component — Epic 06 Sprint 2
+   A reusable confirm/cancel dialog pattern, built on the same Alpine.js
+   backdrop/panel/focus-trap structure as ui/components/overlays/modal.html
+   (kept as its own component rather than routed through modal.html's
+   string-only content/footer props, since a confirmation dialog always
+   needs a real <form> for its confirm action, not renderable as a plain
+   string prop).
+
+   Usage:
+     <div x-data="{ open: false }">
+       <button type="button" @click="open = true">حذف</button>
+       {% include "ui/components/portal/confirmation_dialog.html" with
+          dialog_id="delete-doc" title="حذف مدرک" message="این عملیات قابل بازگشت نیست."
+          confirm_label="حذف" confirm_action_url="/provider/documents/1/delete/" danger=True %}
+     </div>
+
+   Props:
+     dialog_id          — unique string, used for aria-labelledby (required)
+     title               — dialog heading (required)
+     message             — body text (required)
+     confirm_label        — confirm button text (default: "تأیید")
+     confirm_action_url  — form action URL the confirm button POSTs to (required)
+     cancel_label         — cancel button text (default: "انصراف")
+     danger               — true/false, styles the confirm button as destructive
+{% endcomment %}
+{% with confirm_label=confirm_label|default:"تأیید" cancel_label=cancel_label|default:"انصراف" %}
+<div x-show="open"
+     x-transition:enter="transition ease-out duration-200"
+     x-transition:enter-start="opacity-0"
+     x-transition:enter-end="opacity-100"
+     x-transition:leave="transition ease-in duration-150"
+     x-transition:leave-start="opacity-100"
+     x-transition:leave-end="opacity-0"
+     class="fixed inset-0 z-overlay bg-black/50 backdrop-blur-sm"
+     @click="open = false"
+     aria-hidden="true"
+     x-cloak>
+</div>
+<div x-show="open"
+     x-transition:enter="transition ease-out duration-200"
+     x-transition:enter-start="opacity-0 scale-95"
+     x-transition:enter-end="opacity-100 scale-100"
+     x-transition:leave="transition ease-in duration-150"
+     x-transition:leave-start="opacity-100 scale-100"
+     x-transition:leave-end="opacity-0 scale-95"
+     @keydown.escape.window="open = false"
+     class="fixed inset-0 z-modal flex items-center justify-center p-4"
+     role="alertdialog"
+     aria-modal="true"
+     aria-labelledby="{{ dialog_id }}-title"
+     aria-describedby="{{ dialog_id }}-message"
+     x-trap.noscroll="open"
+     x-cloak>
+  <div class="w-full max-w-sm overflow-hidden rounded-xl border border-border bg-surface shadow-2xl" @click.stop>
+    <div class="p-6">
+      <h2 id="{{ dialog_id }}-title" class="text-base font-black text-text">{{ title }}</h2>
+      <p id="{{ dialog_id }}-message" class="mt-2 text-sm text-text-muted">{{ message }}</p>
+    </div>
+    <div class="flex items-center justify-end gap-2 border-t border-border bg-surface-sunken px-6 py-4">
+      <button type="button" @click="open = false"
+              class="rounded-lg px-3 py-2 text-sm font-bold text-text-muted transition-colors hover:bg-background-alt
+                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
+        {{ cancel_label }}
+      </button>
+      <form method="post" action="{{ confirm_action_url }}">
+        {% csrf_token %}
+        <button type="submit"
+                class="rounded-lg px-3 py-2 text-sm font-bold text-white transition-colors
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+                       {% if danger %}bg-danger hover:bg-danger-700 focus-visible:ring-danger/50{% else %}bg-primary hover:bg-primary-700 focus-visible:ring-primary/50{% endif %}">
+          {{ confirm_label }}
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endwith %}
