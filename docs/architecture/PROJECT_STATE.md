@@ -1,8 +1,8 @@
 # Project State
 
-Status: current as of PR #29's merge (Epic 05 — Permission-Key Registry &
-Authorization Hardening), `main` @
-`9342c5880f33e604f7448b684bd031481ea2abd9` (PR #29's merge commit). This document is the
+Status: current as of PR #32's merge (kernel.0010 `UserAccount.email`
+migration ordering/rollback fix), `main` @
+`72c90f9ed97381ba55466fc680de90f38511b5e7` (PR #32's merge commit). This document is the
 **single source of truth** for "where the project stands." It supersedes any
 verbal summary given in chat, a PR description, or a prior conversation —
 if this file and a conversation disagree, this file is right (or needs
@@ -23,14 +23,14 @@ Verification** rather than assumed.
 |---|---|
 | Repository URL | `github.com/tassiatmanouchehr-cloud/taasisatSenior` |
 | Default Branch | `main` |
-| Current `main` HEAD | `9342c5880f33e604f7448b684bd031481ea2abd9` (PR #29's merge commit) |
-| Current Test Count | **1250 passing**, 0 failing (`python manage.py test`, run on this branch — 41 new tests over the PR #28 baseline of 1209, all from Epic 05 — Permission-Key Registry & Authorization Hardening: canonical permission-registry validation, permission-registry guardrails, `PermissionService` scope-hardening cases, organization-scoped RBAC enforcement at the intended call sites, `AssignmentService.replace()` authorization, `reconcile_role_permissions` command coverage, and reviewer-ownership authorization — see `DECISION_HISTORY.md`) |
+| Current `main` HEAD | `72c90f9ed97381ba55466fc680de90f38511b5e7` (PR #32's merge commit) |
+| Current Test Count | **1250 passing**, 0 failing (`python manage.py test`, run on this branch — unchanged from the PR #29/Epic 05 baseline; PR #32 is a migration-only correctness fix, not a feature, and touches no test file — see `DECISION_HISTORY.md`) |
 | Python Version | **3.12** is the project's canonical version — declared in `pyproject.toml` (`requires-python = ">=3.12"`), pinned in CI (`.github/workflows/ci.yml`, `python-version: "3.12"`), and pinned in `src/docker/Dockerfile.dev` (`FROM python:3.12-slim`). Three independent sources agree. The one execution environment that disagrees is this specific sandboxed session, which runs **3.11.15** — a fact about this session's container, not about the repository's declared target. Not flagged as uncertain: the repository is internally consistent on 3.12; only this particular runtime differs from it. |
 | Django Version | Installed: **5.2.16**. Declared requirement (`requirements/base.txt`): `django>=5.1,<5.3`. Consistent. |
 | Database | **PostgreSQL 16**, optionally with **PostGIS** (`GIS_ENABLED` env var switches `django.db.backends.postgresql` ↔ `django.contrib.gis.db.backends.postgis`; CI uses the `postgis/postgis:16-3.4` image with `GIS_ENABLED=true`). SQLite is supported as a settings-level fallback (`DATABASE_ENGINE=sqlite`) but is not the platform's real target and is not exercised by CI. |
 | Architecture Style | **Modular monolith** — a single Django project (`config/`) composed of 24 apps under `src/apps/`, each owning its own models/services/tests, communicating through service-layer calls and two deliberately separate event systems (see [Domain Events](#domain-events) below), not through network calls. No microservices, no separate deployable units. |
 | Current Development Phase | **Product Experience phase, in progress; Financial Settlement Sprint 1, Enterprise Organization Isolation (Epic 04), and Permission-Key Registry & Authorization Hardening (Epic 05) now merged.** Customer Experience Phase 1 and Phase 2, Provider Experience Phase 1, Organization Experience Phase 1, Epic 03 Sprint 1 (Financial Settlement & Money Flow), Epic 04 (Enterprise Organization Isolation), and Epic 05 (Permission-Key Registry & Authorization Hardening) are now built. See [Current Development Phase](#current-development-phase) below. |
-| Current Project Status | Active development. 29 merged pull requests on `main` (PR #29, Epic 05 — Permission-Key Registry & Authorization Hardening, just merged; PR #30 was the preceding documentation-sync PR covering PR #28, merged before PR #29 per the established merge order); this documentation-sync PR (covering PR #29) is open. One documentation-maintenance PR (#21, opened after PR #20, predating Epic 02) remains open and now has merge conflicts against current `main` — not touched by this or any subsequent epic. No open incidents or known production deployment (no evidence of a live/production environment in this repository — infra config exists for one, but nothing indicates it is running). |
+| Current Project Status | Active development. 31 merged pull requests on `main` (PR #32, a migration correctness fix for `kernel.0010_useraccount_email_unique`, just merged; PR #31 was the preceding documentation-sync PR covering PR #29/Epic 05, merged before PR #32); this documentation-sync PR (covering PR #32) is open. One documentation-maintenance PR (#21, opened after PR #20, predating Epic 02) remains open and now has merge conflicts against current `main` — not touched by this or any subsequent work. No open incidents or known production deployment (no evidence of a live/production environment in this repository — infra config exists for one, but nothing indicates it is running). |
 | Current Branching Strategy | Trunk-based: every unit of work branches from `main` (branch naming has drifted over time — see [Repository Structure](#repository-structure) → *A note on module numbering*), is reviewed as a pull request, and merges back to `main`. No long-lived release branches exist. `.github/workflows/ci.yml` also recognizes `phase-*/**` branches as a push trigger, though none currently exist. |
 | Repository Structure | See [below](#repository-structure). |
 | Current CI/Test Status | See [below](#current-ci--test-status). |
@@ -130,6 +130,24 @@ real schema difference) documented since the project's early history.
 these, confirming there is no real drift. See
 [`technical-debt-register.md`](technical-debt-register.md) for the full
 entry.
+
+### `kernel.0010` migration ordering/rollback fix (PR #32)
+
+Distinct from the cosmetic quirk above: `kernel.0010_useraccount_email_unique`
+had a real, reproducible defect — its data-cleanup step (converting
+existing blank `email` values to `NULL`) ran *before* the schema change
+that allows `NULL`, so any database with a pre-existing phone-only
+account (`email=""`) aborted the migration with an `IntegrityError`. This
+was invisible in CI because CI's test database is always created empty,
+so the data-cleanup step never actually matched a row there. The same
+migration also could not be cleanly rolled back and re-applied, for the
+same `search_path`-vs-schema-qualified-table reason already fixed once
+for `kernel.0011` (see `DECISION_HISTORY.md`). Both fixed, in place, in
+PR #32 — no new migration file, no model change, no test change. See
+`DECISION_HISTORY.md` for the full defect/fix record and
+`technical-debt-register.md` for the one residual, explicitly
+non-blocking gap this fix's Architecture Review surfaced (no preflight
+check for pre-existing duplicate non-blank emails).
 
 ---
 

@@ -1,8 +1,8 @@
 # Project Index
 
-Status: current as of PR #29's merge (Epic 05 — Permission-Key Registry
-& Authorization Hardening), `main` @
-`9342c5880f33e604f7448b684bd031481ea2abd9` (PR #29's merge commit).
+Status: current as of PR #32's merge (kernel.0010 `UserAccount.email`
+migration ordering/rollback fix), `main` @
+`72c90f9ed97381ba55466fc680de90f38511b5e7` (PR #32's merge commit).
 
 **Start here.** This is the entry point to this repository's
 documentation — everything a new developer needs to understand where the

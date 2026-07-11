@@ -381,6 +381,35 @@ call site could introduce one without the guardrail catching it.
 found, or add a code-review convention note in the meantime. Not yet
 done.
 
+## No preflight check for pre-existing duplicate non-blank emails in `kernel.0010`
+
+**What**: `apps/kernel/migrations/0010_useraccount_email_unique.py`
+converts existing blank (`""`) `email` values to `NULL` before adding a
+unique constraint, but performs no check for duplicate *non-blank*
+emails. `email` was never unique before this migration — not at the
+database level, and `UserAccountManager.create_user()`
+(`apps/kernel/models/user.py`) never checked for an existing match
+either — so it is plausible, though unconfirmed on any given database,
+that two `UserAccount` rows already share the same non-blank email.
+
+**Why**: Surfaced during PR #32's Architecture Review (the migration
+ordering/rollback fix), not by any Epic. Not addressed there because
+reconciling real duplicate user data is a product/data decision (which
+row wins, whether to notify the affected users, etc.), not a mechanical
+migration fix — deliberately out of that PR's scope. Not a regression:
+the *original* migration had the identical exposure at its own
+uniqueness step.
+
+**Risk**: Low. If a duplicate exists, `kernel.0010`'s `ADD CONSTRAINT
+UNIQUE` step fails with a duplicate-key `IntegrityError` — a safe,
+transactional abort (no partial state, no data corruption, consistent
+with this migration's other failure modes) — but with no operator-facing
+guidance beyond Postgres's raw constraint-violation message.
+
+**Resolution**: A separate, dedicated preflight/reporting management
+command (report duplicate non-blank emails before `kernel.0010` runs) if
+this is ever hit in practice. Not planned as of this entry.
+
 ## Resolved in Epic 05
 
 - **Three organization permission keys granted but not enforced**
