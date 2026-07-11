@@ -14,17 +14,26 @@ from apps.accounts.models.profiles import (
     OrgMembershipRole,
     OrgMembershipStatus,
 )
+from apps.booking.models import SupplierAssignment
+from apps.execution.models import ExecutionSession
+from apps.finance.models import FinancialParty, LedgerEntry, PaymentTransaction
+from apps.jobs.models import JobDefinition
 from apps.kernel.models import RoleAssignment, Tenant, UserAccount
+from apps.kernel.models.audit import AuditLog
+from apps.kernel.models.event_outbox import EventOutbox
 from apps.kernel.models.supplier import ServiceSupplier, SupplierType
 from apps.kernel.permissions.keys import (
     ORGANIZATION_MEMBERSHIP_APPROVE,
     ORGANIZATION_MEMBERSHIP_SUSPEND,
 )
 from apps.kernel.services.permission_service import PermissionService
-from apps.orders.models import EligibilityStatus, Order, OrderOrganizationEligibility
+from apps.orders.models import EligibilityStatus, Order, OrderOrganizationEligibility, OrderStatus
 from apps.payments.models import PaymentIntent, PaymentProvider
+from apps.wallet.models import Wallet
 
 DEMO_TENANT_SLUG = "demo-senior-platform"
+REVOKED_ORDER_MARKER = "PRODUCT_WALKTHROUGH_DEMO:eligible-revoked"
+IN_PROGRESS_ORDER_MARKER = "PRODUCT_WALKTHROUGH_DEMO:in-progress"
 
 
 def _run_command():
@@ -278,3 +287,139 @@ class SeedProductWalkthroughResetDemoTest(TestCase):
         # Demo tenant itself is kept (stable identity) and its content rebuilt.
         demo_tenant = Tenant.objects.get(slug=DEMO_TENANT_SLUG)
         self.assertEqual(CustomerProfile.objects.filter(user__tenant=demo_tenant).count(), 3)
+
+
+@override_settings(DEBUG=True)
+class SeedProductWalkthroughFirstRunCompletenessTest(TestCase):
+    """Architecture Review remediation M1: the in-progress example order
+    must be genuinely in-progress, with a real ExecutionSession, after
+    exactly one run — not requiring a second run to "catch up"."""
+
+    @classmethod
+    def setUpTestData(cls):
+        _run_command()
+        cls.tenant = Tenant.objects.get(slug=DEMO_TENANT_SLUG)
+        cls.in_progress_order = Order.objects.get(internal_note=IN_PROGRESS_ORDER_MARKER)
+
+    def test_in_progress_order_is_genuinely_in_progress_after_first_run(self):
+        self.assertEqual(self.in_progress_order.status, OrderStatus.IN_PROGRESS)
+
+    def test_execution_session_exists_after_first_run(self):
+        assignment = SupplierAssignment.objects.filter(order=self.in_progress_order).first()
+        self.assertIsNotNone(assignment)
+        self.assertTrue(ExecutionSession.objects.filter(supplier_assignment=assignment).exists())
+
+    def test_execution_session_was_started_through_execution_service(self):
+        # ExecutionSessionStatus.IN_PROGRESS is only ever reached via
+        # ExecutionService.start_session() — a direct model write would
+        # default to SCHEDULED. The order reaching Order.status=IN_PROGRESS
+        # (asserted above) is itself only possible via start_session()'s
+        # internal call to status_machine.start_order(), the sole mutator
+        # of that transition — together these prove the real service ran.
+        from apps.execution.models import ExecutionSessionStatus
+
+        assignment = SupplierAssignment.objects.filter(order=self.in_progress_order).first()
+        session = ExecutionSession.objects.get(supplier_assignment=assignment)
+        self.assertEqual(session.status, ExecutionSessionStatus.IN_PROGRESS)
+
+
+@override_settings(DEBUG=True)
+class SeedProductWalkthroughRepeatRunStabilityTest(TestCase):
+    """Architecture Review remediation M2/M3 + the related organization
+    RoleAssignment sync fix: idempotency means more than "no duplicate
+    rows" — a second and third clean run must perform zero unnecessary
+    domain mutations, emit zero duplicate audit/event entries, and leave
+    every timestamp untouched."""
+
+    @classmethod
+    def setUpTestData(cls):
+        _run_command()
+        cls.tenant = Tenant.objects.get(slug=DEMO_TENANT_SLUG)
+        cls.after_run1 = cls._snapshot()
+
+        _run_command()
+        cls.after_run2 = cls._snapshot()
+
+        _run_command()
+        cls.after_run3 = cls._snapshot()
+
+    @classmethod
+    def _snapshot(cls):
+        return {
+            "AuditLog": AuditLog.objects.count(),
+            "EventOutbox": EventOutbox.objects.count(),
+            "JobDefinition": JobDefinition.objects.count(),
+            "FinancialParty": FinancialParty.objects.count(),
+            "Wallet": Wallet.objects.count(),
+            "PaymentIntent": PaymentIntent.objects.count(),
+            "PaymentTransaction": PaymentTransaction.objects.count(),
+            "LedgerEntry": LedgerEntry.objects.count(),
+            "ExecutionSession": ExecutionSession.objects.count(),
+            "RoleAssignment": RoleAssignment.objects.count(),
+            "Order": Order.objects.count(),
+            "OrderOrganizationEligibility": OrderOrganizationEligibility.objects.count(),
+        }
+
+    def test_second_run_does_not_change_audit_log_count(self):
+        self.assertEqual(self.after_run1["AuditLog"], self.after_run2["AuditLog"])
+
+    def test_third_run_does_not_change_audit_log_count(self):
+        self.assertEqual(self.after_run2["AuditLog"], self.after_run3["AuditLog"])
+
+    def test_second_run_does_not_change_event_outbox_count(self):
+        self.assertEqual(self.after_run1["EventOutbox"], self.after_run2["EventOutbox"])
+
+    def test_third_run_does_not_change_event_outbox_count(self):
+        self.assertEqual(self.after_run2["EventOutbox"], self.after_run3["EventOutbox"])
+
+    def test_financial_party_and_wallet_counts_remain_stable(self):
+        self.assertEqual(self.after_run1["FinancialParty"], self.after_run3["FinancialParty"])
+        self.assertEqual(self.after_run1["Wallet"], self.after_run3["Wallet"])
+
+    def test_finance_settlement_rows_remain_stable(self):
+        self.assertEqual(self.after_run1["PaymentIntent"], self.after_run3["PaymentIntent"])
+        self.assertEqual(self.after_run1["PaymentTransaction"], self.after_run3["PaymentTransaction"])
+        self.assertEqual(self.after_run1["LedgerEntry"], self.after_run3["LedgerEntry"])
+
+    def test_no_pending_or_failed_retry_jobs_introduced(self):
+        self.assertEqual(JobDefinition.objects.count(), 0)
+
+    def test_execution_session_count_does_not_grow_after_first_run(self):
+        self.assertEqual(self.after_run1["ExecutionSession"], self.after_run3["ExecutionSession"])
+
+    def test_dataset_row_counts_are_fully_stable(self):
+        self.assertEqual(self.after_run1, self.after_run2)
+        self.assertEqual(self.after_run2, self.after_run3)
+
+
+@override_settings(DEBUG=True)
+class SeedProductWalkthroughRevokedEligibilityStabilityTest(TestCase):
+    """Architecture Review remediation M2: the revoked-eligibility example
+    must reach WITHDRAWN on the first run and never reactivate on any
+    subsequent run."""
+
+    @classmethod
+    def setUpTestData(cls):
+        _run_command()
+        cls.tenant = Tenant.objects.get(slug=DEMO_TENANT_SLUG)
+        cls.order = Order.objects.get(internal_note=REVOKED_ORDER_MARKER)
+        cls.org1 = OrganizationProfile.objects.filter(tenant=cls.tenant).order_by("code").first()
+
+    def test_first_run_creates_the_revoked_example_correctly(self):
+        eligibility = OrderOrganizationEligibility.objects.get(order=self.order, organization=self.org1)
+        self.assertEqual(eligibility.status, EligibilityStatus.WITHDRAWN)
+
+    def test_second_and_third_runs_perform_no_eligibility_transition(self):
+        eligibility_before = OrderOrganizationEligibility.objects.get(order=self.order, organization=self.org1)
+        status_before = eligibility_before.status
+        granted_at_before = eligibility_before.granted_at
+        revoked_at_before = eligibility_before.revoked_at
+
+        _run_command()
+        _run_command()
+
+        eligibility_after = OrderOrganizationEligibility.objects.get(order=self.order, organization=self.org1)
+        self.assertEqual(eligibility_after.status, EligibilityStatus.WITHDRAWN)
+        self.assertEqual(eligibility_after.status, status_before)
+        self.assertEqual(eligibility_after.granted_at, granted_at_before)
+        self.assertEqual(eligibility_after.revoked_at, revoked_at_before)

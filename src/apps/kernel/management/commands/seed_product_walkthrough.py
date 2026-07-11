@@ -60,11 +60,20 @@ from apps.availability.models import BlockedPeriodReason
 from apps.availability.services import AvailabilityMutationService
 from apps.booking.services import AssignmentService, OrganizationAssignmentService
 from apps.execution.services import ExecutionService
+from apps.finance.models import FinancialParty, FinancialPartyType
 from apps.finance.services import FinancialDocumentService, FinancialPartyService
-from apps.kernel.models import Person, Role, Tenant, UserAccount
-from apps.kernel.models.supplier import AvailabilityStatus
+from apps.kernel.models import Person, Role, RoleAssignment, Tenant, UserAccount
+from apps.kernel.models.supplier import AvailabilityStatus, SupplierType
 from apps.kernel.role_catalog import DEFAULT_TENANT_ROLES
-from apps.orders.models import FINAL_STATUSES, Order, OrderStatus, ServiceCategory, ServiceType
+from apps.orders.models import (
+    FINAL_STATUSES,
+    EligibilityStatus,
+    Order,
+    OrderOrganizationEligibility,
+    OrderStatus,
+    ServiceCategory,
+    ServiceType,
+)
 from apps.orders.services import (
     approve_cancellation,
     create_operator_order,
@@ -74,6 +83,7 @@ from apps.orders.services import (
 from apps.orders.services.eligibility_service import OrderEligibilityService
 from apps.payments.services import PaymentCallbackService, PaymentIntentService
 from apps.reviews.services import ReviewSubmissionService
+from apps.wallet.models import Wallet
 from apps.wallet.services import WalletService
 
 DEMO_TENANT_SLUG = "demo-senior-platform"
@@ -318,8 +328,6 @@ class Command(BaseCommand):
             CustomerProfile.objects.filter(user_id__in=user_ids).delete()
             CaregiverProfile.objects.filter(user_id__in=user_ids).delete()
 
-            from apps.kernel.models import RoleAssignment
-
             RoleAssignment.objects.filter(tenant=tenant).delete()
             Role.objects.filter(tenant=tenant).delete()
 
@@ -502,12 +510,45 @@ class Command(BaseCommand):
                 verification_status="verified",
             )
             supplier = get_or_create_supplier_for_caregiver(profile, tenant_id=tenant.id)
-            party = FinancialPartyService.resolve_party_for_supplier(supplier)
-            WalletService.create_wallet(party=party)
+            self._ensure_supplier_financials(supplier)
             providers.append(
                 {"user": user, "profile": profile, "supplier": supplier, "availability": spec["availability"]}
             )
         return providers
+
+    def _ensure_supplier_financials(self, supplier):
+        """Idempotently ensures a FinancialParty + Wallet exist for `supplier`
+        without re-invoking FinancialPartyService.resolve_party_for_supplier()
+        once they already do. That service is correctly get_or_create-safe at
+        the row level, but — by design, for its real production callers —
+        publishes a Finance.Party.Resolved event on every single invocation
+        regardless of whether anything was actually created (see its own
+        docstring/source; not a defect, just not idempotent-at-the-event-level,
+        which every OTHER section of this command's re-run behavior depends
+        on). Mirrors FinancialPartyService._resolve()'s own lookup key
+        exactly, so this never diverges from what that service considers the
+        canonical party for this supplier."""
+        party_type = (
+            FinancialPartyType.ORGANIZATION
+            if supplier.supplier_type == SupplierType.ORGANIZATION
+            else FinancialPartyType.SUPPLIER
+        )
+        party = FinancialParty.objects.filter(
+            tenant_id=supplier.tenant_id,
+            linked_entity_type="ServiceSupplier",
+            linked_entity_id=supplier.id,
+            party_type=party_type,
+        ).first()
+        if party is None:
+            party = FinancialPartyService.resolve_party_for_supplier(supplier)
+            WalletService.create_wallet(party=party)
+            self._record(True)
+            return
+        if not Wallet.objects.filter(tenant_id=party.tenant_id, party=party).exists():
+            WalletService.create_wallet(party=party)
+            self._record(True)
+        else:
+            self._record(False)
 
     # ------------------------------------------------------------------
     # C. Organizations
@@ -553,7 +594,26 @@ class Command(BaseCommand):
             # Organization-scoped RoleAssignment — required so the three
             # organization-admin permission keys are genuinely enforced,
             # not merely granted (see docs/architecture/rbac-permissions.md).
-            OrganizationRoleSyncService.sync_for_membership(membership)
+            # Only call the sync service when it would actually change
+            # something: OrganizationRoleSyncService._audit() unconditionally
+            # writes an AuditLog entry on every invocation (correct for its
+            # real production callers — approve_membership()/
+            # suspend_membership() — where every call is itself a genuine
+            # state-changing action), so calling it unconditionally here on
+            # every re-run would grow AuditLog forever even though nothing
+            # about the assignment ever actually changes after the first run.
+            existing_scoped_assignment = RoleAssignment.objects.filter(
+                tenant=tenant,
+                user=admin_user,
+                scope_type="organization",
+                scope_id=org.id,
+            ).first()
+            should_be_active = membership.status == OrgMembershipStatus.ACTIVE
+            if existing_scoped_assignment is None or existing_scoped_assignment.is_active != should_be_active:
+                OrganizationRoleSyncService.sync_for_membership(membership)
+                self._record(True)
+            else:
+                self._record(False)
 
             organizations.append({"org": org, "admin_user": admin_user, "membership": membership, "spec": org_spec})
         return organizations
@@ -607,8 +667,7 @@ class Command(BaseCommand):
                     self._record("updated")
 
                 supplier = get_or_create_supplier_for_caregiver(profile, tenant_id=tenant.id)
-                party = FinancialPartyService.resolve_party_for_supplier(supplier)
-                WalletService.create_wallet(party=party)
+                self._ensure_supplier_financials(supplier)
 
                 affiliated.append(
                     {
@@ -755,8 +814,26 @@ class Command(BaseCommand):
             description="سفارش نمایشی — واجدیت سازمان ۱ لغو شده است",
             **common,
         )
-        OrderEligibilityService.grant(order=eligibility_revoked, organization=org1)
-        OrderEligibilityService.revoke(order=eligibility_revoked, organization=org1)
+        # Only run the grant-then-revoke sequence if the pair isn't already
+        # sitting in the final WITHDRAWN state — otherwise every re-run would
+        # perform a real WITHDRAWN -> ACTIVE -> WITHDRAWN round trip through
+        # OrderEligibilityService, each leg a genuine, audited, published
+        # state transition (grant() correctly reactivates a WITHDRAWN row
+        # rather than treating it as a no-op, since reactivation itself must
+        # remain a real, auditable operation for its actual production
+        # callers) — unbounded audit/event growth on an otherwise-idempotent
+        # example. Reading current state directly (not via the service) adds
+        # no additional write of its own.
+        existing_revoked_eligibility = OrderOrganizationEligibility.objects.filter(
+            order=eligibility_revoked,
+            organization=org1,
+        ).first()
+        if existing_revoked_eligibility is None or existing_revoked_eligibility.status != EligibilityStatus.WITHDRAWN:
+            OrderEligibilityService.grant(order=eligibility_revoked, organization=org1)
+            OrderEligibilityService.revoke(order=eligibility_revoked, organization=org1)
+            self._record(True)
+        else:
+            self._record(False)
 
         orders["eligibility_only_org1"] = eligibility_only_org1
         orders["eligibility_only_org2"] = eligibility_only_org2
@@ -908,7 +985,14 @@ class Command(BaseCommand):
         return session
 
     def _ensure_execution_and_finance(self, orders, platform_admin):
-        in_progress_order = orders["in_progress"]
+        # Re-fetch rather than trust the in-memory object: _ensure_assignments()
+        # mutates this order's database row (NEW -> WAITING_SERVICE) via
+        # AssignmentService.assign(), but never refreshes the Python object
+        # held in `orders` — checking the stale in-memory status here would
+        # silently skip creating this order's ExecutionSession on the very
+        # first run (only "catching up" a run later, one command execution
+        # too late for the primary use case: run once, inspect immediately).
+        in_progress_order = Order.objects.get(id=orders["in_progress"].id)
         if in_progress_order.status == OrderStatus.WAITING_SERVICE:
             self._drive_execution(in_progress_order)
             self._record(True)
