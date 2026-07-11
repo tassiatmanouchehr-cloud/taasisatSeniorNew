@@ -1,0 +1,39 @@
+{% comment %} Document Status Row Component — Epic 06 Sprint 2
+   One row per uploaded verification document. Never renders a raw file
+   URL, filesystem path, or staff-only rejection reason — only the
+   safe, provider-facing summary fields.
+
+   Usage:
+     {% include "ui/components/portal/document_status.html" with
+        label="کارت هویت" status=doc.status expiry_label=doc.expiry_label
+        action_message=doc.action_message replace_url=doc.replace_url %}
+
+   Props:
+     label           — document type display name
+     status          — pending|verified|rejected|expired
+     expiry_label    — pre-formatted expiry date string, or empty
+     action_message  — safe, provider-facing action-required text (never
+                        the internal rejection_reason)
+     replace_url     — URL to the upload/replace form for this document type
+{% endcomment %}
+<div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4">
+  <div class="min-w-0">
+    <p class="font-bold text-text">{{ label }}</p>
+    {% if expiry_label %}
+    <p class="mt-0.5 text-xs text-text-muted">تاریخ انقضا: <span class="ltr-value">{{ expiry_label }}</span></p>
+    {% endif %}
+    {% if action_message %}
+    <p class="mt-1 text-xs font-medium text-warning-700">{{ action_message }}</p>
+    {% endif %}
+  </div>
+  <div class="flex shrink-0 items-center gap-2">
+    {% include "ui/components/portal/verification_badge.html" with label=label status=status %}
+    {% if replace_url %}
+    <a href="{{ replace_url }}"
+       class="inline-flex items-center rounded-lg border border-border px-2.5 py-1.5 text-xs font-bold text-text-muted no-underline transition-colors hover:bg-background-alt hover:text-text
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2">
+      {% if status == 'pending' or status == 'verified' %}جایگزینی{% else %}بارگذاری مجدد{% endif %}
+    </a>
+    {% endif %}
+  </div>
+</div>

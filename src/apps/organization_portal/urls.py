@@ -17,4 +17,12 @@ urlpatterns = [
     path("capacity/", views.capacity_view, name="capacity"),
     path("reports/", views.reports_view, name="reports"),
     path("notifications/", views.notifications_view, name="notifications"),
+    path("profile/", views.profile_view, name="profile"),
+    path("profile/edit/", views.profile_edit_view, name="profile-edit"),
+    path("profile/edit/services/", views.profile_edit_services_view, name="profile-edit-services"),
+    path("profile/logo/", views.logo_upload_view, name="profile-logo-upload"),
+    path("profile/logo/remove/", views.logo_remove_view, name="profile-logo-remove"),
+    path("profile/cover/", views.cover_upload_view, name="profile-cover-upload"),
+    path("profile/cover/remove/", views.cover_remove_view, name="profile-cover-remove"),
+    path("documents/<str:document_type>/", views.document_manage_view, name="document-manage"),
 ]

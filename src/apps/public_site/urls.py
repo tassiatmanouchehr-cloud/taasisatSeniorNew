@@ -18,6 +18,7 @@ urlpatterns = [
     path("find-a-caregiver/", views.find_a_caregiver, name="find-a-caregiver"),
     path("find-a-caregiver/<uuid:supplier_id>/", views.caregiver_profile, name="caregiver-profile"),
     path("organizations/", views.organizations, name="organizations"),
+    path("find-an-organization/<uuid:supplier_id>/", views.organization_profile, name="organization-profile"),
     path("faq/", views.faq, name="faq"),
     path("privacy/", views.privacy, name="privacy"),
     path("terms/", views.terms, name="terms"),

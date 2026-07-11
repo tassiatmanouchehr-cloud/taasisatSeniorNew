@@ -125,10 +125,7 @@ WSGI_APPLICATION = "config.wsgi.application"
 # Database — PostgreSQL (with optional PostGIS when GIS_ENABLED=true)
 # Native dev (Windows): GIS_ENABLED=false → django.db.backends.postgresql
 # Docker/production: GIS_ENABLED=true → django.contrib.gis.db.backends.postgis
-_default_db_engine = (
-    "django.contrib.gis.db.backends.postgis" if GIS_ENABLED
-    else "django.db.backends.postgresql"
-)
+_default_db_engine = "django.contrib.gis.db.backends.postgis" if GIS_ENABLED else "django.db.backends.postgresql"
 _database_engine = os.environ.get("DATABASE_ENGINE", _default_db_engine)
 
 if _database_engine in ("sqlite", "sqlite3", "django.db.backends.sqlite3"):
@@ -196,6 +193,17 @@ STATICFILES_DIRS = [
     ("ui", BASE_DIR / "ui"),
 ]
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Media files (user-uploaded profile avatars/covers, verification documents)
+# — Epic 06 Sprint 2. Local filesystem storage (Django's default
+# FileSystemStorage) is deliberately used rather than a cloud/S3 backend:
+# no django-storages/boto3 dependency exists anywhere in this repository
+# today, and adding a cloud storage integration is out of this Sprint's
+# explicit "smallest correct media foundation" scope. Swapping the
+# storage backend later only requires a settings change (DEFAULT_FILE_STORAGE
+# / STORAGES) — no application code depends on the local-filesystem detail.
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

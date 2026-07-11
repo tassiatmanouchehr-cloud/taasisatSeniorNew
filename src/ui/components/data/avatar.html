@@ -69,6 +69,7 @@
                {% elif status == 'busy' %}bg-danger
                {% elif status == 'away' %}bg-warning
                {% endif %}"
+       role="img"
        aria-label="{% if status == 'online' %}آنلاین{% elif status == 'offline' %}آفلاین{% elif status == 'busy' %}مشغول{% elif status == 'away' %}دور{% endif %}">
   </span>
   {% endif %}

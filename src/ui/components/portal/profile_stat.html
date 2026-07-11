@@ -1,0 +1,12 @@
+{% comment %} Profile Stat Component — Epic 06 Sprint 2
+   Semantic name for a profile-page metric tile (rating, completed jobs,
+   years of experience, active providers, ...). Thin wrapper over the
+   existing generic ui/components/data/stat_card.html — one implementation,
+   a domain-appropriate name at profile-page call sites.
+
+   Usage:
+     {% include "ui/components/portal/profile_stat.html" with label="امتیاز" value="۴.۸" %}
+
+   Props: same as stat_card.html (label, value, change, trend, icon).
+{% endcomment %}
+{% include "ui/components/data/stat_card.html" with label=label value=value change=change trend=trend icon=icon %}

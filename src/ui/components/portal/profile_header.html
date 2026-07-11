@@ -1,0 +1,60 @@
+{% comment %} Profile Header Component — Epic 06 Sprint 2
+   Semantic hero header for an authenticated self-profile page (provider
+   or organization). Theme-independent: consumes only plain scalar props
+   from a ViewModel, never a model instance.
+
+   Usage:
+     {% include "ui/components/portal/profile_header.html" with
+        avatar_url=profile.avatar_url cover_url=profile.cover_url
+        name=profile.display_name avatar_type="user"
+        subtitle=profile.city avatar_status=profile.avatar_status_dot
+        badges=profile.badges public_preview_url=profile.public_preview_url %}
+
+   Props:
+     avatar_url    — image URL or empty (falls back to initials)
+     cover_url     — image URL or empty (falls back to a decorative gradient)
+     name          — display name (required)
+     avatar_type   — "user" (caregiver, circle) | "org" (organization, rounded-lg)
+     avatar_status — online|offline|busy|away (optional)
+     subtitle      — short line under the name (e.g. city, specialty)
+     badges        — iterable of {label, variant} dicts, rendered as badge.html
+     public_preview_url — optional link to the public-facing profile
+{% endcomment %}
+<div class="overflow-hidden rounded-3xl border border-border bg-surface">
+  <div class="relative h-28 sm:h-40
+              {% if not cover_url %}bg-gradient-to-l from-primary/20 via-primary/10 to-transparent{% endif %}">
+    {% if cover_url %}
+    <img src="{{ cover_url }}" alt="" class="h-full w-full object-cover" loading="lazy">
+    {% endif %}
+  </div>
+  <div class="px-4 pb-6 sm:px-8">
+    <div class="-mt-10 flex flex-wrap items-end gap-4 sm:-mt-12">
+      <div class="shrink-0 rounded-full ring-4 ring-surface">
+        {% include "ui/components/data/avatar.html" with src=avatar_url name=name size="xl" type=avatar_type|default:"user" status=avatar_status ring=True %}
+      </div>
+      <div class="min-w-[8rem] flex-1 pb-1">
+        <h1 class="break-words text-xl font-black text-text sm:text-2xl">{{ name }}</h1>
+        {% if subtitle %}
+        <p class="mt-0.5 truncate text-sm text-text-muted">{{ subtitle }}</p>
+        {% endif %}
+      </div>
+      {% if public_preview_url %}
+      <a href="{{ public_preview_url }}" target="_blank" rel="noopener"
+         class="mb-1 inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-bold text-text-muted no-underline transition-colors hover:bg-background-alt hover:text-text
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 sm:w-auto sm:justify-start">
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+        </svg>
+        مشاهده نمایه عمومی
+      </a>
+      {% endif %}
+    </div>
+    {% if badges %}
+    <div class="mt-4 flex flex-wrap items-center gap-1.5">
+      {% for badge in badges %}
+      {% include "ui/components/feedback/badge.html" with label=badge.label variant=badge.variant size="sm" %}
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>

@@ -55,6 +55,7 @@ from apps.kernel.permissions.keys import (
     BOOKING_ASSIGNMENT_ASSIGN,
     ORGANIZATION_MEMBERSHIP_APPROVE,
     ORGANIZATION_MEMBERSHIP_SUSPEND,
+    ORGANIZATION_PROFILE_UPDATE,
 )
 
 
@@ -76,6 +77,7 @@ ORGANIZATION_ADMIN_PERMISSIONS: tuple[str, ...] = (
     BOOKING_ASSIGNMENT_ASSIGN,
     ORGANIZATION_MEMBERSHIP_APPROVE,
     ORGANIZATION_MEMBERSHIP_SUSPEND,
+    ORGANIZATION_PROFILE_UPDATE,
 )
 
 DEFAULT_TENANT_ROLES: tuple[RoleDefinition, ...] = (
@@ -90,7 +92,8 @@ DEFAULT_TENANT_ROLES: tuple[RoleDefinition, ...] = (
     RoleDefinition(slug="independent_caregiver", name="مراقب مستقل"),
     RoleDefinition(slug="organization_caregiver", name="مراقب سازمانی"),
     RoleDefinition(
-        slug=ORGANIZATION_ADMIN_ROLE_SLUG, name=ORGANIZATION_ADMIN_ROLE_NAME,
+        slug=ORGANIZATION_ADMIN_ROLE_SLUG,
+        name=ORGANIZATION_ADMIN_ROLE_NAME,
         description="Epic 04/05: carries the organization-isolation permission set.",
         permissions=ORGANIZATION_ADMIN_PERMISSIONS,
     ),
@@ -111,20 +114,55 @@ ADMIN_PORTAL_PERMISSIONS: tuple[str, ...] = (
 )
 
 DEV_BOOTSTRAP_ROLES: tuple[RoleDefinition, ...] = (
-    RoleDefinition(slug="platform-owner", name="Platform Owner", description="Full platform access. Super-admin.", permissions=ADMIN_PORTAL_PERMISSIONS),
-    RoleDefinition(slug="platform-team", name="Platform Team Member", description="Internal platform staff with delegated permissions."),
-    RoleDefinition(slug="organization-owner", name="Organization Owner", description="Full access within own organization."),
-    RoleDefinition(slug="organization-staff", name="Organization Staff", description="Staff operating inside an organization with scoped permissions."),
-    RoleDefinition(slug="organization-operator", name="Organization Operator", description="Dispatchers and coordinators within an organization."),
-    RoleDefinition(slug="independent-provider", name="Independent Provider", description="Provider acting without organization affiliation."),
-    RoleDefinition(slug="organization-provider", name="Organization Provider", description="Provider affiliated with an organization."),
+    RoleDefinition(
+        slug="platform-owner",
+        name="Platform Owner",
+        description="Full platform access. Super-admin.",
+        permissions=ADMIN_PORTAL_PERMISSIONS,
+    ),
+    RoleDefinition(
+        slug="platform-team",
+        name="Platform Team Member",
+        description="Internal platform staff with delegated permissions.",
+    ),
+    RoleDefinition(
+        slug="organization-owner", name="Organization Owner", description="Full access within own organization."
+    ),
+    RoleDefinition(
+        slug="organization-staff",
+        name="Organization Staff",
+        description="Staff operating inside an organization with scoped permissions.",
+    ),
+    RoleDefinition(
+        slug="organization-operator",
+        name="Organization Operator",
+        description="Dispatchers and coordinators within an organization.",
+    ),
+    RoleDefinition(
+        slug="independent-provider",
+        name="Independent Provider",
+        description="Provider acting without organization affiliation.",
+    ),
+    RoleDefinition(
+        slug="organization-provider",
+        name="Organization Provider",
+        description="Provider affiliated with an organization.",
+    ),
     RoleDefinition(slug="customer", name="Customer", description="Person or entity requesting/buying a service."),
-    RoleDefinition(slug="customer-delegate", name="Customer Delegate", description="Person acting on behalf of a customer account."),
-    RoleDefinition(slug="trusted-person", name="Trusted Person", description="Order-scoped person with limited, temporary visibility."),
+    RoleDefinition(
+        slug="customer-delegate", name="Customer Delegate", description="Person acting on behalf of a customer account."
+    ),
+    RoleDefinition(
+        slug="trusted-person",
+        name="Trusted Person",
+        description="Order-scoped person with limited, temporary visibility.",
+    ),
     RoleDefinition(slug="support-user", name="Support User", description="Customer support staff."),
     RoleDefinition(slug="finance-user", name="Finance User", description="Financial operations staff."),
     RoleDefinition(slug="compliance-user", name="Compliance User", description="Compliance and governance staff."),
-    RoleDefinition(slug="read-only-auditor", name="Read-Only Auditor", description="Audit access with no write permissions."),
+    RoleDefinition(
+        slug="read-only-auditor", name="Read-Only Auditor", description="Audit access with no write permissions."
+    ),
 )
 
 # Known, deliberate, NOT-YET-RESOLVED slug divergence — see module

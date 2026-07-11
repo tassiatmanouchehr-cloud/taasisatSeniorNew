@@ -1,0 +1,75 @@
+{% extends "public_site/base_public.html" %}
+{% block public_title %}{{ profile.name }}{% endblock %}
+
+{% block page_meta %}
+{% include "ui/components/public/seo_meta.html" with page_title=profile.name|add:" — سالمندیار" page_description=profile.description|default:"پروفایل عمومی سازمان در سالمندیار" page_url="/find-an-organization/" %}
+{% endblock %}
+
+{% block content %}
+{# === Cover === #}
+<div class="h-32 w-full bg-gradient-to-l from-primary-700 to-primary-400 sm:h-44" aria-hidden="true"></div>
+
+<section class="bg-background">
+  <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+    <div class="-mt-14 flex flex-col items-start gap-4 sm:-mt-16 sm:flex-row sm:items-end sm:gap-6">
+      <div class="ring-4 ring-background rounded-2xl">
+        {% include "ui/components/data/avatar.html" with name=profile.name size="xl" type="org" ring=True %}
+      </div>
+      <div class="flex-1 pb-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <h1 class="text-2xl font-black text-text sm:text-3xl">{{ profile.name }}</h1>
+          {% if profile.is_verified %}
+          {% include "ui/components/feedback/badge.html" with label="تأییدشده" variant="info" pill=True %}
+          {% endif %}
+        </div>
+        {% if profile.city %}<p class="mt-1 text-sm text-text-muted">{{ profile.city }}</p>{% endif %}
+      </div>
+    </div>
+
+    <div class="mt-6 flex flex-wrap items-center gap-3">
+      {% include "ui/components/feedback/badge.html" with label=profile.verification_label variant=profile.is_verified|yesno:"info,warning" %}
+    </div>
+
+    <div class="mt-8 grid gap-8 lg:grid-cols-3">
+      {# === Main column === #}
+      <div class="space-y-8 lg:col-span-2">
+        {% if profile.description %}
+        <div>
+          <h2 class="text-lg font-black text-text">درباره {{ profile.name }}</h2>
+          <p class="mt-3 whitespace-pre-line text-sm leading-8 text-text-muted">{{ profile.description }}</p>
+        </div>
+        {% endif %}
+
+        {% if profile.service_names %}
+        <div>
+          <h2 class="text-lg font-black text-text">خدمات قابل ارائه</h2>
+          <div class="mt-3 flex flex-wrap gap-2">
+            {% for service_name in profile.service_names %}
+            {% include "ui/components/feedback/chip.html" with label=service_name %}
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      {# === Sidebar === #}
+      <aside class="space-y-6">
+        <div class="rounded-2xl border border-border bg-surface p-6">
+          <h2 class="text-sm font-black text-text">امتیاز و ظرفیت</h2>
+          <div class="mt-4">
+            {% include "ui/components/public/rating_stars.html" with average=profile.rating.average stars_rounded=profile.rating.stars_rounded review_count=profile.rating.review_count size="md" %}
+          </div>
+          <dl class="mt-5 grid grid-cols-1 gap-4 border-t border-border pt-5">
+            <div>
+              <dt class="text-xs text-text-muted">مراقبان فعال</dt>
+              <dd class="mt-1 text-lg font-black text-text ltr-value">{{ profile.active_provider_count }}</dd>
+            </div>
+          </dl>
+        </div>
+
+        {% include "ui/components/public/cta_section.html" with title="نیاز به مشاوره دارید؟" subtitle="برای هماهنگی و دریافت خدمات این سازمان، با ما تماس بگیرید." primary_cta_text="شروع گفتگو" primary_cta_url="/contact/" %}
+      </aside>
+    </div>
+  </div>
+</section>
+{% endblock %}

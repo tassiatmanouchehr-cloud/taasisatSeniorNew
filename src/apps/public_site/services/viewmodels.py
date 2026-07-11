@@ -149,3 +149,23 @@ class HomePageViewModel:
     featured_caregivers: tuple[CaregiverCardViewModel, ...] = field(default_factory=tuple)
     reviews: tuple[ReviewViewModel, ...] = field(default_factory=tuple)
     city_options: tuple[FilterOptionViewModel, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
+class OrganizationProfileViewModel:
+    """The public Organization Profile page (Epic 06 Sprint 2). Never
+    exposes staff details, internal membership notes, financial
+    identifiers, internal documents, or platform-admin comments — only
+    what the organization itself has designated as public-facing."""
+
+    supplier_id: UUID
+    name: str
+    logo_initial: str
+    city: str
+    description: str
+    service_names: tuple[str, ...]
+    verification_status: str
+    verification_label: str
+    is_verified: bool
+    rating: RatingSummaryViewModel
+    active_provider_count: int

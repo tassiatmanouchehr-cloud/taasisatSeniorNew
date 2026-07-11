@@ -1,0 +1,47 @@
+{% comment %} Verification Badge Component — Epic 06 Sprint 2
+   Displays a single verification-status fact using the exact platform
+   wording this Sprint's spec requires — icon + text together, never a
+   color-only signal (WCAG 1.4.1). Never used to imply a caregiver or
+   organization can self-verify — this is a read-only status display.
+
+   Usage:
+     {% include "ui/components/portal/verification_badge.html" with label="هویت" status="verified" %}
+
+   Props:
+     label  — what is being verified (e.g. "هویت", "سابقه کیفری", "مدرک تخصصی")
+     status — verified|pending|rejected|expired|unverified
+{% endcomment %}
+{% with status=status|default:"unverified" %}
+<div class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold
+            {% if status == 'verified' %}border-success/30 bg-success-50 text-success-700 dark:bg-success-50 dark:text-success-600
+            {% elif status == 'pending' %}border-warning/30 bg-warning-50 text-warning-700 dark:bg-warning-50 dark:text-warning-600
+            {% elif status == 'rejected' %}border-danger/30 bg-danger-50 text-danger-700 dark:bg-danger-50 dark:text-danger-600
+            {% elif status == 'expired' %}border-danger/30 bg-danger-50 text-danger-700 dark:bg-danger-50 dark:text-danger-600
+            {% else %}border-border bg-background-alt text-text-muted{% endif %}">
+  {% if status == 'verified' %}
+  <svg class="h-3.5 w-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+  </svg>
+  {% elif status == 'pending' %}
+  <svg class="h-3.5 w-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
+  </svg>
+  {% elif status == 'rejected' or status == 'expired' %}
+  <svg class="h-3.5 w-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd"/>
+  </svg>
+  {% else %}
+  <svg class="h-3.5 w-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+  </svg>
+  {% endif %}
+  <span>
+    {{ label }} —
+    {% if status == 'verified' %}تأییدشده توسط پلتفرم
+    {% elif status == 'pending' %}در انتظار بررسی پلتفرم
+    {% elif status == 'rejected' %}رد شده — نیاز به اقدام
+    {% elif status == 'expired' %}منقضی‌شده — نیاز به تمدید
+    {% else %}تأییدنشده{% endif %}
+  </span>
+</div>
+{% endwith %}

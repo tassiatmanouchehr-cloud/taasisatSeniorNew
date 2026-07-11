@@ -1,0 +1,30 @@
+{% comment %} Action List Component — Epic 06 Sprint 2
+   A vertical list of actionable rows (e.g. profile edit shortcuts,
+   quick-links on an overview page). Purely presentational.
+
+   Usage:
+     {% include "ui/components/portal/action_list.html" with items=profile.quick_actions %}
+
+   Props:
+     items — iterable of {label, description, href, icon_svg} dicts
+{% endcomment %}
+<div class="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
+  {% for item in items %}
+  <a href="{{ item.href }}"
+     class="flex items-center gap-3 p-4 no-underline text-text transition-colors hover:bg-background-alt
+            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-inset">
+    {% if item.icon_svg %}
+    <span class="shrink-0 text-text-muted" aria-hidden="true">{{ item.icon_svg }}</span>
+    {% endif %}
+    <span class="min-w-0 flex-1">
+      <span class="block font-bold">{{ item.label }}</span>
+      {% if item.description %}
+      <span class="mt-0.5 block text-xs text-text-muted">{{ item.description }}</span>
+      {% endif %}
+    </span>
+    <svg class="h-4 w-4 shrink-0 text-text-muted icon-directional" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+    </svg>
+  </a>
+  {% endfor %}
+</div>
