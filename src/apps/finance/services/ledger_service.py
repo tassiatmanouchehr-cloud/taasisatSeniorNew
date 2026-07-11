@@ -26,6 +26,7 @@ from ..models import (
     LedgerEntryType,
     PaymentTransaction,
 )
+from ..permission_keys import FINANCE_LEDGER_POST
 from .errors import FinanceError
 
 logger = logging.getLogger(__name__)
@@ -39,7 +40,7 @@ class LedgerService:
     @classmethod
     @transaction.atomic
     def post_entries(cls, *, tenant_id, entries, entry_group_id=None, actor=None) -> list[LedgerEntry]:
-        PermissionService.require(actor, "finance.ledger.post", tenant_id=tenant_id)
+        PermissionService.require(actor, FINANCE_LEDGER_POST, tenant_id=tenant_id)
 
         if not entries:
             raise FinanceError("post_entries requires at least one entry.")

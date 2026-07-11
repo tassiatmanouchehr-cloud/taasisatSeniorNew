@@ -34,23 +34,15 @@ this Epic existed.
 
 from django.db import transaction
 
-from apps.accounts.permission_keys import (
-    ORGANIZATION_ASSIGNMENT_ASSIGN,
-    ORGANIZATION_MEMBERSHIP_APPROVE,
-    ORGANIZATION_MEMBERSHIP_SUSPEND,
-)
 from apps.kernel.models.rbac import Role, RoleAssignment
+from apps.kernel.role_catalog import (
+    ORGANIZATION_ADMIN_PERMISSIONS,
+    ORGANIZATION_ADMIN_ROLE_NAME,
+    ORGANIZATION_ADMIN_ROLE_SLUG,
+)
 from apps.kernel.services.audit_service import AuditService
 
 from ..models.profiles import OrgMembershipRole, OrgMembershipStatus
-
-ORGANIZATION_ADMIN_ROLE_SLUG = "organization_admin"
-ORGANIZATION_ADMIN_ROLE_NAME = "مدیر سازمان"
-ORGANIZATION_ADMIN_PERMISSIONS = [
-    ORGANIZATION_ASSIGNMENT_ASSIGN,
-    ORGANIZATION_MEMBERSHIP_APPROVE,
-    ORGANIZATION_MEMBERSHIP_SUSPEND,
-]
 
 SOURCE_MODULE = "M26"
 

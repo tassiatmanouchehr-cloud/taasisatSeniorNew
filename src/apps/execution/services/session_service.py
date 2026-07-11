@@ -29,6 +29,7 @@ from apps.kernel.services.permission_service import PermissionService
 from apps.orders.services.status_machine import complete_order, start_order
 
 from ..models import ExecutionSession, ExecutionSessionStatus, ExecutionSource
+from ..permission_keys import EXECUTION_SESSION_CLOSE
 
 logger = logging.getLogger(__name__)
 
@@ -174,7 +175,7 @@ class ExecutionService:
         """Finalizes the session AND the Order (Order.status -> completed)."""
         session = ExecutionSession.objects.select_for_update().get(id=session_id)
 
-        PermissionService.require(changed_by, "execution.session.close", tenant_id=session.tenant_id)
+        PermissionService.require(changed_by, EXECUTION_SESSION_CLOSE, tenant_id=session.tenant_id)
 
         if session.status not in _CLOSABLE_STATUSES:
             raise ExecutionError(

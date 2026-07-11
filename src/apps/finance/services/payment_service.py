@@ -26,6 +26,7 @@ from ..models import (
     PaymentStatus,
     PaymentTransaction,
 )
+from ..permission_keys import FINANCE_PAYMENT_RECORD
 from .errors import FinanceError
 
 logger = logging.getLogger(__name__)
@@ -61,7 +62,7 @@ class PaymentService:
         receiver_party = FinancialParty.objects.get(id=receiver_party_id)
         tenant_id = payer_party.tenant_id
 
-        PermissionService.require(recorded_by, "finance.payment.record", tenant_id=tenant_id)
+        PermissionService.require(recorded_by, FINANCE_PAYMENT_RECORD, tenant_id=tenant_id)
 
         if receiver_party.tenant_id != tenant_id:
             raise FinanceError("Payer and receiver parties belong to different tenants.")

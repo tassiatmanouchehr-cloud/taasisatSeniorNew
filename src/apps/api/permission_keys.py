@@ -2,20 +2,33 @@
 RBAC permission_key taxonomy — Module 17A/17B, documented in
 docs/architecture/rbac-permissions.md.
 
-No permission_key registry exists anywhere in the platform yet
-(Role.permissions is a freeform JSON string list — see
-apps.kernel.models.rbac). These constants establish a first naming
-convention (`<domain>.<action>`) for API-exposed capabilities so keys
-aren't scattered as magic strings across view modules. Roles must be
-granted these keys explicitly (see apps.kernel.tests.rbac_helpers.
-grant_permissions) — nothing here auto-grants access.
+Epic 05 (Permission-Key Registry & Authorization Hardening): this module
+is now a re-export facade over the canonical registry
+(apps.kernel.permissions.keys) — the constant *values* are unchanged
+(same strings, same behavior), but registration/metadata/duplicate-
+detection now lives in exactly one place. Every existing `from
+apps.api.permission_keys import X` call site is unaffected; this file's
+public names are preserved for that reason.
 """
 
-REPORTING_READ = "reporting.read"
-DISCOVERY_SUPPLIERS_READ = "discovery.suppliers.read"
-PRICING_QUOTES_CREATE = "pricing.quotes.create"
-REVIEWS_SUBMIT = "reviews.submit"
-REVIEWS_READ = "reviews.read"
-WALLET_READ = "wallet.read"
-PAYMENTS_INTENTS_CREATE = "payments.intents.create"
-PAYMENTS_ATTEMPTS_CREATE = "payments.attempts.create"
+from apps.kernel.permissions.keys import (
+    DISCOVERY_SUPPLIERS_READ,
+    PAYMENTS_ATTEMPTS_CREATE,
+    PAYMENTS_INTENTS_CREATE,
+    PRICING_QUOTES_CREATE,
+    REPORTING_READ,
+    REVIEWS_READ,
+    REVIEWS_SUBMIT,
+    WALLET_READ,
+)
+
+__all__ = [
+    "REPORTING_READ",
+    "DISCOVERY_SUPPLIERS_READ",
+    "PRICING_QUOTES_CREATE",
+    "REVIEWS_SUBMIT",
+    "REVIEWS_READ",
+    "WALLET_READ",
+    "PAYMENTS_INTENTS_CREATE",
+    "PAYMENTS_ATTEMPTS_CREATE",
+]

@@ -28,6 +28,32 @@ docs/architecture/GAP_ANALYSIS.md for the tracked follow-up (seed real
 organization-scoped roles, then this parameter becomes unnecessary for
 that call site).
 
+Security contract of `ownership_authorized_by` (Epic 05 Architecture
+Review, Major finding M1 — documentation clarification, not a behavior
+change): `ownership_authorized_by` is **not, on its own, a standalone
+authorization boundary**. `PermissionService` does not and cannot
+independently verify that the actor passed as `ownership_authorized_by`
+actually owns or administers the resource in question — it assumes the
+caller has already established that upstream, before this method is ever
+invoked. The normal production path is: request -> the calling
+portal/service resolves the caller's own organization/resource (e.g.
+`apps.organization_portal.permissions.resolve_organization()`) -> that
+resolution *is* the ownership verification -> `PermissionService.require()`
+is called with the now-verified actor -> real RBAC evaluation is tried
+first -> the audited ownership fallback is used only when a matching
+`RoleAssignment` has not yet been synced for that actor. If a caller ever
+passes the wrong actor as `ownership_authorized_by` (e.g. an admin who
+administers a *different* organization than the resource being acted on),
+`PermissionService` will still authorize that call once it falls back to
+the ownership-authorized path — the fallback audits and allows a
+verified-by-construction actor, it does not re-derive or re-check that
+verification. **This is a caller bug, not a `PermissionService` bug**:
+callers of `require(..., ownership_authorized_by=...)` are responsible
+for having already verified ownership, in the same way `require(actor,
+...)`'s own real-RBAC path trusts that `actor` is a genuine, already-
+authenticated identity. See `docs/architecture/rbac-permissions.md` for
+the call-site-level restatement of this contract.
+
 References:
 - ADR-001.13 (RBAC evaluation belongs to Module 08)
 - apps.kernel.models.rbac (Role / Permission / RoleAssignment — M25-owned data)
@@ -134,6 +160,17 @@ class PermissionService:
             # shape before scoped RBAC seeding exists) or mislabel this as
             # system context, audit it explicitly and honestly as a real,
             # ownership-authorized human action.
+            #
+            # Epic 05 (Permission-Key Registry & Authorization Hardening)
+            # ownership-fallback observability: has_any_role_assignment
+            # distinguishes "this actor has zero RBAC setup at all" from
+            # "this actor holds some RoleAssignment, just not one matching
+            # this permission_key/scope" — the second case is the more
+            # actionable signal (a scope or permission-grant mistake,
+            # rather than a backfill that simply hasn't run yet).
+            has_any_role_assignment = cls._actor_filter(effective_actor) is not None and RoleAssignment.objects.filter(
+                tenant_id=tenant_id, is_active=True, **cls._actor_filter(effective_actor),
+            ).exists()
             AuditService.log_security(
                 tenant_id=tenant_id,
                 action="rbac.permission.ownership_authorized",
@@ -146,6 +183,7 @@ class PermissionService:
                     "Actor authorized by a verified ownership check upstream, "
                     "not by an RBAC role assignment."
                 ),
+                metadata={"has_any_role_assignment": has_any_role_assignment},
             )
             return
 
@@ -170,6 +208,7 @@ class PermissionService:
             module_id=SOURCE_MODULE,
             actor_id=actor_id,
             after={"permission_key": permission_key, "scope": scope or {}},
+            reason="No active RoleAssignment grants this permission_key in the requested scope.",
         )
 
         raise PermissionDenied(f"Actor is not authorized for '{permission_key}'.")
@@ -194,11 +233,47 @@ class PermissionService:
 
     @staticmethod
     def _scope_matches(assignment: RoleAssignment, scope: dict[str, Any] | None) -> bool:
-        if scope is None:
-            return True
+        """
+        Epic 05 (Permission-Key Registry & Authorization Hardening) scope
+        validation hardening. An unscoped or explicitly platform-scoped
+        assignment is the broadest possible grant and satisfies any
+        request, scoped or not — unchanged from before this Epic.
+
+        Everything below this point is new: an assignment carrying a real,
+        narrower scope (e.g. "organization") can only satisfy a request
+        that asks for that exact scope. Previously, `scope is None`
+        short-circuited `True` unconditionally — meaning an
+        organization-scoped RoleAssignment also satisfied a platform-wide
+        (unscoped) check, a gap identified and deliberately left unfixed
+        during Epic 04 (Enterprise Organization Isolation) pending this
+        Epic. Not exploitable by any call site that existed before this
+        Epic (every organization-scoped grant was new in Epic 04, and
+        every organization-isolation enforcement point already passes an
+        explicit scope) — closed here before a future caller could depend
+        on the looser behavior.
+
+        Fails closed, explicitly, for every malformed shape: a `scope`
+        dict missing `scope_type`/`scope_id` entirely, and an assignment
+        row whose own `scope_id` is None despite carrying a real
+        `scope_type` (a malformed RoleAssignment, not a valid platform
+        grant) — the previous implementation only failed on these
+        incidentally, via `str(None) == str(some_uuid)` comparisons, which
+        breaks the moment both sides are coincidentally None.
+        """
         if not assignment.scope_type or assignment.scope_type == "platform":
             return True
+
+        if scope is None:
+            return False
+
+        if "scope_type" not in scope or "scope_id" not in scope:
+            return False
+
+        if assignment.scope_id is None:
+            return False
+
         return (
             assignment.scope_type == scope.get("scope_type")
+            and scope.get("scope_id") is not None
             and str(assignment.scope_id) == str(scope.get("scope_id"))
         )

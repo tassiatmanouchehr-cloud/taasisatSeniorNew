@@ -27,7 +27,9 @@ transition too, rather than leaving the two out of sync.
 from django.db import transaction
 
 from apps.kernel.services.audit_service import AuditService
+from apps.kernel.services.permission_service import PermissionService
 
+from ..permission_keys import ORGANIZATION_MEMBERSHIP_APPROVE, ORGANIZATION_MEMBERSHIP_SUSPEND
 from .errors import AccountsError
 
 
@@ -74,12 +76,30 @@ class OrganizationStaffService:
     @classmethod
     @transaction.atomic
     def approve_membership(cls, membership, *, approved_by=None):
+        """Epic 05 (Permission-Key Registry & Authorization Hardening)
+        confirmed authorization defect fix: this method previously
+        performed no PermissionService check at all — the
+        "organization.membership.approve" permission key existed and was
+        even granted to the organization_admin role, but nothing ever
+        enforced it. approved_by is passed as ownership_authorized_by
+        (mirrors AssignmentService.assign()'s exact shape): a real actor
+        authorized by resolve_organization()'s upstream ownership check is
+        tried as a normal RBAC actor first, falling back to an audited
+        ownership-authorized entry only if no scoped RoleAssignment exists
+        yet — never a silent bypass, never a lockout."""
         from django.utils import timezone
 
         from ..models.profiles import OrganizationMembership, OrgMembershipStatus
         from .organization_rbac import OrganizationRoleSyncService
 
         membership = OrganizationMembership.objects.select_for_update().get(id=membership.id)
+
+        PermissionService.require(
+            None, ORGANIZATION_MEMBERSHIP_APPROVE, tenant_id=membership.user.tenant_id,
+            ownership_authorized_by=approved_by,
+            scope={"scope_type": "organization", "scope_id": str(membership.organization_id)},
+        )
+
         membership.status = OrgMembershipStatus.ACTIVE
         membership.approved_by = approved_by
         membership.joined_at = timezone.now()
@@ -100,11 +120,24 @@ class OrganizationStaffService:
 
     @classmethod
     @transaction.atomic
-    def suspend_membership(cls, membership):
+    def suspend_membership(cls, membership, *, suspended_by=None):
+        """Epic 05 confirmed authorization defect fix — see
+        approve_membership()'s docstring for the full reasoning; same
+        shape, same fallback guarantee. `suspended_by` is a new,
+        backward-compatible optional kwarg (defaults to None, matching
+        every pre-Epic-05 call site's behavior when the caller doesn't
+        pass one — falls through to true system context, unchanged)."""
         from ..models.profiles import OrganizationMembership, OrgMembershipStatus
         from .organization_rbac import OrganizationRoleSyncService
 
         membership = OrganizationMembership.objects.select_for_update().get(id=membership.id)
+
+        PermissionService.require(
+            None, ORGANIZATION_MEMBERSHIP_SUSPEND, tenant_id=membership.user.tenant_id,
+            ownership_authorized_by=suspended_by,
+            scope={"scope_type": "organization", "scope_id": str(membership.organization_id)},
+        )
+
         membership.status = OrgMembershipStatus.SUSPENDED
         membership.save(update_fields=["status", "updated_at"])
 
@@ -115,7 +148,8 @@ class OrganizationStaffService:
             resource_type="OrganizationMembership",
             resource_id=membership.id,
             module_id="M26",
-            actor_type="system",
+            actor_id=suspended_by.person_id if suspended_by else None,
+            actor_type="user" if suspended_by else "system",
             after={"organization_id": str(membership.organization_id), "user_id": str(membership.user_id)},
         )
         return membership

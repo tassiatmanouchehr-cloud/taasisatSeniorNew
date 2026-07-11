@@ -30,6 +30,7 @@ from ..models import (
     FinancialDocumentStatus,
     FinancialDocumentType,
 )
+from ..permission_keys import FINANCE_DOCUMENT_ISSUE, FINANCE_DOCUMENT_LOCK
 from .errors import FinanceError
 from .party_service import FinancialPartyService
 
@@ -97,7 +98,7 @@ class FinancialDocumentService:
     def issue_document(cls, *, document_id, changed_by=None) -> FinancialDocument:
         document = FinancialDocument.objects.select_for_update().get(id=document_id)
 
-        PermissionService.require(changed_by, "finance.document.issue", tenant_id=document.tenant_id)
+        PermissionService.require(changed_by, FINANCE_DOCUMENT_ISSUE, tenant_id=document.tenant_id)
 
         if document.status != FinancialDocumentStatus.DRAFT:
             raise FinanceError(f"Cannot issue a document in '{document.status}' status.")
@@ -137,7 +138,7 @@ class FinancialDocumentService:
     def lock_document(cls, *, document_id, changed_by=None) -> FinancialDocument:
         document = FinancialDocument.objects.select_for_update().get(id=document_id)
 
-        PermissionService.require(changed_by, "finance.document.lock", tenant_id=document.tenant_id)
+        PermissionService.require(changed_by, FINANCE_DOCUMENT_LOCK, tenant_id=document.tenant_id)
 
         if document.status not in _EDITABLE_STATUSES:
             raise FinanceError(f"Cannot lock a document in '{document.status}' status.")

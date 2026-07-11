@@ -39,7 +39,7 @@ class SeedAuthRolesTest(TestCase):
         call_command("seed_auth_roles")
         tenant = Tenant.objects.get(slug="salmandyar")
         role = Role.objects.get(tenant=tenant, slug="organization_admin")
-        self.assertIn("organization.assignment.assign", role.permissions)
+        self.assertIn("booking.assignment.assign", role.permissions)
         self.assertIn("organization.membership.approve", role.permissions)
         self.assertIn("organization.membership.suspend", role.permissions)
 
@@ -55,7 +55,7 @@ class SeedAuthRolesTest(TestCase):
         call_command("seed_auth_roles")
         role.refresh_from_db()
         self.assertIn("organization.custom.thing", role.permissions)
-        self.assertIn("organization.assignment.assign", role.permissions)
+        self.assertIn("booking.assignment.assign", role.permissions)
 
 
 class CreatePlatformOwnerTest(TestCase):

@@ -98,7 +98,7 @@ def staff_suspend_view(request, membership_id):
     except AccountsError:
         raise Http404("Staff member not found.")
 
-    OrganizationStaffService.suspend_membership(membership)
+    OrganizationStaffService.suspend_membership(membership, suspended_by=request.user)
     return redirect("organization_portal:staff")
 
 
