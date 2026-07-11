@@ -28,6 +28,32 @@ docs/architecture/GAP_ANALYSIS.md for the tracked follow-up (seed real
 organization-scoped roles, then this parameter becomes unnecessary for
 that call site).
 
+Security contract of `ownership_authorized_by` (Epic 05 Architecture
+Review, Major finding M1 — documentation clarification, not a behavior
+change): `ownership_authorized_by` is **not, on its own, a standalone
+authorization boundary**. `PermissionService` does not and cannot
+independently verify that the actor passed as `ownership_authorized_by`
+actually owns or administers the resource in question — it assumes the
+caller has already established that upstream, before this method is ever
+invoked. The normal production path is: request -> the calling
+portal/service resolves the caller's own organization/resource (e.g.
+`apps.organization_portal.permissions.resolve_organization()`) -> that
+resolution *is* the ownership verification -> `PermissionService.require()`
+is called with the now-verified actor -> real RBAC evaluation is tried
+first -> the audited ownership fallback is used only when a matching
+`RoleAssignment` has not yet been synced for that actor. If a caller ever
+passes the wrong actor as `ownership_authorized_by` (e.g. an admin who
+administers a *different* organization than the resource being acted on),
+`PermissionService` will still authorize that call once it falls back to
+the ownership-authorized path — the fallback audits and allows a
+verified-by-construction actor, it does not re-derive or re-check that
+verification. **This is a caller bug, not a `PermissionService` bug**:
+callers of `require(..., ownership_authorized_by=...)` are responsible
+for having already verified ownership, in the same way `require(actor,
+...)`'s own real-RBAC path trusts that `actor` is a genuine, already-
+authenticated identity. See `docs/architecture/rbac-permissions.md` for
+the call-site-level restatement of this contract.
+
 References:
 - ADR-001.13 (RBAC evaluation belongs to Module 08)
 - apps.kernel.models.rbac (Role / Permission / RoleAssignment — M25-owned data)

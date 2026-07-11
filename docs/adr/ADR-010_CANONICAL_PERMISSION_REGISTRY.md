@@ -52,7 +52,7 @@ for any existing caller. New facades were added for `apps.booking`,
 `apps.finance`, `apps.execution`, replacing seven previously-hardcoded
 literal permission-key strings.
 
-## Defects the canonicalization work surfaced
+## Defects fixed in this Epic
 
 Migrating every real `PermissionService.require()`/`.check()` call site
 to a canonical constant required tracing, for the first time, exactly
@@ -92,6 +92,35 @@ None of these three would have been found by code review of any single
 file in isolation — each required cross-referencing what a role *grants*
 against what a service actually *checks*, which the registry migration is
 what forced.
+
+A fourth authorization defect is also fixed in this Epic, sourced
+differently from the three above — not surfaced by the centralization
+work itself, but a previously tracked defect this Epic's approved scope
+explicitly permitted fixing:
+
+4. **Reviewer ownership validation.** *Previous behavior*:
+   `ReviewSubmissionService.submit_review()` verified an order was
+   `COMPLETED`, had an assigned supplier, and wasn't already reviewed for
+   that supplier — but never verified `reviewer_person_id` was actually
+   the order's own `customer_profile.person_id`. *Architectural risk*:
+   any authenticated user in the tenant holding the `reviews.submit`
+   permission could submit a review attributed to themselves for *any*
+   completed order, not just their own — a reputation-integrity gap.
+   *Remediation*: an explicit ownership check
+   (`order.customer_profile_id is None or order.customer_profile
+   .person_id != reviewer_person_id` raises `ReviewError`), placed before
+   both the duplicate-review check and `Review` persistence, with
+   dedicated allow/deny tests (`apps.reviews.tests
+   .test_reviewer_ownership_authorization`). *Why it belongs in Epic 05*:
+   this defect predates Epic 05 — it was identified and documented
+   (`technical-debt-register.md`, "`ReviewSubmissionService`
+   reviewer-vs-order-customer ownership gap") during an earlier module and
+   deliberately left unfixed at the time because that module's scope was
+   API plumbing, not domain-service authorization changes. Epic 05's own
+   approved scope explicitly named this defect and authorized fixing it
+   here if the fix was small, well-specified, and dependency-safe — it
+   is: a single service-layer check, no new model, no new permission key,
+   no change to any other caller.
 
 ## Related, narrower decision — scope evaluation hardening
 
@@ -137,8 +166,10 @@ alias — not hidden, not auto-merged.
   dependency cycle (kernel sits at the root of the dependency graph).
 - No production `PermissionService.require()`/`.check()` call site uses
   an inline string literal (enforced by a guardrail test).
-- Three real authorization defects are fixed, each with dedicated
-  allow/deny tests proving the fix.
+- Four real authorization defects are fixed, each with dedicated
+  allow/deny tests proving the fix — three surfaced by the
+  centralization work itself, plus the previously tracked reviewer
+  ownership gap fixed under this Epic's explicit permission to do so.
 - `kernel.Permission` remains dormant — recorded here as a deliberate,
   revisitable decision, not an oversight.
 - The two role-seeding commands remain intentionally distinct; their one

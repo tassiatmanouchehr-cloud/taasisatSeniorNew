@@ -3,9 +3,11 @@
 Status: current as of Epic 05 (Permission-Key Registry & Authorization
 Hardening). Does **not** redesign RBAC — `Role`/`RoleAssignment`/
 `PermissionService`'s public evaluation contract is unchanged; Epic 05
-centralized the key inventory, fixed three concrete authorization defects
-the centralization surfaced, and made targeted, tested hardening changes
-to scope evaluation. See `docs/adr/ADR-010_CANONICAL_PERMISSION_REGISTRY.md`
+centralized the key inventory, fixed four concrete authorization defects
+(three surfaced by the centralization work itself, plus one previously
+tracked defect fixed under the same Epic's explicit permission to do so
+— see below), and made targeted, tested hardening changes to scope
+evaluation. See `docs/adr/ADR-010_CANONICAL_PERMISSION_REGISTRY.md`
 for the full decision record.
 
 ## The evaluator
@@ -31,6 +33,43 @@ unscoped check regardless of its own scope. A malformed `scope` dict
 (missing `scope_type`/`scope_id`) and a malformed `RoleAssignment` row
 (real `scope_type`, null `scope_id`) now fail closed explicitly rather
 than incidentally.
+
+## The `ownership_authorized_by` security contract
+
+(Epic 05 Architecture Review, Major finding M1 — documentation
+clarification; no behavior changed.) `ownership_authorized_by` is **not,
+on its own, a standalone authorization boundary**. `PermissionService`
+does not and cannot independently verify that the actor passed as
+`ownership_authorized_by` actually owns or administers the resource in
+question — it assumes the caller has already established that upstream,
+before `require()` is ever invoked.
+
+The normal production path is:
+
+```
+request
+-> portal/service resolves the caller's own organization/resource
+   (e.g. apps.organization_portal.permissions.resolve_organization())
+-> that resolution IS the ownership verification
+-> PermissionService.require(..., ownership_authorized_by=<verified actor>)
+-> real RBAC evaluation is tried first
+-> the audited ownership fallback is used only when a matching
+   RoleAssignment has not yet been synced for that actor
+```
+
+If a caller ever passes the wrong actor as `ownership_authorized_by` —
+for example, an admin who administers a *different* organization than
+the resource being acted on — `PermissionService` will still authorize
+that call once it falls back to the ownership-authorized path: the
+fallback audits and allows an actor it trusts was already verified, it
+does not re-derive or re-check that verification itself. **This is a
+caller bug, not a `PermissionService` bug** — every caller of
+`require(..., ownership_authorized_by=...)` (`AssignmentService.assign()`/
+`.replace()`, `OrganizationStaffService.approve_membership()`/
+`suspend_membership()`) is responsible for resolving and verifying
+ownership before calling, the same way `require(actor, ...)`'s own
+real-RBAC path trusts that `actor` is a genuine, already-authenticated
+identity rather than re-authenticating it.
 
 ## Canonical permission-key registry
 
@@ -186,7 +225,7 @@ Organization Isolation). `apps.accounts.services.organization_rbac
 `docs/adr/ADR-009_ORGANIZATION_ELIGIBILITY_AND_SCOPED_RBAC.md` for the
 full design.
 
-## Epic 05: canonical registry, three authorization defects, scope hardening
+## Epic 05: canonical registry, four authorization defects, scope hardening
 
 See `docs/adr/ADR-010_CANONICAL_PERMISSION_REGISTRY.md` for the full
 decision record. In summary:
@@ -200,6 +239,18 @@ decision record. In summary:
   .approve_membership()`/`suspend_membership()` having zero enforcement
   despite granted keys, and `AssignmentService.replace()` having zero
   authorization of any kind.
+- A fourth authorization defect is also fixed here — not surfaced by the
+  centralization work itself, but a previously tracked defect
+  (`technical-debt-register.md`, "`ReviewSubmissionService` reviewer-vs-
+  order-customer ownership gap") that this Epic's scope explicitly
+  permitted fixing: `ReviewSubmissionService.submit_review()` never
+  verified `reviewer_person_id` was actually the order's own customer —
+  any authenticated user in the tenant holding the `reviews.submit`
+  permission could submit a review for *any* completed order, not just
+  their own. Fixed with a service-layer check (`order.customer_profile
+  .person_id != reviewer_person_id` denies), enforced before `Review`
+  persistence, with dedicated allow/deny tests
+  (`apps.reviews.tests.test_reviewer_ownership_authorization`).
 - The role-catalog divergence noted below is now centralized (not
   resolved — the two catalogs remain intentionally distinct) in
   `apps.kernel.role_catalog`, with a `reconcile_role_permissions`
