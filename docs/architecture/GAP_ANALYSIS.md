@@ -1,8 +1,8 @@
 # Gap Analysis
 
-Status: current as of PR #26's merge (Epic 03 Sprint 1 — Financial
-Settlement & Money Flow), `main` @
-`36e07c68c40a72d896a03af2a484ba2e2ab2b2ca` (PR #26's merge commit).
+Status: current as of PR #28's merge (Epic 04 — Enterprise Organization
+Isolation), `main` @
+`13e91de8b6d2ff31091d70afa9b0bc53ab07ae8e` (PR #28's merge commit).
 
 ## Where exactly are we today?
 
@@ -127,6 +127,10 @@ Registered, tracked debt:
 | Adjustment pipeline has no internal arithmetic invariants | `apps.payments.services.settlement_adjustments.SettlementAdjustmentPipeline` | Low today (identity function, trivially balanced); real risk once a non-trivial rule is added | Add a `net == gross - commission - tax + discount_recovery` consistency assertion inside `run()` |
 | Escrow warning is log-only and re-fires on every retry | `SettlementOrchestrationService.settle_payment_intent` | Low — operationally noisy, not incorrect; every settlement today logs it since `financial.escrow.enabled` is unseeded and defaults `True` | Persist a queryable/alertable record, or seed the config key explicitly per tenant, or deduplicate per intent |
 | Retry-triggered settlements not distinguishable from first-attempt in audit trail | `PermissionService.require(actor=None, ...)` system-context logging, used identically by both paths | Low — consistent with existing system-context precedent, just imprecise | Record `job.id`/a "settled_via" marker in the relevant audit/event payload if this distinction is ever needed operationally |
+| Three organization-facing permission keys granted but not yet enforced | `apps.accounts.permission_keys` (`organization.assignment.assign`, `organization.membership.approve`, `organization.membership.suspend`); no `PermissionService` call site checks any of them | Low today — every affected action remains safely authorized via the pre-existing `ownership_authorized_by` fallback or the portal's own ownership gate | Wire `AssignmentService.assign()`/`replace()`, `approve_membership()`, `suspend_membership()` to their intended keys — implemented and tested on the pending Epic 05 branch (PR #29) |
+| `RoleAssignment` sync audit misattributes suspension actor | `apps.accounts.services.organization_rbac.OrganizationRoleSyncService._audit()`, reached via `suspend_membership()` | Low — cosmetic audit-trail nuance, no data-integrity or authorization impact | Thread a real actor through `suspend_membership()` (implemented on the pending Epic 05 branch) |
+| No single test chains real affiliation-approval to financial-party resolution end-to-end | `apps.accounts.tests.test_supplier_bridge` (real flow, no financial assertion) vs. `apps.finance.tests.test_organization_provider_financial_isolation` (financial assertion, direct fixture) | Low — both halves independently, correctly tested | Add one test combining both, once convenient |
+| Two independent, unreconciled role-seeding catalogs | `apps.kernel.management.commands.seed_tenant` (hyphenated `DEFAULT_ROLES`, `dev` tenant) vs. `apps.accounts.management.commands.seed_auth_roles` (underscored `ROLES`, real `salmandyar` tenant) | Low today (only the latter is extended/used by the real default tenant) | Reconcile into one catalog — addressed on the pending Epic 05 branch |
 
 ## Known limitations
 
@@ -258,53 +262,67 @@ proposal stage* (Module 02) — what Epic 02 built is acceptance of an
 already-created `SupplierAssignment`, one step downstream of Matching
 itself, which remains unchanged. See `PROJECT_MODULE_STATUS.md` Module 02.
 
-### Organization Assignment Center is tenant-wide, not organization-scoped
+## Future placeholders — resolved by Epic 04 (Enterprise Organization Isolation)
 
-**Current behavior** (verified against `apps.orders.services.queries.
-OrderQueryService.list_unassigned_for_tenant()`, which
-`apps.organization_portal.views.assignment_center_view` calls directly):
-the Assignment Center shows *every* unassigned, non-final order in the
-caller's tenant — filtered only by `tenant_id` and `assigned_supplier
-__isnull=True`, with no filter on which organization the order is
-"for," no service-category eligibility filter, and no concept of "orders
-this organization should see" versus "orders any organization could see."
-Any organization admin in a tenant sees the identical open-work list as
-every other organization admin in that same tenant.
+Two previously tracked gaps from Epic 02's own gap list are now closed,
+plus one new capability Epic 04 delivered that was not itself a
+previously documented gap:
 
-**Why this is acceptable for the first vertical slice**: this epic's
-scope was proving the assign-a-staff-member-to-an-order mechanism end to
-end (`OrganizationAssignmentService.assign_manual()` → the existing,
-unmodified `AssignmentService.assign()`), reusing the existing `Order`
-model, which has no organization-eligibility field to filter on yet. Every
-test fixture and every demo scenario built against this epic assumes a
-single organization per tenant, so the gap has not yet been exercised
-against real data.
+**Previously tracked Epic 02 gaps, now closed:**
 
-**Multi-organization visibility risk**: in any tenant that hosts more
-than one organization — which the platform's multi-tenant/white-label
-design otherwise supports — every organization admin can currently see
-(though not directly read customer PII beyond what `Order` already
-exposes) and, critically, *assign their own staff to*, an order that a
-competing organization has no claim to. This is a real business-logic
-gap, not merely a cosmetic one: the assignment center as built does not
-distinguish "an order this organization should compete for or has been
-routed to" from "any unclaimed order in the tenant."
+- **Organization Assignment Center tenant-wide visibility** — see the
+  dedicated section immediately below.
+- **Organization-scoped RBAC seeding** — a real production writer now
+  exists (`OrganizationRoleSyncService`); the three keys it grants are
+  not yet enforced at their intended call sites — see "Architecture
+  gaps" below.
 
-**Required future improvement**: an eligibility/routing concept between
-`Order` and `OrganizationProfile` (e.g., service-category-to-organization
-routing, an explicit "open to bid" vs. "assigned to this organization"
-order state, or a matching-engine hand-off restricted to one organization)
-must exist before `list_unassigned_for_tenant()` can be narrowed from
-tenant-wide to organization-scoped. No such concept exists in the domain
-model today — this is model work, not a query-filter change.
+**New capability delivered by Epic 04 (not a previously tracked gap):**
 
-**Production readiness**: this feature is **not yet production-ready for
-any tenant containing more than one organization with unrelated or
-competing interests.** It is safe and correct only for the case this
-epic actually targeted: a tenant operating as (or standing in for) a
-single organization. Deploying it as-is to a tenant with multiple
-independent organizations would let each one see and act on every other
-one's open orders.
+- **Affiliated-provider financial identity** — `SupplierType
+  .ORGANIZATION_PROVIDER` (a Module 03 enum value, previously
+  unreachable) is now created for organization-affiliated caregivers
+  (`apps.accounts.services.supplier_bridge`), with a one-time
+  reconciliation command (`reconcile_organization_provider_suppliers`)
+  for caregivers affiliated before this change. Financial policy is
+  unchanged and verified by regression test: `FinancialPartyService
+  .resolve_party_for_supplier()` still keys strictly on `supplier_type
+  == SupplierType.ORGANIZATION`, so an affiliated caregiver's earnings
+  continue to settle to their own wallet, never the organization's.
+
+### ~~Organization Assignment Center is tenant-wide, not organization-scoped~~ — closed by Epic 04
+
+**Resolved** (Epic 04 — Enterprise Organization Isolation, PR #28,
+merged). A new `OrderOrganizationEligibility` junction model
+(`apps.orders.models`, sole writer `apps.orders.services
+.eligibility_service.OrderEligibilityService`, guardrail-enforced —
+`OrderOrganizationEligibilitySoleWriterTest`) makes eligibility explicit:
+an order is claimable by an organization only if an `ACTIVE` eligibility
+row exists for that `(order, organization)` pair, granted via the
+`grant_order_eligibility` management command (no automatic/implicit
+grant rule — verified no existing signal in `create_public_order()`/
+`create_operator_order()` to build one from). `apps.orders.services
+.queries.OrderQueryService.list_eligible_for_organization()` replaced
+`list_unassigned_for_tenant()` as the Assignment Center's query
+(`apps.organization_portal.views.assignment_center_view`);
+`OrganizationAssignmentService.assign_manual()` re-checks eligibility
+(or pre-existing assignment ownership, for reassignment) before
+delegating to `AssignmentService.assign()`, denying and auditing
+(`OrganizationAccessDenied` domain event) before any mutation otherwise.
+Cross-organization and cross-tenant isolation are covered by regression
+tests (`apps.organization_portal.tests.test_assignment_center
+.EligibilityEnforcementTest`). `list_unassigned_for_tenant()` itself
+still exists (retained for any genuinely tenant-wide/platform-admin
+caller — none exist today) but is no longer reachable from
+`apps.organization_portal`.
+
+**Production readiness**: this feature is now safe for a tenant hosting
+multiple independent organizations — an organization admin can no longer
+see or claim another organization's orders. See `docs/adr
+/ADR-009_ORGANIZATION_ELIGIBILITY_AND_SCOPED_RBAC.md` for the full design
+record and the alternatives considered (a direct `Order.organization` FK,
+a formal bidding/routing model) and why the explicit-grant junction model
+was chosen over both.
 
 ## Duplicated concepts
 
@@ -357,7 +375,10 @@ Ranked by leverage, not by module number:
 2. **Identity, Roles, Profiles & Access** (Module 08) — finish the
    permission-key registry and general default-role permission seeding.
    Every RBAC-gated feature in a fresh deployment is silently inert
-   without it.
+   without it. Epic 04 built the organization-scoped `RoleAssignment`
+   writer; wiring the three keys it grants to a real
+   `PermissionService.require()` call site at each intended enforcement
+   point remains open (Epic 05 territory, PR #29 pending merge).
 3. **Background Jobs & Scheduler** (Module 22) — register real handlers.
    The hard infrastructure work is already done; only consumers are
    missing.
@@ -398,30 +419,42 @@ Ranked by leverage, not by module number:
   a deliberate, consistent choice (see `DECISION_HISTORY.md`), not drift —
   because no infrastructure exists yet to seed org/provider-scoped role
   assignments.
-- **Organization-scoped RBAC seeding does not exist yet** (Enterprise
-  Architecture Review follow-up, finding #5). `RoleAssignment.scope_type`/
-  `scope_id` and `PermissionService`'s own `_scope_matches()` evaluation
-  logic are real and exercised (`PermissionService.check()`/`require()`
-  both honor an explicit `scope` kwarg) — but nothing in the codebase
-  today creates a `RoleAssignment(scope_type="organization",
-  scope_id=<org.id>)` row for an organization admin, and
-  `OrganizationAssignmentService.assign_manual()` doesn't pass a `scope`
-  kwarg either. Building this properly requires real product decisions
-  (a `Role` taxonomy for organization admins, a hook point — likely
-  wherever an `OrganizationMembership` becomes `ADMIN`/`ACTIVE` — that
-  creates the `RoleAssignment`, and a backfill story for any admin
-  memberships that predate the mechanism) — judged too large to safely
-  improvise as part of a remediation pass. Until it lands,
-  `OrganizationAssignmentService.assign_manual()` calls
-  `AssignmentService.assign(ownership_authorized_by=actor)`:
-  `PermissionService.require()` tries the real actor as a normal RBAC
-  actor first (so this starts enforcing for free the moment seeding
-  exists — no code change needed at that point) and only falls back to an
-  explicit, correctly actor-attributed `rbac.permission.ownership_authorized`
-  audit entry when no matching role exists — never silently logged as
-  `system_context`, and the real actor is always the recorded
-  `SupplierAssignment.assigned_by`. See `DECISION_HISTORY.md` for the full
-  reasoning.
+- **Organization-scoped RBAC seeding now exists (Epic 04); enforcement at
+  the intended call sites does not yet (tracked, Epic 05 territory).**
+  `RoleAssignment.scope_type="organization"`/`scope_id` and
+  `PermissionService`'s own `_scope_matches()` evaluation logic were real
+  and exercised since Module 08, but had zero production writers until
+  Epic 04 (Enterprise Organization Isolation, PR #28, merged):
+  `apps.accounts.services.organization_rbac.OrganizationRoleSyncService`
+  is now the sole writer, hooked into the two places an `ADMIN`-role
+  `OrganizationMembership` transitions status, idempotent and
+  concurrency-safe (a new partial `UniqueConstraint` on `RoleAssignment`),
+  with a one-time `backfill_organization_role_assignments` command for
+  memberships that predate the mechanism. **However**: the three
+  permission keys this grants (`organization.assignment.assign`,
+  `organization.membership.approve`, `organization.membership.suspend`
+  — `apps.accounts.permission_keys`) are not yet checked by any
+  `PermissionService.require()`/`.check()` call site.
+  `AssignmentService.assign()`/`replace()` check the literal
+  `"booking.assignment.assign"`, a different string that never matches;
+  `approve_membership()`/`suspend_membership()` have no permission check
+  of any kind. Confirmed safe regardless (`OrganizationAssignmentService
+  .assign_manual()` calls `AssignmentService.assign(ownership_authorized_by
+  =actor)`: `PermissionService.require()` tries the real actor as a
+  normal RBAC actor first — currently always falls through, given the
+  above — and only then falls back to an explicit, correctly
+  actor-attributed `rbac.permission.ownership_authorized` audit entry,
+  never silently logged as `system_context`; `approve_membership()`/
+  `suspend_membership()` remain gated by `apps.organization_portal
+  .permissions.resolve_organization()`'s ownership check at the portal
+  view layer). This is now accurately documented at the point of
+  definition (`apps.accounts.permission_keys`, `rbac-permissions.md`,
+  `ADR-009`) rather than a silent gap. Closing it — wiring these three
+  call sites to their intended keys — is Permission-Key Registry &
+  Authorization Hardening (Epic 05) scope; a fix already exists,
+  implemented and tested, on the not-yet-merged Epic 05 branch. See
+  `DECISION_HISTORY.md` for the full reasoning and `technical-debt
+  -register.md` for this item's tracked entry.
 - No public API surface — nothing external can integrate with this
   platform today.
 - No metrics, tracing, or alerting beyond a single health-check endpoint

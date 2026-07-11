@@ -1,8 +1,8 @@
 # Product Roadmap
 
-Status: current as of PR #26's merge (Epic 03 Sprint 1 — Financial
-Settlement & Money Flow), `main` @
-`36e07c68c40a72d896a03af2a484ba2e2ab2b2ca` (PR #26's merge commit).
+Status: current as of PR #28's merge (Epic 04 — Enterprise Organization
+Isolation), `main` @
+`13e91de8b6d2ff31091d70afa9b0bc53ab07ae8e` (PR #28's merge commit).
 
 This roadmap is organized **by business value, not by Blueprint module
 number** — the order a customer, provider, or organization experiences
