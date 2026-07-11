@@ -157,29 +157,57 @@ imports from nine business apps — `apps.accounts`, `apps.availability`,
 `apps.booking`, `apps.execution`, `apps.finance`, `apps.orders`,
 `apps.payments`, `apps.reviews`, `apps.wallet` — every one of them
 several layers downstream of `kernel` in the layering diagram above.
-This is a much wider fan-out than the `notifications` exception, but
-carries none of its runtime-coupling risk:
+This is a much wider fan-out than the `notifications` exception, but it
+is not part of the normal `kernel` runtime dependency graph at all — it
+is a **management-command-only, local-development composition-root
+dependency**: a script that happens to live under `apps/kernel` and, at
+the time a developer explicitly invokes it, imports across the
+codebase to call other apps' own services. Two separate facts establish
+this, and they must not be conflated:
 
-- It is local-development-only tooling, guarded by a `DEBUG=False`
-  `CommandError` at the top of `Command.handle()` — never imported or
-  executed as part of any request/response path, background job, or
-  other production code path.
-- Every import is to an existing public service-layer entry point
-  (`AssignmentService`, `ExecutionService`, `OrderEligibilityService`,
-  `FinancialPartyService`, `PaymentIntentService`, `ReviewSubmissionService`,
-  etc.) — the command orchestrates other apps' own services rather than
-  reaching into their models directly, the same discipline any other
-  caller of those services follows.
+**1. Import-time behavior** — why this edge never reaches normal startup:
+
+- Django loads a management-command module lazily, only when that exact
+  command name is invoked (`manage.py seed_product_walkthrough`) — not
+  when Django starts, and not for every other command that exists in the
+  codebase.
+- `KernelConfig.ready()` (`apps/kernel/apps.py`) imports only
+  `apps.kernel.permissions.keys` — nothing related to this command.
+  Verified directly by reading the file: there is no code path from app
+  registry population to this module.
+- Consequently, normal web-server and worker startup (`runserver`,
+  `gunicorn`, Celery, `run_due_jobs`, etc.) never imports this module and
+  is unaffected by its existence.
 - No app being imported from here imports anything back from `apps.kernel
-  .management.commands` — this is a one-way, command-layer-only edge,
-  not a cycle.
-- This is the same shape as the pre-existing `apps.orders.management
-  .commands.seed_demo_orders` (lives in `orders`, imports only from
-  `orders`) and `apps.kernel.management.commands.seed_tenant` (lives in
-  `kernel`, imports only from `kernel`) — the difference is scope, not
-  category: `seed_product_walkthrough` is the first seed command whose
-  job is to populate a realistic dataset spanning nearly every app, so
-  it necessarily imports from nearly every app's service layer.
+  .management.commands` — the command creates no reverse dependency and
+  no cycle, in either direction.
+
+**2. Execution-time safety** — a separate, additional control, not the
+reason for the above:
+
+- `Command.handle()` raises `CommandError` immediately if `settings.DEBUG`
+  is `False`, refusing to run outside local development.
+- This guard controls whether the command's body *executes* once its
+  module has already been imported (e.g., by `manage.py` dispatching to
+  it, or by a test calling `call_command(...)`) — it has no bearing on
+  whether the module is ever imported during normal production startup.
+  That is governed entirely by point 1 above. Do not read the `DEBUG`
+  guard as the reason this module is absent from the production import
+  graph; it is a distinct, execution-time-only control.
+
+Every import target is an existing public service-layer entry point
+(`AssignmentService`, `ExecutionService`, `OrderEligibilityService`,
+`FinancialPartyService`, `PaymentIntentService`, `ReviewSubmissionService`,
+etc.) — the command orchestrates other apps' own services rather than
+reaching into their models directly, the same discipline any other
+caller of those services follows. This is the same shape as the
+pre-existing `apps.orders.management.commands.seed_demo_orders` (lives in
+`orders`, imports only from `orders`) and `apps.kernel.management
+.commands.seed_tenant` (lives in `kernel`, imports only from `kernel`) —
+the difference is scope, not category: `seed_product_walkthrough` is the
+first seed command whose job is to populate a realistic dataset spanning
+nearly every app, so it necessarily imports from nearly every app's
+service layer.
 
 Both are the only cross-app imports inside `apps.kernel` production code
 that reach into a business app (verified by grepping every real `from
