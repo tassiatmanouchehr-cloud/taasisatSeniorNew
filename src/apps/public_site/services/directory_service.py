@@ -12,6 +12,15 @@ showing a plain ORGANIZATION supplier (a company has no bio/specialty/
 years_experience — it isn't a caregiver profile) — so the two allowed
 types are queried and ranked together here instead. Nothing in
 apps.discovery is modified.
+
+Architecture Review remediation (M1, PR #36): _filter_candidates() now
+returns both the eligible suppliers AND their already-resolved attrs
+dict (from common.bulk_supplier_attrs() — one batched CaregiverProfile
+query and one batched OrganizationMembership query, regardless of
+candidate count). Every caller (search(), featured(), available_cities())
+reuses that same attrs dict for eligibility filtering, city dedup, and
+card building — nothing here re-fetches a CaregiverProfile row that was
+already resolved earlier in the same call.
 """
 
 import math
@@ -63,7 +72,7 @@ class CaregiverDirectoryService:
         tenant_id = tenant_id or TenantService.get_default_tenant_id()
 
         allowed_types = (supplier_type,) if supplier_type in CAREGIVER_SUPPLIER_TYPES else CAREGIVER_SUPPLIER_TYPES
-        candidates = cls._filter_candidates(
+        candidates, attrs_by_id = cls._filter_candidates(
             tenant_id=tenant_id,
             allowed_types=allowed_types,
             text=text,
@@ -76,12 +85,12 @@ class CaregiverDirectoryService:
 
         total_count = len(ranked)
         total_pages = max(1, math.ceil(total_count / PAGE_SIZE))
-        current_page = max(1, min(int(page or 1), total_pages))
+        current_page = max(1, min(cls._parse_page(page), total_pages))
         offset = (current_page - 1) * PAGE_SIZE
         page_items = ranked[offset : offset + PAGE_SIZE]
 
         cards = tuple(
-            cls._build_card(candidates_by_id[item.supplier_id], tenant_id=tenant_id)
+            cls._build_card(candidates_by_id[item.supplier_id], attrs_by_id[item.supplier_id], tenant_id=tenant_id)
             for item in page_items
             if item.supplier_id in candidates_by_id
         )
@@ -114,7 +123,7 @@ class CaregiverDirectoryService:
         caregivers — used to populate the city selector on both this
         directory and the Home Page, unaffected by any active filter."""
         tenant_id = tenant_id or TenantService.get_default_tenant_id()
-        candidates = cls._filter_candidates(
+        _candidates, attrs_by_id = cls._filter_candidates(
             tenant_id=tenant_id,
             allowed_types=CAREGIVER_SUPPLIER_TYPES,
             text="",
@@ -122,7 +131,7 @@ class CaregiverDirectoryService:
             service_category_id=None,
             availability_status=None,
         )
-        return common.distinct_cities(candidates)
+        return common.distinct_cities_from_attrs(attrs_by_id.values())
 
     @classmethod
     def featured(cls, *, tenant_id=None, limit=4) -> tuple[CaregiverCardViewModel, ...]:
@@ -130,7 +139,7 @@ class CaregiverDirectoryService:
         section — same ranking as the directory itself, no filters."""
         tenant_id = tenant_id or TenantService.get_default_tenant_id()
 
-        candidates = cls._filter_candidates(
+        candidates, attrs_by_id = cls._filter_candidates(
             tenant_id=tenant_id,
             allowed_types=CAREGIVER_SUPPLIER_TYPES,
             text="",
@@ -142,15 +151,28 @@ class CaregiverDirectoryService:
         ranked = DiscoveryRankingService.rank(tenant_id=tenant_id, suppliers=candidates)
 
         return tuple(
-            cls._build_card(candidates_by_id[item.supplier_id], tenant_id=tenant_id)
+            cls._build_card(candidates_by_id[item.supplier_id], attrs_by_id[item.supplier_id], tenant_id=tenant_id)
             for item in ranked[:limit]
             if item.supplier_id in candidates_by_id
         )
 
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _parse_page(page) -> int:
+        """Architecture Review remediation M3: a malformed page value
+        (e.g. ?page=abc) must fall back to page 1, never raise."""
+        try:
+            return int(page)
+        except (TypeError, ValueError):
+            return 1
+
     @classmethod
     def _filter_candidates(cls, *, tenant_id, allowed_types, text, city, service_category_id, availability_status):
+        """Returns (eligible_suppliers, attrs_by_id) — attrs_by_id covers
+        every eligible supplier and is computed via exactly one batched
+        resolution pass (common.bulk_supplier_attrs()), reused by every
+        caller instead of being recomputed per supplier."""
         candidates = []
         for a_type in allowed_types:
             query = normalize_query(
@@ -162,11 +184,13 @@ class CaregiverDirectoryService:
                 city=city,
             )
             candidates.extend(SupplierSearchService.filter_suppliers(query))
-        return [supplier for supplier in candidates if common.is_publicly_visible(supplier)]
+
+        attrs_by_id = common.bulk_supplier_attrs(candidates)
+        eligible = [supplier for supplier in candidates if common.is_publicly_visible_attrs(attrs_by_id[supplier.id])]
+        return eligible, {supplier.id: attrs_by_id[supplier.id] for supplier in eligible}
 
     @classmethod
-    def _build_card(cls, supplier, *, tenant_id) -> CaregiverCardViewModel:
-        attrs = common.supplier_entity_attrs(supplier)
+    def _build_card(cls, supplier, attrs, *, tenant_id) -> CaregiverCardViewModel:
         rating = common.rating_summary(supplier)
         return CaregiverCardViewModel(
             supplier_id=supplier.id,

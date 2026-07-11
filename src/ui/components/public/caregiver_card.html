@@ -6,8 +6,9 @@
      caregiver — a CaregiverCardViewModel (apps.public_site.services.viewmodels)
 {% endcomment %}
 <a href="{{ caregiver.profile_url }}"
-   class="flex flex-col rounded-3xl border border-border bg-surface p-6 shadow-sm no-underline text-text
-          transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md">
+   class="flex min-w-0 flex-col rounded-3xl border border-border bg-surface p-6 shadow-sm no-underline text-text
+          transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2">
   <div class="flex items-start gap-4">
     {% include "ui/components/data/avatar.html" with name=caregiver.display_name size="lg" status=caregiver.avatar_status_dot %}
     <div class="min-w-0 flex-1">

@@ -8,6 +8,7 @@
 {% block content %}
 <section class="border-b border-border bg-surface py-10 lg:py-14">
   <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <h1 class="sr-only">پیدا کردن مراقب مناسب</h1>
     {% include "ui/components/public/section_header.html" with eyebrow="فهرست مراقبان" title="پیدا کردن مراقب مناسب" subtitle="فهرست واقعی مراقبان ثبت‌شده در پلتفرم — قابل فیلتر بر اساس شهر، خدمت، وضعیت دسترسی و نوع همکاری." align="start" size="md" %}
 
     <form method="get" action="/find-a-caregiver/" class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5" role="search" aria-label="فیلتر مراقبان">
@@ -47,20 +48,20 @@
     {% if page.pagination.total_pages > 1 %}
     <nav aria-label="صفحه‌بندی نتایج" class="mt-10 flex items-center justify-center gap-2">
       {% if page.pagination.previous_url %}
-      <a href="{{ page.pagination.previous_url }}" class="inline-flex items-center justify-center rounded-lg border border-border w-9 h-9 text-sm text-text-muted hover:bg-background-alt hover:text-text transition-colors no-underline" aria-label="صفحه قبل">
+      <a href="{{ page.pagination.previous_url }}" class="inline-flex items-center justify-center rounded-lg border border-border w-9 h-9 text-sm text-text-muted hover:bg-background-alt hover:text-text transition-colors no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2" aria-label="صفحه قبل">
         <svg class="h-4 w-4 icon-directional" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
       </a>
       {% endif %}
       {% for link in page.pagination.page_links %}
       <a href="{{ link.url }}"
-         class="inline-flex items-center justify-center rounded-lg w-9 h-9 text-sm transition-colors no-underline
+         class="inline-flex items-center justify-center rounded-lg w-9 h-9 text-sm transition-colors no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2
                 {% if link.is_current %}bg-primary text-white font-bold{% else %}text-text-muted hover:bg-background-alt hover:text-text{% endif %}"
          {% if link.is_current %}aria-current="page"{% endif %}>
         <span class="ltr-value">{{ link.number }}</span>
       </a>
       {% endfor %}
       {% if page.pagination.next_url %}
-      <a href="{{ page.pagination.next_url }}" class="inline-flex items-center justify-center rounded-lg border border-border w-9 h-9 text-sm text-text-muted hover:bg-background-alt hover:text-text transition-colors no-underline" aria-label="صفحه بعد">
+      <a href="{{ page.pagination.next_url }}" class="inline-flex items-center justify-center rounded-lg border border-border w-9 h-9 text-sm text-text-muted hover:bg-background-alt hover:text-text transition-colors no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2" aria-label="صفحه بعد">
         <svg class="h-4 w-4 icon-directional" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
       </a>
       {% endif %}

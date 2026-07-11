@@ -85,3 +85,36 @@ def resolve_supplier_entity(supplier: ServiceSupplier | None):
     if supplier.linked_entity_type == ORGANIZATION_LINKED_TYPE:
         return OrganizationProfile.objects.filter(id=supplier.linked_entity_id).first()
     return None
+
+
+def resolve_supplier_entities_bulk(suppliers) -> dict:
+    """Bulk sibling of resolve_supplier_entity(): resolves many suppliers'
+    CaregiverProfile/OrganizationProfile entities in at most two queries
+    total (one per entity type) instead of one query per supplier.
+
+    Added for Epic 06 (Marketplace Profiles & Discovery) Architecture
+    Review remediation M1 — the public directory/home pages were issuing
+    one CaregiverProfile query per candidate supplier, unbounded by the
+    displayed page size. Returns {supplier.id: entity_or_None}.
+    """
+    suppliers = list(suppliers)
+    caregiver_ids = {s.linked_entity_id for s in suppliers if s.linked_entity_type == CAREGIVER_LINKED_TYPE}
+    organization_ids = {s.linked_entity_id for s in suppliers if s.linked_entity_type == ORGANIZATION_LINKED_TYPE}
+
+    caregivers_by_id = {}
+    if caregiver_ids:
+        caregivers_by_id = {c.id: c for c in CaregiverProfile.objects.filter(id__in=caregiver_ids)}
+
+    organizations_by_id = {}
+    if organization_ids:
+        organizations_by_id = {o.id: o for o in OrganizationProfile.objects.filter(id__in=organization_ids)}
+
+    resolved = {}
+    for supplier in suppliers:
+        if supplier.linked_entity_type == CAREGIVER_LINKED_TYPE:
+            resolved[supplier.id] = caregivers_by_id.get(supplier.linked_entity_id)
+        elif supplier.linked_entity_type == ORGANIZATION_LINKED_TYPE:
+            resolved[supplier.id] = organizations_by_id.get(supplier.linked_entity_id)
+        else:
+            resolved[supplier.id] = None
+    return resolved

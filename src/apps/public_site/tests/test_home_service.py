@@ -1,5 +1,7 @@
 """HomePageService — Epic 06."""
 
+from apps.accounts.models.profiles import CaregiverProviderType, OrgMembershipStatus
+
 from ..services.home_service import HomePageService
 from .helpers import PublicSiteTestCase
 
@@ -49,3 +51,16 @@ class HomePageServiceTest(PublicSiteTestCase):
         self.assertEqual(home.featured_caregivers, ())
         self.assertEqual(home.reviews, ())
         self.assertEqual(home.city_options, ())
+
+    def test_featured_excludes_caregiver_with_suspended_organization_membership(self):
+        """Architecture Review M2: the Home Page's Featured Caregivers
+        section must honor the same eligibility rule as the directory."""
+        self._create_caregiver_supplier(
+            display_name="سازمانی معلق",
+            provider_type=CaregiverProviderType.ORGANIZATION_AFFILIATED,
+            membership_status=OrgMembershipStatus.SUSPENDED,
+        )
+
+        home = HomePageService.get_home_view(tenant_id=self.tenant.id)
+
+        self.assertEqual(home.featured_caregivers, ())

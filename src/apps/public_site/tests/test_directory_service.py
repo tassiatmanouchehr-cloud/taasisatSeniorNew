@@ -1,6 +1,12 @@
 """CaregiverDirectoryService — Epic 06."""
 
-from apps.accounts.models.profiles import CaregiverProviderType
+from apps.accounts.models.profiles import (
+    CaregiverProviderType,
+    OrganizationMembership,
+    OrgMembershipRole,
+    OrgMembershipStatus,
+)
+from apps.accounts.services.organization_staff import OrganizationStaffService
 from apps.kernel.models.supplier import AvailabilityStatus, SupplierStatus, SupplierType
 
 from ..services.directory_service import CaregiverDirectoryService
@@ -153,6 +159,85 @@ class DirectorySearchTest(PublicSiteTestCase):
         page = CaregiverDirectoryService.search(tenant_id=other_tenant.id)
 
         self.assertEqual(page.pagination.total_count, 0)
+
+    def test_organization_affiliated_caregiver_with_active_membership_is_listed(self):
+        self._create_caregiver_supplier(
+            display_name="سازمانی فعال",
+            provider_type=CaregiverProviderType.ORGANIZATION_AFFILIATED,
+        )
+
+        page = CaregiverDirectoryService.search(tenant_id=self.tenant.id)
+
+        self.assertEqual(page.pagination.total_count, 1)
+
+    def test_excludes_caregiver_with_suspended_organization_membership(self):
+        """Architecture Review M2: a caregiver whose OrganizationMembership
+        is suspended must never appear in the public directory, even
+        though their own CaregiverProfile/ServiceSupplier rows are still
+        active."""
+        _, caregiver = self._create_caregiver_supplier(
+            display_name="سازمانی معلق",
+            provider_type=CaregiverProviderType.ORGANIZATION_AFFILIATED,
+            membership_status=OrgMembershipStatus.SUSPENDED,
+        )
+
+        page = CaregiverDirectoryService.search(tenant_id=self.tenant.id)
+
+        self.assertEqual(page.pagination.total_count, 0)
+        self.assertNotIn(caregiver.display_name, [card.display_name for card in page.caregivers])
+
+    def test_excludes_caregiver_after_membership_suspended_via_real_service(self):
+        """Reproduces the exact Architecture Review scenario end-to-end:
+        starts with an active membership (still listed), then suspends it
+        through the real OrganizationStaffService.suspend_membership()
+        (not a fixture shortcut) and confirms the caregiver disappears."""
+        supplier, caregiver = self._create_caregiver_supplier(
+            display_name="سازمانی در حال تعلیق",
+            provider_type=CaregiverProviderType.ORGANIZATION_AFFILIATED,
+        )
+        page_before = CaregiverDirectoryService.search(tenant_id=self.tenant.id)
+        self.assertEqual(page_before.pagination.total_count, 1)
+
+        membership = OrganizationMembership.objects.get(
+            user=caregiver.user,
+            role_type=OrgMembershipRole.CAREGIVER,
+        )
+        OrganizationStaffService.suspend_membership(membership)
+
+        page_after = CaregiverDirectoryService.search(tenant_id=self.tenant.id)
+        self.assertEqual(page_after.pagination.total_count, 0)
+
+    def test_independent_caregiver_unaffected_by_membership_eligibility_rule(self):
+        """Independent (non-organization) caregivers have no
+        OrganizationMembership at all — the M2 rule must not accidentally
+        exclude them."""
+        self._create_caregiver_supplier(
+            display_name="مستقل",
+            provider_type=CaregiverProviderType.INDEPENDENT,
+        )
+
+        page = CaregiverDirectoryService.search(tenant_id=self.tenant.id)
+
+        self.assertEqual(page.pagination.total_count, 1)
+
+    def test_malformed_page_falls_back_to_page_1_instead_of_raising(self):
+        """Architecture Review M3: ?page=abc (and similar) must never
+        raise — gracefully fall back to page 1."""
+        for i in range(15):
+            self._create_caregiver_supplier(display_name=f"مراقب {i}")
+
+        page = CaregiverDirectoryService.search(tenant_id=self.tenant.id, page="abc")
+
+        self.assertEqual(page.pagination.current_page, 1)
+        self.assertEqual(len(page.caregivers), 12)
+
+    def test_missing_page_value_falls_back_to_page_1(self):
+        page = CaregiverDirectoryService.search(tenant_id=self.tenant.id, page=None)
+        self.assertEqual(page.pagination.current_page, 1)
+
+    def test_float_like_page_value_falls_back_to_page_1(self):
+        page = CaregiverDirectoryService.search(tenant_id=self.tenant.id, page="1.5")
+        self.assertEqual(page.pagination.current_page, 1)
 
 
 class DirectoryFeaturedAndCitiesTest(PublicSiteTestCase):

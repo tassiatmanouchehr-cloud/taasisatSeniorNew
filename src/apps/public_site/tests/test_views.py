@@ -55,6 +55,29 @@ class FindACaregiverViewTest(PublicSiteTestCase):
         response = self.client.get(reverse("public_site:find-a-caregiver"), {"type": "not-a-real-type"})
         self.assertEqual(response.status_code, 200)
 
+    def test_malformed_page_query_param_falls_back_to_page_1_not_a_500(self):
+        """Architecture Review M3."""
+        response = self.client.get(reverse("public_site:find-a-caregiver"), {"page": "abc"})
+        self.assertEqual(response.status_code, 200)
+
+    def test_negative_page_query_param_does_not_500(self):
+        response = self.client.get(reverse("public_site:find-a-caregiver"), {"page": "-1"})
+        self.assertEqual(response.status_code, 200)
+
+    def test_organization_affiliated_caregiver_with_suspended_membership_not_listed(self):
+        """Architecture Review M2, exercised at the HTTP layer."""
+        from apps.accounts.models.profiles import CaregiverProviderType, OrgMembershipStatus
+
+        self._create_caregiver_supplier(
+            display_name="سازمانی معلق تست",
+            provider_type=CaregiverProviderType.ORGANIZATION_AFFILIATED,
+            membership_status=OrgMembershipStatus.SUSPENDED,
+        )
+
+        response = self.client.get(reverse("public_site:find-a-caregiver"))
+
+        self.assertNotContains(response, "سازمانی معلق تست")
+
 
 class CaregiverProfileViewTest(PublicSiteTestCase):
     def setUp(self):

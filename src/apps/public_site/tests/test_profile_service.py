@@ -2,6 +2,7 @@
 
 import uuid
 
+from apps.accounts.models.profiles import CaregiverProviderType, OrgMembershipStatus
 from apps.kernel.models.supplier import SupplierStatus
 
 from ..services.profile_service import CaregiverPublicProfileService
@@ -18,6 +19,17 @@ class ProfileServiceTest(PublicSiteTestCase):
 
     def test_returns_none_for_archived_caregiver_profile(self):
         supplier, _ = self._create_caregiver_supplier(profile_status="archived")
+        self.assertIsNone(CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id))
+
+    def test_returns_none_for_suspended_organization_membership(self):
+        """Architecture Review M2: the public profile page itself must
+        also refuse to render a caregiver whose OrganizationMembership is
+        suspended, not just the directory/home listings."""
+        supplier, _ = self._create_caregiver_supplier(
+            provider_type=CaregiverProviderType.ORGANIZATION_AFFILIATED,
+            membership_status=OrgMembershipStatus.SUSPENDED,
+        )
+
         self.assertIsNone(CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id))
 
     def test_returns_none_across_tenants(self):

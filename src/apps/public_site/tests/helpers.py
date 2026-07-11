@@ -11,8 +11,16 @@ OrderOrganizationEligibility)."""
 import uuid
 
 from django.test import TestCase
+from django.utils import timezone
 
-from apps.accounts.models.profiles import CaregiverProfile, CaregiverProviderType
+from apps.accounts.models.profiles import (
+    CaregiverProfile,
+    CaregiverProviderType,
+    OrganizationMembership,
+    OrganizationProfile,
+    OrgMembershipRole,
+    OrgMembershipStatus,
+)
 from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_caregiver
 from apps.kernel.models import Person, Tenant, UserAccount
 from apps.kernel.models.supplier import AvailabilityStatus, SupplierStatus
@@ -46,6 +54,7 @@ class PublicSiteTestCase(TestCase):
         supplier_status=SupplierStatus.ACTIVE,
         profile_status="active",
         service_category_ids=None,
+        membership_status=OrgMembershipStatus.ACTIVE,
     ):
         phone = f"0912{uuid.uuid4().hex[:7]}"
         person = Person.objects.create(tenant=self.tenant, full_name=display_name)
@@ -69,7 +78,39 @@ class PublicSiteTestCase(TestCase):
         supplier.status = supplier_status
         supplier.availability_status = availability_status
         supplier.save(update_fields=["service_categories", "status", "availability_status"])
+
+        if provider_type == CaregiverProviderType.ORGANIZATION_AFFILIATED:
+            self._create_membership(user=user, person=person, status=membership_status)
+
         return supplier, caregiver
+
+    def _create_membership(self, *, user, person, status=OrgMembershipStatus.ACTIVE):
+        """A real OrganizationMembership backing an ORGANIZATION_AFFILIATED
+        caregiver — in production a caregiver only ever gets that
+        provider_type by way of an actual membership row, so test fixtures
+        must create one too (Architecture Review M2: eligibility depends on
+        this membership's status, not just the caregiver's own)."""
+        admin_person = Person.objects.create(tenant=self.tenant, full_name="مدیر سازمان")
+        admin_user = UserAccount.objects.create_user(
+            phone=f"0913{uuid.uuid4().hex[:7]}",
+            person=admin_person,
+            tenant=self.tenant,
+        )
+        organization = OrganizationProfile.objects.create(
+            name="سازمان نمونه",
+            code=f"org-{uuid.uuid4().hex[:8]}",
+            admin_user=admin_user,
+            tenant=self.tenant,
+            status="active",
+        )
+        return OrganizationMembership.objects.create(
+            organization=organization,
+            user=user,
+            person=person,
+            role_type=OrgMembershipRole.CAREGIVER,
+            status=status,
+            joined_at=timezone.now(),
+        )
 
     def _create_completed_order(self, *, supplier):
         return Order.objects.create(
