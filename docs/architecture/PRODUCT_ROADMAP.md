@@ -1,8 +1,8 @@
 # Product Roadmap
 
-Status: current as of PR #28's merge (Epic 04 — Enterprise Organization
-Isolation), `main` @
-`13e91de8b6d2ff31091d70afa9b0bc53ab07ae8e` (PR #28's merge commit).
+Status: current as of PR #29's merge (Epic 05 — Permission-Key Registry
+& Authorization Hardening), `main` @
+`9342c5880f33e604f7448b684bd031481ea2abd9` (PR #29's merge commit).
 
 This roadmap is organized **by business value, not by Blueprint module
 number** — the order a customer, provider, or organization experiences
@@ -294,9 +294,12 @@ failing loudly — the most dangerous kind of gap to leave in place.
 - A periodic settlement-reconciliation job (close the narrow window
   between a callback committing and its retry-recovery job being
   enqueued; see `GAP_ANALYSIS.md`'s technical debt register).
-- Permission-key registry and default-role permission seeding for real
-  tenants (today, a fresh deployment's RBAC-gated features are silently
-  inert).
+- ~~Permission-key registry~~ — **done** (Epic 05): `apps.kernel.permissions`
+  is now the canonical, validated source of truth for every real
+  permission key. General default-role permission seeding for a fresh
+  deployment remains open: most `DEV_BOOTSTRAP_ROLES` entries still ship
+  with empty `permissions` (`platform-owner`/`organization_admin` are the
+  exceptions).
 - Reconcile the two parallel async-execution mechanisms
   (`apps.jobs` vs. the Celery/`EventOutbox` worker) into one documented
   story.
