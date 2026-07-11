@@ -1,9 +1,9 @@
 # Project State
 
-Status: current as of PR #34's merge (`seed_product_walkthrough` — local
-product-walkthrough demo-data management command, with Architecture
-Review remediation), `main` @
-`35925feab428bf31e02d81359d3ff36b8aa0932c` (PR #34's merge commit). This document is the
+Status: current as of PR #36's merge (Epic 06 Sprint 1 — Marketplace
+Profiles & Discovery: public Home Page, Caregiver Directory, and Public
+Caregiver Profile, plus its Architecture Review remediation commit), `main`
+@ `a761cfdbdd96672f8d69c74bbcd35fe1598b04bd` (PR #36's merge commit). This document is the
 **single source of truth** for "where the project stands." It supersedes any
 verbal summary given in chat, a PR description, or a prior conversation —
 if this file and a conversation disagree, this file is right (or needs
@@ -24,14 +24,14 @@ Verification** rather than assumed.
 |---|---|
 | Repository URL | `github.com/tassiatmanouchehr-cloud/taasisatSenior` |
 | Default Branch | `main` |
-| Current `main` HEAD | `35925feab428bf31e02d81359d3ff36b8aa0932c` (PR #34's merge commit) |
-| Current Test Count | **1277 passing**, 0 failing (`python manage.py test`, run on this branch — up from the 1250/PR #29 baseline: +13 from PR #34's initial `seed_product_walkthrough` tests, +14 from its Architecture Review remediation — see `DECISION_HISTORY.md`) |
+| Current `main` HEAD | `a761cfdbdd96672f8d69c74bbcd35fe1598b04bd` (PR #36's merge commit) |
+| Current Test Count | **1329 passing**, 0 failing (`python manage.py test`, run on this branch — up from the 1277/PR #34 baseline: +40 from PR #36's initial Epic 06 Sprint 1 build (`apps.public_site` tests + one new `PublicSiteOrmDisciplineTest` guardrail), +12 from its Architecture Review remediation (N+1 fix, suspended-organization-membership eligibility, malformed-pagination handling) — see `DECISION_HISTORY.md`) |
 | Python Version | **3.12** is the project's canonical version — declared in `pyproject.toml` (`requires-python = ">=3.12"`), pinned in CI (`.github/workflows/ci.yml`, `python-version: "3.12"`), and pinned in `src/docker/Dockerfile.dev` (`FROM python:3.12-slim`). Three independent sources agree. The one execution environment that disagrees is this specific sandboxed session, which runs **3.11.15** — a fact about this session's container, not about the repository's declared target. Not flagged as uncertain: the repository is internally consistent on 3.12; only this particular runtime differs from it. |
 | Django Version | Installed: **5.2.16**. Declared requirement (`requirements/base.txt`): `django>=5.1,<5.3`. Consistent. |
 | Database | **PostgreSQL 16**, optionally with **PostGIS** (`GIS_ENABLED` env var switches `django.db.backends.postgresql` ↔ `django.contrib.gis.db.backends.postgis`; CI uses the `postgis/postgis:16-3.4` image with `GIS_ENABLED=true`). SQLite is supported as a settings-level fallback (`DATABASE_ENGINE=sqlite`) but is not the platform's real target and is not exercised by CI. |
 | Architecture Style | **Modular monolith** — a single Django project (`config/`) composed of 24 apps under `src/apps/`, each owning its own models/services/tests, communicating through service-layer calls and two deliberately separate event systems (see [Domain Events](#domain-events) below), not through network calls. No microservices, no separate deployable units. |
-| Current Development Phase | **Product Experience phase, in progress; Financial Settlement Sprint 1, Enterprise Organization Isolation (Epic 04), and Permission-Key Registry & Authorization Hardening (Epic 05) now merged.** Customer Experience Phase 1 and Phase 2, Provider Experience Phase 1, Organization Experience Phase 1, Epic 03 Sprint 1 (Financial Settlement & Money Flow), Epic 04 (Enterprise Organization Isolation), and Epic 05 (Permission-Key Registry & Authorization Hardening) are now built. See [Current Development Phase](#current-development-phase) below. |
-| Current Project Status | Active development. 33 merged pull requests on `main` (PR #34 is pull request number 34, but — since PR #21 remains open and unmerged — it is the 33rd *merged* pull request; it adds the `seed_product_walkthrough` local demo-data management command, plus an Architecture Review remediation commit fixing three idempotency defects found in review, and was just merged; PR #33 was the preceding documentation-sync PR covering PR #32, merged before PR #34); this documentation-sync PR (covering PR #34) is open. One documentation-maintenance PR (#21, opened after PR #20, predating Epic 02) remains open and now has merge conflicts against current `main` — not touched by this or any subsequent work. No open incidents or known production deployment (no evidence of a live/production environment in this repository — infra config exists for one, but nothing indicates it is running). |
+| Current Development Phase | **Product Experience phase, in progress; Financial Settlement Sprint 1, Enterprise Organization Isolation (Epic 04), Permission-Key Registry & Authorization Hardening (Epic 05), and Epic 06 Sprint 1 (Marketplace Profiles & Discovery — first UI-facing Epic) now merged.** Customer Experience Phase 1 and Phase 2, Provider Experience Phase 1, Organization Experience Phase 1, Epic 03 Sprint 1 (Financial Settlement & Money Flow), Epic 04 (Enterprise Organization Isolation), Epic 05 (Permission-Key Registry & Authorization Hardening), and Epic 06 Sprint 1 (public Home Page, Caregiver Directory, Public Caregiver Profile) are now built. Epic 06 Sprint 2 (Shared Portal UI Core, Provider Profile, Organization Profile) is the next planned unit of work. See [Current Development Phase](#current-development-phase) below. |
+| Current Project Status | Active development. 36 merged pull requests on `main` (PR #36 is pull request number 36, but — since PR #21 remains open and unmerged — it is the 36th *merged* pull request; it adds `apps.public_site`'s first three real UI-facing pages [public Home Page, Caregiver Directory at `/find-a-caregiver/`, Public Caregiver Profile], reusing `apps.discovery`/`apps.orders`/`apps.reviews`/`apps.accounts` services with zero backend domain changes, plus an Architecture Review remediation commit fixing a confirmed N+1 query defect, a suspended-organization-membership eligibility gap, malformed-pagination handling, and a mobile CSS overflow defect, all found in review; PR #35 was the preceding documentation-sync PR covering PR #34, merged before PR #36). One documentation-maintenance PR (#21, opened after PR #20, predating Epic 02) remains open and now has merge conflicts against current `main` — not touched by this or any subsequent work. No open incidents or known production deployment (no evidence of a live/production environment in this repository — infra config exists for one, but nothing indicates it is running). |
 | Current Branching Strategy | Trunk-based: every unit of work branches from `main` (branch naming has drifted over time — see [Repository Structure](#repository-structure) → *A note on module numbering*), is reviewed as a pull request, and merges back to `main`. No long-lived release branches exist. `.github/workflows/ci.yml` also recognizes `phase-*/**` branches as a push trigger, though none currently exist. |
 | Repository Structure | See [below](#repository-structure). |
 | Current CI/Test Status | See [below](#current-ci--test-status). |
@@ -90,7 +90,7 @@ taasisatSenior/
 | `provider_portal` | Server-rendered, supplier-generic provider workspace: dashboard, assignment accept/decline, visit start/complete, availability management, earnings summary, notifications |
 | `organization_portal` | Server-rendered organization admin workspace: dashboard, staff (membership) management, manual assignment center, capacity overview, performance reports, notifications |
 | `common` | Abstract base models (TimestampedModel, TenantAwareModel, SoftDeleteMixin) |
-| `public_site` | Static, server-rendered marketing pages |
+| `public_site` | Server-rendered marketing pages plus (as of PR #36) three real UI-facing pages backed by live data: public Home Page, Caregiver Directory (`/find-a-caregiver/`), Public Caregiver Profile — no longer purely static |
 | `showcase` | Development-only UI component/design-system browser |
 
 ### A note on module numbering
@@ -188,6 +188,60 @@ call) was made during remediation to satisfy the same AuditLog-stability
 bar. Neither `FinancialPartyService` nor `OrganizationRoleSyncService`
 was modified — only the seed script's own calling pattern. See
 `DECISION_HISTORY.md` for the full defect/fix record.
+
+### Epic 06 Sprint 1 — Marketplace Profiles & Discovery (PR #36)
+
+The first UI-facing Epic: three real, server-rendered public pages exposing
+the existing backend domain, with **zero backend domain changes** (0
+models, 0 migrations, 0 business-logic/permission/financial/booking code
+touched). New `apps.public_site.services` package
+(`viewmodels.py`/`common.py`/`directory_service.py`/`profile_service.py`/
+`home_service.py`) mirrors the established "wide, read-only aggregation
+app" pattern already used by `apps.discovery`/`apps.reporting`. Templates
+consume only frozen-dataclass ViewModels, never a model instance or raw
+queryset — the first concrete instance of the theme-independent
+`service → ViewModel → semantic component → template` layering this
+repository has committed to for all future UI work.
+
+- **Public Home Page** (`/`) — hero, city selector + search, real service
+  categories, real featured/ranked caregivers, real approved-only
+  reviews, trust section, dual CTA.
+- **Caregiver Directory** (`/find-a-caregiver/`) — filterable
+  (city/service/type/availability), paginated; calls
+  `apps.discovery`'s `SupplierSearchService.filter_suppliers()` +
+  `DiscoveryRankingService.rank()` directly (not the higher-level
+  `DiscoveryService.search()`, which only accepts one `supplier_type`)
+  since the directory must merge `INDEPENDENT_PROVIDER` +
+  `ORGANIZATION_PROVIDER` suppliers.
+- **Public Caregiver Profile** (`/find-a-caregiver/<uuid>/`) — bio,
+  skills, experience, completed jobs, real approved reviews,
+  verification **status** only (`CaregiverProfile.verification_status`,
+  never `ServiceSupplier.verification_level` or any document).
+
+**Architecture Review findings, all fixed in a same-PR remediation
+commit** (`1a8fbb1`): (1) a confirmed N+1 — `resolve_supplier_entity()`
+was called once per candidate supplier with zero batching, measured at
+184 queries (Home) / 206 queries (Directory) for a 20-caregiver tenant;
+fixed via a new `resolve_supplier_entities_bulk()` sibling in the
+sanctioned `apps.accounts.services.supplier_bridge` and a new
+`bulk_supplier_attrs()` batch pass in `apps.public_site.services.common`,
+reducing counts to 44/58/64 and independently re-verified as O(1) with
+respect to candidate count at 20/100/500 caregivers during Architecture
+Re-Review (see `technical-debt-register.md` for one residual,
+non-blocking, out-of-PR-scope O(N) pattern this surfaced inside the
+reused `apps.discovery` ranking service); (2) a caregiver whose
+`OrganizationMembership` was suspended still appeared publicly — fixed
+by folding a batched membership-active check into the same
+`bulk_supplier_attrs()` pass, shared by Home/Directory/Profile via one
+eligibility function; (3) `?page=abc` raised an unhandled `ValueError`
+(HTTP 500) — fixed via a `_parse_page()` fallback to page 1; (4) a
+confirmed mobile horizontal-overflow defect (missing `min-w-0` on a CSS
+Grid child) at 360×800/390×844 — fixed. Independently re-verified via a
+full Architecture Re-Review: 1329/1329 tests passing, zero new
+`makemigrations` drift, zero new accessibility violations (one
+pre-existing, unrelated `avatar.html` ARIA defect remains, explicitly
+out of this PR's scope). See `DECISION_HISTORY.md` for the full
+defect/fix record.
 
 ---
 

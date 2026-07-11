@@ -410,6 +410,50 @@ guidance beyond Postgres's raw constraint-violation message.
 command (report duplicate non-blank emails before `kernel.0010` runs) if
 this is ever hit in practice. Not planned as of this entry.
 
+## `DiscoveryRankingService.rank()` issues one `CapacityService` query per candidate supplier
+
+**What**: `apps.discovery.services.ranking_service.DiscoveryRankingService
+.rank()` calls `apps.availability.services.capacity_service.CapacityService
+.is_capacity_exceeded(supplier=supplier)` once per candidate, in a Python
+loop — confirmed via independent query-count measurement at 20/100/500
+candidate suppliers during Epic 06 Sprint 1's Architecture Re-Review
+(PR #36): the `availability_capacity_rule` table was queried exactly N
+times for N candidates (20→20, 100→100, 500→500), a strict 1:1 linear
+scaling. `rank()` also paginates by materializing and ranking the
+**entire** eligible candidate set for a tenant in Python before slicing
+the requested page — not a SQL `LIMIT`/`OFFSET` — so both query count and
+per-request CPU/memory scale with total eligible-candidate count, not
+with the page size actually rendered.
+
+**Why**: Pre-existing `apps.discovery` design, predating Epic 06 — not
+introduced by PR #36 or its remediation. It became visible at Epic 06
+Sprint 1's PR #36 because that Epic is the first caller to expose
+`DiscoveryRankingService.rank()` behind a public, unauthenticated,
+uncached page for the first time; every other existing caller
+(`apps.provider_portal`, `apps.organization_portal`) already had this
+same characteristic, just at smaller/authenticated scale.
+
+**Risk**: Low today (tenants currently seeded with tens of caregivers,
+not hundreds/thousands), growing directly with the size of a tenant's
+active caregiver pool. PR #36's own remediation (Architecture Review M1)
+correctly and completely fixed a *different*, more severe N+1 that was
+genuinely introduced by that PR's own new code (`CaregiverProfile`/
+`OrganizationMembership` resolution, one query per candidate, unbounded
+by page size) — that fix is verified O(1) with respect to candidate
+count. This entry is the separate, deeper, pre-existing pattern that
+fix could not address without modifying `apps.discovery`/
+`apps.availability`, which Epic 06's governing instructions explicitly
+forbade ("reuse every existing service, do not redesign the domain").
+
+**Resolution**: A batch sibling for `CapacityService.is_capacity_exceeded()`
+(mirroring the exact `resolve_supplier_entities_bulk()` pattern PR #36
+added to `apps.accounts.services.supplier_bridge`), plus moving
+`DiscoveryRankingService`'s pagination to the database level, would
+require changes inside `apps.discovery`/`apps.availability` — out of
+scope for any Epic 06 sprint under its current constraints. Recommended
+as a dedicated follow-up ticket once a tenant's real caregiver-pool size
+makes it worth prioritizing.
+
 ## Resolved in Epic 05
 
 - **Three organization permission keys granted but not enforced**
