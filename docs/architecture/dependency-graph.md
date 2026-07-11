@@ -6,9 +6,12 @@ the `apps.provider_portal`/`apps.organization_portal` additions below (the
 `apps.portal` section was added in the Customer Experience Phase 1
 remediation and remains unchanged), plus the `apps.payments -> apps.orders`
 and `apps.payments -> apps.jobs` edges added below (Epic 03 Sprint 1 —
-Financial Settlement, PR #26, merged). Derived by grepping every
-`from apps.X` import across the codebase (production code, not tests) on
-2026-07-10.
+Financial Settlement, PR #26, merged), plus the second "deliberate
+exception" documented below (`apps.kernel.management.commands
+.seed_product_walkthrough`'s nine-app fan-out, PR #34, merged). Derived by
+grepping every real `from apps.X import` statement across the codebase
+(production code, not tests, and not prose inside comments/docstrings
+that merely mentions another app's name) on 2026-07-11.
 Re-derive with:
 
 ```bash
@@ -136,7 +139,7 @@ of those apps already depended on `apps.kernel` (every app does; kernel
 is the root), so this is not a new edge, just a new specific import path
 within an edge that already existed.
 
-## The one deliberate exception
+## The two deliberate exceptions
 
 `apps.kernel.events.handlers` imports `apps.notifications.models`
 (`Notification`, `NotificationChannel`, `NotificationStatus`). This looks
@@ -149,8 +152,40 @@ backwards (`kernel` is the foundation) but is intentionally guarded:
   the coupling only exists once `notifications` chooses to wire itself in.
 - Documented in the handler module's own docstring since Module 09.
 
-This is the only cross-app import inside `apps.kernel` production code
-that reaches into a business app. It is intentional, not drift.
+`apps.kernel.management.commands.seed_product_walkthrough` (PR #34)
+imports from nine business apps — `apps.accounts`, `apps.availability`,
+`apps.booking`, `apps.execution`, `apps.finance`, `apps.orders`,
+`apps.payments`, `apps.reviews`, `apps.wallet` — every one of them
+several layers downstream of `kernel` in the layering diagram above.
+This is a much wider fan-out than the `notifications` exception, but
+carries none of its runtime-coupling risk:
+
+- It is local-development-only tooling, guarded by a `DEBUG=False`
+  `CommandError` at the top of `Command.handle()` — never imported or
+  executed as part of any request/response path, background job, or
+  other production code path.
+- Every import is to an existing public service-layer entry point
+  (`AssignmentService`, `ExecutionService`, `OrderEligibilityService`,
+  `FinancialPartyService`, `PaymentIntentService`, `ReviewSubmissionService`,
+  etc.) — the command orchestrates other apps' own services rather than
+  reaching into their models directly, the same discipline any other
+  caller of those services follows.
+- No app being imported from here imports anything back from `apps.kernel
+  .management.commands` — this is a one-way, command-layer-only edge,
+  not a cycle.
+- This is the same shape as the pre-existing `apps.orders.management
+  .commands.seed_demo_orders` (lives in `orders`, imports only from
+  `orders`) and `apps.kernel.management.commands.seed_tenant` (lives in
+  `kernel`, imports only from `kernel`) — the difference is scope, not
+  category: `seed_product_walkthrough` is the first seed command whose
+  job is to populate a realistic dataset spanning nearly every app, so
+  it necessarily imports from nearly every app's service layer.
+
+Both are the only cross-app imports inside `apps.kernel` production code
+that reach into a business app (verified by grepping every real `from
+apps\.` import statement — not merely prose mentioning another app's
+name — across every non-test `.py` file under `apps/kernel`). Both are
+intentional, not drift.
 
 ## Read-only aggregation apps (`discovery`, `reporting`) — a different shape
 
