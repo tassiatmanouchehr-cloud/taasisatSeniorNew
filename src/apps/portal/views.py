@@ -231,9 +231,11 @@ def review_submit_view(request, order_id):
 @require_http_methods(["GET"])
 def settings_view(request):
     customer, tenant_id = _guard(request)
+    settings = CustomerProfilePresentationService.get_settings_view(
+        customer=customer, user_email=request.user.email or "",
+    )
     return render(request, "portal/settings.html", {
-        "customer": customer,
-        "user_email": request.user.email or "",
+        "settings": settings,
         "nav_items": CustomerProfilePresentationService.build_nav_items(active="settings"),
     })
 

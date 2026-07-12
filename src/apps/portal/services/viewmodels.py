@@ -68,6 +68,13 @@ class CustomerProfileEditFormViewModel:
     notes: str
 
 
+@dataclass(frozen=True)
+class CustomerSettingsViewModel:
+    phone: str
+    email: str
+    status_label: str
+
+
 # ------------------------------------------------------------------
 # Care recipient detail
 # ------------------------------------------------------------------

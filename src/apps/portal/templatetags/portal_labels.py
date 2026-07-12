@@ -13,4 +13,7 @@ register = template.Library()
 
 @register.filter
 def relationship_label(value):
-    return RELATIONSHIP_LABELS.get(value, value)
+    """Empty string for an unmapped value, matching
+    CareRecipientPresentationService.get_detail_view's own fallback — never
+    the raw machine value."""
+    return RELATIONSHIP_LABELS.get(value, "")

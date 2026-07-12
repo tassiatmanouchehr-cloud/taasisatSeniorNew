@@ -23,6 +23,7 @@ from apps.accounts.services.profiles import calculate_customer_profile_completio
 from .viewmodels import (
     CustomerProfileEditFormViewModel,
     CustomerProfileViewModel,
+    CustomerSettingsViewModel,
     NavItemViewModel,
     SummaryItemViewModel,
 )
@@ -55,6 +56,18 @@ class CustomerProfilePresentationService:
             completion_percent=completion_percent,
             completion_missing_labels=missing,
             summary_items=cls._summary_items(customer),
+        )
+
+    @classmethod
+    def get_settings_view(cls, *, customer, user_email) -> CustomerSettingsViewModel:
+        """The account/security settings page — reuses the same
+        STATUS_LABELS this class already uses for the profile page, so
+        the account status is never rendered via the model's own
+        English-only get_status_display()."""
+        return CustomerSettingsViewModel(
+            phone=customer.phone,
+            email=user_email,
+            status_label=STATUS_LABELS.get(customer.status, customer.status),
         )
 
     @classmethod

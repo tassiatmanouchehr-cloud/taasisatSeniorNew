@@ -7,11 +7,11 @@
 <div class="mx-auto max-w-xl space-y-6">
   {% include "ui/components/portal/profile_section.html" with title="اطلاعات ورود" %}
   <dl class="space-y-2 text-sm rounded-2xl border border-border bg-surface p-5">
-    <div class="flex justify-between"><dt class="text-text-muted">شماره موبایل</dt><dd class="text-text font-medium ltr-value">{{ customer.phone }}</dd></div>
-    {% if user_email %}
-    <div class="flex justify-between"><dt class="text-text-muted">ایمیل</dt><dd class="text-text font-medium ltr-value">{{ user_email }}</dd></div>
+    <div class="flex justify-between"><dt class="text-text-muted">شماره موبایل</dt><dd class="text-text font-medium ltr-value">{{ settings.phone }}</dd></div>
+    {% if settings.email %}
+    <div class="flex justify-between"><dt class="text-text-muted">ایمیل</dt><dd class="text-text font-medium ltr-value">{{ settings.email }}</dd></div>
     {% endif %}
-    <div class="flex justify-between"><dt class="text-text-muted">وضعیت حساب</dt><dd class="text-text font-medium">{{ customer.get_status_display }}</dd></div>
+    <div class="flex justify-between"><dt class="text-text-muted">وضعیت حساب</dt><dd class="text-text font-medium">{{ settings.status_label }}</dd></div>
   </dl>
 
   {% include "ui/components/portal/profile_section.html" with title="پروفایل" %}

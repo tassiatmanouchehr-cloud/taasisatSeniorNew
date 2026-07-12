@@ -169,6 +169,15 @@ class CareRecipientLabelLocalizationTest(PortalTestCase):
         CareRecipientService.update(self.care_recipient, relationship="future_val")
         response = self.client.get(f"/portal/care-recipients/{self.care_recipient.id}/")
         self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "future_val")
+
+    def test_list_page_unknown_relationship_value_falls_back_safely(self):
+        """The list-page template filter must fall back the same way the
+        detail-page presentation service does — never the raw value."""
+        CareRecipientService.update(self.care_recipient, relationship="future_val")
+        response = self.client.get("/portal/care-recipients/")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "future_val")
 
 
 class CustomerPaymentsViewTest(PortalTestCase):
@@ -400,6 +409,12 @@ class CustomerSettingsViewTest(PortalTestCase):
         response = self.client.get("/portal/settings/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.customer.phone)
+
+    def test_status_renders_in_persian_not_raw_english(self):
+        self.login_as_customer()
+        response = self.client.get("/portal/settings/")
+        self.assertContains(response, "فعال")
+        self.assertNotContains(response, "Active")
 
 
 class CareRecipientListNavigationTest(PortalTestCase):
