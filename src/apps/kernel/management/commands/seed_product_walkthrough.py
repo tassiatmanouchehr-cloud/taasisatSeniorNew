@@ -622,7 +622,22 @@ class Command(BaseCommand):
             else:
                 self._record(False)
 
-            organizations.append({"org": org, "admin_user": admin_user, "membership": membership, "spec": org_spec})
+            # Resolved here (dataset-building phase), not in _print_report():
+            # reporting must be read-only, and every other supplier in this
+            # command (see get_or_create_supplier_for_caregiver above) is
+            # already resolved during its own entity's creation step, never
+            # during report generation.
+            supplier = get_or_create_supplier_for_organization(org, tenant_id=tenant.id)
+
+            organizations.append(
+                {
+                    "org": org,
+                    "admin_user": admin_user,
+                    "membership": membership,
+                    "spec": org_spec,
+                    "supplier": supplier,
+                }
+            )
         return organizations
 
     # ------------------------------------------------------------------
@@ -1166,8 +1181,23 @@ class Command(BaseCommand):
         for role, name, email, url, notes in rows:
             w(f"{role:<28} {name:<22} {email:<32} {url:<28} {notes}")
         w("")
+        # Both suppliers are already resolved (dataset-building phase) —
+        # _print_report performs no create/update, read-only throughout.
         provider_supplier_id = independent_providers[0]["supplier"].id
-        organization_supplier = get_or_create_supplier_for_organization(organizations[0]["org"], tenant_id=tenant.id)
+        organization_supplier_id = organizations[0]["supplier"].id
+        # The walkthrough dataset intentionally lives in its own dedicated
+        # tenant (see this file's module docstring — the tenant boundary is
+        # the safety mechanism behind --reset-demo), which is NOT the tenant
+        # TenantService.get_default_tenant() resolves for anonymous public
+        # requests. The public preview routes accept an explicit, validated
+        # ?tenant=<slug> hint for exactly this situation (see
+        # apps.public_site.views._resolve_optional_tenant_hint) — every
+        # printed URL below is therefore directly usable as-is.
+        tenant_hint = f"?tenant={tenant.slug}"
+        provider_preview_url = self._route_kw("public_site:caregiver-profile", supplier_id=provider_supplier_id)
+        organization_preview_url = self._route_kw(
+            "public_site:organization-profile", supplier_id=organization_supplier_id
+        )
         w(
             "NOTE (route discovery): the customer/provider/organization portals use phone+OTP login "
             f"({self._route(ROUTE_NAMES['login'])}), not email+password — OTP delivery is console-only in "
@@ -1177,10 +1207,10 @@ class Command(BaseCommand):
             "organization self-profile pages exist as distinct URLs (added in Epic 06 Sprint 2): "
             f"provider self-profile {self._route(ROUTE_NAMES['provider_profile'])}, provider profile editing "
             f"{self._route(ROUTE_NAMES['provider_profile_edit'])}, provider public preview "
-            f"{self._route_kw('public_site:caregiver-profile', supplier_id=provider_supplier_id)}, organization "
+            f"{provider_preview_url}{tenant_hint}, organization "
             f"self-profile {self._route(ROUTE_NAMES['organization_profile'])}, organization profile editing "
             f"{self._route(ROUTE_NAMES['organization_profile_edit'])}, organization public preview "
-            f"{self._route_kw('public_site:organization-profile', supplier_id=organization_supplier.id)}. "
+            f"{organization_preview_url}{tenant_hint}. "
             'No customer "profile" page exists as a distinct URL in this codebase (confirmed by inspecting '
             "apps/portal/urls.py) — reported here rather than inventing one."
         )

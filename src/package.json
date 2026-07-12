@@ -4,18 +4,20 @@
   "private": true,
   "description": "Enterprise Service Marketplace Platform — UI Foundation",
   "scripts": {
-    "build": "npm run css:build",
+    "build": "npm run css:build && npm run js:build",
     "dev": "npm run css:dev",
     "watch": "npm run css:watch",
     "css:build": "tailwindcss -i ui/css/main.css -o static/css/output.css --minify",
     "css:watch": "tailwindcss -i ui/css/main.css -o static/css/output.css --watch",
-    "css:dev": "tailwindcss -i ui/css/main.css -o static/css/output.css"
+    "css:dev": "tailwindcss -i ui/css/main.css -o static/css/output.css",
+    "js:build": "cp node_modules/alpinejs/dist/cdn.min.js static/ui/js/alpine.min.js"
   },
   "devDependencies": {
-    "tailwindcss": "^3.4",
     "@tailwindcss/forms": "^0.5",
     "@tailwindcss/typography": "^0.5",
+    "alpinejs": "^3.15.12",
+    "autoprefixer": "^10.4",
     "postcss": "^8.4",
-    "autoprefixer": "^10.4"
+    "tailwindcss": "^3.4"
   }
 }

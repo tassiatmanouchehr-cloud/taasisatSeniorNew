@@ -13,6 +13,10 @@ import uuid
 from django.test import TestCase
 from django.urls import reverse
 
+from apps.accounts.models.profiles import OrganizationProfile
+from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_organization
+from apps.kernel.models import Person, UserAccount
+from apps.kernel.models.supplier import SupplierStatus
 from apps.kernel.services.tenant_service import TenantService
 
 from .helpers import PublicSiteTestCase
@@ -107,3 +111,130 @@ class CaregiverProfileViewTest(PublicSiteTestCase):
         /find-a-caregiver/ directory routes."""
         response = self.client.get(reverse("public_site:caregivers"))
         self.assertEqual(response.status_code, 200)
+
+
+class CaregiverProfileTenantHintTest(PublicSiteTestCase):
+    """Frontend remediation R2: a supplier that lives in a tenant other than
+    TenantService.get_default_tenant() (e.g. seed_product_walkthrough's own
+    dedicated tenant) can be previewed via an explicit, validated ?tenant=
+    hint — without weakening isolation for every other caller, who never
+    passes this parameter and gets exactly the pre-existing behavior.
+
+    self.tenant here (from PublicSiteTestCase.setUp) is deliberately NOT
+    the default tenant — that is the whole point of this test class."""
+
+    def test_correct_tenant_hint_returns_200_with_real_data(self):
+        supplier, _ = self._create_caregiver_supplier(display_name="مراقب چندمستأجری تست")
+
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "مراقب چندمستأجری تست")
+
+    def test_missing_hint_falls_back_to_default_tenant_and_404s_for_non_default_supplier(self):
+        supplier, _ = self._create_caregiver_supplier()
+
+        response = self.client.get(reverse("public_site:caregiver-profile", args=[supplier.id]))
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_unknown_tenant_slug_404s_no_leak(self):
+        supplier, _ = self._create_caregiver_supplier()
+
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": "no-such-tenant-slug"},
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_wrong_tenant_hint_cannot_reach_a_different_tenants_supplier(self):
+        """The hint narrows to exactly one tenant — it is never a global,
+        cross-tenant search."""
+        from apps.kernel.models import Tenant
+
+        supplier, _ = self._create_caregiver_supplier(display_name="این نباید دیده شود")
+        other_tenant = Tenant.objects.create(slug=f"other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
+
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": other_tenant.slug},
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+
+class OrganizationProfileTenantHintTest(PublicSiteTestCase):
+    """Mirrors CaregiverProfileTenantHintTest for the organization public
+    preview route."""
+
+    def _create_organization_supplier(self, *, name="سازمان نمونه"):
+        admin_person = Person.objects.create(tenant=self.tenant, full_name="مدیر سازمان")
+        admin_user = UserAccount.objects.create_user(
+            phone=f"0913{uuid.uuid4().hex[:7]}",
+            person=admin_person,
+            tenant=self.tenant,
+        )
+        organization = OrganizationProfile.objects.create(
+            name=name,
+            code=f"org-{uuid.uuid4().hex[:8]}",
+            admin_user=admin_user,
+            tenant=self.tenant,
+            status="active",
+        )
+        supplier = get_or_create_supplier_for_organization(organization, tenant_id=self.tenant.id)
+        supplier.status = SupplierStatus.ACTIVE
+        supplier.service_categories = [str(self.category.id)]
+        supplier.save(update_fields=["status", "service_categories"])
+        return supplier, organization
+
+    def test_profile_page_returns_200_for_real_organization(self):
+        supplier, _ = self._create_organization_supplier(name="سازمان مراقبت نمونه تست")
+
+        response = self.client.get(
+            reverse("public_site:organization-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "سازمان مراقبت نمونه تست")
+
+    def test_missing_hint_falls_back_to_default_tenant_and_404s_for_non_default_supplier(self):
+        supplier, _ = self._create_organization_supplier()
+
+        response = self.client.get(reverse("public_site:organization-profile", args=[supplier.id]))
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_unknown_tenant_slug_404s_no_leak(self):
+        supplier, _ = self._create_organization_supplier()
+
+        response = self.client.get(
+            reverse("public_site:organization-profile", args=[supplier.id]),
+            {"tenant": "no-such-tenant-slug"},
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_wrong_tenant_hint_cannot_reach_a_different_tenants_supplier(self):
+        from apps.kernel.models import Tenant
+
+        supplier, _ = self._create_organization_supplier(name="این نباید دیده شود")
+        other_tenant = Tenant.objects.create(slug=f"other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
+
+        response = self.client.get(
+            reverse("public_site:organization-profile", args=[supplier.id]),
+            {"tenant": other_tenant.slug},
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_unknown_supplier_still_404s(self):
+        response = self.client.get(
+            reverse("public_site:organization-profile", args=[uuid.uuid4()]),
+            {"tenant": self.tenant.slug},
+        )
+        self.assertEqual(response.status_code, 404)
