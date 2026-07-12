@@ -87,6 +87,42 @@ def resolve_supplier_entity(supplier: ServiceSupplier | None):
     return None
 
 
+def resolve_organization_supplier_for_caregiver(
+    caregiver_supplier: ServiceSupplier, *, tenant_id=None
+) -> ServiceSupplier | None:
+    """Financial Core PR-A: caregiver ServiceSupplier -> its active
+    organization's own ServiceSupplier, or None. Kept here (not in
+    apps.commission) because apps.accounts is this repository's only
+    documented allowlisted bridge between accounts profiles
+    (CaregiverProfile/OrganizationMembership/OrganizationProfile) and
+    kernel.ServiceSupplier — see apps.kernel.tests.test_architecture_guardrails
+    .ServiceSupplierProfileCouplingTest, and this module's own docstring
+    ("Accounts must never create or query ServiceSupplier rows directly...
+    every lookup/creation goes through SupplierRegistry" — the inverse
+    direction, resolving supplier->accounts->supplier, belongs here too)."""
+    from ..models.profiles import AffiliationStatus, OrganizationMembership
+
+    caregiver_profile = resolve_supplier_entity(caregiver_supplier)
+    if not isinstance(caregiver_profile, CaregiverProfile):
+        return None
+
+    membership = (
+        OrganizationMembership.objects.filter(
+            user_id=caregiver_profile.user_id,
+            status=AffiliationStatus.APPROVED,
+        )
+        .select_related("organization")
+        .first()
+    )
+    if membership is None:
+        return None
+
+    return get_or_create_supplier_for_organization(
+        membership.organization,
+        tenant_id=tenant_id or caregiver_supplier.tenant_id,
+    )
+
+
 def resolve_supplier_entities_bulk(suppliers) -> dict:
     """Bulk sibling of resolve_supplier_entity(): resolves many suppliers'
     CaregiverProfile/OrganizationProfile entities in at most two queries

@@ -299,6 +299,22 @@ class Command(BaseCommand):
             PaymentTransaction.objects.filter(tenant_id=tenant.id).delete()
             FinancialObligation.objects.filter(tenant_id=tenant.id).delete()
             FinancialDocument.objects.filter(tenant_id=tenant.id).delete()
+
+            from apps.commission.models import (
+                CommissionContract,
+                CommissionSnapshot,
+                PaymentDeadline,
+                PaymentDeadlineExtension,
+            )
+
+            # Financial Core PR-A: CommissionSnapshot/CommissionContract hold
+            # PROTECT FKs to FinancialParty and Order — must be cleared
+            # before either is deleted below.
+            PaymentDeadlineExtension.objects.filter(tenant_id=tenant.id).delete()
+            PaymentDeadline.objects.filter(tenant_id=tenant.id).delete()
+            CommissionSnapshot.objects.filter(tenant_id=tenant.id).delete()
+            CommissionContract.objects.filter(tenant_id=tenant.id).delete()
+
             FinancialParty.objects.filter(tenant_id=tenant.id).delete()
 
             from apps.execution.models import ExecutionSession

@@ -75,6 +75,7 @@ INSTALLED_APPS = [
     "apps.payments",
     "apps.reporting",
     "apps.jobs",
+    "apps.commission",
     "apps.api",
     "apps.admin_portal",
     "apps.portal",

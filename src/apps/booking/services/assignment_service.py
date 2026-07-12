@@ -22,9 +22,8 @@ from apps.kernel.services.permission_service import PermissionService
 from apps.matching.services.match_orchestrator import MatchOrchestrator
 from apps.orders.services.status_machine import assign_supplier, remove_supplier, replace_supplier
 
-from ..permission_keys import BOOKING_ASSIGNMENT_ASSIGN
-
 from ..models import AssignmentSource, SupplierAssignment, SupplierAssignmentStatus
+from ..permission_keys import BOOKING_ASSIGNMENT_ASSIGN
 from .configuration import BookingConfiguration
 
 logger = logging.getLogger(__name__)
@@ -91,8 +90,11 @@ class AssignmentService:
         cls._ensure_same_tenant(order=order, supplier=supplier)
 
         PermissionService.require(
-            assigned_by, BOOKING_ASSIGNMENT_ASSIGN, tenant_id=order.tenant_id,
-            ownership_authorized_by=ownership_authorized_by, scope=scope,
+            assigned_by,
+            BOOKING_ASSIGNMENT_ASSIGN,
+            tenant_id=order.tenant_id,
+            ownership_authorized_by=ownership_authorized_by,
+            scope=scope,
         )
         effective_actor = assigned_by or ownership_authorized_by
 
@@ -151,7 +153,27 @@ class AssignmentService:
         )
         transaction.on_commit(lambda: publish_domain_event(domain_event))
 
+        cls._open_financial_core_for_assignment(
+            order=order, supplier=supplier, assignment=assignment, actor=effective_actor
+        )
+
         return assignment
+
+    @classmethod
+    def _open_financial_core_for_assignment(cls, *, order, supplier, assignment, actor):
+        """Financial Core PR-A integration point: this is the existing
+        accepted-proposal representation (Business Model Section 2/11 both
+        require freezing commission policy and opening the payment
+        deadline "when a proposal/offer is accepted" — no new Offer model
+        was introduced; assign() IS that moment in this codebase's current
+        domain). Deliberately a thin, separate, easily-removable call
+        rather than inlined logic, so apps.commission stays the only app
+        that knows about snapshot/deadline internals."""
+        from apps.commission.services.deadline_service import PaymentDeadlineService
+        from apps.commission.services.snapshot_service import CommissionSnapshotService
+
+        CommissionSnapshotService.create_snapshot_for_order(order=order, supplier=supplier, actor=actor)
+        PaymentDeadlineService.create_for_order(order=order, assignment=assignment, actor=actor)
 
     @classmethod
     @transaction.atomic
@@ -188,8 +210,11 @@ class AssignmentService:
         cls._ensure_same_tenant(order=order, supplier=new_supplier)
 
         PermissionService.require(
-            assigned_by, BOOKING_ASSIGNMENT_ASSIGN, tenant_id=order.tenant_id,
-            ownership_authorized_by=ownership_authorized_by, scope=scope,
+            assigned_by,
+            BOOKING_ASSIGNMENT_ASSIGN,
+            tenant_id=order.tenant_id,
+            ownership_authorized_by=ownership_authorized_by,
+            scope=scope,
         )
 
         if not BookingConfiguration.get_reassignment_enabled(tenant_id=order.tenant_id):
@@ -273,6 +298,51 @@ class AssignmentService:
 
         return current
 
+    @classmethod
+    @transaction.atomic
+    def expire(cls, *, order_id, changed_by=None, reason="") -> SupplierAssignment | None:
+        """Financial Core PR-A: the payment-deadline expiry cascade
+        (apps.commission.services.deadline_service.PaymentDeadlineService
+        .expire_due()) reaches Order/SupplierAssignment only through this
+        method — mirrors cancel() exactly except for the terminal status
+        (EXPIRED, an existing SupplierAssignmentStatus value that nothing
+        previously set) and the published event name, so a caregiver's
+        expired-for-non-payment assignment is distinguishable in history
+        from one an actor explicitly cancelled.
+
+        Idempotent: safe to call when there is no current assignment (an
+        already-cleared order) — mirrors cancel()'s own `current is None`
+        handling."""
+        from apps.orders.models import Order
+
+        order = Order.objects.get(id=order_id)
+        current = cls._current_assignment(order)
+
+        # The ONLY mutation of Order.assigned_supplier / Order.status.
+        remove_supplier(order_id=order.id, changed_by=changed_by)
+
+        if current is not None:
+            current.status = SupplierAssignmentStatus.EXPIRED
+            if reason:
+                current.metadata = {**current.metadata, "expiry_reason": reason}
+            current.save(update_fields=["status", "metadata", "updated_at"])
+
+        EventPublisher.publish(
+            tenant_id=order.tenant_id,
+            event_type="Booking.Assignment.Expired.v1",
+            source_module=SOURCE_MODULE,
+            source_entity_id=current.id if current else None,
+            source_entity_type="SupplierAssignment",
+            payload={
+                "order_id": str(order.id),
+                "supplier_id": str(current.supplier_id) if current else None,
+                "reason": reason,
+            },
+            actor_id=cls._actor_id(changed_by),
+        )
+
+        return current
+
     # --- internal helpers -------------------------------------------------
 
     @staticmethod
@@ -289,7 +359,9 @@ class AssignmentService:
             return
 
         if not AvailabilityQueryService.is_supplier_available(
-            supplier=supplier, start=requested_start, end=requested_end,
+            supplier=supplier,
+            start=requested_start,
+            end=requested_end,
         ):
             raise AssignmentError("Supplier is not available for the requested time range.")
 

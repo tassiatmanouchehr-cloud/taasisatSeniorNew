@@ -18,7 +18,7 @@ from apps.accounts.models.profiles import (
 from apps.booking.models import SupplierAssignment
 from apps.execution.models import ExecutionSession
 from apps.finance.models import FinancialParty, LedgerEntry, PaymentTransaction
-from apps.jobs.models import JobDefinition
+from apps.jobs.models import JobDefinition, JobStatus
 from apps.kernel.models import RoleAssignment, Tenant, UserAccount
 from apps.kernel.models.audit import AuditLog
 from apps.kernel.models.event_outbox import EventOutbox
@@ -383,7 +383,16 @@ class SeedProductWalkthroughRepeatRunStabilityTest(TestCase):
         self.assertEqual(self.after_run1["LedgerEntry"], self.after_run3["LedgerEntry"])
 
     def test_no_pending_or_failed_retry_jobs_introduced(self):
-        self.assertEqual(JobDefinition.objects.count(), 0)
+        """No settlement-retry job (payments.settlement.retry) is ever
+        created by a clean seed run — that job type only exists to recover
+        from a genuinely failed synchronous settlement, so its presence
+        would mean the seeded payment flow is broken. Financial Core PR-A's
+        commission.payment_deadline.expire jobs are a distinct, intentional,
+        always-PENDING (never failed) job type — their presence is expected
+        and is separately covered by test_dataset_row_counts_are_fully_stable
+        (JobDefinition's count is part of that snapshot)."""
+        self.assertFalse(JobDefinition.objects.filter(job_type="payments.settlement.retry").exists())
+        self.assertFalse(JobDefinition.objects.filter(status=JobStatus.FAILED).exists())
 
     def test_execution_session_count_does_not_grow_after_first_run(self):
         self.assertEqual(self.after_run1["ExecutionSession"], self.after_run3["ExecutionSession"])
