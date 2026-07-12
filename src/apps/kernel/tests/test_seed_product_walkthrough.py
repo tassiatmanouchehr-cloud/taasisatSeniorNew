@@ -1,6 +1,7 @@
 """Tests for the seed_product_walkthrough management command."""
 
 import io
+from unittest import mock
 
 from django.core.management import CommandError, call_command
 from django.test import TestCase, override_settings
@@ -423,3 +424,151 @@ class SeedProductWalkthroughRevokedEligibilityStabilityTest(TestCase):
         self.assertEqual(eligibility_after.status, status_before)
         self.assertEqual(eligibility_after.granted_at, granted_at_before)
         self.assertEqual(eligibility_after.revoked_at, revoked_at_before)
+
+
+@override_settings(DEBUG=True)
+class SeedProductWalkthroughRouteDiscoveryOutputTest(TestCase):
+    """Frontend remediation follow-up (Defect 4): the route-discovery output
+    must reflect the provider/organization profile pages added in Epic 06
+    Sprint 2, and must stop claiming they don't exist."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.output = _run_command()
+
+    def test_stale_no_profile_page_claim_is_removed(self):
+        self.assertNotIn(
+            'No customer/provider/organization "profile" page exists as a distinct URL',
+            self.output,
+        )
+
+    def test_customer_profile_page_absence_still_stated_accurately(self):
+        self.assertIn('No customer "profile" page exists as a distinct URL', self.output)
+
+    def test_output_lists_provider_profile_route(self):
+        self.assertIn("/provider/profile/", self.output)
+
+    def test_output_lists_provider_profile_edit_route(self):
+        self.assertIn("/provider/profile/edit/basic/", self.output)
+
+    def test_output_lists_provider_public_preview_route(self):
+        self.assertIn("/find-a-caregiver/", self.output)
+        self.assertIn("provider public preview", self.output)
+
+    def test_output_lists_organization_profile_route(self):
+        self.assertIn("/organization/profile/", self.output)
+
+    def test_output_lists_organization_profile_edit_route(self):
+        self.assertIn("/organization/profile/edit/", self.output)
+
+    def test_output_lists_organization_public_preview_route(self):
+        self.assertIn("/find-an-organization/", self.output)
+        self.assertIn("organization public preview", self.output)
+
+    def test_printed_preview_urls_carry_the_demo_tenant_hint(self):
+        """Frontend remediation R2: the demo dataset lives in its own
+        dedicated tenant (not the default tenant public profile views
+        resolve against), so every printed preview URL must be directly
+        usable as printed — carrying an explicit ?tenant= hint rather than
+        requiring the operator to guess or edit the URL."""
+        self.assertIn(f"?tenant={DEMO_TENANT_SLUG}", self.output)
+
+
+@override_settings(DEBUG=True)
+class SeedProductWalkthroughReportSideEffectTest(TestCase):
+    """Frontend remediation R3: _print_report() must be pure — it must
+    never call a write-semantics service merely to produce its output.
+    The organization ServiceSupplier this report used to create-on-demand
+    (via get_or_create_supplier_for_organization called directly from
+    _print_report) is now resolved exactly once, during
+    _ensure_organizations (dataset-building), and _print_report only
+    reads the already-resolved id."""
+
+    def test_get_or_create_supplier_for_organization_called_exactly_once_per_organization(self):
+        from apps.accounts.services.supplier_bridge import (
+            get_or_create_supplier_for_organization as real_get_or_create_supplier_for_organization,
+        )
+
+        with mock.patch(
+            "apps.kernel.management.commands.seed_product_walkthrough.get_or_create_supplier_for_organization",
+            wraps=real_get_or_create_supplier_for_organization,
+        ) as spy:
+            _run_command()
+
+        tenant = Tenant.objects.get(slug=DEMO_TENANT_SLUG)
+        organization_count = OrganizationProfile.objects.filter(tenant=tenant).count()
+
+        # If _print_report still called this itself, call_count would be
+        # organization_count + 1 (once during dataset-building, once again
+        # while printing the report for organizations[0]).
+        self.assertEqual(spy.call_count, organization_count)
+
+    def test_second_run_calls_supplier_resolution_zero_times_report_included(self):
+        """On a second (idempotent) run, get_or_create_supplier_for_organization
+        should not be called at all from reporting — proving the reporting
+        phase performs no write-semantics calls even indirectly."""
+        _run_command()
+
+        from apps.accounts.services.supplier_bridge import (
+            get_or_create_supplier_for_organization as real_get_or_create_supplier_for_organization,
+        )
+
+        with mock.patch(
+            "apps.kernel.management.commands.seed_product_walkthrough.get_or_create_supplier_for_organization",
+            wraps=real_get_or_create_supplier_for_organization,
+        ) as spy:
+            _run_command()
+
+        tenant = Tenant.objects.get(slug=DEMO_TENANT_SLUG)
+        organization_count = OrganizationProfile.objects.filter(tenant=tenant).count()
+
+        # get_or_create_supplier_for_organization is still called once per
+        # organization during _ensure_organizations (it is a get_or_create,
+        # so this is a no-op lookup, not a write) — but never an additional
+        # time from _print_report.
+        self.assertEqual(spy.call_count, organization_count)
+
+    def test_reporting_does_not_change_service_supplier_count(self):
+        output_first = _run_command()
+        tenant = Tenant.objects.get(slug=DEMO_TENANT_SLUG)
+        supplier_count_after_first_report = ServiceSupplier.objects.filter(tenant=tenant).count()
+
+        output_second = _run_command()
+        supplier_count_after_second_report = ServiceSupplier.objects.filter(tenant=tenant).count()
+
+        self.assertEqual(supplier_count_after_first_report, supplier_count_after_second_report)
+        self.assertIn(f"?tenant={DEMO_TENANT_SLUG}", output_first)
+        self.assertIn(f"?tenant={DEMO_TENANT_SLUG}", output_second)
+
+    def test_reporting_emits_no_audit_or_event_outbox_rows(self):
+        _run_command()
+        audit_count_after_first = AuditLog.objects.count()
+        event_count_after_first = EventOutbox.objects.count()
+
+        _run_command()
+        audit_count_after_second = AuditLog.objects.count()
+        event_count_after_second = EventOutbox.objects.count()
+
+        self.assertEqual(audit_count_after_first, audit_count_after_second)
+        self.assertEqual(event_count_after_first, event_count_after_second)
+
+    def test_repeated_execution_remains_stable_for_organization_suppliers(self):
+        """First run creates every organization supplier; every subsequent
+        resolution of the same organization must return the identical
+        supplier row (same id), never a new one — a clean repeat run's
+        'created=0 updated=0' expectation, isolated to the org-supplier
+        resolution site."""
+        from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_organization
+
+        _run_command()
+        tenant = Tenant.objects.get(slug=DEMO_TENANT_SLUG)
+        organizations = list(OrganizationProfile.objects.filter(tenant=tenant))
+        supplier_ids_before = {
+            org.pk: get_or_create_supplier_for_organization(org, tenant_id=tenant.id).id for org in organizations
+        }
+
+        supplier_ids_after = {
+            org.pk: get_or_create_supplier_for_organization(org, tenant_id=tenant.id).id for org in organizations
+        }
+
+        self.assertEqual(supplier_ids_before, supplier_ids_after)

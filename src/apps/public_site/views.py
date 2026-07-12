@@ -14,10 +14,34 @@ enforced for apps.portal/apps.provider_portal/apps.organization_portal.
 from django.http import Http404
 from django.shortcuts import render
 
+from apps.kernel.services.tenant_service import TenantService
+
 from .services.directory_service import CAREGIVER_SUPPLIER_TYPES, CaregiverDirectoryService
 from .services.home_service import HomePageService
 from .services.organization_profile_service import OrganizationPublicProfileService
 from .services.profile_service import CaregiverPublicProfileService
+
+
+def _resolve_optional_tenant_hint(request):
+    """Public profile pages resolve the platform's single default tenant
+    by default (unchanged behavior — returns None, and the profile
+    service falls back to TenantService.get_default_tenant_id() exactly
+    as before). An explicit ?tenant=<slug> hint lets a caller target a
+    different, specific, already-known tenant (e.g. the
+    seed_product_walkthrough command's own dedicated demo tenant)
+    without ever searching across tenants: the profile lookup stays
+    scoped to exactly one resolved tenant_id either way.
+
+    Raises Http404 immediately for an unknown/invalid slug — it is never
+    silently substituted with the default, which would blur "no hint
+    given" with "wrong hint given"."""
+    slug = request.GET.get("tenant")
+    if not slug:
+        return None
+    tenant = TenantService.get_tenant_by_slug(slug)
+    if tenant is None:
+        raise Http404("Unknown tenant.")
+    return tenant.id
 
 
 def home(request):
@@ -41,14 +65,16 @@ def find_a_caregiver(request):
 
 
 def caregiver_profile(request, supplier_id):
-    profile = CaregiverPublicProfileService.get_profile(supplier_id)
+    tenant_id = _resolve_optional_tenant_hint(request)
+    profile = CaregiverPublicProfileService.get_profile(supplier_id, tenant_id=tenant_id)
     if profile is None:
         raise Http404("Caregiver profile not found.")
     return render(request, "public_site/caregiver_profile.html", {"profile": profile})
 
 
 def organization_profile(request, supplier_id):
-    profile = OrganizationPublicProfileService.get_profile(supplier_id)
+    tenant_id = _resolve_optional_tenant_hint(request)
+    profile = OrganizationPublicProfileService.get_profile(supplier_id, tenant_id=tenant_id)
     if profile is None:
         raise Http404("Organization profile not found.")
     return render(request, "public_site/organization_profile.html", {"profile": profile})

@@ -34,3 +34,14 @@ class TenantService:
     def get_default_tenant_id(cls) -> uuid.UUID:
         """Get or create the default tenant and return its id."""
         return cls.get_default_tenant().id
+
+    @classmethod
+    def get_tenant_by_slug(cls, slug: str) -> Tenant | None:
+        """Read-only lookup for an explicit, caller-known tenant slug.
+
+        Never creates a tenant and never falls back to the default —
+        callers that need "no hint means the default tenant" behavior
+        implement that themselves (see apps.public_site.views), so an
+        unknown/invalid slug here is unambiguously "no such tenant",
+        never silently substituted."""
+        return Tenant.objects.filter(slug=slug).first()

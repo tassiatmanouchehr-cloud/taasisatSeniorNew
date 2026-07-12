@@ -15,38 +15,16 @@
  * - Subset for initial load (Persian characters first)
  */
 
-/* === @font-face: IRANSansX (Variable Weight) === */
-/* NOTE: Font files must be placed in ui/fonts/iransansx/ */
-/* Download from: https://fontiran.com (commercial) or use Vazirmatn (free) */
-@font-face {
-  font-family: 'IRANSansX';
-  src: url('../fonts/iransansx/IRANSansX-Variable.woff2') format('woff2');
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-  unicode-range: U+0600-06FF, U+200C-200F, U+FB50-FDFF, U+FE70-FEFF, U+0020-007E;
-}
-
-/* === @font-face: Vazirmatn (Variable Weight — Free/Open Source) === */
-/* Primary fallback if IRANSansX is not available */
-@font-face {
-  font-family: 'Vazirmatn';
-  src: url('../fonts/vazirmatn/Vazirmatn-Variable.woff2') format('woff2');
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-  unicode-range: U+0600-06FF, U+200C-200F, U+FB50-FDFF, U+FE70-FEFF, U+0020-007E;
-}
-
-/* === @font-face: Vazirmatn Latin subset === */
-@font-face {
-  font-family: 'Vazirmatn';
-  src: url('../fonts/vazirmatn/Vazirmatn-Variable.woff2') format('woff2');
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
+/* === IRANSansX / Vazirmatn: no @font-face here === */
+/* No repository-managed IRANSansX or Vazirmatn binary exists in
+   ui/fonts/ (see ui/fonts/README.md — IRANSansX is commercial and must
+   never be committed; Vazirmatn is OFL-licensed and may be added later
+   by placing the real file at ui/fonts/vazirmatn/Vazirmatn-Variable.woff2
+   and restoring a @font-face block here). Referencing either name with
+   no matching @font-face declaration is safe: the browser skips the
+   unavailable named font with no network request and falls through to
+   Tahoma/Arial/sans-serif in the family stacks below and in
+   ui/design_tokens/typography.js. */
 
 /* === @font-face: JetBrains Mono (Monospace) === */
 @font-face {

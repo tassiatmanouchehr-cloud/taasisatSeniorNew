@@ -81,8 +81,10 @@ jobs:
         run: npm install
       - name: Build CSS
         run: npx tailwindcss -i ui/css/main.css -o static/css/output.css --minify
+      - name: Build JS
+        run: npm run js:build
       - name: Verify output exists
-        run: test -f static/css/output.css && echo "✅ CSS built successfully"
+        run: test -f static/css/output.css && test -f static/ui/js/alpine.min.js && echo "✅ CSS and JS built successfully"
 
   test:
     name: Django Test Suite
@@ -171,6 +173,8 @@ jobs:
         run: npm install
       - name: Build CSS
         run: npx tailwindcss -i ui/css/main.css -o static/css/output.css --minify
+      - name: Build JS
+        run: npm run js:build
       - name: Run migrations
         run: python manage.py migrate
       - name: Seed test data
