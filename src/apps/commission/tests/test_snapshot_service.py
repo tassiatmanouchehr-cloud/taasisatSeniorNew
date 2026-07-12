@@ -38,7 +38,7 @@ class CommissionSnapshotServiceTest(CommissionTestCase):
 
     def test_affiliated_snapshot_resolves_both_caregiver_and_company_party(self):
         order = self._make_order()
-        caregiver_supplier, company_supplier, _org = self._make_affiliated_caregiver()
+        caregiver_supplier, company_supplier, _org, _cg_user = self._make_affiliated_caregiver()
 
         snapshot = CommissionSnapshotService.create_snapshot_for_order(order=order, supplier=caregiver_supplier)
 

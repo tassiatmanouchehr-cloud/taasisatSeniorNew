@@ -36,6 +36,13 @@ class CommissionContractStatus(models.TextChoices):
     ACTIVE = "ACTIVE", "Active"
     REJECTED = "REJECTED", "Rejected"
     SUPERSEDED = "SUPERSEDED", "Superseded"
+    # Reserved/unimplemented in PR-A (System Architect Review of PR #44,
+    # Remediation 8, documenting rather than closing this gap): no code
+    # path ever transitions a contract to EXPIRED today — CommissionContract
+    # has no proposal-response deadline of its own (unlike PaymentDeadline).
+    # A future PR may add "an unapproved proposal auto-expires after N
+    # days" and use this value then; until it does, EXPIRED must not be
+    # treated as reachable by any caller.
     EXPIRED = "EXPIRED", "Expired"
     TERMINATED = "TERMINATED", "Terminated"
 
@@ -125,6 +132,50 @@ class CommissionContract(models.Model):
             models.Index(fields=["tenant", "caregiver_party", "status"], name="idx_commcontract_caregiver_st"),
             models.Index(fields=["tenant", "company_party", "status"], name="idx_commcontract_company_st"),
         ]
+        constraints = [
+            # Remediation 2 (System Architect Review of PR #44): at most one
+            # OPEN (DRAFT/PENDING_CAREGIVER_APPROVAL) proposal per
+            # (tenant, company_party, caregiver_party) at a time — the real
+            # DB-level safety net behind CommissionContractService
+            # ._reject_any_open_proposal()'s pre-check, which only catches
+            # the common case and cannot, on its own, close a genuine
+            # concurrent-INSERT race.
+            models.UniqueConstraint(
+                fields=["tenant", "company_party", "caregiver_party"],
+                condition=models.Q(status__in=list(OPEN_CONTRACT_STATUSES)),
+                name="uq_commcontract_open_pair",
+            ),
+            # At most one ACTIVE contract per pair at a time — the DB-level
+            # backstop behind CommissionContractService.approve()'s
+            # select_for_update()+supersede-every-active-row transaction.
+            models.UniqueConstraint(
+                fields=["tenant", "company_party", "caregiver_party"],
+                condition=models.Q(status="ACTIVE"),
+                name="uq_commcontract_active_pair",
+            ),
+            # Remediation 3: every share must be within [0, 100] and the
+            # three shares must sum to exactly 100 — enforced at the
+            # database level, not only in CommissionContractService.propose()
+            # (clean_total() above is intentionally NOT the enforcement
+            # mechanism; see that method's docstring).
+            models.CheckConstraint(
+                check=(
+                    models.Q(platform_share_percent__gte=0)
+                    & models.Q(platform_share_percent__lte=100)
+                    & models.Q(company_share_percent__gte=0)
+                    & models.Q(company_share_percent__lte=100)
+                    & models.Q(caregiver_share_percent__gte=0)
+                    & models.Q(caregiver_share_percent__lte=100)
+                ),
+                name="chk_commcontract_share_range",
+            ),
+            models.CheckConstraint(
+                check=models.Q(
+                    platform_share_percent=100 - models.F("company_share_percent") - models.F("caregiver_share_percent")
+                ),
+                name="chk_commcontract_shares_sum100",
+            ),
+        ]
 
     def __str__(self):
         return (
@@ -132,6 +183,13 @@ class CommissionContract(models.Model):
         )
 
     def clean_total(self):
+        """Documented as unused dead code (System Architect Review of PR #44,
+        Remediation 8): no caller invokes this — CommissionContractService
+        .propose() validates the sum inline before create(), and
+        chk_commcontract_shares_sum100 (see Meta.constraints above) is the
+        real, unconditional database-level enforcement that also covers any
+        future direct-ORM write. Kept only because removing a public model
+        method is out of scope for this remediation; do not rely on it."""
         total = self.platform_share_percent + self.company_share_percent + self.caregiver_share_percent
         if total != 100:
             raise ValueError(f"CommissionContract shares must sum to exactly 100, got {total}.")

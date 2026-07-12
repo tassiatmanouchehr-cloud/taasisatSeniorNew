@@ -40,7 +40,14 @@ that service's own docstring, untouched by this Epic.
 from apps.kernel.models.supplier import ServiceSupplier, SupplierType
 from apps.kernel.services.supplier_registry import SupplierRegistry
 
-from ..models.profiles import CaregiverProfile, CaregiverProviderType, OrganizationProfile
+from ..models.profiles import (
+    CaregiverProfile,
+    CaregiverProviderType,
+    OrganizationMembership,
+    OrganizationProfile,
+    OrgMembershipStatus,
+    ProfileStatus,
+)
 
 CAREGIVER_LINKED_TYPE = "CaregiverProfile"
 ORGANIZATION_LINKED_TYPE = "OrganizationProfile"
@@ -99,27 +106,93 @@ def resolve_organization_supplier_for_caregiver(
     .ServiceSupplierProfileCouplingTest, and this module's own docstring
     ("Accounts must never create or query ServiceSupplier rows directly...
     every lookup/creation goes through SupplierRegistry" — the inverse
-    direction, resolving supplier->accounts->supplier, belongs here too)."""
-    from ..models.profiles import AffiliationStatus, OrganizationMembership
+    direction, resolving supplier->accounts->supplier, belongs here too).
 
-    caregiver_profile = resolve_supplier_entity(caregiver_supplier)
-    if not isinstance(caregiver_profile, CaregiverProfile):
-        return None
-
-    membership = (
-        OrganizationMembership.objects.filter(
-            user_id=caregiver_profile.user_id,
-            status=AffiliationStatus.APPROVED,
-        )
-        .select_related("organization")
-        .first()
-    )
+    Remediation fix (System Architect Review of PR #44, Remediation 1): this
+    previously filtered OrganizationMembership.status against
+    AffiliationStatus.APPROVED ("approved") — but OrganizationMembership's
+    own declared choices are OrgMembershipStatus ("active"/"pending"/
+    "suspended"/"removed"), the enum every other real membership-status
+    call site in this codebase uses (see
+    apps.provider_portal.services.profile_service._organization_name,
+    apps.accounts.services.organization_rbac.OrganizationRoleSyncService).
+    "approved" is never a real OrganizationMembership.status value, so this
+    filter silently matched zero rows for every real (non-test) affiliated
+    caregiver — company_party on an AFFILIATED CommissionSnapshot was
+    always None outside tests whose fixtures happened to reuse the same
+    wrong constant. Fixed to the correct enum."""
+    membership = _active_membership_for_caregiver(caregiver_supplier)
     if membership is None:
         return None
 
     return get_or_create_supplier_for_organization(
         membership.organization,
         tenant_id=tenant_id or caregiver_supplier.tenant_id,
+    )
+
+
+def organization_scope_for_supplier(company_supplier: ServiceSupplier) -> dict | None:
+    """Financial Core PR-A Remediation (System Architect Review of PR #44,
+    Remediation 1): {"scope_type": "organization", "scope_id": <uuid>} for
+    the OrganizationProfile behind company_supplier, or None if it is not
+    (or no longer) an organization-backed supplier. The scope shape mirrors
+    apps.accounts.services.organization_rbac.OrganizationRoleSyncService's
+    own scope_type="organization" RoleAssignment rows exactly, so an
+    organization-scoped grant (present or future) is honored by
+    PermissionService._scope_matches() without any change there."""
+    organization = resolve_supplier_entity(company_supplier)
+    if not isinstance(organization, OrganizationProfile):
+        return None
+    return {"scope_type": "organization", "scope_id": str(organization.id)}
+
+
+def is_organization_supplier_active(company_supplier: ServiceSupplier) -> bool:
+    """Financial Core PR-A Remediation, Remediation 1: True iff
+    company_supplier resolves to a real OrganizationProfile in
+    ProfileStatus.ACTIVE."""
+    organization = resolve_supplier_entity(company_supplier)
+    return isinstance(organization, OrganizationProfile) and organization.status == ProfileStatus.ACTIVE
+
+
+def is_caregiver_actively_affiliated_with_organization_supplier(
+    *,
+    caregiver_supplier: ServiceSupplier,
+    organization_supplier: ServiceSupplier,
+) -> bool:
+    """Financial Core PR-A Remediation, Remediation 1: True iff
+    caregiver_supplier resolves to a real CaregiverProfile holding a
+    currently-ACTIVE OrganizationMembership with the exact OrganizationProfile
+    behind organization_supplier — a suspended or ended affiliation, or an
+    affiliation with a *different* organization, both return False."""
+    caregiver = resolve_supplier_entity(caregiver_supplier)
+    organization = resolve_supplier_entity(organization_supplier)
+    if not isinstance(caregiver, CaregiverProfile) or not isinstance(organization, OrganizationProfile):
+        return False
+    return OrganizationMembership.objects.filter(
+        organization=organization,
+        user_id=caregiver.user_id,
+        status=OrgMembershipStatus.ACTIVE,
+    ).exists()
+
+
+def caregiver_user_id_for_supplier(caregiver_supplier: ServiceSupplier):
+    """Financial Core PR-A Remediation, Remediation 1: the UserAccount id
+    behind caregiver_supplier's CaregiverProfile, or None."""
+    caregiver = resolve_supplier_entity(caregiver_supplier)
+    return caregiver.user_id if isinstance(caregiver, CaregiverProfile) else None
+
+
+def _active_membership_for_caregiver(caregiver_supplier: ServiceSupplier) -> OrganizationMembership | None:
+    caregiver_profile = resolve_supplier_entity(caregiver_supplier)
+    if not isinstance(caregiver_profile, CaregiverProfile):
+        return None
+    return (
+        OrganizationMembership.objects.filter(
+            user_id=caregiver_profile.user_id,
+            status=OrgMembershipStatus.ACTIVE,
+        )
+        .select_related("organization")
+        .first()
     )
 
 

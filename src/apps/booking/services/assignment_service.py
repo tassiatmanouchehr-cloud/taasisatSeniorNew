@@ -176,6 +176,14 @@ class AssignmentService:
         PaymentDeadlineService.create_for_order(order=order, assignment=assignment, actor=actor)
 
     @classmethod
+    def _cancel_financial_core_deadline(cls, *, order, actor):
+        """Financial Core PR-A Remediation, Remediation 7 — the mirror-image
+        integration point of _open_financial_core_for_assignment() above."""
+        from apps.commission.services.deadline_service import PaymentDeadlineService
+
+        PaymentDeadlineService.cancel_for_order(order_id=order.id, actor=actor)
+
+    @classmethod
     @transaction.atomic
     def replace(
         cls,
@@ -282,6 +290,13 @@ class AssignmentService:
             if metadata:
                 current.metadata = {**current.metadata, **metadata}
             current.save(update_fields=["status", "metadata", "updated_at"])
+
+        # Financial Core PR-A Remediation (System Architect Review of PR #44,
+        # Remediation 7): cancel any still-PENDING PaymentDeadline for this
+        # order so a queued commission.payment_deadline.expire job becomes a
+        # harmless no-op instead of firing a false expiry cascade against an
+        # order the caller has already, separately, explicitly cancelled.
+        cls._cancel_financial_core_deadline(order=order, actor=changed_by)
 
         EventPublisher.publish(
             tenant_id=order.tenant_id,

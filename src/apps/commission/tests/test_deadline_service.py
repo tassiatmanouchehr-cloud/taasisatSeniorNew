@@ -12,6 +12,14 @@ from .helpers import CommissionTestCase
 
 
 class PaymentDeadlineServiceTest(CommissionTestCase):
+    def setUp(self):
+        super().setUp()
+        # Remediation 6: the deadline activation gate defaults to DISABLED;
+        # this suite exercises the real expiry mechanism, so it must be
+        # explicitly enabled — see test_deadline_activation_gate.py for the
+        # DISABLED-by-default behavior itself.
+        self._enable_deadline_activation()
+
     def test_create_for_order_schedules_a_due_job_at_the_configured_default(self):
         order = self._make_order()
         before = timezone.now()

@@ -145,3 +145,97 @@ correct operation, not a duplicate.
   `SettlementOrchestrationService`) has been touched. See the PR-A final
   report for the complete "known limitations reserved for PR-B onward"
   list.
+
+## Addendum — System Architect Review remediation (post-merge-readiness, pre-merge)
+
+An independent Architecture/Domain/Security/Migration/Acceptance Review of
+this PR surfaced one Critical and several Major/Minor findings, all
+resolved in a single follow-up remediation commit on this same branch
+(not a new PR — PR-A's scope is otherwise unchanged). Recorded here since
+they are architecture-relevant decisions, not just bug fixes:
+
+- **Payment-timing conflict (Critical, resolved by explicit System
+  Architect decision, not a lifecycle redesign).** The final business rule
+  is pay-before-service with Escrow: an accepted proposal is frozen, the
+  customer must pay within the deadline, payment succeeds *before* service
+  execution, and the money then sits in Escrow until completion/dispute
+  handling/release. This repository's current order lifecycle is
+  execution-first (assign → execute → invoice → pay) and does not match
+  that rule yet — redesigning the lifecycle is out of scope for PR-A and
+  its remediation; it belongs to whichever future PR introduces real
+  pre-service `PaymentIntent` → successful callback → Escrow hold. Until
+  then, `CommissionConfiguration.get_deadline_activation_enabled()`
+  (default `False` for every tenant) gates whether `PaymentDeadlineService
+  .create_for_order()` schedules a live `apps.jobs` expiry job at all —
+  the `PaymentDeadline` row is still recorded (data foundation for
+  reporting/statements), but nothing can reopen a real order through the
+  expiry cascade until a tenant is explicitly, platform-authorized-only
+  enabled for it. `PaymentDeadlineService.expire_due()` re-checks the same
+  gate independently, so a stale already-scheduled job cannot mutate order
+  state through a since-disabled path.
+- **Authorization was tenant-wide only (Major).** `CommissionContractService`'s
+  four write actions now additionally pass a `scope_type="organization"`
+  scope (resolved from the contract's company party) into the permission
+  check, and independently enforce that the organization is `ACTIVE` and
+  the caregiver holds a currently-`ACTIVE` `OrganizationMembership` with
+  that exact organization — a suspended/ended affiliation can no longer
+  create or activate a contract even if the acting user still holds a
+  valid RBAC grant. `approve()`/`reject()` additionally verify the acting
+  caregiver is the one actually named on the contract (an
+  ownership-style check RBAC scope alone cannot express, since
+  `organization_caregiver` is not, and is not expected to become,
+  scoped to one specific caregiver).
+- **No DB-level protection against concurrent duplicate proposals
+  (Major).** `CommissionContract` now carries `uq_commcontract_open_pair`
+  (at most one `DRAFT`/`PENDING_CAREGIVER_APPROVAL` row per
+  `(tenant, company_party, caregiver_party)`) and
+  `uq_commcontract_active_pair` (at most one `ACTIVE` row per pair), both
+  conditional `UniqueConstraint`s added in migration `commission.0002`
+  (additive — `0001_initial` was not rewritten). `approve()` now locks and
+  supersedes *every* currently-`ACTIVE` row for the pair inside its own
+  transaction, not only its recorded `supersedes` predecessor.
+- **No DB-level 100% invariant (Major).** `CommissionContract` now carries
+  `chk_commcontract_share_range` (each share in [0, 100]) and
+  `chk_commcontract_shares_sum100`
+  (`platform_share_percent = 100 - company_share_percent -
+  caregiver_share_percent`), also in `commission.0002` — a direct-ORM
+  write bypassing `CommissionContractService.propose()` entirely is still
+  rejected by the database. `clean_total()` on the model remains
+  documented dead code (no caller); the CheckConstraint is the real
+  enforcement.
+- **No `AuditClassification.FINANCIAL` audit trail for policy writes
+  (Major).** `CommissionPolicyService.set_global_defaults()`/
+  `set_cooperation_default()`/`set_platform_override()` now each write one
+  `AuditService.log()` entry (previously only a plain `logger.info()`
+  call existed), recording both the superseded version (if any) and the
+  newly-activated one.
+- **`_reset_demo()` orphaned `JobDefinition` rows (Major, independently
+  discovered during the review's own adversarial 3×`--reset-demo` check).**
+  Fixed by narrowly deleting only the demo tenant's own
+  `commission.payment_deadline.expire` jobs before rebuilding — verified
+  stable across 3 consecutive resets.
+- **Minor/documentation:** the caregiver-override-precedence-over-company-
+  override in `CommissionRuleResolver._resolve_platform_override()` is
+  intentional (more specific grant wins) and is now documented at that
+  call site; the resolver's hard-fallback-to-`DEFAULT_SHARES` path (no
+  seeded `PolicyVersion` for a tenant) now logs a warning; `AssignmentService
+  .cancel()` now cancels any still-`PENDING` `PaymentDeadline` for the
+  order via `PaymentDeadlineService.cancel_for_order()`;
+  `CommissionContractStatus.EXPIRED` remains reserved/unimplemented (no
+  code path sets it — documented at the enum definition); the generic
+  `PolicyDefinition.scope_id` tenant-integrity guarantee remains
+  service-enforced, not FK-enforced (unchanged, pre-existing, out of
+  scope); this repository still has no periodic production scheduler
+  (cron/celery-beat/systemd-timer) configured to invoke `run_due_jobs` —
+  confirmed still accurate at remediation time — so job execution
+  requires a real scheduler/worker to be wired up before any
+  gate-enabled tenant's deadline jobs actually run in production. A
+  latent, unrelated bug was also found and fixed while implementing the
+  membership-active check above: `apps.accounts.services.supplier_bridge
+  .resolve_organization_supplier_for_caregiver()` filtered
+  `OrganizationMembership.status` against `AffiliationStatus.APPROVED`
+  ("approved") instead of the field's real `OrgMembershipStatus.ACTIVE`
+  ("active") — since "approved" is never a real `OrganizationMembership
+  .status` value, this silently returned `None` for every real (non-test)
+  affiliated caregiver's company party, outside test fixtures that
+  happened to reuse the same wrong constant.

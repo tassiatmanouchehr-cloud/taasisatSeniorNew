@@ -19,6 +19,7 @@ Goods shares are resolved independently, always via cooperation_type=GOODS
 contracts do not cover goods; goods resolution stops at tiers 2-4.
 """
 
+import logging
 import uuid
 from dataclasses import dataclass
 
@@ -29,6 +30,8 @@ from apps.commission.models.snapshot import PolicySource
 from .cooperation_type import CooperationType
 from .errors import SnapshotError
 from .policy_service import DEFAULT_SHARES, GOODS_KEY, CommissionPolicyService
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -138,6 +141,16 @@ class CommissionRuleResolver:
 
     @classmethod
     def _resolve_platform_override(cls, *, tenant_id, key, company_party_id, caregiver_party_id, at_time):
+        """Remediation 8 (System Architect Review of PR #44) — documenting
+        previously-undocumented behavior, not changing it: when BOTH a
+        caregiver-scoped and a company-scoped platform override exist for
+        the same tenant/key, the caregiver-scoped override always wins.
+        This is intentional — a caregiver-specific override is the more
+        specific grant (it targets exactly one individual, vs. every
+        caregiver affiliated with a given company), matching the same
+        "more specific wins" principle the four-tier priority chain itself
+        already applies (contract > override > cooperation-type default >
+        global default)."""
         if caregiver_party_id:
             version = CommissionPolicyService.get_platform_override(
                 tenant_id=tenant_id,
@@ -184,7 +197,15 @@ class CommissionRuleResolver:
         # raising — but is NOT recorded as GLOBAL_DEFAULT-from-a-real-version
         # (policy_version_id stays None) so a snapshot reader can tell the
         # difference between "resolved from a real seeded policy" and this
-        # unseeded hard fallback.
+        # unseeded hard fallback. Remediation 8: logged as a warning (no
+        # PII) since a tenant hitting this path in real operation usually
+        # means seed_commission_defaults was never run for it.
+        logger.warning(
+            "No seeded commission PolicyVersion found for tenant %s / key %s — falling back to hard-coded "
+            "DEFAULT_SHARES; run 'manage.py seed_commission_defaults' for this tenant if this is unexpected.",
+            tenant_id,
+            key,
+        )
         shares = DEFAULT_SHARES[key]
         return ResolvedCommissionRule(
             cooperation_type=key,

@@ -317,6 +317,23 @@ class Command(BaseCommand):
 
             FinancialParty.objects.filter(tenant_id=tenant.id).delete()
 
+            # Remediation 5 (System Architect Review of PR #44): every
+            # --reset-demo run enqueues fresh commission.payment_deadline
+            # .expire JobDefinition rows (one per PaymentDeadline created
+            # above), which the PaymentDeadline delete() above never
+            # cleaned up — JobDefinition has no FK to PaymentDeadline, so
+            # nothing cascaded. Left unchecked, repeated resets grow the
+            # jobs table without bound (confirmed: +5 rows per run across 3
+            # consecutive resets in the System Architect's independent
+            # review). Scoped deliberately narrow: only THIS demo tenant's
+            # own commission.payment_deadline.expire jobs — never touches
+            # another tenant's jobs, payments.settlement.retry jobs, or any
+            # other job type/history that should be retained.
+            from apps.commission.jobs import PAYMENT_DEADLINE_EXPIRE
+            from apps.jobs.models import JobDefinition
+
+            JobDefinition.objects.filter(tenant_id=tenant.id, job_type=PAYMENT_DEADLINE_EXPIRE).delete()
+
             from apps.execution.models import ExecutionSession
 
             ExecutionSession.objects.filter(tenant_id=tenant.id).delete()

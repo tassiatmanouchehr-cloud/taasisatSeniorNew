@@ -44,7 +44,7 @@ class CommissionTenantIsolationTest(CommissionTestCase):
         self.assertEqual(other_tenant_rule.platform_rate_percent, 20)
 
     def test_contract_from_other_tenant_cannot_be_approved_via_this_tenants_permission(self):
-        caregiver_supplier, company_supplier, _org = self._make_affiliated_caregiver(tenant=self.other_tenant)
+        caregiver_supplier, company_supplier, _org, cg_user = self._make_affiliated_caregiver(tenant=self.other_tenant)
         company_party = FinancialPartyService.resolve_party_for_supplier(company_supplier)
         caregiver_party = FinancialPartyService.resolve_party_for_supplier(caregiver_supplier)
 

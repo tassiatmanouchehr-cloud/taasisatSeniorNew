@@ -5,18 +5,19 @@ import uuid
 from django.test import TestCase
 
 from apps.accounts.models.profiles import (
-    AffiliationStatus,
     CaregiverProfile,
     CaregiverProviderType,
     OrganizationMembership,
     OrganizationProfile,
     OrgMembershipRole,
+    OrgMembershipStatus,
 )
 from apps.accounts.services.supplier_bridge import (
     get_or_create_supplier_for_caregiver,
     get_or_create_supplier_for_organization,
 )
 from apps.kernel.models import Person, Tenant, UserAccount
+from apps.kernel.models.configuration import ConfigurationKey, ConfigurationValue, ScopeLevel, ValueType
 from apps.kernel.models.supplier import (
     AvailabilityStatus,
     ServiceSupplier,
@@ -63,6 +64,34 @@ class CommissionTestCase(TestCase):
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         return CustomerProfile.objects.create(user=user, person=person, phone=phone, display_name="Test Customer")
 
+    def _enable_deadline_activation(self, *, tenant=None):
+        """Remediation 6 (System Architect Review of PR #44): the deadline
+        activation gate defaults to DISABLED for every tenant. Tests that
+        exercise the actual expiry mechanism (job scheduling, expire_due()
+        cascading to AssignmentService.expire(), extension rescheduling)
+        must explicitly enable it — mirrors the established
+        booking.reassignment.enabled / booking.assignment.auto_accept_enabled
+        test pattern (apps.booking.tests.test_replace_cancel /
+        test_assignment_service)."""
+        from apps.commission.services.configuration import DEADLINE_ACTIVATION_ENABLED_KEY
+
+        tenant = tenant or self.tenant
+        config_key, _ = ConfigurationKey.objects.get_or_create(
+            key=DEADLINE_ACTIVATION_ENABLED_KEY,
+            defaults={
+                "owner_module": "M05",
+                "scope_level": ScopeLevel.TENANT,
+                "value_type": ValueType.BOOLEAN,
+                "default_value": False,
+            },
+        )
+        ConfigurationValue.objects.update_or_create(
+            tenant_id=tenant.id,
+            config_key=config_key,
+            scope_type=ScopeLevel.TENANT,
+            defaults={"value": True, "is_active": True},
+        )
+
     def _make_independent_supplier(self, *, tenant=None) -> ServiceSupplier:
         tenant = tenant or self.tenant
         return ServiceSupplier.objects.create(
@@ -91,8 +120,8 @@ class CommissionTestCase(TestCase):
             service_categories=[str(self.category.id)],
         )
 
-    def _make_affiliated_caregiver(self, *, tenant=None):
-        """Returns (caregiver_supplier, company_supplier, organization_profile)."""
+    def _make_affiliated_caregiver(self, *, tenant=None, membership_status=OrgMembershipStatus.ACTIVE):
+        """Returns (caregiver_supplier, company_supplier, organization_profile, caregiver_user)."""
         tenant = tenant or self.tenant
 
         org_phone = f"0912{uuid.uuid4().hex[:7]}"
@@ -123,7 +152,7 @@ class CommissionTestCase(TestCase):
             user=cg_user,
             person=cg_person,
             role_type=OrgMembershipRole.CAREGIVER,
-            status=AffiliationStatus.APPROVED,
+            status=membership_status,
         )
 
-        return caregiver_supplier, organization_supplier, organization
+        return caregiver_supplier, organization_supplier, organization, cg_user

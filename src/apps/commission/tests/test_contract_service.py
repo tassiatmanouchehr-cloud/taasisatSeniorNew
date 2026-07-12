@@ -1,3 +1,4 @@
+from apps.accounts.models.profiles import OrgMembershipStatus, ProfileStatus
 from apps.commission.models.contract import CommissionContractStatus
 from apps.commission.services.contract_service import CommissionContractService
 from apps.commission.services.errors import ContractError
@@ -13,11 +14,16 @@ class CommissionContractServiceTest(CommissionTestCase):
     def setUp(self):
         super().setUp()
         CommissionPolicyService.seed_defaults_if_missing(tenant_id=self.tenant.id)
-        self.caregiver_supplier, self.company_supplier, self.organization = self._make_affiliated_caregiver()
+        self.caregiver_supplier, self.company_supplier, self.organization, self.caregiver_user = (
+            self._make_affiliated_caregiver()
+        )
         self.company_party = FinancialPartyService.resolve_party_for_supplier(self.company_supplier)
         self.caregiver_party = FinancialPartyService.resolve_party_for_supplier(self.caregiver_supplier)
         self.org_admin = make_actor(self.tenant, full_name="Org Admin")
-        self.caregiver_actor = make_actor(self.tenant, full_name="Caregiver Actor")
+        # The real caregiver behind caregiver_party — Remediation 1 requires
+        # that only THIS specific caregiver may approve/reject the contract,
+        # not merely any actor holding the organization_caregiver permission.
+        self.caregiver_actor = self.caregiver_user
         grant_permissions(self.tenant, self.org_admin, ["commission.contract.propose"])
         grant_permissions(self.tenant, self.caregiver_actor, ["commission.contract.approve"])
 
@@ -176,3 +182,129 @@ class CommissionContractServiceTest(CommissionTestCase):
         self.assertEqual(rule.company_rate_percent, 10)
         self.assertEqual(rule.caregiver_rate_percent, 83)
         self.assertEqual(rule.contract_id, contract.id)
+
+
+class CommissionContractResourceScopedAuthorizationTest(CommissionTestCase):
+    """Remediation 1 (System Architect Review of PR #44): CommissionContract
+    authorization must be resource-scoped, not merely tenant-wide, and must
+    enforce real organization/affiliation eligibility invariants that RBAC
+    scope alone cannot express."""
+
+    def setUp(self):
+        super().setUp()
+        CommissionPolicyService.seed_defaults_if_missing(tenant_id=self.tenant.id)
+        self.caregiver_supplier, self.company_supplier, self.organization, self.caregiver_user = (
+            self._make_affiliated_caregiver()
+        )
+        self.company_party = FinancialPartyService.resolve_party_for_supplier(self.company_supplier)
+        self.caregiver_party = FinancialPartyService.resolve_party_for_supplier(self.caregiver_supplier)
+
+    def _propose(self, *, proposed_by):
+        return CommissionContractService.propose(
+            tenant_id=self.tenant.id,
+            company_party_id=self.company_party.id,
+            caregiver_party_id=self.caregiver_party.id,
+            company_share_percent=20,
+            caregiver_share_percent=73,
+            reason="negotiated split",
+            proposed_by=proposed_by,
+        )
+
+    def test_propose_denied_for_admin_scoped_to_a_different_organization(self):
+        _cg2, _co2, other_org, _cg2_user = self._make_affiliated_caregiver()
+        wrong_org_admin = make_actor(self.tenant, full_name="Wrong Org Admin")
+        grant_permissions(
+            self.tenant,
+            wrong_org_admin,
+            ["commission.contract.propose"],
+            scope_type="organization",
+            scope_id=other_org.id,
+        )
+        with self.assertRaises(PermissionDenied):
+            self._propose(proposed_by=wrong_org_admin)
+
+    def test_propose_allowed_for_admin_scoped_to_the_correct_organization(self):
+        right_org_admin = make_actor(self.tenant, full_name="Right Org Admin")
+        grant_permissions(
+            self.tenant,
+            right_org_admin,
+            ["commission.contract.propose"],
+            scope_type="organization",
+            scope_id=self.organization.id,
+        )
+        contract = self._propose(proposed_by=right_org_admin)
+        self.assertEqual(contract.status, CommissionContractStatus.PENDING_CAREGIVER_APPROVAL)
+
+    def test_approve_denied_for_a_different_caregiver(self):
+        org_admin = make_actor(self.tenant, full_name="Org Admin")
+        grant_permissions(self.tenant, org_admin, ["commission.contract.propose"])
+        contract = self._propose(proposed_by=org_admin)
+
+        _cg2_supplier, _co2_supplier, _other_org, other_caregiver_user = self._make_affiliated_caregiver()
+        grant_permissions(self.tenant, other_caregiver_user, ["commission.contract.approve"])
+
+        with self.assertRaises(ContractError):
+            CommissionContractService.approve(contract_id=contract.id, approved_by=other_caregiver_user)
+        contract.refresh_from_db()
+        self.assertEqual(contract.status, CommissionContractStatus.PENDING_CAREGIVER_APPROVAL)
+
+    def test_reject_denied_for_a_different_caregiver(self):
+        org_admin = make_actor(self.tenant, full_name="Org Admin")
+        grant_permissions(self.tenant, org_admin, ["commission.contract.propose"])
+        contract = self._propose(proposed_by=org_admin)
+
+        _cg2_supplier, _co2_supplier, _other_org, other_caregiver_user = self._make_affiliated_caregiver()
+        grant_permissions(self.tenant, other_caregiver_user, ["commission.contract.approve"])
+
+        with self.assertRaises(ContractError):
+            CommissionContractService.reject(contract_id=contract.id, rejected_by=other_caregiver_user)
+
+    def test_approve_allowed_for_the_correct_caregiver(self):
+        org_admin = make_actor(self.tenant, full_name="Org Admin")
+        grant_permissions(self.tenant, org_admin, ["commission.contract.propose"])
+        grant_permissions(self.tenant, self.caregiver_user, ["commission.contract.approve"])
+        contract = self._propose(proposed_by=org_admin)
+
+        active = CommissionContractService.approve(contract_id=contract.id, approved_by=self.caregiver_user)
+        self.assertEqual(active.status, CommissionContractStatus.ACTIVE)
+
+    def test_propose_denied_for_suspended_membership(self):
+        _cg, _co, _org, _user = (self.caregiver_supplier, self.company_supplier, self.organization, self.caregiver_user)
+        from apps.accounts.models.profiles import OrganizationMembership
+
+        OrganizationMembership.objects.filter(
+            organization=self.organization,
+            user=self.caregiver_user,
+        ).update(status=OrgMembershipStatus.SUSPENDED)
+
+        org_admin = make_actor(self.tenant, full_name="Org Admin")
+        grant_permissions(self.tenant, org_admin, ["commission.contract.propose"])
+        with self.assertRaises(ContractError):
+            self._propose(proposed_by=org_admin)
+
+    def test_propose_denied_for_inactive_organization(self):
+        self.organization.status = ProfileStatus.SUSPENDED
+        self.organization.save(update_fields=["status"])
+
+        org_admin = make_actor(self.tenant, full_name="Org Admin")
+        grant_permissions(self.tenant, org_admin, ["commission.contract.propose"])
+        with self.assertRaises(ContractError):
+            self._propose(proposed_by=org_admin)
+
+    def test_approve_denied_when_affiliation_ended_after_proposal(self):
+        from apps.accounts.models.profiles import OrganizationMembership
+
+        org_admin = make_actor(self.tenant, full_name="Org Admin")
+        grant_permissions(self.tenant, org_admin, ["commission.contract.propose"])
+        grant_permissions(self.tenant, self.caregiver_user, ["commission.contract.approve"])
+        contract = self._propose(proposed_by=org_admin)
+
+        OrganizationMembership.objects.filter(
+            organization=self.organization,
+            user=self.caregiver_user,
+        ).update(status=OrgMembershipStatus.REMOVED)
+
+        with self.assertRaises(ContractError):
+            CommissionContractService.approve(contract_id=contract.id, approved_by=self.caregiver_user)
+        contract.refresh_from_db()
+        self.assertEqual(contract.status, CommissionContractStatus.PENDING_CAREGIVER_APPROVAL)

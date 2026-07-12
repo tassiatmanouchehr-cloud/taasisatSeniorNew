@@ -291,6 +291,108 @@ class SeedProductWalkthroughResetDemoTest(TestCase):
 
 
 @override_settings(DEBUG=True)
+class SeedProductWalkthroughResetDemoStabilityTest(TestCase):
+    """Remediation 5 (System Architect Review of PR #44): the independent
+    review's own adversarial check — 3 consecutive --reset-demo runs — found
+    JobDefinition rows growing unbounded (10 -> 15 -> 20) because
+    _reset_demo() cleaned up PaymentDeadline but never the JobDefinition
+    rows its own commission.payment_deadline.expire job scheduling created.
+    Fixed in _reset_demo() (narrowly scoped: only the demo tenant's own
+    commission.payment_deadline.expire jobs). This is the required
+    regression test for that fix — exact count stability across 3
+    consecutive resets, not just 'zero pending/failed retry jobs' (the
+    pre-existing, narrower assertion in
+    test_no_pending_or_failed_retry_jobs_introduced)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.other_tenant = Tenant.objects.create(slug="stability-other-tenant", name="Other Tenant", status="active")
+        JobDefinition.objects.create(
+            tenant_id=cls.other_tenant.id,
+            job_type="commission.payment_deadline.expire",
+            payload={"marker": "not-demo"},
+        )
+
+        call_command("seed_product_walkthrough", "--reset-demo")
+        cls.demo_tenant = Tenant.objects.get(slug=DEMO_TENANT_SLUG)
+        cls.after_reset1 = cls._snapshot(cls.demo_tenant)
+
+        call_command("seed_product_walkthrough", "--reset-demo")
+        cls.after_reset2 = cls._snapshot(cls.demo_tenant)
+
+        call_command("seed_product_walkthrough", "--reset-demo")
+        cls.after_reset3 = cls._snapshot(cls.demo_tenant)
+
+        # A subsequent NON-reset run must also be fully stable (the
+        # existing idempotency contract, re-confirmed after a reset cycle).
+        _run_command()
+        cls.after_plain_rerun = cls._snapshot(cls.demo_tenant)
+
+    # Fields _reset_demo() actually wipes-and-rebuilds every run — these
+    # must be IDENTICAL across consecutive resets. AuditLog/EventOutbox are
+    # deliberately excluded: _reset_demo() does not (and, being an
+    # append-only audit trail, should not) delete prior audit/event rows,
+    # so their counts legitimately grow by a constant amount on every
+    # reset — that is pre-existing, accepted behavior unrelated to the
+    # JobDefinition growth bug this test targets.
+    STABLE_ACROSS_RESET_FIELDS = (
+        "CommissionSnapshot",
+        "CommissionContract",
+        "PaymentDeadline",
+        "PaymentDeadlineExtension",
+        "JobDefinition_deadline_expire",
+    )
+
+    @classmethod
+    def _snapshot(cls, tenant):
+        from apps.commission.models import (
+            CommissionContract,
+            CommissionSnapshot,
+            PaymentDeadline,
+            PaymentDeadlineExtension,
+        )
+
+        return {
+            "CommissionSnapshot": CommissionSnapshot.objects.filter(tenant_id=tenant.id).count(),
+            "CommissionContract": CommissionContract.objects.filter(tenant_id=tenant.id).count(),
+            "PaymentDeadline": PaymentDeadline.objects.filter(tenant_id=tenant.id).count(),
+            "PaymentDeadlineExtension": PaymentDeadlineExtension.objects.filter(tenant_id=tenant.id).count(),
+            "JobDefinition_deadline_expire": JobDefinition.objects.filter(
+                tenant_id=tenant.id,
+                job_type="commission.payment_deadline.expire",
+            ).count(),
+            "AuditLog": AuditLog.objects.filter(tenant_id=tenant.id).count(),
+            "EventOutbox": EventOutbox.objects.filter(tenant_id=tenant.id).count(),
+        }
+
+    def _stable_subset(self, snapshot):
+        return {key: snapshot[key] for key in self.STABLE_ACROSS_RESET_FIELDS}
+
+    def test_reset_second_run_matches_first(self):
+        self.assertEqual(self._stable_subset(self.after_reset1), self._stable_subset(self.after_reset2))
+
+    def test_reset_third_run_matches_second(self):
+        self.assertEqual(self._stable_subset(self.after_reset2), self._stable_subset(self.after_reset3))
+
+    def test_plain_rerun_after_resets_is_fully_stable_including_audit_and_events(self):
+        # No reset here — a plain repeat run must be a true no-op, exactly
+        # like SeedProductWalkthroughRepeatRunStabilityTest — so AuditLog/
+        # EventOutbox ARE asserted stable in this comparison.
+        self.assertEqual(self.after_reset3, self.after_plain_rerun)
+
+    def test_first_reset_run_is_complete(self):
+        self.assertGreater(self.after_reset1["CommissionSnapshot"], 0)
+
+    def test_other_tenants_deadline_expire_jobs_survive_reset(self):
+        self.assertTrue(
+            JobDefinition.objects.filter(
+                tenant_id=self.other_tenant.id,
+                job_type="commission.payment_deadline.expire",
+            ).exists()
+        )
+
+
+@override_settings(DEBUG=True)
 class SeedProductWalkthroughFirstRunCompletenessTest(TestCase):
     """Architecture Review remediation M1: the in-progress example order
     must be genuinely in-progress, with a real ExecutionSession, after
