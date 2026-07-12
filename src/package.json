@@ -10,7 +10,7 @@
     "css:build": "tailwindcss -i ui/css/main.css -o static/css/output.css --minify",
     "css:watch": "tailwindcss -i ui/css/main.css -o static/css/output.css --watch",
     "css:dev": "tailwindcss -i ui/css/main.css -o static/css/output.css",
-    "js:build": "cp node_modules/alpinejs/dist/cdn.min.js static/ui/js/alpine.min.js"
+    "js:build": "node scripts/build-alpine.js"
   },
   "devDependencies": {
     "@tailwindcss/forms": "^0.5",
