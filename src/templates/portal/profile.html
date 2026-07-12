@@ -1,0 +1,43 @@
+{% extends "portal/base.html" %}
+
+{% block portal_title %}پروفایل من{% endblock %}
+{% block page_title %}پروفایل من{% endblock %}
+{% block page_description %}
+<p class="mt-1 text-sm text-text-muted">این اطلاعات فقط برای شما و پلتفرم قابل مشاهده است — هرگز به‌صورت عمومی نمایش داده نمی‌شود.</p>
+{% endblock %}
+
+{% block portal_content %}
+<div class="space-y-6">
+  {% include "ui/components/portal/profile_header.html" with avatar_url="" cover_url="" name=profile.display_name avatar_type="user" subtitle=profile.city %}
+
+  {% include "ui/components/portal/profile_completion.html" with percent=profile.completion_percent missing_labels=profile.completion_missing_labels %}
+
+  <div class="grid gap-6 lg:grid-cols-3">
+    <div class="lg:col-span-2 space-y-6">
+      {% include "ui/components/portal/profile_section.html" with title="اطلاعات پایه" action_label="ویرایش" action_href="/portal/profile/edit/" %}
+      {% include "ui/components/portal/data_summary.html" with items=profile.summary_items %}
+
+      {% include "ui/components/portal/profile_section.html" with title="اطلاعات تماس" %}
+      <dl class="space-y-2 text-sm rounded-2xl border border-border bg-surface p-5">
+        <div class="flex justify-between"><dt class="text-text-muted">شماره موبایل</dt><dd class="text-text font-medium ltr-value">{{ profile.phone }}</dd></div>
+        {% if profile.email %}
+        <div class="flex justify-between"><dt class="text-text-muted">ایمیل</dt><dd class="text-text font-medium ltr-value">{{ profile.email }}</dd></div>
+        {% endif %}
+      </dl>
+
+      {% if profile.notes %}
+      {% include "ui/components/portal/profile_section.html" with title="یادداشت‌ها" %}
+      <div class="rounded-2xl border border-border bg-surface p-5">
+        <p class="text-sm leading-7 text-text">{{ profile.notes }}</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="space-y-4">
+      {% include "ui/components/portal/profile_stat.html" with label="وضعیت حساب" value=profile.status_label %}
+      {% include "ui/components/portal/profile_stat.html" with label="عضو از" value=profile.member_since_label %}
+      {% include "ui/components/portal/profile_stat.html" with label="مخاطب اصلی خانواده" value=profile.is_primary_family_contact|yesno:"بله,خیر" %}
+    </div>
+  </div>
+</div>
+{% endblock %}

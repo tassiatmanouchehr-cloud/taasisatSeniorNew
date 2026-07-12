@@ -37,6 +37,12 @@
     <h2 class="text-base font-bold text-text mb-4">جزئیات</h2>
     <dl class="space-y-2 text-sm">
       <div class="flex justify-between"><dt class="text-text-muted">وضعیت</dt><dd class="text-text font-medium">{{ order.get_status_display }}</dd></div>
+      {% if order.scheduled_for %}
+      <div class="flex justify-between"><dt class="text-text-muted">زمان‌بندی</dt><dd class="text-text font-medium">{{ order.scheduled_for|date:"Y/m/d H:i" }}</dd></div>
+      {% endif %}
+      {% if order.assigned_supplier %}
+      <div class="flex justify-between"><dt class="text-text-muted">ارائه‌دهنده</dt><dd class="text-text font-medium">{{ order.assigned_supplier.display_name }}</dd></div>
+      {% endif %}
       <div class="flex justify-between"><dt class="text-text-muted">شهر</dt><dd class="text-text font-medium">{{ order.city }}</dd></div>
       <div class="flex justify-between"><dt class="text-text-muted">آدرس</dt><dd class="text-text font-medium">{{ order.address }}</dd></div>
       <div class="flex justify-between"><dt class="text-text-muted">تماس</dt><dd class="text-text font-medium">{{ order.phone }}</dd></div>
@@ -46,6 +52,48 @@
     <p class="text-sm text-text-muted">{{ order.description }}</p>
     {% endif %}
   </div>
+
+  {% if payment_documents %}
+  <div class="lg:col-span-3 bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">خلاصه پرداخت و فاکتور</h2>
+    <ul class="divide-y divide-border">
+      {% for doc in payment_documents %}
+      <li class="py-3 flex items-center justify-between gap-2">
+        <div class="min-w-0">
+          <p class="text-sm font-medium text-text truncate">{{ doc.document_type_label }}</p>
+          <p class="text-xs text-text-muted mt-0.5">{{ doc.issued_at_label }}</p>
+        </div>
+        <div class="flex items-center gap-3 shrink-0">
+          <span class="text-sm font-bold text-text ltr-value">{{ doc.total_amount_label }} {{ doc.currency }}</span>
+          {% include "ui/components/feedback/badge.html" with label=doc.status_label variant=doc.status_variant %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if is_reviewable %}
+  <div class="lg:col-span-3 bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">ثبت نظر</h2>
+    <form method="post" action="{% url 'portal:review-submit' order_id=order.id %}" class="space-y-4">
+      {% csrf_token %}
+      {% if review_form.non_field_errors %}
+      <div role="alert" class="rounded-lg border border-danger-200 bg-danger-50 p-3 text-sm text-danger">
+        {% for error in review_form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+      </div>
+      {% endif %}
+      {% for field in review_form %}
+      <div>
+        <label for="{{ field.id_for_label }}" class="block text-sm font-bold text-text">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}<p class="mt-1 text-xs text-danger">{{ field.errors.0 }}</p>{% endif %}
+      </div>
+      {% endfor %}
+      <button type="submit" class="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-700">ثبت نظر</button>
+    </form>
+  </div>
+  {% endif %}
 
   <div class="lg:col-span-3 bg-surface border border-border rounded-lg p-5">
     <div class="flex items-center justify-between mb-4">

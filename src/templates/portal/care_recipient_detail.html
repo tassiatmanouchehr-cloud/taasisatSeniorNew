@@ -1,0 +1,74 @@
+{% extends "portal/base.html" %}
+
+{% block portal_title %}{{ detail.full_name }}{% endblock %}
+{% block page_title %}{{ detail.full_name }}{% if detail.is_primary %} <span class="text-sm font-normal text-text-muted">(اصلی)</span>{% endif %}{% endblock %}
+{% block page_description %}
+{% if detail.is_archived %}
+<p class="mt-1 text-sm text-warning">این گیرنده خدمت بایگانی شده است.</p>
+{% endif %}
+{% endblock %}
+{% block page_actions %}
+<a href="{{ detail.edit_url }}" class="inline-flex items-center rounded-lg border border-border px-4 py-2 text-sm font-bold text-text no-underline hover:bg-background-alt">ویرایش</a>
+{% endblock %}
+
+{% block portal_content %}
+<div class="grid gap-6 lg:grid-cols-3">
+  <div class="lg:col-span-2 space-y-6">
+
+    {% include "ui/components/portal/profile_section.html" with title="اطلاعات کلی" %}
+    <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2 rounded-2xl border border-border bg-surface p-5">
+      {% if detail.age_label %}<div><dt class="text-xs font-medium text-text-muted">سن</dt><dd class="mt-1 text-sm font-bold text-text">{{ detail.age_label }}</dd></div>{% endif %}
+      {% if detail.relationship_label %}<div><dt class="text-xs font-medium text-text-muted">نسبت</dt><dd class="mt-1 text-sm font-bold text-text">{{ detail.relationship_label }}</dd></div>{% endif %}
+      {% if detail.gender_label %}<div><dt class="text-xs font-medium text-text-muted">جنسیت</dt><dd class="mt-1 text-sm font-bold text-text">{{ detail.gender_label }}</dd></div>{% endif %}
+      {% if detail.city %}<div><dt class="text-xs font-medium text-text-muted">شهر</dt><dd class="mt-1 text-sm font-bold text-text">{{ detail.city }}</dd></div>{% endif %}
+      {% if detail.phone %}<div><dt class="text-xs font-medium text-text-muted">تلفن</dt><dd class="mt-1 text-sm font-bold text-text ltr-value">{{ detail.phone }}</dd></div>{% endif %}
+      {% if detail.mobility_label %}<div><dt class="text-xs font-medium text-text-muted">سطح تحرک</dt><dd class="mt-1 text-sm font-bold text-text">{{ detail.mobility_label }}</dd></div>{% endif %}
+      {% if detail.address %}<div class="sm:col-span-2"><dt class="text-xs font-medium text-text-muted">آدرس</dt><dd class="mt-1 text-sm font-bold text-text">{{ detail.address }}</dd></div>{% endif %}
+      {% if detail.communication_notes %}<div class="sm:col-span-2"><dt class="text-xs font-medium text-text-muted">یادداشت‌های ارتباطی</dt><dd class="mt-1 text-sm font-bold text-text">{{ detail.communication_notes }}</dd></div>{% endif %}
+    </dl>
+
+    {% if detail.care_needs or detail.medical_notes or detail.disabilities or detail.allergies %}
+    {% include "ui/components/portal/profile_section.html" with title="نیازهای مراقبتی و اطلاعات پزشکی" description="این اطلاعات فقط برای ارائه‌دهنده تخصیص‌یافته و پلتفرم قابل مشاهده است." %}
+    <div class="space-y-3 rounded-2xl border border-border bg-surface p-5 text-sm">
+      {% if detail.care_needs %}<div><p class="font-bold text-text">نیازهای مراقبتی</p><p class="mt-1 text-text-muted leading-7">{{ detail.care_needs }}</p></div>{% endif %}
+      {% if detail.medical_notes %}<div><p class="font-bold text-text">یادداشت‌های پزشکی</p><p class="mt-1 text-text-muted leading-7">{{ detail.medical_notes }}</p></div>{% endif %}
+      {% if detail.disabilities %}<div><p class="font-bold text-text">معلولیت‌ها</p><p class="mt-1 text-text-muted leading-7">{{ detail.disabilities }}</p></div>{% endif %}
+      {% if detail.allergies %}<div><p class="font-bold text-text">حساسیت‌ها</p><p class="mt-1 text-text-muted leading-7">{{ detail.allergies }}</p></div>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if detail.emergency_contact_name or detail.emergency_notes %}
+    {% include "ui/components/portal/profile_section.html" with title="تماس اضطراری" %}
+    <dl class="space-y-2 text-sm rounded-2xl border border-border bg-surface p-5">
+      {% if detail.emergency_contact_name %}<div class="flex justify-between"><dt class="text-text-muted">نام</dt><dd class="text-text font-medium">{{ detail.emergency_contact_name }}</dd></div>{% endif %}
+      {% if detail.emergency_contact_phone %}<div class="flex justify-between"><dt class="text-text-muted">تلفن</dt><dd class="text-text font-medium ltr-value">{{ detail.emergency_contact_phone }}</dd></div>{% endif %}
+      {% if detail.emergency_notes %}<p class="text-text-muted leading-7">{{ detail.emergency_notes }}</p>{% endif %}
+    </dl>
+    {% endif %}
+
+    {% include "ui/components/portal/profile_section.html" with title="درخواست‌های مرتبط" %}
+    {% if detail.orders %}
+    <ul class="divide-y divide-border rounded-2xl border border-border bg-surface">
+      {% for order in detail.orders %}
+      <li class="p-4">
+        <a href="{{ order.detail_url }}" class="flex items-center justify-between gap-2 no-underline">
+          <div class="min-w-0">
+            <p class="text-sm font-medium text-text truncate">{{ order.order_number }} — {{ order.service_category_name }}</p>
+            <p class="text-xs text-text-muted mt-0.5">{{ order.created_at_label }}</p>
+          </div>
+          {% include "ui/components/feedback/badge.html" with label=order.status_label variant=order.status_variant %}
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    {% include "ui/components/data/empty_state.html" with size="sm" title="هنوز درخواستی برای این گیرنده خدمت ثبت نشده است" %}
+    {% endif %}
+  </div>
+
+  <div class="space-y-4">
+    {% if detail.preferred_caregiver_gender_label %}{% include "ui/components/portal/profile_stat.html" with label="جنسیت ترجیحی مراقب" value=detail.preferred_caregiver_gender_label %}{% endif %}
+    {% if detail.preferred_language %}{% include "ui/components/portal/profile_stat.html" with label="زبان ترجیحی" value=detail.preferred_language %}{% endif %}
+  </div>
+</div>
+{% endblock %}

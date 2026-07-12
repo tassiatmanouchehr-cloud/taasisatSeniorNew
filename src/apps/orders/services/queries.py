@@ -23,17 +23,20 @@ class OrderQueryService:
 
         return Order.objects.for_tenant(tenant_id).filter(
             customer_profile=customer_profile,
-        ).order_by("-created_at")[:limit]
+        ).select_related("service_category").order_by("-created_at")[:limit]
 
     @classmethod
     def list_for_customer(cls, *, customer_profile, tenant_id, only=None):
         """`only`: None (all), "active", "completed", or "cancelled" — Customer
-        Experience Phase 2 order-history tabs."""
+        Experience Phase 2 order-history tabs. select_related("elder_profile")
+        avoids the N+1 templates/portal/requests_list.html's
+        order.elder_profile.full_name would otherwise cause per row (Epic 07
+        query-count regression test caught this)."""
         from ..models import FINAL_STATUSES, Order, OrderStatus
 
         queryset = Order.objects.for_tenant(tenant_id).filter(
             customer_profile=customer_profile,
-        ).order_by("-created_at")
+        ).select_related("service_category", "elder_profile").order_by("-created_at")
 
         if only == "active":
             queryset = queryset.exclude(status__in=FINAL_STATUSES)
@@ -55,7 +58,24 @@ class OrderQueryService:
         return Order.objects.for_tenant(tenant_id).filter(
             customer_profile=customer_profile,
             scheduled_for__gte=timezone.now(),
-        ).exclude(status__in=FINAL_STATUSES).order_by("scheduled_for")[:limit]
+        ).select_related("service_category").exclude(status__in=FINAL_STATUSES).order_by("scheduled_for")[:limit]
+
+    @classmethod
+    def list_for_care_recipient(cls, *, customer_profile, elder_profile, tenant_id):
+        """Orders for one specific care recipient — Epic 07 (Customer
+        Portal Completion). Double-scoped (customer_profile AND
+        elder_profile) even though elder_profile.customer_profile is
+        already guaranteed to match by CareRecipientService.get_for_customer
+        — defense in depth, matching every other method's own-customer-only
+        scoping in this class. select_related("service_category") avoids
+        the N+1 CareRecipientPresentationService._order_row() would
+        otherwise cause reading order.service_category.name per row."""
+        from ..models import Order
+
+        return Order.objects.for_tenant(tenant_id).filter(
+            customer_profile=customer_profile,
+            elder_profile=elder_profile,
+        ).select_related("service_category").order_by("-created_at")
 
     @classmethod
     def get_for_customer(cls, *, customer_profile, tenant_id, order_id):

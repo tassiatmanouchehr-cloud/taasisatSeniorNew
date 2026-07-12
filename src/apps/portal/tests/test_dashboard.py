@@ -49,7 +49,7 @@ class DashboardViewTest(PortalTestCase):
             scheduled_for=future,
         )
         response = self.client.get("/portal/")
-        self.assertEqual(len(response.context["upcoming_visits"]), 1)
+        self.assertEqual(len(response.context["dashboard"].upcoming_visits), 1)
 
     def test_dashboard_does_not_show_past_scheduled_visit(self):
         self.login_as_customer()
@@ -61,4 +61,4 @@ class DashboardViewTest(PortalTestCase):
             scheduled_for=past,
         )
         response = self.client.get("/portal/")
-        self.assertEqual(len(response.context["upcoming_visits"]), 0)
+        self.assertEqual(len(response.context["dashboard"].upcoming_visits), 0)

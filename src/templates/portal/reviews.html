@@ -1,0 +1,29 @@
+{% extends "portal/base.html" %}
+
+{% block portal_title %}نظرات من{% endblock %}
+{% block page_title %}نظرات من{% endblock %}
+{% block page_description %}
+<p class="mt-1 text-sm text-text-muted">نظراتی که برای ارائه‌دهندگان خدمت ثبت کرده‌اید.</p>
+{% endblock %}
+
+{% block portal_content %}
+{% if reviews %}
+<ul class="space-y-4">
+  {% for review in reviews %}
+  <li class="rounded-2xl border border-border bg-surface p-5">
+    <div class="flex items-center justify-between gap-2">
+      <a href="{{ review.order_detail_url }}" class="text-sm font-bold text-text no-underline hover:underline">{{ review.supplier_display_name }}</a>
+      {% include "ui/components/feedback/badge.html" with label=review.moderation_status_label variant="neutral" %}
+    </div>
+    <p class="mt-1 text-xs text-text-muted">{{ review.order_number }} — {{ review.created_at_label }}</p>
+    <p class="mt-2 text-sm font-bold text-text ltr-value">{{ review.overall_rating_label }}</p>
+    {% if review.written_text %}
+    <p class="mt-2 text-sm leading-7 text-text-muted">{{ review.written_text }}</p>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+{% include "ui/components/data/empty_state.html" with title="هنوز نظری ثبت نکرده‌اید" description="پس از اتمام یک درخواست، می‌توانید برای ارائه‌دهنده آن نظر ثبت کنید." %}
+{% endif %}
+{% endblock %}

@@ -25,6 +25,7 @@ from django.views.decorators.http import require_http_methods
 
 from apps.accounts.services.care_recipients import CareRecipientService
 from apps.accounts.services.errors import AccountsError
+from apps.accounts.services.profiles import CustomerProfileUpdateService
 from apps.finance.services.party_service import FinancialPartyService
 from apps.notifications.services.queries import NotificationQueryService
 from apps.orders.services.order_creation import OrderValidationError, create_public_order
@@ -38,10 +39,14 @@ from apps.orders.services.share_links import OrderShareLinkError, OrderShareLink
 from apps.orders.services.timeline import OrderTimelineService
 from apps.pricing.services.errors import PricingError
 from apps.pricing.services.quote_service import QuoteService
+from apps.reviews.services.errors import ReviewError
+from apps.reviews.services.review_submission_service import ReviewSubmissionService
 from apps.wallet.services.wallet_service import WalletService
 
 from .forms import (
     CareRecipientForm,
+    CustomerProfileEditForm,
+    ReviewSubmitForm,
     WizardChooseAddressForm,
     WizardChooseCareRecipientForm,
     WizardChooseScheduleForm,
@@ -49,6 +54,11 @@ from .forms import (
     WizardNotesForm,
 )
 from .permissions import require_authenticated, resolve_customer_profile, resolve_tenant_id
+from .services.care_recipient_service import CareRecipientPresentationService
+from .services.dashboard_service import CustomerDashboardPresentationService
+from .services.payments_service import CustomerPaymentsPresentationService
+from .services.profile_service import CustomerProfilePresentationService
+from .services.reviews_service import CustomerReviewsPresentationService
 
 WIZARD_SESSION_KEY = "portal_request_wizard"
 RECENT_ORDERS_LIMIT = 5
@@ -93,16 +103,141 @@ def dashboard_view(request):
         tenant_id=tenant_id, recipient_id=customer.person_id,
     )
 
+    dashboard = CustomerDashboardPresentationService.build(
+        customer=customer,
+        recent_orders=recent_orders,
+        upcoming_visits=upcoming_visits,
+        care_recipients=care_recipients,
+        wallet=wallet,
+        recent_notifications=recent_notifications,
+        unread_notification_count=unread_notification_count,
+    )
     context = {
-        "upcoming_visits": upcoming_visits,
-        "customer": customer,
-        "recent_orders": recent_orders,
-        "care_recipients": care_recipients,
-        "wallet": wallet,
-        "recent_notifications": recent_notifications,
-        "unread_notification_count": unread_notification_count,
+        "dashboard": dashboard,
+        "nav_items": CustomerProfilePresentationService.build_nav_items(active="dashboard"),
     }
     return render(request, "portal/dashboard.html", context)
+
+
+# ============================================================
+# Customer Profile — Epic 07 (Customer Experience and Portal Completion)
+# ============================================================
+
+
+@require_http_methods(["GET"])
+def profile_view(request):
+    customer, tenant_id = _guard(request)
+    profile = CustomerProfilePresentationService.get_profile_view(customer=customer, user=request.user)
+    return render(request, "portal/profile.html", {
+        "profile": profile,
+        "nav_items": CustomerProfilePresentationService.build_nav_items(active="profile"),
+    })
+
+
+@require_http_methods(["GET", "POST"])
+def profile_edit_view(request):
+    customer, tenant_id = _guard(request)
+
+    if request.method == "POST":
+        form = CustomerProfileEditForm(request.POST)
+        if form.is_valid():
+            CustomerProfileUpdateService.update_basic_info(
+                customer,
+                display_name=form.cleaned_data["display_name"],
+                city=form.cleaned_data["city"],
+                relation_to_elder=form.cleaned_data["relation_to_elder"],
+                preferred_contact_method=form.cleaned_data["preferred_contact_method"],
+                notes=form.cleaned_data["notes"],
+            )
+            return redirect("portal:profile")
+    else:
+        edit_vm = CustomerProfilePresentationService.get_edit_form(customer)
+        form = CustomerProfileEditForm(initial={
+            "display_name": edit_vm.display_name,
+            "city": edit_vm.city,
+            "relation_to_elder": edit_vm.relation_to_elder,
+            "preferred_contact_method": edit_vm.preferred_contact_method,
+            "notes": edit_vm.notes,
+        })
+
+    return render(request, "portal/profile_edit.html", {
+        "form": form,
+        "nav_items": CustomerProfilePresentationService.build_nav_items(active="profile"),
+    })
+
+
+# ============================================================
+# Payments & Invoices — Epic 07 (Customer Experience and Portal Completion)
+# ============================================================
+
+
+@require_http_methods(["GET"])
+def payments_view(request):
+    customer, tenant_id = _guard(request)
+    summary = CustomerPaymentsPresentationService.get_summary_view(customer=customer, tenant_id=tenant_id)
+    return render(request, "portal/payments.html", {
+        "summary": summary,
+        "nav_items": CustomerProfilePresentationService.build_nav_items(active="payments"),
+    })
+
+
+# ============================================================
+# Reviews — Epic 07 (Customer Experience and Portal Completion)
+# ============================================================
+
+
+@require_http_methods(["GET"])
+def reviews_view(request):
+    customer, tenant_id = _guard(request)
+    reviews = CustomerReviewsPresentationService.list_reviews(tenant_id=tenant_id, reviewer_person_id=customer.person_id)
+    return render(request, "portal/reviews.html", {
+        "reviews": reviews,
+        "nav_items": CustomerProfilePresentationService.build_nav_items(active="reviews"),
+    })
+
+
+@require_http_methods(["POST"])
+def review_submit_view(request, order_id):
+    customer, tenant_id = _guard(request)
+    try:
+        order = OrderQueryService.get_for_customer(customer_profile=customer, tenant_id=tenant_id, order_id=order_id)
+    except OrderNotFoundError:
+        raise Http404("Order not found.")
+
+    form = ReviewSubmitForm(request.POST)
+    if form.is_valid():
+        try:
+            ReviewSubmissionService.submit_review(
+                order=order,
+                reviewer_person_id=customer.person_id,
+                dimension_scores={
+                    "QUALITY": form.cleaned_data["quality"],
+                    "PUNCTUALITY": form.cleaned_data["punctuality"],
+                    "PROFESSIONALISM": form.cleaned_data["professionalism"],
+                    "COMMUNICATION": form.cleaned_data["communication"],
+                },
+                written_text=form.cleaned_data["written_text"],
+            )
+        except ReviewError:
+            pass  # Not eligible (already reviewed / not completed) — silently no-op, page still shows current state.
+    return redirect("portal:request-detail", order_id=order.id)
+
+
+# ============================================================
+# Account Settings — Epic 07 (Customer Experience and Portal Completion)
+# ============================================================
+
+
+@require_http_methods(["GET"])
+def settings_view(request):
+    customer, tenant_id = _guard(request)
+    settings = CustomerProfilePresentationService.get_settings_view(
+        customer=customer, user_email=request.user.email or "",
+    )
+    return render(request, "portal/settings.html", {
+        "settings": settings,
+        "nav_items": CustomerProfilePresentationService.build_nav_items(active="settings"),
+    })
 
 
 # ============================================================
@@ -113,7 +248,28 @@ def dashboard_view(request):
 def care_recipients_list_view(request):
     customer, tenant_id = _guard(request)
     care_recipients = CareRecipientService.list_for_customer(customer)
-    return render(request, "portal/care_recipients_list.html", {"care_recipients": care_recipients})
+    return render(request, "portal/care_recipients_list.html", {
+        "care_recipients": care_recipients,
+        "nav_items": CustomerProfilePresentationService.build_nav_items(active="care-recipients"),
+    })
+
+
+@require_http_methods(["GET"])
+def care_recipient_detail_view(request, care_recipient_id):
+    customer, tenant_id = _guard(request)
+
+    try:
+        care_recipient = CareRecipientService.get_for_customer(customer, care_recipient_id)
+    except AccountsError:
+        raise Http404("Care recipient not found.")
+
+    detail = CareRecipientPresentationService.get_detail_view(
+        customer=customer, care_recipient=care_recipient, tenant_id=tenant_id,
+    )
+    return render(request, "portal/care_recipient_detail.html", {
+        "detail": detail,
+        "nav_items": CustomerProfilePresentationService.build_nav_items(active="care-recipients"),
+    })
 
 
 @require_http_methods(["GET", "POST"])
@@ -134,7 +290,10 @@ def care_recipient_create_view(request):
     else:
         form = CareRecipientForm()
 
-    return render(request, "portal/care_recipient_form.html", {"form": form, "is_new": True})
+    return render(request, "portal/care_recipient_form.html", {
+        "form": form, "is_new": True,
+        "nav_items": CustomerProfilePresentationService.build_nav_items(active="care-recipients"),
+    })
 
 
 @require_http_methods(["GET", "POST"])
@@ -165,6 +324,7 @@ def care_recipient_edit_view(request, care_recipient_id):
 
     return render(request, "portal/care_recipient_form.html", {
         "form": form, "is_new": False, "care_recipient": care_recipient,
+        "nav_items": CustomerProfilePresentationService.build_nav_items(active="care-recipients"),
     })
 
 
@@ -191,7 +351,10 @@ def requests_list_view(request):
     filter_param = request.GET.get("filter", "all")
     only = filter_param if filter_param in ("active", "completed", "cancelled") else None
     orders = OrderQueryService.list_for_customer(customer_profile=customer, tenant_id=tenant_id, only=only)
-    return render(request, "portal/requests_list.html", {"orders": orders, "filter": filter_param})
+    return render(request, "portal/requests_list.html", {
+        "orders": orders, "filter": filter_param,
+        "nav_items": CustomerProfilePresentationService.build_nav_items(active="requests"),
+    })
 
 
 @require_http_methods(["GET"])
@@ -204,8 +367,14 @@ def request_detail_view(request, order_id):
 
     timeline = OrderTimelineService.build(order)
     share_links = OrderShareLinkService.list_for_order(order)
+    payment_documents = CustomerPaymentsPresentationService.get_rows_for_order(tenant_id=tenant_id, order_id=order.id)
+    is_reviewable = ReviewSubmissionService.is_order_reviewable(order)
     return render(request, "portal/request_detail.html", {
         "order": order, "timeline": timeline, "share_links": share_links,
+        "payment_documents": payment_documents,
+        "is_reviewable": is_reviewable,
+        "review_form": ReviewSubmitForm() if is_reviewable else None,
+        "nav_items": CustomerProfilePresentationService.build_nav_items(active="requests"),
     })
 
 
@@ -249,6 +418,7 @@ def wizard_care_recipient_view(request):
 
     return render(request, "portal/wizard_care_recipient.html", {
         "form": form, "care_recipients": care_recipients, "step": 1,
+        "nav_items": CustomerProfilePresentationService.build_nav_items(active="requests"),
     })
 
 
@@ -283,6 +453,7 @@ def wizard_service_view(request):
     )
     return render(request, "portal/wizard_service.html", {
         "form": form, "categories": categories, "types_by_category": types_by_category, "step": 2,
+        "nav_items": CustomerProfilePresentationService.build_nav_items(active="requests"),
     })
 
 
@@ -303,7 +474,10 @@ def wizard_schedule_view(request):
     else:
         form = WizardChooseScheduleForm()
 
-    return render(request, "portal/wizard_schedule.html", {"form": form, "step": 3})
+    return render(request, "portal/wizard_schedule.html", {
+        "form": form, "step": 3,
+        "nav_items": CustomerProfilePresentationService.build_nav_items(active="requests"),
+    })
 
 
 @require_http_methods(["GET", "POST"])
@@ -325,7 +499,10 @@ def wizard_address_view(request):
         initial = {"phone": customer.phone, "city": customer.city}
         form = WizardChooseAddressForm(initial=initial)
 
-    return render(request, "portal/wizard_address.html", {"form": form, "step": 4})
+    return render(request, "portal/wizard_address.html", {
+        "form": form, "step": 4,
+        "nav_items": CustomerProfilePresentationService.build_nav_items(active="requests"),
+    })
 
 
 @require_http_methods(["GET", "POST"])
@@ -344,7 +521,10 @@ def wizard_notes_view(request):
     else:
         form = WizardNotesForm()
 
-    return render(request, "portal/wizard_notes.html", {"form": form, "step": 5})
+    return render(request, "portal/wizard_notes.html", {
+        "form": form, "step": 5,
+        "nav_items": CustomerProfilePresentationService.build_nav_items(active="requests"),
+    })
 
 
 @require_http_methods(["GET"])
@@ -375,6 +555,7 @@ def wizard_review_view(request):
     return render(request, "portal/wizard_review.html", {
         "care_recipient": care_recipient, "category": category, "service_type": service_type,
         "data": data, "quote": quote, "step": 6,
+        "nav_items": CustomerProfilePresentationService.build_nav_items(active="requests"),
     })
 
 
@@ -402,7 +583,10 @@ def wizard_submit_view(request):
             tenant_id=tenant_id,
         )
     except (OrderValidationError, AccountsError) as exc:
-        return render(request, "portal/wizard_error.html", {"error": str(exc)})
+        return render(request, "portal/wizard_error.html", {
+            "error": str(exc),
+            "nav_items": CustomerProfilePresentationService.build_nav_items(active="requests"),
+        })
 
     _clear_wizard_data(request)
     return redirect("portal:request-detail", order_id=order.id)
@@ -472,4 +656,5 @@ def notifications_view(request):
 
     return render(request, "portal/notifications.html", {
         "notifications": notifications, "filter": filter_param,
+        "nav_items": CustomerProfilePresentationService.build_nav_items(active="notifications"),
     })

@@ -31,6 +31,26 @@ class ReviewSubmissionService:
     """Creates a Review (with its dimension ratings) for a completed order."""
 
     @classmethod
+    def list_for_reviewer(cls, *, tenant_id, reviewer_person_id):
+        """Read-only: every Review this person has written — Epic 07
+        (Customer Portal Completion), the customer "reviews I've written"
+        page. Never mutates anything."""
+        return Review.objects.filter(
+            tenant_id=tenant_id, reviewer_person_id=reviewer_person_id,
+        ).select_related("order", "supplier").prefetch_related("ratings").order_by("-created_at")
+
+    @classmethod
+    def is_order_reviewable(cls, order) -> bool:
+        """True only if the order is completed, has an assigned supplier,
+        and has not already been reviewed — the exact preconditions
+        submit_review() itself enforces, exposed read-only so a view can
+        decide whether to show the "write a review" action without
+        duplicating submit_review()'s own validation."""
+        if order.status != OrderStatus.COMPLETED or not order.assigned_supplier_id:
+            return False
+        return not Review.objects.filter(order=order, supplier_id=order.assigned_supplier_id).exists()
+
+    @classmethod
     @transaction.atomic
     def submit_review(cls, *, order, reviewer_person_id, dimension_scores: dict, written_text="", metadata=None) -> Review:
         if order.status != OrderStatus.COMPLETED:

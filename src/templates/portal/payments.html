@@ -1,0 +1,36 @@
+{% extends "portal/base.html" %}
+
+{% block portal_title %}پرداخت‌ها و فاکتورها{% endblock %}
+{% block page_title %}پرداخت‌ها و فاکتورها{% endblock %}
+
+{% block portal_content %}
+<div class="grid gap-4 grid-cols-1 sm:grid-cols-3 mb-4">
+  {% include "ui/components/data/stat_card.html" with label="موجودی کیف پول" value=summary.wallet_balance_label %}
+  {% include "ui/components/data/stat_card.html" with label="جمع پرداخت‌شده" value=summary.total_paid_label %}
+  {% include "ui/components/data/stat_card.html" with label="مانده پرداخت‌نشده" value=summary.total_outstanding_label %}
+</div>
+
+<div class="bg-surface border border-border rounded-lg p-5">
+  <h2 class="text-base font-bold text-text mb-4">تاریخچه فاکتورها</h2>
+  {% if summary.rows %}
+  <ul class="divide-y divide-border">
+    {% for row in summary.rows %}
+    <li class="py-3">
+      <a href="{{ row.order_detail_url }}" class="flex items-center justify-between gap-2 no-underline">
+        <div class="min-w-0">
+          <p class="text-sm font-medium text-text truncate">{{ row.document_type_label }} — {{ row.order_number }}</p>
+          <p class="text-xs text-text-muted mt-0.5">{{ row.issued_at_label }}</p>
+        </div>
+        <div class="flex items-center gap-3 shrink-0">
+          <span class="text-sm font-bold text-text ltr-value">{{ row.total_amount_label }} {{ row.currency }}</span>
+          {% include "ui/components/feedback/badge.html" with label=row.status_label variant=row.status_variant %}
+        </div>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  {% include "ui/components/data/empty_state.html" with size="sm" title="هنوز فاکتوری برای شما صادر نشده است" %}
+  {% endif %}
+</div>
+{% endblock %}
