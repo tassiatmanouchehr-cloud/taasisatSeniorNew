@@ -18,6 +18,29 @@ def calculate_customer_profile_completion(profile: CustomerProfile) -> int:
     return int((filled / len(fields)) * 100)
 
 
+CUSTOMER_PROFILE_EDITABLE_FIELDS = (
+    "display_name", "city", "relation_to_elder", "preferred_contact_method", "notes",
+)
+
+
+class CustomerProfileUpdateService:
+    """Read-write: the customer's own editable profile fields — Epic 07
+    (Customer Portal Completion), keeping apps.portal.views a thin
+    controller with no direct ORM access (matches CareRecipientService.update
+    and CaregiverProfileUpdateService.update_basic_info)."""
+
+    @classmethod
+    def update_basic_info(cls, customer: CustomerProfile, **fields) -> CustomerProfile:
+        unknown = set(fields) - set(CUSTOMER_PROFILE_EDITABLE_FIELDS)
+        if unknown:
+            raise ValueError(f"Unknown customer profile field(s): {sorted(unknown)}")
+
+        for field, value in fields.items():
+            setattr(customer, field, value)
+        customer.save(update_fields=[*fields.keys(), "updated_at"])
+        return customer
+
+
 def calculate_caregiver_profile_completion(profile: CaregiverProfile) -> int:
     """Calculate profile completion percentage (0-100)."""
     fields = [

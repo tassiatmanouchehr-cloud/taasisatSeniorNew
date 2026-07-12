@@ -1,4 +1,5 @@
 {% extends "portal/base.html" %}
+{% load portal_labels %}
 
 {% block portal_title %}درخواست جدید — گیرنده خدمت{% endblock %}
 {% block page_title %}برای چه کسی درخواست می‌دهید؟{% endblock %}
@@ -18,7 +19,7 @@
     {% for cr in care_recipients %}
     <label class="flex items-center gap-inline-3 rounded-lg border border-border px-4 py-3 cursor-pointer hover:border-primary">
       <input type="radio" name="care_recipient_id" value="{{ cr.id }}" required class="h-4 w-4 text-primary focus:ring-2">
-      <span class="text-sm text-text font-medium">{{ cr.full_name }}{% if cr.relationship %} — {{ cr.get_relationship_display }}{% endif %}</span>
+      <span class="text-sm text-text font-medium">{{ cr.full_name }}{% if cr.relationship %} — {{ cr.relationship|relationship_label }}{% endif %}</span>
     </label>
     {% endfor %}
   </div>

@@ -474,7 +474,7 @@ class Command(BaseCommand):
                 relationship="father",
                 city="tehran",
                 care_needs="کمک در امور روزمره و مراقبت پزشکی منظم",
-                mobility_level="limited",
+                mobility_level="needs_assistance",
             )
             self._record(True)
         else:

@@ -51,6 +51,28 @@ class FinancialDocumentService:
     """Creates and transitions FinancialDocument records."""
 
     @classmethod
+    def list_for_payer_party(cls, *, tenant_id, party_id):
+        """Read-only: every FinancialDocument billed to one FinancialParty
+        (a customer's own party, resolved via
+        FinancialPartyService.resolve_party_for_customer) — Epic 07
+        (Customer Portal Completion), the customer payments/invoices
+        summary page. Never mutates anything. select_related("order")
+        avoids the N+1 CustomerPaymentsPresentationService.to_row() would
+        otherwise cause reading document.order.order_number per row."""
+        return FinancialDocument.objects.filter(
+            tenant_id=tenant_id, payer_party_id=party_id,
+        ).select_related("order").order_by("-created_at")
+
+    @classmethod
+    def list_for_order(cls, *, tenant_id, order_id):
+        """Read-only: every FinancialDocument for one Order — Epic 07
+        (Customer Portal Completion), the order-detail page's price/
+        invoice summary. Never mutates anything."""
+        return FinancialDocument.objects.filter(
+            tenant_id=tenant_id, order_id=order_id,
+        ).select_related("order").order_by("-created_at")
+
+    @classmethod
     @transaction.atomic
     def create_invoice_from_execution(cls, *, execution_session_id, items, issued_by=None) -> FinancialDocument:
         execution_session = ExecutionSession.objects.select_related("order").get(id=execution_session_id)

@@ -1,7 +1,7 @@
 {% extends "portal/base.html" %}
 
 {% block portal_title %}داشبورد{% endblock %}
-{% block page_title %}سلام، {{ customer.display_name }}{% endblock %}
+{% block page_title %}سلام، {{ dashboard.customer_display_name }}{% endblock %}
 {% block page_description %}
 <p class="mt-1 text-sm text-text-muted">خلاصه‌ای از درخواست‌ها، گیرندگان خدمت و کیف پول شما.</p>
 {% endblock %}
@@ -12,6 +12,19 @@
 {% endblock %}
 
 {% block portal_content %}
+
+{% if dashboard.pending_actions %}
+<div class="mb-4">
+  {% include "ui/components/feedback/alert.html" with type="info" title="اقدامات پیشنهادی" message=dashboard.pending_actions|join:"، " %}
+</div>
+{% endif %}
+
+<div class="grid gap-4 grid-cols-1 sm:grid-cols-3 mb-4">
+  {% include "ui/components/data/stat_card.html" with label="درخواست‌های اخیر" value=dashboard.recent_orders|length %}
+  {% include "ui/components/data/stat_card.html" with label="گیرندگان خدمت" value=dashboard.care_recipients|length %}
+  {% include "ui/components/data/stat_card.html" with label="اعلان‌های خوانده‌نشده" value=dashboard.unread_notification_count %}
+</div>
+
 <div class="grid gap-4 grid-cols-1 lg:grid-cols-3">
 
   <div class="lg:col-span-2 bg-surface border border-border rounded-lg p-5">
@@ -19,34 +32,34 @@
       <h2 class="text-base font-bold text-text">درخواست‌های اخیر</h2>
       <a href="{% url 'portal:requests' %}" class="text-sm font-medium text-primary hover:underline">مشاهده همه</a>
     </div>
-    {% if recent_orders %}
+    {% if dashboard.recent_orders %}
     <ul class="divide-y divide-border">
-      {% for order in recent_orders %}
+      {% for order in dashboard.recent_orders %}
       <li class="py-3">
-        <a href="{% url 'portal:request-detail' order_id=order.id %}" class="flex items-center justify-between no-underline">
-          <div>
-            <p class="text-sm font-medium text-text">{{ order.order_number }} — {{ order.service_category.name }}</p>
-            <p class="text-xs text-text-muted mt-0.5">{{ order.created_at|date:"Y/m/d H:i" }}</p>
+        <a href="{{ order.detail_url }}" class="flex items-center justify-between gap-2 no-underline">
+          <div class="min-w-0">
+            <p class="text-sm font-medium text-text truncate">{{ order.order_number }} — {{ order.service_category_name }}</p>
+            <p class="text-xs text-text-muted mt-0.5">{{ order.created_at_label }}</p>
           </div>
-          <span class="text-xs font-medium text-text-muted">{{ order.get_status_display }}</span>
+          {% include "ui/components/feedback/badge.html" with label=order.status_label variant=order.status_variant %}
         </a>
       </li>
       {% endfor %}
     </ul>
     {% else %}
-    <p class="text-sm text-text-muted">هنوز درخواستی ثبت نکرده‌اید.</p>
+    {% include "ui/components/data/empty_state.html" with size="sm" title="هنوز درخواستی ثبت نکرده‌اید" action_label="ثبت درخواست جدید" action_href="/portal/requests/new/care-recipient/" %}
     {% endif %}
   </div>
 
   <div class="bg-surface border border-border rounded-lg p-5">
     <h2 class="text-base font-bold text-text mb-4">ویزیت‌های پیش رو</h2>
-    {% if upcoming_visits %}
+    {% if dashboard.upcoming_visits %}
     <ul class="divide-y divide-border">
-      {% for order in upcoming_visits %}
+      {% for order in dashboard.upcoming_visits %}
       <li class="py-3">
-        <a href="{% url 'portal:request-detail' order_id=order.id %}" class="block no-underline">
-          <p class="text-sm font-medium text-text">{{ order.service_category.name }}</p>
-          <p class="text-xs text-text-muted mt-0.5">{{ order.scheduled_for|date:"Y/m/d H:i" }}</p>
+        <a href="{{ order.detail_url }}" class="block no-underline">
+          <p class="text-sm font-medium text-text">{{ order.service_category_name }}</p>
+          <p class="text-xs text-text-muted mt-0.5">{{ order.scheduled_for_label }}</p>
         </a>
       </li>
       {% endfor %}
@@ -57,9 +70,12 @@
   </div>
 
   <div class="bg-surface border border-border rounded-lg p-5">
-    <h2 class="text-base font-bold text-text mb-4">کیف پول</h2>
-    {% if wallet %}
-    <p class="text-2xl font-bold text-text">{{ wallet.balance }} <span class="text-sm font-normal text-text-muted">{{ wallet.currency }}</span></p>
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-bold text-text">کیف پول</h2>
+      <a href="{% url 'portal:payments' %}" class="text-sm font-medium text-primary hover:underline">مشاهده پرداخت‌ها</a>
+    </div>
+    {% if dashboard.has_wallet %}
+    <p class="text-2xl font-bold text-text ltr-value">{{ dashboard.wallet_balance_label }} <span class="text-sm font-normal text-text-muted">{{ dashboard.wallet_currency }}</span></p>
     {% else %}
     <p class="text-sm text-text-muted">کیف پولی برای شما ثبت نشده است.</p>
     {% endif %}
@@ -70,10 +86,13 @@
       <h2 class="text-base font-bold text-text">گیرندگان خدمت</h2>
       <a href="{% url 'portal:care-recipients' %}" class="text-sm font-medium text-primary hover:underline">مدیریت</a>
     </div>
-    {% if care_recipients %}
+    {% if dashboard.care_recipients %}
     <ul class="space-y-2">
-      {% for cr in care_recipients %}
-      <li class="text-sm text-text">{{ cr.full_name }}{% if cr.is_primary %} <span class="text-xs text-text-muted">(اصلی)</span>{% endif %}</li>
+      {% for cr in dashboard.care_recipients %}
+      <li class="text-sm text-text">
+        <a href="{{ cr.detail_url }}" class="text-text no-underline hover:underline">{{ cr.full_name }}</a>
+        {% if cr.is_primary %} <span class="text-xs text-text-muted">(اصلی)</span>{% endif %}
+      </li>
       {% endfor %}
     </ul>
     {% else %}
@@ -82,18 +101,24 @@
     <a href="{% url 'portal:care-recipient-create' %}" class="mt-3 inline-block text-sm font-medium text-primary hover:underline">+ افزودن گیرنده خدمت</a>
   </div>
 
-  <div class="lg:col-span-2 bg-surface border border-border rounded-lg p-5">
+  <div class="bg-surface border border-border rounded-lg p-5">
+    {% include "ui/components/portal/profile_completion.html" with percent=dashboard.profile_completion_percent %}
+    <a href="{% url 'portal:profile' %}" class="mt-3 inline-block text-sm font-medium text-primary hover:underline">مشاهده و ویرایش پروفایل</a>
+  </div>
+
+  <div class="lg:col-span-3 bg-surface border border-border rounded-lg p-5">
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-base font-bold text-text">اعلان‌های اخیر</h2>
       <a href="{% url 'portal:notifications' %}" class="text-sm font-medium text-primary hover:underline">
-        مشاهده همه{% if unread_notification_count %} ({{ unread_notification_count }} خوانده‌نشده){% endif %}
+        مشاهده همه{% if dashboard.unread_notification_count %} ({{ dashboard.unread_notification_count }} خوانده‌نشده){% endif %}
       </a>
     </div>
-    {% if recent_notifications %}
+    {% if dashboard.recent_notifications %}
     <ul class="divide-y divide-border">
-      {% for n in recent_notifications %}
-      <li class="py-3 text-sm text-text">
-        {{ n.get_channel_display }} — <span class="text-text-muted">{{ n.created_at|date:"Y/m/d H:i" }}</span>
+      {% for n in dashboard.recent_notifications %}
+      <li class="py-3 text-sm text-text flex items-center justify-between">
+        <span>{{ n.channel_label }} — <span class="text-text-muted">{{ n.created_at_label }}</span></span>
+        {% if not n.is_read %}{% include "ui/components/feedback/badge.html" with label="جدید" variant="primary" %}{% endif %}
       </li>
       {% endfor %}
     </ul>
