@@ -24,6 +24,7 @@ from .forms import (
 from .models.otp import OTPPurpose
 from .services.otp import OTPService
 from .services.phone import normalize_phone
+from .services.post_login_destination import resolve_post_login_destination
 from .services.registration import RegistrationService
 
 logger = logging.getLogger(__name__)
@@ -212,7 +213,8 @@ def verify_view(request):
                 if purpose == OTPPurpose.LOGIN:
                     user = _handle_login(request, phone)
                     if user:
-                        return redirect("accounts:success")
+                        destination = resolve_post_login_destination(user)
+                        return redirect(destination or "accounts:success")
                     else:
                         form.add_error(None, "حساب کاربری با این شماره یافت نشد. لطفاً ابتدا ثبت‌نام کنید.")
                 elif purpose == OTPPurpose.REGISTER:
@@ -223,11 +225,15 @@ def verify_view(request):
     else:
         form = OTPVerifyForm()
 
-    return render(request, "accounts/verify.html", {
-        "form": form,
-        "phone": phone,
-        "dev_otp": dev_otp,
-    })
+    return render(
+        request,
+        "accounts/verify.html",
+        {
+            "form": form,
+            "phone": phone,
+            "dev_otp": dev_otp,
+        },
+    )
 
 
 def _handle_login(request, phone):
@@ -250,7 +256,7 @@ def _handle_registration(request):
         user, profile = RegistrationService.create_customer(**reg_data)
         auth_login(request, user, backend=AUTHENTICATION_BACKEND)
         _clear_otp_session(request)
-        return "accounts:success"
+        return resolve_post_login_destination(user) or "accounts:success"
 
     elif reg_type == "caregiver":
         user, profile, affiliation = RegistrationService.create_caregiver(**reg_data)
@@ -258,7 +264,7 @@ def _handle_registration(request):
         _clear_otp_session(request)
         if affiliation:
             return "accounts:pending"
-        return "accounts:success"
+        return resolve_post_login_destination(user) or "accounts:success"
 
     elif reg_type == "company":
         user, org = RegistrationService.create_company_admin(
@@ -272,7 +278,7 @@ def _handle_registration(request):
         )
         auth_login(request, user, backend=AUTHENTICATION_BACKEND)
         _clear_otp_session(request)
-        return "accounts:success"
+        return resolve_post_login_destination(user) or "accounts:success"
 
     # Fallback
     _clear_otp_session(request)
@@ -287,7 +293,16 @@ def _clear_otp_session(request):
 
 @require_http_methods(["GET"])
 def success_view(request):
-    """Registration/login success page."""
+    """Neutral fallback page for an authenticated account with no
+    resolvable workspace. An authenticated user who does resolve to a
+    real destination (e.g. a stale bookmark, back-button navigation) is
+    sent straight there instead of seeing this page — resolve_post_login_
+    destination() never points back here, so this is a one-way bounce,
+    never a loop."""
+    if request.user.is_authenticated:
+        destination = resolve_post_login_destination(request.user)
+        if destination:
+            return redirect(destination)
     return render(request, "accounts/success.html")
 
 
@@ -301,5 +316,6 @@ def pending_view(request):
 def logout_view(request):
     """Logout the user and redirect to home."""
     from django.contrib.auth import logout as auth_logout
+
     auth_logout(request)
     return redirect("/")
