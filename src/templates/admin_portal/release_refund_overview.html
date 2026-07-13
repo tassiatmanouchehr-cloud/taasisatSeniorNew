@@ -1,0 +1,51 @@
+{% extends "admin_portal/base.html" %}
+
+{% block portal_title %}دستورات آزادسازی و بازگشت وجه{% endblock %}
+{% block page_title %}دستورات آزادسازی و بازگشت وجه{% endblock %}
+{% block page_description %}
+<p class="mt-1 text-sm text-text-muted">فقط خواندنی — این دستورات هنوز به کیف پول واریز نشده‌اند (این مرحله در PR-C انجام می‌شود).</p>
+{% endblock %}
+
+{% block admin_content %}
+<div class="grid gap-4 grid-cols-1 lg:grid-cols-2">
+  <div class="bg-surface border border-border rounded-lg overflow-hidden">
+    <h2 class="text-base font-bold text-text p-5 pb-0">آزادسازی</h2>
+    {% if releases %}
+    <table class="w-full text-sm mt-3">
+      <tbody class="divide-y divide-border">
+        {% for r in releases %}
+        <tr>
+          <td class="px-5 py-3 text-text">{{ r.order_number }}</td>
+          <td class="px-5 py-3 text-text-muted">{{ r.source_label }}</td>
+          <td class="px-5 py-3 font-bold text-success ltr-value">{{ r.gross_releasable_amount_irr }}</td>
+          <td class="px-5 py-3">{% include "ui/components/feedback/badge.html" with label=r.status_label variant="success" %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-sm text-text-muted p-5">دستوری ثبت نشده است.</p>
+    {% endif %}
+  </div>
+
+  <div class="bg-surface border border-border rounded-lg overflow-hidden">
+    <h2 class="text-base font-bold text-text p-5 pb-0">بازگشت وجه</h2>
+    {% if refunds %}
+    <table class="w-full text-sm mt-3">
+      <tbody class="divide-y divide-border">
+        {% for r in refunds %}
+        <tr>
+          <td class="px-5 py-3 text-text">{{ r.order_number }}</td>
+          <td class="px-5 py-3 text-text-muted">{{ r.source_label }}</td>
+          <td class="px-5 py-3 font-bold text-warning ltr-value">{{ r.amount_irr }}</td>
+          <td class="px-5 py-3">{% include "ui/components/feedback/badge.html" with label=r.status_label variant="warning" %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-sm text-text-muted p-5">دستوری ثبت نشده است.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

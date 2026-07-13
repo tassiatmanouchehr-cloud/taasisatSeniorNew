@@ -3,7 +3,7 @@
 from .configuration import FinanceConfiguration
 from .document_service import FinancialDocumentService, InvoiceService
 from .errors import FinanceError
-from .escrow_service import EscrowService
+from .escrow_service import EscrowError, EscrowService
 from .ledger_service import LedgerService
 from .obligation_service import ObligationService
 from .party_service import FinancialPartyService
@@ -23,6 +23,7 @@ __all__ = [
     "PaymentService",
     "WalletService",
     "EscrowService",
+    "EscrowError",
     "LedgerService",
     "SettlementService",
 ]

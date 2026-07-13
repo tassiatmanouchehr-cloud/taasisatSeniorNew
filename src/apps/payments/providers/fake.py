@@ -35,6 +35,24 @@ class FakePaymentProviderAdapter:
         }
 
     @classmethod
+    def refund_payment(cls, *, amount, metadata: dict | None = None) -> dict:
+        """Financial Core PR-B (Section 16): simulates asking the provider
+        to refund a previously captured payment. Pure in-memory,
+        deterministic, no network calls — mirrors request_payment()'s own
+        shape. Always "succeeds" (the fake provider has no failure mode to
+        simulate); a real adapter would return a pending/async result
+        instead, which apps.commission.services
+        .refund_instruction_service.RefundInstructionService.initiate()
+        does not yet handle (documented PR-B limitation — see that
+        service's own docstring)."""
+        provider_reference = f"FAKE-REFUND-{uuid.uuid4().hex[:20]}"
+        return {
+            "provider_reference": provider_reference,
+            "amount": str(amount),
+            "metadata": metadata or {},
+        }
+
+    @classmethod
     def verify_callback(cls, payload: dict) -> dict:
         """Normalizes a raw callback payload into the canonical shape the service layer expects.
 

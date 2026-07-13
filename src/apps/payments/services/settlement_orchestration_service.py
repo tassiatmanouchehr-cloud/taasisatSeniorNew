@@ -22,13 +22,27 @@ document. If no document exists yet for the order, settlement fails with a
 clear SettlementError (a documented Sprint 1 limitation, not a silent
 workaround).
 
-Escrow: Sprint 1 implements Direct Settlement only. Escrow execution is
-long-term architecture but out of scope. If
-FinanceConfiguration.get_escrow_enabled() is True for the tenant, this
-service does NOT raise or fail the payment — it records a warning log and
-safely falls back to Direct Settlement, per the approved Escrow Policy
-(this deliberately overrides an earlier, rejected proposal to hard-error
-in that case).
+Escrow (Financial Core PR-B): the legacy financial.escrow.enabled key
+(apps.finance.services.configuration.FinanceConfiguration
+.get_escrow_enabled()) is untouched and still governs nothing here — it
+predates PR-B, defaults True, and was always a no-op warn-and-bypass (see
+below); leaving it as dead/inert legacy config avoids silently changing
+behavior for any tenant relying on its (never-enforced) default. The REAL
+Escrow production path is a separate, PR-B-specific gate:
+CommissionConfiguration.get_escrow_production_enabled(), default DISABLED
+for every tenant, combined with the intent being tagged
+metadata["financial_core_flow"] == "preservice" (only PreServicePaymentService
+ever creates such an intent). When both are true, settle_payment_intent()
+routes to _settle_preservice_to_escrow() instead of Direct Settlement: no
+beneficiary wallet is credited, no ledger direct-settlement entries are
+posted — a PaymentTransaction is still recorded (for reconciliation; its
+receiver_party is the platform party, since the money is held, not yet
+allocated to any final beneficiary), and
+apps.commission.services.escrow_integration_service.EscrowIntegrationService
+takes it from there (completing the PaymentDeadline, creating the Escrow
+hold). Every other PaymentIntent — including every legacy, non-preservice
+intent, on every tenant regardless of this new gate's value — continues
+through the exact, unmodified Direct Settlement path below.
 
 Idempotency: PaymentCallbackService.process_callback() already dedupes on
 provider_event_id before this service is ever invoked. As defense in
@@ -40,9 +54,14 @@ import logging
 
 from django.db import transaction
 
-from apps.finance.models import FinancialDocumentStatus, LedgerEntryType, ObligationStatus, PaymentMethod
+from apps.finance.models import (
+    FinancialDocumentStatus,
+    LedgerEntryType,
+    ObligationStatus,
+    PaymentMethod,
+    PaymentTransaction,
+)
 from apps.finance.models import PaymentStatus as FinancePaymentStatus
-from apps.finance.models import PaymentTransaction
 from apps.finance.services import (
     FinanceConfiguration,
     FinancialDocumentService,
@@ -121,7 +140,8 @@ class SettlementOrchestrationService:
 
         try:
             order = Order.objects.select_related("customer_profile", "assigned_supplier", "tenant").get(
-                id=intent.reference_id, tenant_id=tenant_id,
+                id=intent.reference_id,
+                tenant_id=tenant_id,
             )
         except Order.DoesNotExist as exc:
             raise SettlementError(
@@ -133,14 +153,21 @@ class SettlementOrchestrationService:
                 f"Order {order.id} has no assigned_supplier; cannot resolve a settlement beneficiary.",
             )
 
+        if cls._is_preservice_escrow_intent(intent):
+            return cls._settle_preservice_to_escrow(intent=intent, order=order, tenant_id=tenant_id)
+
         document = cls._resolve_document(order=order)
         obligation = cls._resolve_obligation(document=document)
 
         if FinanceConfiguration.get_escrow_enabled(tenant_id=tenant_id):
             logger.warning(
                 "Escrow is configured (financial.escrow.enabled=True) for tenant %s but Sprint 1 only "
-                "implements Direct Settlement. Falling back to Direct Settlement for PaymentIntent %s.",
-                tenant_id, intent.id,
+                "implements Direct Settlement. Falling back to Direct Settlement for PaymentIntent %s. This "
+                "legacy key is distinct from the real Financial Core PR-B Escrow production path (see module "
+                "docstring) — it has never been enforced and is left inert here to avoid a silent behavior "
+                "change for tenants that may already have it set to its own default (True).",
+                tenant_id,
+                intent.id,
             )
 
         beneficiary_party = FinancialPartyService.resolve_party_for_supplier(order.assigned_supplier)
@@ -160,8 +187,11 @@ class SettlementOrchestrationService:
         adjustment = SettlementAdjustmentPipeline.run(gross_amount=intent.amount)
 
         cls._post_ledger_entries(
-            tenant_id=tenant_id, order=order, payment=payment,
-            adjustment=adjustment, beneficiary_party=beneficiary_party,
+            tenant_id=tenant_id,
+            order=order,
+            payment=payment,
+            adjustment=adjustment,
+            beneficiary_party=beneficiary_party,
         )
 
         wallet = WalletService.get_or_create_wallet(party=beneficiary_party, currency=intent.currency)
@@ -174,9 +204,57 @@ class SettlementOrchestrationService:
         )
 
         cls._publish_settlement_events(
-            tenant_id=tenant_id, intent=intent, order=order, payment=payment,
-            beneficiary_party=beneficiary_party, adjustment=adjustment,
+            tenant_id=tenant_id,
+            intent=intent,
+            order=order,
+            payment=payment,
+            beneficiary_party=beneficiary_party,
+            adjustment=adjustment,
         )
+
+        return payment
+
+    # --- Financial Core PR-B: real production Escrow path ------------------
+
+    @staticmethod
+    def _is_preservice_escrow_intent(intent: PaymentIntent) -> bool:
+        from apps.commission.services.configuration import CommissionConfiguration
+
+        if intent.metadata.get("financial_core_flow") != "preservice":
+            return False
+        return CommissionConfiguration.get_escrow_production_enabled(tenant_id=intent.tenant_id)
+
+    @classmethod
+    def _settle_preservice_to_escrow(cls, *, intent, order, tenant_id) -> PaymentTransaction:
+        """Records a PaymentTransaction (receiver_party is the platform
+        party — the money is held, not yet allocated to any final
+        beneficiary) and hands off to EscrowIntegrationService for the
+        PaymentDeadline-completion + Escrow-hold specifics. No wallet is
+        credited and no ledger direct-settlement entries are posted here —
+        that is exactly the point of this path."""
+        from apps.commission.services.escrow_integration_service import EscrowIntegrationService
+
+        platform_party = FinancialPartyService.resolve_platform_party(order.tenant)
+
+        payment = PaymentService.record_payment(
+            payer_party_id=intent.payer_party_id,
+            receiver_party_id=platform_party.id,
+            amount=intent.amount,
+            payment_method=PaymentMethod.ONLINE,
+            currency=intent.currency,
+            status=FinancePaymentStatus.SUCCEEDED,
+            provider_reference=cls._provider_reference(intent),
+            metadata={"financial_core_flow": "preservice", "held_in_escrow": True},
+        )
+
+        # Deliberately does NOT call _publish_settlement_events(): that
+        # method publishes PaymentSettled/ProviderEarningsCredited, which
+        # would be factually wrong here — no provider earnings exist yet,
+        # the money is held pending objection/dispute review.
+        # EscrowService.hold_for_order() (called inside
+        # handle_preservice_payment_succeeded below) publishes its own
+        # Finance.Escrow.Held.v1 event and FINANCIAL audit record instead.
+        EscrowIntegrationService.handle_preservice_payment_succeeded(intent=intent, payment_transaction=payment)
 
         return payment
 
@@ -189,10 +267,7 @@ class SettlementOrchestrationService:
     @classmethod
     def _resolve_document(cls, *, order):
         document = (
-            order.financial_documents
-            .exclude(status__in=_DOCUMENT_EXCLUDED_STATUSES)
-            .order_by("-created_at")
-            .first()
+            order.financial_documents.exclude(status__in=_DOCUMENT_EXCLUDED_STATUSES).order_by("-created_at").first()
         )
         if document is None:
             raise SettlementError(
@@ -241,15 +316,17 @@ class SettlementOrchestrationService:
         # here. Sprint 1's pipeline always returns zero, so this branch
         # never executes today.
         if adjustment.commission_amount > 0:
-            entries.append({
-                "party_id": platform_party.id,
-                "entry_type": LedgerEntryType.CREDIT,
-                "account_code": ACCOUNT_COMMISSION_REVENUE,
-                "amount": adjustment.commission_amount,
-                "currency": payment.currency,
-                "payment_transaction_id": payment.id,
-                "description": "Marketplace commission revenue.",
-            })
+            entries.append(
+                {
+                    "party_id": platform_party.id,
+                    "entry_type": LedgerEntryType.CREDIT,
+                    "account_code": ACCOUNT_COMMISSION_REVENUE,
+                    "amount": adjustment.commission_amount,
+                    "currency": payment.currency,
+                    "payment_transaction_id": payment.id,
+                    "description": "Marketplace commission revenue.",
+                }
+            )
 
         return LedgerService.post_entries(tenant_id=tenant_id, entries=entries, actor=None)
 

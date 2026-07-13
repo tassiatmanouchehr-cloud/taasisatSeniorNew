@@ -10,7 +10,7 @@ from .document import (
     FinancialDocumentStatus,
     FinancialDocumentType,
 )
-from .escrow import EscrowRecord, EscrowStatus
+from .escrow import OPEN_ESCROW_STATUSES, EscrowMovement, EscrowMovementType, EscrowRecord, EscrowStatus
 from .ledger import LedgerEntry, LedgerEntryType
 from .obligation import FinancialObligation, ObligationStatus, ObligationType
 from .party import FinancialParty, FinancialPartyType
@@ -43,6 +43,9 @@ __all__ = [
     "WalletTransactionType",
     "EscrowRecord",
     "EscrowStatus",
+    "OPEN_ESCROW_STATUSES",
+    "EscrowMovement",
+    "EscrowMovementType",
     "LedgerEntry",
     "LedgerEntryType",
     "SettlementBatch",

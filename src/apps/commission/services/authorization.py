@@ -127,6 +127,25 @@ def assert_actor_is_contract_caregiver(actor, *, tenant_id: uuid.UUID, caregiver
     raise ContractError("Only the caregiver named on this contract may approve or reject it.")
 
 
+def assert_actor_is_order_customer(actor, order, *, error_cls) -> None:
+    """Ownership-as-security-boundary for customer self-actions on an order
+    (objection-period approval, dispute opening) — Financial Core PR-B.
+    Shared by apps.commission.services.objection_service and
+    apps.commission.services.dispute_service, both of which use no RBAC
+    permission_key for these two customer actions, matching the portal's
+    own documented "no RBAC permission keys for customer self-service"
+    convention. Raises error_cls (the caller's own domain error type) if
+    actor is None or does not resolve to the order's own customer."""
+    if actor is None:
+        raise error_cls("A real customer actor is required for this action.")
+    if not order.customer_profile_id:
+        raise error_cls("Order has no linked customer.")
+
+    actor_user_id = _resolve_actor_user_id(actor)
+    if actor_user_id is None or order.customer_profile.user_id != actor_user_id:
+        raise error_cls("Only the customer who owns this order may perform this action.")
+
+
 # --- internal helpers -------------------------------------------------
 
 

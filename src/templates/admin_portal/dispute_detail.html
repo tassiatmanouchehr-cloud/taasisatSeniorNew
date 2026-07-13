@@ -1,0 +1,53 @@
+{% extends "admin_portal/base.html" %}
+
+{% block portal_title %}جزئیات اعتراض{% endblock %}
+{% block page_title %}اعتراض — {{ dispute.order.order_number }}{% endblock %}
+
+{% block admin_content %}
+<div class="grid gap-4 grid-cols-1 lg:grid-cols-2">
+
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-bold text-text">جزئیات</h2>
+      {% include "ui/components/feedback/badge.html" with label=dispute.get_status_display variant="warning" %}
+    </div>
+    <dl class="space-y-2 text-sm">
+      <div class="flex justify-between"><dt class="text-text-muted">مبلغ اعتراض</dt><dd class="font-bold text-text ltr-value">{{ dispute.disputed_amount_irr }} ریال</dd></div>
+      <div class="flex justify-between"><dt class="text-text-muted">دلیل</dt><dd class="text-text">{{ dispute.get_reason_code_display }}</dd></div>
+    </dl>
+    {% if dispute.description %}
+    <p class="text-sm text-text-muted mt-3">{{ dispute.description }}</p>
+    {% endif %}
+    {% if dispute.lines.all %}
+    <h3 class="text-sm font-bold text-text mt-4 mb-2">اقلام اعتراض‌شده</h3>
+    <ul class="divide-y divide-border">
+      {% for line in dispute.lines.all %}
+      <li class="py-2 flex items-center justify-between text-sm">
+        <span class="text-text">{{ line.invoice_item.description }}</span>
+        <span class="font-bold text-text ltr-value">{{ line.disputed_amount_irr }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+
+  {% if dispute.status == "OPEN" or dispute.status == "UNDER_REVIEW" or dispute.status == "PARTIALLY_RESOLVED" %}
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">حل‌وفصل اعتراض</h2>
+    <p class="text-xs text-text-muted mb-4">مجموع چهار مبلغ زیر باید دقیقاً برابر مبلغ اعتراض ({{ dispute.disputed_amount_irr }} ریال) باشد.</p>
+    <form method="post" action="{% url 'admin_portal:dispute-resolve' dispute_id=dispute.id %}" class="space-y-4">
+      {% csrf_token %}
+      {% for field in resolve_form %}
+      <div>
+        <label for="{{ field.id_for_label }}" class="block text-sm font-bold text-text">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}<p class="mt-1 text-xs text-danger">{{ field.errors.0 }}</p>{% endif %}
+      </div>
+      {% endfor %}
+      <button type="submit" class="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-700">ثبت تصمیم</button>
+    </form>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

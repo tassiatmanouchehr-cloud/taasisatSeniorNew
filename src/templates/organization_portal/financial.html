@@ -1,0 +1,39 @@
+{% extends "organization_portal/base.html" %}
+
+{% block portal_title %}وضعیت مالی{% endblock %}
+{% block page_title %}وضعیت پرداخت و ضمانت وجه{% endblock %}
+
+{% block portal_content %}
+{% if rows %}
+<div class="bg-surface border border-border rounded-lg overflow-hidden">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="border-b border-border text-text-muted text-xs">
+        <th class="px-5 py-3 text-start">سفارش</th>
+        <th class="px-5 py-3 text-start">وضعیت وجه امانی</th>
+        <th class="px-5 py-3 text-start">در امانت</th>
+        <th class="px-5 py-3 text-start">قابل آزادسازی</th>
+        <th class="px-5 py-3 text-start">مسدود</th>
+        <th class="px-5 py-3 text-start">آزاد شده</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-border">
+      {% for row in rows %}
+      <tr>
+        <td class="px-5 py-3 text-text">{{ row.order.order_number }}</td>
+        <td class="px-5 py-3">{% include "ui/components/feedback/badge.html" with label=row.financial.escrow_status_label variant="info" %}</td>
+        <td class="px-5 py-3 text-text ltr-value">{{ row.financial.held_amount_irr }}</td>
+        <td class="px-5 py-3 text-success ltr-value">{{ row.financial.releasable_amount_irr }}</td>
+        <td class="px-5 py-3 text-warning ltr-value">{{ row.financial.blocked_amount_irr }}</td>
+        <td class="px-5 py-3 text-text ltr-value">{{ row.financial.released_amount_irr }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="bg-surface border border-border rounded-lg p-8 text-center">
+  <p class="text-sm text-text-muted">هیچ سفارشی با وجه در امانت برای این سازمان یافت نشد.</p>
+</div>
+{% endif %}
+{% endblock %}

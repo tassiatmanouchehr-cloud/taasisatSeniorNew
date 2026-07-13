@@ -1,0 +1,58 @@
+{% extends "admin_portal/base.html" %}
+
+{% block portal_title %}جزئیات Escrow{% endblock %}
+{% block page_title %}Escrow — {{ escrow.order_number }}{% endblock %}
+
+{% block admin_content %}
+<div class="grid gap-4 grid-cols-1">
+
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-bold text-text">مبالغ</h2>
+      {% include "ui/components/feedback/badge.html" with label=escrow.status_label variant="info" %}
+    </div>
+    <dl class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+      <div><dt class="text-text-muted">کل</dt><dd class="font-bold text-text ltr-value">{{ escrow.original_amount_irr }}</dd></div>
+      <div><dt class="text-text-muted">در امانت</dt><dd class="font-bold text-text ltr-value">{{ escrow.held_amount_irr }}</dd></div>
+      <div><dt class="text-text-muted">قابل آزادسازی</dt><dd class="font-bold text-success ltr-value">{{ escrow.releasable_amount_irr }}</dd></div>
+      <div><dt class="text-text-muted">مسدود</dt><dd class="font-bold text-warning ltr-value">{{ escrow.blocked_amount_irr }}</dd></div>
+      <div><dt class="text-text-muted">آزادشده</dt><dd class="font-bold text-text ltr-value">{{ escrow.released_amount_irr }}</dd></div>
+      <div><dt class="text-text-muted">بازگشتی</dt><dd class="font-bold text-text ltr-value">{{ escrow.refunded_amount_irr }}</dd></div>
+      <div><dt class="text-text-muted">باقی‌مانده</dt><dd class="font-bold text-text ltr-value">{{ escrow.remaining_amount_irr }}</dd></div>
+    </dl>
+  </div>
+
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">تحرکات (Movements)</h2>
+    {% if escrow.movements %}
+    <ul class="divide-y divide-border">
+      {% for m in escrow.movements %}
+      <li class="py-2 flex items-center justify-between gap-2 text-sm">
+        <span class="text-text">{{ m.movement_type }}</span>
+        <span class="text-text-muted">{{ m.reason }}</span>
+        <span class="font-bold text-text ltr-value">{{ m.amount_irr }}</span>
+        <span class="text-xs text-text-muted ltr-value">{{ m.created_at_label }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-text-muted">تحرکی ثبت نشده است.</p>
+    {% endif %}
+  </div>
+
+  {% if escrow.disputes %}
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">اعتراض‌ها</h2>
+    <ul class="divide-y divide-border">
+      {% for dispute in escrow.disputes %}
+      <li class="py-2 flex items-center justify-between gap-2 text-sm">
+        <a href="{% url 'admin_portal:dispute-detail' dispute_id=dispute.id %}" class="text-primary hover:underline">{{ dispute.reason_code_label }}</a>
+        <span class="font-bold text-text ltr-value">{{ dispute.disputed_amount_irr }}</span>
+        {% include "ui/components/feedback/badge.html" with label=dispute.status_label variant="warning" %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

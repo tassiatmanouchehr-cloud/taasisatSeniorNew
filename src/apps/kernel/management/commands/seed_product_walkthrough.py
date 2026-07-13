@@ -189,7 +189,19 @@ ROUTE_NAMES = {
     "organization_reports": "organization_portal:reports",
     "organization_profile": "organization_portal:profile",
     "organization_profile_edit": "organization_portal:profile-edit",
+    # Financial Core PR-B (Section 24 minimal UI). "customer_financial" is
+    # deliberately NOT in this dict (unlike every other entry here): it
+    # requires an order_id kwarg, so the generic route-inventory loop in
+    # _print_report() (which calls self._route() with no kwargs) would
+    # print a misleading "(route not found)" for it — printed separately
+    # instead, with a real disputed-order id, via self._route_kw().
+    "organization_financial": "organization_portal:financial",
+    "admin_escrow_overview": "admin_portal:escrow-overview",
+    "admin_dispute_queue": "admin_portal:dispute-queue",
+    "admin_feature_gates": "admin_portal:feature-gate-overview",
 }
+
+CUSTOMER_FINANCIAL_ROUTE_NAME = "portal:request-financial"
 
 
 class Command(BaseCommand):
@@ -230,6 +242,7 @@ class Command(BaseCommand):
         self._ensure_availability(independent_providers, affiliated_providers)
         finance_ok = self._ensure_execution_and_finance(orders, platform_admin)
         self._ensure_reviews(orders)
+        pr_b_orders = self._ensure_financial_core_pr_b(tenant, category, service_type, customers, independent_providers)
 
         self._print_report(
             tenant,
@@ -240,6 +253,7 @@ class Command(BaseCommand):
             platform_admin,
             orders,
             finance_ok,
+            pr_b_orders,
         )
 
     # ------------------------------------------------------------------
@@ -275,6 +289,49 @@ class Command(BaseCommand):
             return
 
         with transaction.atomic():
+            # Financial Core PR-B's own feature gates (_ensure_financial_core_gates)
+            # are ConfigurationValue rows scoped to this tenant, not to any
+            # row _reset_demo() deletes below — left alone, a gate enabled
+            # by an earlier run would still be True on a fresh reset, before
+            # _ensure_financial_core_pr_b() runs again this time. Since
+            # _ensure_financial_core_pr_b() only executes AFTER the legacy
+            # execution-first orders' own execution has already been driven
+            # (handle()'s own ordering), a stale enabled gate would
+            # incorrectly block THOSE legacy orders' ExecutionService
+            # .start_session() this run (ExecutionPaymentGuardService has no
+            # per-order granularity, only tenant-wide) — confirmed by an
+            # actual second --reset-demo run failing exactly this way before
+            # this cleanup was added. Resetting the gates back to "not set"
+            # (== disabled, the documented default) keeps every run's
+            # ordering identical to a genuine first run.
+            from apps.kernel.models.configuration import ConfigurationValue
+
+            ConfigurationValue.objects.filter(tenant_id=tenant.id).delete()
+
+            # Deleting the row alone does not invalidate ConfigResolver's
+            # cache (see the matching comment in
+            # _ensure_financial_core_gates()) — within a single process
+            # (e.g. one test run driving --reset-demo followed immediately
+            # by a fresh seed) a stale cached "True" would otherwise survive
+            # the delete above and incorrectly block the legacy
+            # execution-first orders' ExecutionService.start_session() this
+            # run.
+            from apps.commission.services.configuration import (
+                DISPUTE_RELEASE_ENABLED_KEY,
+                ESCROW_PRODUCTION_ENABLED_KEY,
+                OBJECTION_AUTOMATION_ENABLED_KEY,
+                PRESERVICE_PAYMENT_ENABLED_KEY,
+            )
+            from apps.kernel.services.config_resolver import ConfigResolver
+
+            for key in (
+                PRESERVICE_PAYMENT_ENABLED_KEY,
+                ESCROW_PRODUCTION_ENABLED_KEY,
+                OBJECTION_AUTOMATION_ENABLED_KEY,
+                DISPUTE_RELEASE_ENABLED_KEY,
+            ):
+                ConfigResolver.invalidate(key, tenant_id=tenant.id)
+
             from apps.finance.models import FinancialParty
             from apps.payments.models import PaymentAttempt, PaymentIntent
             from apps.reviews.models import Review
@@ -292,6 +349,35 @@ class Command(BaseCommand):
             PaymentCallback.objects.filter(attempt__tenant_id=tenant.id).delete()
             PaymentAttempt.objects.filter(tenant_id=tenant.id).delete()
             PaymentIntent.objects.filter(tenant_id=tenant.id).delete()
+
+            # Financial Core PR-B: EscrowRecord and everything hanging off it
+            # (Dispute/DisputeLine/DisputeResolution, ReleaseInstruction/
+            # RefundInstruction, ObjectionPeriod/ObjectionPeriodExtension,
+            # EscrowMovement) hold PROTECT FKs to FinancialDocument/
+            # PaymentTransaction/CommissionSnapshot/Order — must be cleared
+            # before any of those are deleted below.
+            from apps.commission.models.dispute import Dispute, DisputeResolution
+            from apps.commission.models.objection import ObjectionPeriod, ObjectionPeriodExtension
+            from apps.commission.models.release_instruction import RefundInstruction, ReleaseInstruction
+            from apps.finance.models import EscrowMovement, EscrowRecord
+
+            DisputeResolution.objects.filter(tenant_id=tenant.id).delete()
+            ReleaseInstruction.objects.filter(tenant_id=tenant.id).delete()
+            RefundInstruction.objects.filter(tenant_id=tenant.id).delete()
+            Dispute.objects.filter(tenant_id=tenant.id).delete()
+            ObjectionPeriodExtension.objects.filter(tenant_id=tenant.id).delete()
+            ObjectionPeriod.objects.filter(tenant_id=tenant.id).delete()
+            EscrowMovement.objects.filter(tenant_id=tenant.id).delete()
+            EscrowRecord.objects.filter(tenant_id=tenant.id).delete()
+
+            # QuoteService.generate_quote() (called by PreServicePaymentService
+            # for the PR-B orders below) persists a Quote row per order —
+            # Quote.order is SET_NULL so it never blocks Order deletion, but
+            # cleaning it up here avoids orphaned rows accumulating across
+            # repeated --reset-demo runs.
+            from apps.pricing.models import Quote
+
+            Quote.objects.filter(tenant_id=tenant.id).delete()
 
             from apps.finance.models import FinancialDocument, FinancialObligation, LedgerEntry, PaymentTransaction
 
@@ -329,10 +415,13 @@ class Command(BaseCommand):
             # own commission.payment_deadline.expire jobs — never touches
             # another tenant's jobs, payments.settlement.retry jobs, or any
             # other job type/history that should be retained.
-            from apps.commission.jobs import PAYMENT_DEADLINE_EXPIRE
+            from apps.commission.jobs import OBJECTION_PERIOD_AUTO_APPROVE, PAYMENT_DEADLINE_EXPIRE
             from apps.jobs.models import JobDefinition
 
             JobDefinition.objects.filter(tenant_id=tenant.id, job_type=PAYMENT_DEADLINE_EXPIRE).delete()
+            # Same reasoning, same narrow tenant scope, for Financial Core
+            # PR-B's own scheduled auto-approve job type.
+            JobDefinition.objects.filter(tenant_id=tenant.id, job_type=OBJECTION_PERIOD_AUTO_APPROVE).delete()
 
             from apps.execution.models import ExecutionSession
 
@@ -1114,6 +1203,252 @@ class Command(BaseCommand):
         return finance_created
 
     # ------------------------------------------------------------------
+    # I. Financial Core PR-B — pre-service payment, real Escrow, objection
+    # period, disputes, partial release (Section 27)
+    # ------------------------------------------------------------------
+
+    def _ensure_financial_core_gates(self, tenant):
+        """Section 18: every PR-B gate defaults DISABLED for every tenant.
+        Enabled here ONLY for this dedicated demo tenant — the "explicit
+        seed/test configuration" Section 18 requires — never silently, and
+        never for any other tenant. Deliberately leaves
+        DEADLINE_ACTIVATION_ENABLED_KEY untouched (still off, matching
+        every pre-existing legacy demo order's behavior): enabling it
+        tenant-wide would risk a real expiry job later reopening one of
+        the legacy execution-first orders seeded above, which never went
+        through the pre-service payment flow and therefore never
+        completes their PaymentDeadline."""
+        from apps.commission.services.configuration import (
+            DISPUTE_RELEASE_ENABLED_KEY,
+            ESCROW_PRODUCTION_ENABLED_KEY,
+            OBJECTION_AUTOMATION_ENABLED_KEY,
+            PRESERVICE_PAYMENT_ENABLED_KEY,
+        )
+        from apps.kernel.models.configuration import ConfigurationKey, ConfigurationValue, ScopeLevel, ValueType
+
+        for key in (
+            PRESERVICE_PAYMENT_ENABLED_KEY,
+            ESCROW_PRODUCTION_ENABLED_KEY,
+            OBJECTION_AUTOMATION_ENABLED_KEY,
+            DISPUTE_RELEASE_ENABLED_KEY,
+        ):
+            config_key, _ = ConfigurationKey.objects.get_or_create(
+                key=key,
+                defaults={
+                    "owner_module": "M05",
+                    "scope_level": ScopeLevel.TENANT,
+                    "value_type": ValueType.BOOLEAN,
+                    "default_value": False,
+                },
+            )
+            _, created = ConfigurationValue.objects.update_or_create(
+                tenant_id=tenant.id,
+                config_key=config_key,
+                scope_type=ScopeLevel.TENANT,
+                defaults={"value": True, "is_active": True},
+            )
+            self._record(created)
+
+            # ConfigResolver caches resolved values (apps/kernel/services
+            # /config_resolver.py) — a bare ConfigurationValue write is
+            # invisible to any already-cached resolution for this exact
+            # key+tenant within the same process (confirmed by a real test
+            # failure: within one test run, --reset-demo followed by a
+            # fresh seed left the legacy execution-first orders unable to
+            # start, because the cache still held this key's pre-reset
+            # value). Every write here must invalidate explicitly.
+            from apps.kernel.services.config_resolver import ConfigResolver
+
+            ConfigResolver.invalidate(key, tenant_id=tenant.id)
+
+    def _pr_b_assign_and_pay(self, tenant, order, supplier, *, pay):
+        from apps.commission.models.deadline import PaymentDeadline, PaymentDeadlineStatus
+        from apps.payments.models import PaymentIntent, PaymentStatus
+
+        order.refresh_from_db()
+        if order.assigned_supplier_id is None:
+            AssignmentService.assign(order_id=order.id, supplier=supplier)
+            self._record(True)
+        else:
+            self._record(False)
+
+        if not pay:
+            return
+
+        deadline = (
+            PaymentDeadline.objects.filter(order=order, status=PaymentDeadlineStatus.PENDING)
+            .order_by("-created_at")
+            .first()
+        )
+        if deadline is None:
+            self._record(False)  # Already paid in an earlier run.
+            return
+        intent = PaymentIntent.objects.filter(
+            tenant_id=tenant.id,
+            reference_type="Order",
+            reference_id=order.id,
+            metadata__payment_deadline_id=str(deadline.id),
+        ).first()
+        if intent is None or intent.status == PaymentStatus.SUCCEEDED:
+            self._record(False)
+            return
+        attempt = PaymentIntentService.start_attempt(intent_id=intent.id)
+        PaymentCallbackService.process_callback(
+            provider_reference=attempt.provider_reference,
+            payload={
+                "provider_reference": attempt.provider_reference,
+                "provider_event_id": f"evt-walkthrough-prb-{uuid.uuid4().hex[:12]}",
+                "status": "SUCCEEDED",
+                "amount": str(intent.amount),
+                "currency": intent.currency,
+            },
+        )
+        self._record(True)
+
+    def _pr_b_complete_service(self, tenant, order):
+        from apps.finance.models import EscrowRecord, EscrowStatus
+
+        order.refresh_from_db()
+        if order.status == OrderStatus.COMPLETED:
+            self._record(False)
+            return
+        if not EscrowRecord.objects.filter(tenant_id=tenant.id, order=order, status=EscrowStatus.HELD).exists():
+            self._record("skipped")  # Payment hasn't succeeded (yet) — nothing to complete.
+            return
+        session = self._drive_execution(order)
+        ExecutionService.complete_session(session_id=session.id)
+        ExecutionService.close_session(session_id=session.id)
+        self._record(True)
+
+    def _ensure_financial_core_pr_b(self, tenant, category, service_type, customers, independent_providers):
+        """Deterministic PR-B demo scenario: an accepted proposal awaiting
+        payment, a paid order awaiting service, a completed order with an
+        open objection period, one undisputed order the customer explicitly
+        approves (full release), and one partially disputed order using
+        Section 12's own exact worked example (10,000,000 IRR original,
+        1,543,000 IRR disputed/blocked, 8,457,000 IRR remaining). Reset-
+        safe (--reset-demo wipes every PR-B row for this tenant first),
+        idempotent (every step checks current state before acting), and
+        never touches the legacy execution-first orders _ensure_orders()/
+        _ensure_execution_and_finance() already seeded above — those are
+        deliberately left on the pre-PR-B path to demonstrate the
+        legacy/direct-settlement classification (Section 18) side by side
+        with the new flow."""
+        from apps.commission.models.dispute import Dispute
+        from apps.commission.models.objection import ObjectionPeriod, ObjectionPeriodStatus
+        from apps.commission.services.dispute_service import DisputeService
+        from apps.commission.services.objection_service import ObjectionPeriodService
+        from apps.finance.models import EscrowRecord
+        from apps.finance.services import FinancialPartyService
+        from apps.pricing.models import PricingRule, PricingRuleType
+
+        self._ensure_financial_core_gates(tenant)
+
+        # A fixed-amount PricingRule so PreServicePaymentService can
+        # resolve a price without requiring a pre-existing Quote per order
+        # — 10,000,000 IRR, matching Section 12's own worked example exactly.
+        _pricing_rule, created = PricingRule.objects.get_or_create(
+            tenant=tenant,
+            name="Product Walkthrough — Financial Core PR-B Base Rate",
+            defaults={
+                "rule_type": PricingRuleType.FIXED_AMOUNT,
+                "amount": "10000000",
+                "is_active": True,
+                "priority": 0,
+            },
+        )
+        self._record(created)
+
+        primary_user, primary_profile = customers[0]
+        # A distinct supplier from the legacy-flow orders' independent_providers[0],
+        # so the two flows never share a SupplierAssignment history.
+        supplier = independent_providers[1]["supplier"]
+
+        common = {
+            "service_category_id": category.id,
+            "service_type_id": service_type.id,
+            "phone": primary_profile.phone,
+            "address": "تهران، خیابان ولیعصر",
+            "city": "tehran",
+            "customer_profile": primary_profile,
+            "tenant_id": tenant.id,
+        }
+
+        pr_b_orders = {}
+        pr_b_orders["payment_pending"], _ = self._create_order_if_missing(
+            marker_suffix="pr-b-payment-pending",
+            description="سفارش نمایشی PR-B — پیشنهاد پذیرفته‌شده، در انتظار پرداخت پیش از خدمت",
+            **common,
+        )
+        pr_b_orders["paid_awaiting_completion"], _ = self._create_order_if_missing(
+            marker_suffix="pr-b-paid-awaiting-completion",
+            description="سفارش نمایشی PR-B — پرداخت موفق، وجه در امانت (Escrow)، در انتظار انجام خدمت",
+            **common,
+        )
+        pr_b_orders["completed_awaiting_review"], _ = self._create_order_if_missing(
+            marker_suffix="pr-b-completed-awaiting-review",
+            description="سفارش نمایشی PR-B — خدمت تکمیل‌شده، دوره اعتراض باز",
+            **common,
+        )
+        pr_b_orders["undisputed_approved"], _ = self._create_order_if_missing(
+            marker_suffix="pr-b-undisputed-approved",
+            description="سفارش نمایشی PR-B — بدون اعتراض، تأیید مشتری، وجه به‌طور کامل آزادشده",
+            **common,
+        )
+        pr_b_orders["disputed_partial"], _ = self._create_order_if_missing(
+            marker_suffix="pr-b-disputed-partial",
+            description="سفارش نمایشی PR-B — اعتراض جزئی (۱٬۵۴۳٬۰۰۰ ریال مسدود از ۱۰٬۰۰۰٬۰۰۰ ریال)",
+            **common,
+        )
+
+        self._pr_b_assign_and_pay(tenant, pr_b_orders["payment_pending"], supplier, pay=False)
+        self._pr_b_assign_and_pay(tenant, pr_b_orders["paid_awaiting_completion"], supplier, pay=True)
+        self._pr_b_assign_and_pay(tenant, pr_b_orders["completed_awaiting_review"], supplier, pay=True)
+        self._pr_b_assign_and_pay(tenant, pr_b_orders["undisputed_approved"], supplier, pay=True)
+        self._pr_b_assign_and_pay(tenant, pr_b_orders["disputed_partial"], supplier, pay=True)
+
+        for key in ("completed_awaiting_review", "undisputed_approved", "disputed_partial"):
+            self._pr_b_complete_service(tenant, pr_b_orders[key])
+
+        # Undisputed order: customer explicitly approves completion — full release.
+        order = pr_b_orders["undisputed_approved"]
+        order.refresh_from_db()
+        escrow = EscrowRecord.objects.filter(tenant_id=tenant.id, order=order).order_by("-created_at").first()
+        if escrow is not None:
+            objection = ObjectionPeriod.objects.filter(tenant_id=tenant.id, escrow=escrow).first()
+            if objection is not None and objection.status == ObjectionPeriodStatus.OPEN:
+                ObjectionPeriodService.approve_by_customer(objection_period_id=objection.id, actor=primary_user)
+                self._record(True)
+            else:
+                self._record(False)
+        else:
+            self._record("skipped")
+
+        # Disputed order: customer opens a dispute for the exact Section 12
+        # worked example — 1,543,000 IRR blocked, 8,457,000 IRR remaining.
+        order = pr_b_orders["disputed_partial"]
+        order.refresh_from_db()
+        escrow = EscrowRecord.objects.filter(tenant_id=tenant.id, order=order).order_by("-created_at").first()
+        if escrow is not None:
+            if not Dispute.objects.filter(tenant_id=tenant.id, escrow=escrow).exists():
+                customer_party = FinancialPartyService.resolve_party_for_customer(order.customer_profile)
+                DisputeService.open(
+                    order=order,
+                    customer_party=customer_party,
+                    disputed_amount_irr=1543000,
+                    reason_code="SERVICE_QUALITY",
+                    description="نمایشی — کیفیت خدمت مطابق انتظار نبود.",
+                    actor=primary_user,
+                )
+                self._record(True)
+            else:
+                self._record(False)
+        else:
+            self._record("skipped")
+
+        return pr_b_orders
+
+    # ------------------------------------------------------------------
     # H. Reviews
     # ------------------------------------------------------------------
 
@@ -1166,6 +1501,7 @@ class Command(BaseCommand):
         platform_admin,
         orders,
         finance_ok,
+        pr_b_orders,
     ):
         w = self.stdout.write
         w("")
@@ -1256,6 +1592,31 @@ class Command(BaseCommand):
         w(f"Sample order IDs: {', '.join(str(o.id) for o in list(orders.values())[:5])} ...")
         w(f"Sample provider IDs: {', '.join(str(p['supplier'].id) for p in independent_providers[:3])} ...")
         w(f"Financial walkthrough records created: {finance_ok}")
+        w("")
+        w("--- Financial Core PR-B demo scenario (Section 27) ---")
+        w(
+            "Gates enabled for this tenant only: preservice_payment, escrow_production, "
+            "objection_automation, dispute_release (deadline_activation stays OFF)."
+        )
+        for key, label in (
+            ("payment_pending", "Accepted proposal, PaymentDeadline active, payment not yet made"),
+            ("paid_awaiting_completion", "Paid — Escrow HELD, service not yet started"),
+            ("completed_awaiting_review", "Service completed — objection period OPEN"),
+            ("undisputed_approved", "Undisputed — customer approved, Escrow fully released"),
+            ("disputed_partial", "Partially disputed — 1,543,000 IRR blocked, 8,457,000 IRR remaining"),
+        ):
+            order = pr_b_orders.get(key)
+            w(f"  {label:<70} order_id={order.id if order else '(missing)'}")
+        disputed_order = pr_b_orders.get("disputed_partial")
+        if disputed_order is not None:
+            w(
+                f"  {'customer financial page (disputed order)':<42} "
+                f"{self._route_kw(CUSTOMER_FINANCIAL_ROUTE_NAME, order_id=disputed_order.id)}",
+            )
+        w(f"  {'admin escrow overview':<24} {self._route(ROUTE_NAMES['admin_escrow_overview'])}")
+        w(f"  {'admin dispute queue':<24} {self._route(ROUTE_NAMES['admin_dispute_queue'])}")
+        w(f"  {'admin feature gates':<24} {self._route(ROUTE_NAMES['admin_feature_gates'])}")
+        w(f"  {'organization financial':<24} {self._route(ROUTE_NAMES['organization_financial'])}")
         w("")
         w("--- Route inventory (derived from config/urls.py, never guessed) ---")
         for label, name in ROUTE_NAMES.items():

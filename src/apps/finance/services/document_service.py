@@ -59,18 +59,28 @@ class FinancialDocumentService:
         summary page. Never mutates anything. select_related("order")
         avoids the N+1 CustomerPaymentsPresentationService.to_row() would
         otherwise cause reading document.order.order_number per row."""
-        return FinancialDocument.objects.filter(
-            tenant_id=tenant_id, payer_party_id=party_id,
-        ).select_related("order").order_by("-created_at")
+        return (
+            FinancialDocument.objects.filter(
+                tenant_id=tenant_id,
+                payer_party_id=party_id,
+            )
+            .select_related("order")
+            .order_by("-created_at")
+        )
 
     @classmethod
     def list_for_order(cls, *, tenant_id, order_id):
         """Read-only: every FinancialDocument for one Order — Epic 07
         (Customer Portal Completion), the order-detail page's price/
         invoice summary. Never mutates anything."""
-        return FinancialDocument.objects.filter(
-            tenant_id=tenant_id, order_id=order_id,
-        ).select_related("order").order_by("-created_at")
+        return (
+            FinancialDocument.objects.filter(
+                tenant_id=tenant_id,
+                order_id=order_id,
+            )
+            .select_related("order")
+            .order_by("-created_at")
+        )
 
     @classmethod
     @transaction.atomic
@@ -95,7 +105,12 @@ class FinancialDocumentService:
     @classmethod
     @transaction.atomic
     def create_supplemental_invoice(
-        cls, *, items, execution_session_id=None, order_id=None, issued_by=None,
+        cls,
+        *,
+        items,
+        execution_session_id=None,
+        order_id=None,
+        issued_by=None,
     ) -> FinancialDocument:
         execution_session = None
         if execution_session_id:
@@ -111,6 +126,25 @@ class FinancialDocumentService:
             tenant_id=order.tenant_id,
             order=order,
             execution_session=execution_session,
+            items=items,
+            issued_by=issued_by,
+        )
+
+    @classmethod
+    @transaction.atomic
+    def create_preservice_invoice_for_order(cls, *, order, items, issued_by=None) -> FinancialDocument:
+        """Financial Core PR-B: an INVOICE FinancialDocument created
+        directly from an accepted Order/assignment, before any
+        ExecutionSession exists — the pre-service payment flow's invoice.
+        Mirrors create_invoice_from_execution() exactly except it has no
+        ExecutionSession to require CLOSED (execution_session=None is
+        already a valid, existing shape for FinancialDocument — see that
+        model's own nullable field)."""
+        return cls._create_document(
+            document_type=FinancialDocumentType.INVOICE,
+            tenant_id=order.tenant_id,
+            order=order,
+            execution_session=None,
             items=items,
             issued_by=issued_by,
         )
@@ -197,7 +231,9 @@ class FinancialDocumentService:
     # --- internal helpers -------------------------------------------------
 
     @classmethod
-    def _create_document(cls, *, document_type, tenant_id, order, execution_session, items, issued_by) -> FinancialDocument:
+    def _create_document(
+        cls, *, document_type, tenant_id, order, execution_session, items, issued_by
+    ) -> FinancialDocument:
         if order.tenant_id != tenant_id:
             raise FinanceError("Order tenant does not match the resolved tenant for this document.")
         if not order.customer_profile_id:
@@ -244,19 +280,21 @@ class FinancialDocumentService:
             },
         )
 
-        FinancialDocumentItem.objects.bulk_create([
-            FinancialDocumentItem(
-                tenant_id=tenant_id,
-                document=document,
-                item_type=item["item_type"],
-                description=item["description"],
-                quantity=item["quantity"],
-                unit_price=item["unit_price"],
-                total_amount=item["total_amount"],
-                metadata=item.get("metadata", {}),
-            )
-            for item in prepared_items
-        ])
+        FinancialDocumentItem.objects.bulk_create(
+            [
+                FinancialDocumentItem(
+                    tenant_id=tenant_id,
+                    document=document,
+                    item_type=item["item_type"],
+                    description=item["description"],
+                    quantity=item["quantity"],
+                    unit_price=item["unit_price"],
+                    total_amount=item["total_amount"],
+                    metadata=item.get("metadata", {}),
+                )
+                for item in prepared_items
+            ]
+        )
 
         EventPublisher.publish(
             tenant_id=tenant_id,
@@ -287,14 +325,16 @@ class FinancialDocumentService:
             line_total = (quantity * unit_price).quantize(Decimal("0.01"))
             item_type = raw["item_type"]
 
-            prepared.append({
-                "item_type": item_type,
-                "description": raw.get("description", ""),
-                "quantity": quantity,
-                "unit_price": unit_price,
-                "total_amount": line_total,
-                "metadata": raw.get("metadata", {}),
-            })
+            prepared.append(
+                {
+                    "item_type": item_type,
+                    "description": raw.get("description", ""),
+                    "quantity": quantity,
+                    "unit_price": unit_price,
+                    "total_amount": line_total,
+                    "metadata": raw.get("metadata", {}),
+                }
+            )
 
             if item_type == FinancialDocumentItemType.DISCOUNT:
                 discount += abs(line_total)

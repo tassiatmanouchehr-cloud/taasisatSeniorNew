@@ -59,6 +59,25 @@ ORDER_ELIGIBILITY_GRANTED = "OrderEligibilityGranted"
 ORDER_ELIGIBILITY_REVOKED = "OrderEligibilityRevoked"
 ORGANIZATION_ACCESS_DENIED = "OrganizationAccessDenied"
 
+# Financial Core PR-B (Real Escrow, Objection Period, Disputes & Partial
+# Release), Section 23. Handlers registered in
+# apps.kernel.events.handlers.register_handlers(). Every one of these
+# events carries payload["recipient_id"] = the order's customer Person id
+# — provider/company notification fan-out (a second recipient resolved via
+# apps.accounts.services.supplier_bridge) is not yet wired and is a known
+# PR-B limitation; the minimal UI (Section 24) is the provider/company's
+# way to see releasable/blocked amounts until that fan-out exists.
+PAYMENT_HELD_IN_ESCROW = "PaymentHeldInEscrow"
+OBJECTION_PERIOD_OPENED = "ObjectionPeriodOpened"
+OBJECTION_APPROVED_BY_CUSTOMER = "ObjectionApprovedByCustomer"
+OBJECTION_AUTO_APPROVED = "ObjectionAutoApproved"
+DISPUTE_OPENED = "DisputeOpened"
+DISPUTE_RESOLVED = "DisputeResolved"
+RELEASE_INSTRUCTION_CREATED = "ReleaseInstructionCreated"
+REFUND_INSTRUCTION_INITIATED = "RefundInstructionInitiated"
+REFUND_INSTRUCTION_COMPLETED = "RefundInstructionCompleted"
+REFUND_INSTRUCTION_FAILED = "RefundInstructionFailed"
+
 
 @dataclass(frozen=True)
 class DomainEvent:

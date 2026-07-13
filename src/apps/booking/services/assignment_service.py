@@ -170,10 +170,27 @@ class AssignmentService:
         rather than inlined logic, so apps.commission stays the only app
         that knows about snapshot/deadline internals."""
         from apps.commission.services.deadline_service import PaymentDeadlineService
+        from apps.commission.services.preservice_payment_service import PreServicePaymentService
         from apps.commission.services.snapshot_service import CommissionSnapshotService
 
         CommissionSnapshotService.create_snapshot_for_order(order=order, supplier=supplier, actor=actor)
-        PaymentDeadlineService.create_for_order(order=order, assignment=assignment, actor=actor)
+        deadline = PaymentDeadlineService.create_for_order(order=order, assignment=assignment, actor=actor)
+
+        # Financial Core PR-B integration point: gated behind
+        # CommissionConfiguration.get_preservice_payment_enabled() (default
+        # DISABLED for every tenant) — a no-op call for every tenant that
+        # has not adopted the new pay-before-service flow. See
+        # PreServicePaymentService's own docstring for why the intent's
+        # idempotency_key is derived from this exact PaymentDeadline (not
+        # the order alone): a reassignment after expiry gets a fresh
+        # deadline, invoice, and PaymentIntent, all three together.
+        if PreServicePaymentService.is_enabled(tenant_id=order.tenant_id):
+            PreServicePaymentService.create_invoice_and_intent_for_order(
+                order=order,
+                supplier=supplier,
+                deadline=deadline,
+                actor=actor,
+            )
 
     @classmethod
     def _cancel_financial_core_deadline(cls, *, order, actor):
@@ -182,6 +199,17 @@ class AssignmentService:
         from apps.commission.services.deadline_service import PaymentDeadlineService
 
         PaymentDeadlineService.cancel_for_order(order_id=order.id, actor=actor)
+
+    @classmethod
+    def _cancel_financial_core_escrow(cls, *, order, actor):
+        """Financial Core PR-B integration point (Section 17): a no-op for
+        every tenant that has not adopted pre-service payment — see
+        CancellationEscrowService's own docstring for the temporary
+        explicit FULL_REFUND policy this triggers when a held Escrow
+        balance remains at cancellation time."""
+        from apps.commission.services.cancellation_escrow_service import CancellationEscrowService
+
+        CancellationEscrowService.handle_cancellation(order=order, actor=actor)
 
     @classmethod
     @transaction.atomic
@@ -297,6 +325,11 @@ class AssignmentService:
         # harmless no-op instead of firing a false expiry cascade against an
         # order the caller has already, separately, explicitly cancelled.
         cls._cancel_financial_core_deadline(order=order, actor=changed_by)
+
+        # Financial Core PR-B (Section 17): a held Escrow balance must not
+        # be silently forgotten on cancellation — see
+        # _cancel_financial_core_escrow()'s own docstring.
+        cls._cancel_financial_core_escrow(order=order, actor=changed_by)
 
         EventPublisher.publish(
             tenant_id=order.tenant_id,

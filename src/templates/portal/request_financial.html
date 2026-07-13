@@ -1,0 +1,125 @@
+{% extends "portal/base.html" %}
+
+{% block portal_title %}پرداخت و ضمانت وجه{% endblock %}
+{% block page_title %}پرداخت و ضمانت وجه{% endblock %}
+{% block page_description %}
+<p class="mt-1 text-sm text-text-muted">سفارش {{ order.order_number }}</p>
+{% endblock %}
+
+{% block portal_content %}
+<div class="grid gap-4 grid-cols-1">
+
+  {% if not financial_view.preservice_payment_enabled %}
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <p class="text-sm text-text-muted">پرداخت پیش از خدمت برای این سفارش فعال نیست؛ روند مالی به‌صورت سابق ادامه می‌یابد.</p>
+  </div>
+
+  {% elif not financial_view.escrow_exists %}
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">پرداخت پیش از شروع خدمت</h2>
+    <p class="text-sm text-text-muted mb-4">برای شروع خدمت، پرداخت باید با موفقیت انجام شود.</p>
+    <form method="post" action="{% url 'portal:request-financial-pay' order_id=order.id %}" class="inline-block ml-2">
+      {% csrf_token %}
+      <input type="hidden" name="outcome" value="SUCCEEDED">
+      <button type="submit" class="inline-flex items-center rounded-lg bg-success px-4 py-2 text-sm font-bold text-white hover:opacity-90">شبیه‌سازی پرداخت موفق (Fake)</button>
+    </form>
+    <form method="post" action="{% url 'portal:request-financial-pay' order_id=order.id %}" class="inline-block">
+      {% csrf_token %}
+      <input type="hidden" name="outcome" value="FAILED">
+      <button type="submit" class="inline-flex items-center rounded-lg bg-danger px-4 py-2 text-sm font-bold text-white hover:opacity-90">شبیه‌سازی پرداخت ناموفق (Fake)</button>
+    </form>
+  </div>
+
+  {% else %}
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-bold text-text">وجه در امانت (Escrow)</h2>
+      {% include "ui/components/feedback/badge.html" with label=financial_view.escrow_status_label variant="info" %}
+    </div>
+    <dl class="grid grid-cols-2 gap-3 text-sm">
+      <div><dt class="text-text-muted">مبلغ کل</dt><dd class="font-bold text-text ltr-value">{{ financial_view.original_amount_irr }} ریال</dd></div>
+      <div><dt class="text-text-muted">در امانت</dt><dd class="font-bold text-text ltr-value">{{ financial_view.held_amount_irr }} ریال</dd></div>
+      <div><dt class="text-text-muted">قابل آزادسازی</dt><dd class="font-bold text-success ltr-value">{{ financial_view.releasable_amount_irr }} ریال</dd></div>
+      <div><dt class="text-text-muted">مسدود (اعتراض)</dt><dd class="font-bold text-warning ltr-value">{{ financial_view.blocked_amount_irr }} ریال</dd></div>
+      <div><dt class="text-text-muted">آزاد شده</dt><dd class="font-bold text-text ltr-value">{{ financial_view.released_amount_irr }} ریال</dd></div>
+      <div><dt class="text-text-muted">بازگشت داده شده</dt><dd class="font-bold text-text ltr-value">{{ financial_view.refunded_amount_irr }} ریال</dd></div>
+    </dl>
+  </div>
+
+  {% if financial_view.objection_exists %}
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-bold text-text">دوره اعتراض</h2>
+      {% include "ui/components/feedback/badge.html" with label=financial_view.objection_status_label variant="warning" %}
+    </div>
+    <p class="text-sm text-text-muted mb-4">مهلت: <span class="ltr-value">{{ financial_view.objection_deadline_label }}</span></p>
+
+    {% if financial_view.can_customer_approve %}
+    <form method="post" action="{% url 'portal:request-financial-approve' order_id=order.id %}" class="inline-block ml-2">
+      {% csrf_token %}
+      <button type="submit" class="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-700">تأیید انجام خدمت</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if financial_view.can_customer_dispute %}
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">ثبت اعتراض</h2>
+    <form method="post" action="{% url 'portal:request-financial-dispute' order_id=order.id %}" class="space-y-4">
+      {% csrf_token %}
+      {% for field in dispute_form %}
+      <div>
+        <label for="{{ field.id_for_label }}" class="block text-sm font-bold text-text">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}<p class="mt-1 text-xs text-danger">{{ field.errors.0 }}</p>{% endif %}
+      </div>
+      {% endfor %}
+      <button type="submit" class="inline-flex items-center rounded-lg bg-danger px-4 py-2 text-sm font-bold text-white hover:opacity-90">ثبت اعتراض</button>
+    </form>
+  </div>
+  {% endif %}
+
+  {% if financial_view.disputes %}
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">اعتراض‌های ثبت‌شده</h2>
+    <ul class="divide-y divide-border">
+      {% for dispute in financial_view.disputes %}
+      <li class="py-3 flex items-center justify-between gap-2">
+        <div class="min-w-0">
+          <p class="text-sm font-medium text-text">{{ dispute.reason_code_label }}</p>
+          <p class="text-xs text-text-muted mt-0.5 ltr-value">{{ dispute.opened_at_label }}</p>
+        </div>
+        <div class="flex items-center gap-3 shrink-0">
+          <span class="text-sm font-bold text-text ltr-value">{{ dispute.disputed_amount_irr }} ریال</span>
+          {% include "ui/components/feedback/badge.html" with label=dispute.status_label variant="warning" %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if financial_view.release_instructions or financial_view.refund_instructions %}
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">دستورات آزادسازی و بازگشت وجه</h2>
+    <ul class="divide-y divide-border">
+      {% for release in financial_view.release_instructions %}
+      <li class="py-3 flex items-center justify-between gap-2">
+        <span class="text-sm text-text">{{ release.source_label }}</span>
+        <span class="text-sm font-bold text-success ltr-value">{{ release.gross_releasable_amount_irr }} ریال — {{ release.status_label }}</span>
+      </li>
+      {% endfor %}
+      {% for refund in financial_view.refund_instructions %}
+      <li class="py-3 flex items-center justify-between gap-2">
+        <span class="text-sm text-text">بازگشت وجه — {{ refund.source_label }}</span>
+        <span class="text-sm font-bold text-warning ltr-value">{{ refund.amount_irr }} ریال — {{ refund.status_label }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% endif %}
+</div>
+{% endblock %}

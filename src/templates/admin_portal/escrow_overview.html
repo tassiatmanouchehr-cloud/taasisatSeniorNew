@@ -1,0 +1,42 @@
+{% extends "admin_portal/base.html" %}
+
+{% block portal_title %}وجه در امانت{% endblock %}
+{% block page_title %}Escrow — فهرست{% endblock %}
+{% block page_description %}
+<p class="mt-1 text-sm text-text-muted">فقط خواندنی.</p>
+{% endblock %}
+
+{% block admin_content %}
+{% if escrows %}
+<div class="bg-surface border border-border rounded-lg overflow-hidden">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="border-b border-border text-text-muted text-xs">
+        <th class="px-5 py-3 text-start">سفارش</th>
+        <th class="px-5 py-3 text-start">وضعیت</th>
+        <th class="px-5 py-3 text-start">مبلغ کل</th>
+        <th class="px-5 py-3 text-start">مسدود</th>
+        <th class="px-5 py-3 text-start">باقی‌مانده</th>
+        <th class="px-5 py-3 text-start"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-border">
+      {% for escrow in escrows %}
+      <tr>
+        <td class="px-5 py-3 text-text">{{ escrow.order_number }}</td>
+        <td class="px-5 py-3">{% include "ui/components/feedback/badge.html" with label=escrow.status_label variant="info" %}</td>
+        <td class="px-5 py-3 text-text ltr-value">{{ escrow.original_amount_irr }}</td>
+        <td class="px-5 py-3 text-warning ltr-value">{{ escrow.blocked_amount_irr }}</td>
+        <td class="px-5 py-3 text-text ltr-value">{{ escrow.remaining_amount_irr }}</td>
+        <td class="px-5 py-3"><a href="{% url 'admin_portal:escrow-detail' escrow_id=escrow.id %}" class="text-primary hover:underline">جزئیات</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="bg-surface border border-border rounded-lg p-8 text-center">
+  <p class="text-sm text-text-muted">هیچ Escrow ثبت نشده است.</p>
+</div>
+{% endif %}
+{% endblock %}
