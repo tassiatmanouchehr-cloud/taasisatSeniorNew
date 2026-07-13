@@ -45,10 +45,14 @@
       {% if not session %}
       <p class="text-sm text-text-muted">در حال آماده‌سازی ویزیت…</p>
       {% elif session.status == "scheduled" %}
+      {% if financial_view.preservice_payment_enabled and not financial_view.escrow_exists %}
+      <p class="text-sm text-danger mb-2">مشتری هنوز پرداخت پیش از خدمت را انجام نداده است؛ تا زمانی که وجه در امانت قرار نگیرد امکان شروع ویزیت وجود ندارد.</p>
+      {% else %}
       <form method="post" action="{% url 'provider_portal:visit-start' order_id=order.id %}">
         {% csrf_token %}
         <button type="submit" class="w-full inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-700">شروع ویزیت</button>
       </form>
+      {% endif %}
       {% elif session.status == "in_progress" %}
       <form method="post" action="{% url 'provider_portal:visit-complete' order_id=order.id %}">
         {% csrf_token %}
@@ -61,6 +65,24 @@
     <p class="text-sm text-text-muted">وضعیت: {{ assignment.get_status_display }}</p>
     {% endif %}
   </div>
+
+  {% if financial_view.escrow_exists %}
+  <div class="lg:col-span-3 bg-surface border border-border rounded-lg p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-bold text-text">وضعیت مالی</h2>
+      {% include "ui/components/feedback/badge.html" with label=financial_view.escrow_status_label variant="info" %}
+    </div>
+    <dl class="grid grid-cols-2 gap-3 text-sm">
+      <div><dt class="text-text-muted">در امانت</dt><dd class="font-bold text-text ltr-value">{{ financial_view.held_amount_irr }} ریال</dd></div>
+      <div><dt class="text-text-muted">قابل آزادسازی</dt><dd class="font-bold text-success ltr-value">{{ financial_view.releasable_amount_irr }} ریال</dd></div>
+      <div><dt class="text-text-muted">مسدود (اعتراض)</dt><dd class="font-bold text-warning ltr-value">{{ financial_view.blocked_amount_irr }} ریال</dd></div>
+      <div><dt class="text-text-muted">آزاد شده</dt><dd class="font-bold text-text ltr-value">{{ financial_view.released_amount_irr }} ریال</dd></div>
+    </dl>
+    {% if financial_view.objection_exists %}
+    <p class="text-xs text-text-muted mt-3">دوره اعتراض: {{ financial_view.objection_status_label }} — مهلت <span class="ltr-value">{{ financial_view.objection_deadline_label }}</span></p>
+    {% endif %}
+  </div>
+  {% endif %}
 
 </div>
 {% endblock %}

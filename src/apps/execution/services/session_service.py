@@ -58,7 +58,8 @@ class ExecutionService:
         order = supplier_assignment.order
 
         if supplier_assignment.status not in (
-            SupplierAssignmentStatus.ASSIGNED, SupplierAssignmentStatus.CONFIRMED,
+            SupplierAssignmentStatus.ASSIGNED,
+            SupplierAssignmentStatus.CONFIRMED,
         ):
             raise ExecutionError(
                 "SupplierAssignment must be assigned or confirmed before execution can begin.",
@@ -103,6 +104,18 @@ class ExecutionService:
             raise ExecutionError(
                 f"Cannot start an execution session in '{session.status}' status.",
             )
+
+        # Financial Core PR-B (Section 20): a no-op for every tenant that
+        # has not adopted pre-service payment — see
+        # ExecutionPaymentGuardService's own docstring. Raises before any
+        # mutation below if the gate is enabled and payment is not held.
+        from apps.commission.services.errors import ExecutionPaymentGuardError
+        from apps.commission.services.execution_payment_guard import ExecutionPaymentGuardService
+
+        try:
+            ExecutionPaymentGuardService.assert_can_start_execution(order=session.order)
+        except ExecutionPaymentGuardError as exc:
+            raise ExecutionError(str(exc)) from exc
 
         # The ONLY mutation of Order.status for this transition.
         start_order(order_id=session.order_id, changed_by=changed_by)
@@ -189,6 +202,17 @@ class ExecutionService:
         session.closed_at = timezone.now()
         session.save(update_fields=["status", "closed_at", "updated_at"])
 
+        # Financial Core PR-B (Section 7): a no-op for every tenant that has
+        # not adopted pre-service payment. When adopted, this starts the
+        # ObjectionPeriod against the order's HELD Escrow; if completion
+        # somehow occurred without one (should already be prevented by
+        # ExecutionPaymentGuardService at start_session() — an inconsistency,
+        # not the normal path), this fails safely: it reports the gap via a
+        # FINANCIAL audit record rather than fabricating an ObjectionPeriod/
+        # Escrow, and does not block the session/order from closing (that
+        # mutation has already committed above).
+        cls._start_objection_period_if_applicable(session=session, changed_by=changed_by)
+
         EventPublisher.publish(
             tenant_id=session.tenant_id,
             event_type="Execution.Session.Closed.v1",
@@ -218,6 +242,55 @@ class ExecutionService:
         return session
 
     # --- internal helpers -------------------------------------------------
+
+    @classmethod
+    def _start_objection_period_if_applicable(cls, *, session, changed_by):
+        from apps.commission.services.configuration import CommissionConfiguration
+
+        order = session.order
+        if not CommissionConfiguration.get_preservice_payment_enabled(tenant_id=order.tenant_id):
+            return
+
+        from apps.finance.models import EscrowRecord, EscrowStatus
+
+        escrow = (
+            EscrowRecord.objects.filter(
+                tenant_id=order.tenant_id,
+                order=order,
+                status__in=(EscrowStatus.HELD, EscrowStatus.PARTIALLY_RELEASED, EscrowStatus.PARTIALLY_REFUNDED),
+            )
+            .order_by("-created_at")
+            .first()
+        )
+        if escrow is None:
+            from apps.kernel.models.audit import AuditClassification
+            from apps.kernel.services.audit_service import AuditService
+
+            AuditService.log(
+                tenant_id=order.tenant_id,
+                action="commission.objection.start_skipped_no_escrow",
+                resource_type="ExecutionSession",
+                module_id=SOURCE_MODULE,
+                resource_id=session.id,
+                audit_class=AuditClassification.FINANCIAL,
+                reason=(
+                    "Execution session closed (order completed) with pre-service payment enabled for this "
+                    "tenant, but no HELD Escrow exists for the order — the objection period was not started. "
+                    "This is an inconsistency (ExecutionPaymentGuardService should have prevented the session "
+                    "from starting without one); investigate."
+                ),
+                after={"order_id": str(order.id)},
+            )
+            return
+
+        from apps.commission.services.objection_service import ObjectionPeriodService
+
+        ObjectionPeriodService.start_for_completion(
+            order=order,
+            execution_session=session,
+            escrow=escrow,
+            actor=changed_by,
+        )
 
     @staticmethod
     def _next_sequence(order) -> int:

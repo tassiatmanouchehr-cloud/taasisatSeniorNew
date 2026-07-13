@@ -11,11 +11,34 @@ X` call site is unaffected.
 
 from apps.kernel.permissions.keys import (
     ADMIN_FINANCE_READ as FINANCE_READ,
+)
+from apps.kernel.permissions.keys import (
     ADMIN_ORDERS_READ as ORDERS_READ,
+)
+from apps.kernel.permissions.keys import (
     ADMIN_PORTAL_ACCESS as PORTAL_ACCESS,
+)
+from apps.kernel.permissions.keys import (
     ADMIN_SUPPLIERS_READ as SUPPLIERS_READ,
+)
+from apps.kernel.permissions.keys import (
     ADMIN_SYSTEM_READ as SYSTEM_READ,
+)
+from apps.kernel.permissions.keys import (
     ADMIN_TENANTS_READ as TENANTS_READ,
 )
+from apps.kernel.permissions.keys import (
+    COMMISSION_DISPUTE_RESOLVE,
+    COMMISSION_ESCROW_VIEW,
+)
 
-__all__ = ["PORTAL_ACCESS", "TENANTS_READ", "SUPPLIERS_READ", "ORDERS_READ", "FINANCE_READ", "SYSTEM_READ"]
+__all__ = [
+    "PORTAL_ACCESS",
+    "TENANTS_READ",
+    "SUPPLIERS_READ",
+    "ORDERS_READ",
+    "FINANCE_READ",
+    "SYSTEM_READ",
+    "COMMISSION_ESCROW_VIEW",
+    "COMMISSION_DISPUTE_RESOLVE",
+]

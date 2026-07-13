@@ -17,8 +17,11 @@ from apps.accounts.services.organization_profile_service import OrganizationProf
 from apps.accounts.services.organization_staff import OrganizationStaffService
 from apps.accounts.services.profile_media_service import ProfileMediaService
 from apps.accounts.services.provider_identity import resolve_supplier_for_user
+from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_organization
 from apps.availability.services.capacity_service import CapacityService
 from apps.booking.services.organization_assignment import OrganizationAssignmentError, OrganizationAssignmentService
+from apps.booking.services.queries import ProviderAssignmentQueryService
+from apps.commission.services.queries import FinancialCoreQueryService
 from apps.notifications.services.queries import NotificationQueryService
 from apps.orders.services.queries import OrderQueryService
 from apps.reporting.services.provider_report_service import ProviderReportService
@@ -227,6 +230,46 @@ def reports_view(request):
         {
             "reports": reports,
             "nav_items": OrganizationProfilePresentationService.build_nav_items(active="reports"),
+        },
+    )
+
+
+# ============================================================
+# Financial Core PR-B — organization-scoped Escrow/dispute status
+# (Section 24 minimal organization-portal UI)
+# ============================================================
+
+
+@require_http_methods(["GET"])
+def financial_view(request):
+    """GET /organization/financial/ — held/disputed/releasable status for
+    orders assigned directly to this organization's own ServiceSupplier.
+    Read-only; does not cover orders assigned to individually-affiliated
+    caregivers (a full affiliated-caregiver fan-out is out of scope for
+    this minimal PR-B view)."""
+    organization, tenant_id = _guard(request)
+
+    org_supplier = get_or_create_supplier_for_organization(organization, tenant_id=tenant_id)
+    assignments = ProviderAssignmentQueryService.list_for_supplier(supplier=org_supplier, tenant_id=tenant_id)
+
+    rows = [
+        {
+            "order": assignment.order,
+            "financial": FinancialCoreQueryService.get_order_financial_view(
+                tenant_id=tenant_id,
+                order=assignment.order,
+            ),
+        }
+        for assignment in assignments
+    ]
+    rows = [row for row in rows if row["financial"].escrow_exists]
+
+    return render(
+        request,
+        "organization_portal/financial.html",
+        {
+            "rows": rows,
+            "nav_items": OrganizationProfilePresentationService.build_nav_items(active="financial"),
         },
     )
 

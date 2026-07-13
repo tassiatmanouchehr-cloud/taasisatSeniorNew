@@ -1,0 +1,34 @@
+{% extends "admin_portal/base.html" %}
+
+{% block portal_title %}قابلیت‌های مالی PR-B{% endblock %}
+{% block page_title %}دروازه‌های قابلیت — Financial Core PR-B{% endblock %}
+{% block page_description %}
+<p class="mt-1 text-sm text-text-muted">فقط خواندنی — هر مستأجر به‌صورت جداگانه فعال می‌شود؛ پیش‌فرض همه غیرفعال است.</p>
+{% endblock %}
+
+{% block admin_content %}
+<div class="bg-surface border border-border rounded-lg p-5">
+  <dl class="space-y-3 text-sm">
+    <div class="flex items-center justify-between">
+      <dt class="text-text">پرداخت پیش از خدمت</dt>
+      <dd>{% include "ui/components/feedback/badge.html" with label=gates.preservice_payment_enabled|yesno:"فعال,غیرفعال" variant=gates.preservice_payment_enabled|yesno:"success,neutral" %}</dd>
+    </div>
+    <div class="flex items-center justify-between">
+      <dt class="text-text">Escrow واقعی</dt>
+      <dd>{% include "ui/components/feedback/badge.html" with label=gates.escrow_production_enabled|yesno:"فعال,غیرفعال" variant=gates.escrow_production_enabled|yesno:"success,neutral" %}</dd>
+    </div>
+    <div class="flex items-center justify-between">
+      <dt class="text-text">تأیید خودکار دوره اعتراض</dt>
+      <dd>{% include "ui/components/feedback/badge.html" with label=gates.objection_automation_enabled|yesno:"فعال,غیرفعال" variant=gates.objection_automation_enabled|yesno:"success,neutral" %}</dd>
+    </div>
+    <div class="flex items-center justify-between">
+      <dt class="text-text">اعتراض و آزادسازی</dt>
+      <dd>{% include "ui/components/feedback/badge.html" with label=gates.dispute_release_enabled|yesno:"فعال,غیرفعال" variant=gates.dispute_release_enabled|yesno:"success,neutral" %}</dd>
+    </div>
+    <div class="flex items-center justify-between">
+      <dt class="text-text">مدت دوره اعتراض (ثانیه)</dt>
+      <dd class="font-bold text-text ltr-value">{{ gates.objection_period_seconds }}</dd>
+    </div>
+  </dl>
+</div>
+{% endblock %}

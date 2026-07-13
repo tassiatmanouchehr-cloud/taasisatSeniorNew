@@ -34,6 +34,7 @@ from apps.availability.services.mutation_service import AvailabilityMutationServ
 from apps.availability.services.query_service import AvailabilityQueryService
 from apps.booking.services.provider_actions import ProviderAssignmentActionError, ProviderAssignmentActionService
 from apps.booking.services.queries import ProviderAssignmentNotFoundError, ProviderAssignmentQueryService
+from apps.commission.services.queries import FinancialCoreQueryService
 from apps.execution.models import ExecutionSource
 from apps.execution.services.provider_actions import ProviderExecutionActionError, ProviderExecutionService
 from apps.execution.services.queries import ProviderExecutionQueryService
@@ -178,6 +179,10 @@ def assignment_detail_view(request, order_id):
             "order": assignment.order,
             "session": session,
             "decline_form": DeclineAssignmentForm(),
+            "financial_view": FinancialCoreQueryService.get_order_financial_view(
+                tenant_id=tenant_id,
+                order=assignment.order,
+            ),
             "nav_items": ProviderProfilePresentationService.build_nav_items(active="assignments"),
         },
     )

@@ -53,6 +53,13 @@
     {% endif %}
   </div>
 
+  {% if financial_view.preservice_payment_enabled %}
+  <div class="lg:col-span-3 bg-surface border border-border rounded-lg p-5 flex items-center justify-between">
+    <h2 class="text-base font-bold text-text">پرداخت و ضمانت وجه</h2>
+    <a href="{% url 'portal:request-financial' order_id=order.id %}" class="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-700">مشاهده</a>
+  </div>
+  {% endif %}
+
   {% if payment_documents %}
   <div class="lg:col-span-3 bg-surface border border-border rounded-lg p-5">
     <h2 class="text-base font-bold text-text mb-4">خلاصه پرداخت و فاکتور</h2>

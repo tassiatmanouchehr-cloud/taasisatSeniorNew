@@ -247,9 +247,10 @@ check that enforces it (Module 18).
 
 Customer Experience Phase 1. Verified by grepping `apps/portal` for
 `from apps\.` (production code, not tests): `apps.accounts`,
-`apps.finance`, `apps.notifications`, `apps.orders`, `apps.pricing`,
-`apps.wallet`. Unlike `apps.api`, `apps/portal/views.py` imports **zero**
-models — every read and write goes through a `services` package call:
+`apps.commission`, `apps.finance`, `apps.notifications`, `apps.orders`,
+`apps.pricing`, `apps.wallet`. Unlike `apps.api`, `apps/portal/views.py`
+imports **zero** models — every read and write goes through a `services`
+package call:
 
 | Domain | Service(s) called from `apps/portal/views.py` |
 |---|---|
@@ -259,6 +260,7 @@ models — every read and write goes through a `services` package call:
 | `apps.finance` | `FinancialPartyService.resolve_party_for_customer()` |
 | `apps.wallet` | `WalletService.get_wallet_or_none()` |
 | `apps.pricing` | `QuoteService.generate_quote()` |
+| `apps.commission` | (Financial Core PR-B) `FinancialCoreQueryService`, `PreServicePaymentService.simulate_fake_payment_outcome()`, `ObjectionPeriodService.approve_by_customer()`, `DisputeService.open()` |
 
 `OrderQueryService`, `CatalogQueryService`, `OrderTimelineService`
 (`apps/orders/services/`) and `NotificationQueryService`
@@ -282,11 +284,11 @@ from it does not change that.
 
 Epic 02 (Provider Experience Phase 1). Verified by grepping
 `apps/provider_portal` for `from apps\.` (production code, not tests):
-`apps.accounts`, `apps.availability`, `apps.booking`, `apps.execution`,
-`apps.finance`, `apps.notifications`, `apps.orders`, `apps.reporting`,
-`apps.reviews`, `apps.wallet`. Like `apps.portal`, `apps/provider_portal/
-views.py` imports **zero** models directly — every read/write goes
-through a `services` package call:
+`apps.accounts`, `apps.availability`, `apps.booking`, `apps.commission`,
+`apps.execution`, `apps.finance`, `apps.notifications`, `apps.orders`,
+`apps.reporting`, `apps.reviews`, `apps.wallet`. Like `apps.portal`,
+`apps/provider_portal/views.py` imports **zero** models directly — every
+read/write goes through a `services` package call:
 
 | Domain | Service(s) called from `apps/provider_portal/views.py` |
 |---|---|
@@ -298,28 +300,41 @@ through a `services` package call:
 | `apps.reviews` | `ReputationService` |
 | `apps.finance` | `FinancialPartyService.resolve_party_for_customer()`-equivalent for suppliers |
 | `apps.notifications` | `NotificationQueryService` |
+| `apps.commission` | (Financial Core PR-B) `FinancialCoreQueryService.get_order_financial_view()` — read-only paid/held/objection status on the assignment detail page |
 
 ## `apps.organization_portal` import shape
 
 Epic 02 (Organization Experience Phase 1). Verified by grepping
 `apps/organization_portal` for `from apps\.` (production code, not
 tests): `apps.accounts`, `apps.availability`, `apps.booking`,
-`apps.notifications`, `apps.orders`, `apps.reporting`. Same zero-ORM
-discipline as the other two portals:
+`apps.commission`, `apps.notifications`, `apps.orders`, `apps.reporting`.
+Same zero-ORM discipline as the other two portals:
 
 | Domain | Service(s) called from `apps/organization_portal/views.py` |
 |---|---|
-| `apps.accounts` | `list_administered_organizations()`/`resolve_organization()`, `OrganizationStaffService`, `resolve_supplier_for_user()` |
-| `apps.booking` | `OrganizationAssignmentService.assign_manual()` |
+| `apps.accounts` | `list_administered_organizations()`/`resolve_organization()`, `OrganizationStaffService`, `resolve_supplier_for_user()`, `get_or_create_supplier_for_organization()` |
+| `apps.booking` | `OrganizationAssignmentService.assign_manual()`, `ProviderAssignmentQueryService.list_for_supplier()` (Financial Core PR-B's organization-scoped financial page) |
 | `apps.orders` | `OrderQueryService` (`list_unassigned_for_tenant`, `list_recent_unassigned_for_tenant`, `count_unassigned_for_tenant`) |
 | `apps.availability` | `CapacityService` |
 | `apps.reporting` | `ProviderReportService.list_reports_for_suppliers()` |
 | `apps.notifications` | `NotificationQueryService` |
+| `apps.commission` | (Financial Core PR-B) `FinancialCoreQueryService.get_order_financial_view()` — read-only, scoped to orders assigned directly to the organization's own `ServiceSupplier` (individually-affiliated-caregiver orders are not covered — a documented PR-B limitation) |
 
 Both new portals are held to the same `*OrmDisciplineTest` standard as
 `apps.portal`/`apps.api`/`apps.admin_portal` —
 `ProviderPortalOrmDisciplineTest` and `OrganizationPortalOrmDisciplineTest`
 in `apps/kernel/tests/test_architecture_guardrails.py`.
+
+## `apps.admin_portal` — Financial Core PR-B addition
+
+`apps/admin_portal/views.py` (Module 19's thin-controller, previously only
+`apps.reporting`/`apps.kernel`) now also imports `apps.commission`:
+`FinancialCoreQueryService` (Escrow/dispute/release/refund/feature-gate
+read views) and `DisputeResolutionService.resolve()` — the module's one
+deliberate write action (`dispute_resolve_action`), gated behind the
+platform-only `COMMISSION_DISPUTE_RESOLVE` permission key, called from a
+`POST` view rather than the module's otherwise strictly read-only
+convention (see ADR-012).
 
 ## `apps.public_site` import shape (Epic 06 Sprint 1, PR #36)
 

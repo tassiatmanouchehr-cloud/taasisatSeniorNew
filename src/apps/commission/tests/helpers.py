@@ -64,20 +64,14 @@ class CommissionTestCase(TestCase):
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         return CustomerProfile.objects.create(user=user, person=person, phone=phone, display_name="Test Customer")
 
-    def _enable_deadline_activation(self, *, tenant=None):
-        """Remediation 6 (System Architect Review of PR #44): the deadline
-        activation gate defaults to DISABLED for every tenant. Tests that
-        exercise the actual expiry mechanism (job scheduling, expire_due()
-        cascading to AssignmentService.expire(), extension rescheduling)
-        must explicitly enable it — mirrors the established
-        booking.reassignment.enabled / booking.assignment.auto_accept_enabled
-        test pattern (apps.booking.tests.test_replace_cancel /
-        test_assignment_service)."""
-        from apps.commission.services.configuration import DEADLINE_ACTIVATION_ENABLED_KEY
-
+    def _enable_bool_config(self, key: str, *, tenant=None):
+        """Generic tenant-scoped boolean feature-gate enabler — mirrors the
+        established booking.reassignment.enabled /
+        booking.assignment.auto_accept_enabled test pattern
+        (apps.booking.tests.test_replace_cancel / test_assignment_service)."""
         tenant = tenant or self.tenant
         config_key, _ = ConfigurationKey.objects.get_or_create(
-            key=DEADLINE_ACTIVATION_ENABLED_KEY,
+            key=key,
             defaults={
                 "owner_module": "M05",
                 "scope_level": ScopeLevel.TENANT,
@@ -91,6 +85,65 @@ class CommissionTestCase(TestCase):
             scope_type=ScopeLevel.TENANT,
             defaults={"value": True, "is_active": True},
         )
+
+    def _enable_deadline_activation(self, *, tenant=None):
+        """Remediation 6 (System Architect Review of PR #44): the deadline
+        activation gate defaults to DISABLED for every tenant. Tests that
+        exercise the actual expiry mechanism (job scheduling, expire_due()
+        cascading to AssignmentService.expire(), extension rescheduling)
+        must explicitly enable it."""
+        from apps.commission.services.configuration import DEADLINE_ACTIVATION_ENABLED_KEY
+
+        self._enable_bool_config(DEADLINE_ACTIVATION_ENABLED_KEY, tenant=tenant)
+
+    def _enable_preservice_payment(self, *, tenant=None):
+        from apps.commission.services.configuration import PRESERVICE_PAYMENT_ENABLED_KEY
+
+        self._enable_bool_config(PRESERVICE_PAYMENT_ENABLED_KEY, tenant=tenant)
+
+    def _enable_escrow_production(self, *, tenant=None):
+        from apps.commission.services.configuration import ESCROW_PRODUCTION_ENABLED_KEY
+
+        self._enable_bool_config(ESCROW_PRODUCTION_ENABLED_KEY, tenant=tenant)
+
+    def _enable_objection_automation(self, *, tenant=None):
+        from apps.commission.services.configuration import OBJECTION_AUTOMATION_ENABLED_KEY
+
+        self._enable_bool_config(OBJECTION_AUTOMATION_ENABLED_KEY, tenant=tenant)
+
+    def _enable_dispute_release(self, *, tenant=None):
+        from apps.commission.services.configuration import DISPUTE_RELEASE_ENABLED_KEY
+
+        self._enable_bool_config(DISPUTE_RELEASE_ENABLED_KEY, tenant=tenant)
+
+    def _enable_all_financial_core_pr_b_gates(self, *, tenant=None):
+        self._enable_deadline_activation(tenant=tenant)
+        self._enable_preservice_payment(tenant=tenant)
+        self._enable_escrow_production(tenant=tenant)
+        self._enable_objection_automation(tenant=tenant)
+        self._enable_dispute_release(tenant=tenant)
+
+    def _seed_fixed_pricing_rule(self, *, tenant=None, amount="10000000"):
+        """A tenant-wide FIXED_AMOUNT base PricingRule so QuoteService (and
+        therefore PreServicePaymentService) can resolve a price without a
+        duration_hours input."""
+        from apps.pricing.models import PricingRule, PricingRuleType
+
+        tenant = tenant or self.tenant
+        return PricingRule.objects.create(
+            tenant=tenant,
+            name="Base Rate",
+            rule_type=PricingRuleType.FIXED_AMOUNT,
+            amount=amount,
+            is_active=True,
+            priority=0,
+        )
+
+    @staticmethod
+    def _customer_user_for_order(order):
+        from apps.kernel.models import UserAccount
+
+        return UserAccount.objects.get(id=order.customer_profile.user_id)
 
     def _make_independent_supplier(self, *, tenant=None) -> ServiceSupplier:
         tenant = tenant or self.tenant

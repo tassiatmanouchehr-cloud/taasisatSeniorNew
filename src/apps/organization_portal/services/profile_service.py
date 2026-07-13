@@ -123,6 +123,7 @@ class OrganizationProfilePresentationService:
             ("staff", "نیروها", "/organization/staff/"),
             ("assignment-center", "مرکز تخصیص", "/organization/assignments/"),
             ("capacity", "ظرفیت", "/organization/capacity/"),
+            ("financial", "وضعیت مالی", "/organization/financial/"),
             ("reports", "گزارش‌ها", "/organization/reports/"),
             ("notifications", "اعلان‌ها", "/organization/notifications/"),
         )

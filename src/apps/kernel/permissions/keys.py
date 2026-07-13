@@ -76,6 +76,57 @@ COMMISSION_DEADLINE_EXTEND = register(
     platform_scope=True,
 )
 
+# --- apps.commission (Financial Core PR-B) ------------------------------
+# Customer self-actions (approving own completion, opening own dispute) are
+# NOT RBAC-key-guarded here — they follow the same "ownership is the
+# security boundary, no RBAC permission keys" model as every other
+# customer-facing action in apps.portal (see that app's own permissions.py
+# docstring); ObjectionPeriodService.approve_by_customer() and
+# DisputeService.open() enforce ownership directly (order.customer_profile
+# must resolve to the acting customer), mirroring
+# apps.commission.services.authorization.assert_actor_is_contract_caregiver's
+# own precedent from the PR-A remediation.
+
+COMMISSION_OBJECTION_EXTEND = register(
+    "commission.objection.extend",
+    domain="commission",
+    resource="objection_period",
+    action="extend",
+    description=("Extend an order's objection period with a mandatory reason. Guards ObjectionPeriodService.extend()."),
+    platform_scope=True,
+)
+COMMISSION_DISPUTE_RESOLVE = register(
+    "commission.dispute.resolve",
+    domain="commission",
+    resource="dispute",
+    action="resolve",
+    description=(
+        "Resolve an open dispute, allocating its blocked Escrow amount to "
+        "customer refund and/or platform/company/caregiver release. Guards "
+        "DisputeResolutionService.resolve()."
+    ),
+    platform_scope=True,
+)
+COMMISSION_REFUND_AUTHORIZE = register(
+    "commission.refund.authorize",
+    domain="commission",
+    resource="refund",
+    action="authorize",
+    description=(
+        "Authorize a held-Escrow refund not driven by a dispute resolution "
+        "(e.g. manual/cancellation). Guards RefundInstructionService.create_manual()."
+    ),
+    platform_scope=True,
+)
+COMMISSION_ESCROW_VIEW = register(
+    "commission.escrow.view",
+    domain="commission",
+    resource="escrow",
+    action="view",
+    description="View Escrow/dispute/release-instruction records platform-wide. Guards admin_portal's Escrow views.",
+    platform_scope=True,
+)
+
 # --- apps.finance --------------------------------------------------------
 
 FINANCE_LEDGER_POST = register(

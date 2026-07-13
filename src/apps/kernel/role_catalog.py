@@ -57,7 +57,11 @@ from apps.kernel.permissions.keys import (
     COMMISSION_CONTRACT_PROPOSE,
     COMMISSION_CONTRACT_TERMINATE,
     COMMISSION_DEADLINE_EXTEND,
+    COMMISSION_DISPUTE_RESOLVE,
+    COMMISSION_ESCROW_VIEW,
+    COMMISSION_OBJECTION_EXTEND,
     COMMISSION_POLICY_MANAGE,
+    COMMISSION_REFUND_AUTHORIZE,
     ORGANIZATION_MEMBERSHIP_APPROVE,
     ORGANIZATION_MEMBERSHIP_SUSPEND,
     ORGANIZATION_PROFILE_UPDATE,
@@ -95,10 +99,17 @@ ORGANIZATION_CAREGIVER_PERMISSIONS: tuple[str, ...] = (COMMISSION_CONTRACT_APPRO
 # global/cooperation-type/platform-override management, contract
 # termination, and payment-deadline extension are all platform-controlled
 # actions (Business Model Sections 8/10/2).
+# Financial Core PR-B additions: objection-period extension, dispute
+# resolution, held-Escrow refund authorization, and Escrow visibility are
+# equally platform-controlled financial-operations actions.
 PLATFORM_ACCOUNTING_PERMISSIONS: tuple[str, ...] = (
     COMMISSION_POLICY_MANAGE,
     COMMISSION_CONTRACT_TERMINATE,
     COMMISSION_DEADLINE_EXTEND,
+    COMMISSION_OBJECTION_EXTEND,
+    COMMISSION_DISPUTE_RESOLVE,
+    COMMISSION_REFUND_AUTHORIZE,
+    COMMISSION_ESCROW_VIEW,
 )
 
 DEFAULT_TENANT_ROLES: tuple[RoleDefinition, ...] = (

@@ -1,0 +1,37 @@
+{% extends "admin_portal/base.html" %}
+
+{% block portal_title %}صف اعتراض‌ها{% endblock %}
+{% block page_title %}اعتراض‌ها{% endblock %}
+
+{% block admin_content %}
+{% if disputes %}
+<div class="bg-surface border border-border rounded-lg overflow-hidden">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="border-b border-border text-text-muted text-xs">
+        <th class="px-5 py-3 text-start">سفارش</th>
+        <th class="px-5 py-3 text-start">دلیل</th>
+        <th class="px-5 py-3 text-start">مبلغ</th>
+        <th class="px-5 py-3 text-start">وضعیت</th>
+        <th class="px-5 py-3 text-start"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-border">
+      {% for dispute in disputes %}
+      <tr>
+        <td class="px-5 py-3 text-text">{{ dispute.order_number }}</td>
+        <td class="px-5 py-3 text-text">{{ dispute.reason_code_label }}</td>
+        <td class="px-5 py-3 text-text ltr-value">{{ dispute.disputed_amount_irr }}</td>
+        <td class="px-5 py-3">{% include "ui/components/feedback/badge.html" with label=dispute.status_label variant="warning" %}</td>
+        <td class="px-5 py-3"><a href="{% url 'admin_portal:dispute-detail' dispute_id=dispute.id %}" class="text-primary hover:underline">جزئیات</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="bg-surface border border-border rounded-lg p-8 text-center">
+  <p class="text-sm text-text-muted">اعتراضی ثبت نشده است.</p>
+</div>
+{% endif %}
+{% endblock %}

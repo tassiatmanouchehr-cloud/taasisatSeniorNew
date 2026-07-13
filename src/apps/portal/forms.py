@@ -76,7 +76,8 @@ class WizardChooseAddressForm(StyledForm):
 
 class WizardNotesForm(StyledForm):
     description = forms.CharField(
-        widget=forms.Textarea, error_messages={"required": "توضیحات درخواست الزامی است."},
+        widget=forms.Textarea,
+        error_messages={"required": "توضیحات درخواست الزامی است."},
     )
 
 
@@ -102,3 +103,27 @@ class ReviewSubmitForm(StyledForm):
     professionalism = forms.IntegerField(min_value=1, max_value=5)
     communication = forms.IntegerField(min_value=1, max_value=5)
     written_text = forms.CharField(widget=forms.Textarea, required=False, max_length=2000)
+
+
+_DISPUTE_REASON_CHOICES = [
+    ("SERVICE_NOT_PERFORMED", "خدمت ارائه نشد"),
+    ("SERVICE_QUALITY", "کیفیت خدمت"),
+    ("INCORRECT_AMOUNT", "مبلغ اشتباه"),
+    ("DURATION_MISMATCH", "عدم تطابق مدت زمان"),
+    ("UNAUTHORIZED_EXTRA_CHARGE", "هزینه اضافه غیرمجاز"),
+    ("OTHER", "سایر"),
+]
+
+
+class DisputeOpenForm(StyledForm):
+    """Shape-only validation — Financial Core PR-B (Section 24). Domain
+    rules (ownership, amount <= disputable Escrow remainder, line
+    validation) live in apps.commission.services.dispute_service
+    .DisputeService.open()."""
+
+    disputed_amount_irr = forms.IntegerField(
+        min_value=1,
+        error_messages={"required": "مبلغ اعتراض الزامی است."},
+    )
+    reason_code = forms.ChoiceField(choices=_DISPUTE_REASON_CHOICES)
+    description = forms.CharField(widget=forms.Textarea, required=False, max_length=2000)

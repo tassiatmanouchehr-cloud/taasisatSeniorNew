@@ -24,6 +24,22 @@
     <h2 class="text-base font-bold text-text">خلاصه مالی</h2>
     <p class="mt-1 text-sm text-text-muted">فاکتورها، پرداخت‌ها و کیف پول.</p>
   </a>
+  <a href="{% url 'admin_portal:escrow-overview' %}" class="block bg-surface border border-border rounded-lg p-5 no-underline transition-colors hover:border-primary">
+    <h2 class="text-base font-bold text-text">وجه در امانت (Escrow)</h2>
+    <p class="mt-1 text-sm text-text-muted">فهرست و جزئیات هر Escrow.</p>
+  </a>
+  <a href="{% url 'admin_portal:dispute-queue' %}" class="block bg-surface border border-border rounded-lg p-5 no-underline transition-colors hover:border-primary">
+    <h2 class="text-base font-bold text-text">صف اعتراض‌ها</h2>
+    <p class="mt-1 text-sm text-text-muted">بررسی و حل‌وفصل اعتراض‌ها.</p>
+  </a>
+  <a href="{% url 'admin_portal:release-refund-overview' %}" class="block bg-surface border border-border rounded-lg p-5 no-underline transition-colors hover:border-primary">
+    <h2 class="text-base font-bold text-text">دستورات آزادسازی و بازگشت وجه</h2>
+    <p class="mt-1 text-sm text-text-muted">فهرست دستورات صادرشده.</p>
+  </a>
+  <a href="{% url 'admin_portal:feature-gate-overview' %}" class="block bg-surface border border-border rounded-lg p-5 no-underline transition-colors hover:border-primary">
+    <h2 class="text-base font-bold text-text">وضعیت قابلیت‌های مالی PR-B</h2>
+    <p class="mt-1 text-sm text-text-muted">فعال/غیرفعال بودن هر دروازه.</p>
+  </a>
   <a href="{% url 'admin_portal:system-status' %}" class="block bg-surface border border-border rounded-lg p-5 no-underline transition-colors hover:border-primary">
     <h2 class="text-base font-bold text-text">وضعیت سیستم</h2>
     <p class="mt-1 text-sm text-text-muted">اتصال پایگاه‌داده و حافظه پنهان.</p>
