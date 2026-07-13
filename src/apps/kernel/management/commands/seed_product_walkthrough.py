@@ -299,7 +299,40 @@ class Command(BaseCommand):
             PaymentTransaction.objects.filter(tenant_id=tenant.id).delete()
             FinancialObligation.objects.filter(tenant_id=tenant.id).delete()
             FinancialDocument.objects.filter(tenant_id=tenant.id).delete()
+
+            from apps.commission.models import (
+                CommissionContract,
+                CommissionSnapshot,
+                PaymentDeadline,
+                PaymentDeadlineExtension,
+            )
+
+            # Financial Core PR-A: CommissionSnapshot/CommissionContract hold
+            # PROTECT FKs to FinancialParty and Order — must be cleared
+            # before either is deleted below.
+            PaymentDeadlineExtension.objects.filter(tenant_id=tenant.id).delete()
+            PaymentDeadline.objects.filter(tenant_id=tenant.id).delete()
+            CommissionSnapshot.objects.filter(tenant_id=tenant.id).delete()
+            CommissionContract.objects.filter(tenant_id=tenant.id).delete()
+
             FinancialParty.objects.filter(tenant_id=tenant.id).delete()
+
+            # Remediation 5 (System Architect Review of PR #44): every
+            # --reset-demo run enqueues fresh commission.payment_deadline
+            # .expire JobDefinition rows (one per PaymentDeadline created
+            # above), which the PaymentDeadline delete() above never
+            # cleaned up — JobDefinition has no FK to PaymentDeadline, so
+            # nothing cascaded. Left unchecked, repeated resets grow the
+            # jobs table without bound (confirmed: +5 rows per run across 3
+            # consecutive resets in the System Architect's independent
+            # review). Scoped deliberately narrow: only THIS demo tenant's
+            # own commission.payment_deadline.expire jobs — never touches
+            # another tenant's jobs, payments.settlement.retry jobs, or any
+            # other job type/history that should be retained.
+            from apps.commission.jobs import PAYMENT_DEADLINE_EXPIRE
+            from apps.jobs.models import JobDefinition
+
+            JobDefinition.objects.filter(tenant_id=tenant.id, job_type=PAYMENT_DEADLINE_EXPIRE).delete()
 
             from apps.execution.models import ExecutionSession
 

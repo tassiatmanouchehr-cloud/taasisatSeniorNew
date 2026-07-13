@@ -26,6 +26,56 @@ BOOKING_ASSIGNMENT_ASSIGN = register(
     organization_scope=True,
 )
 
+# --- apps.commission ---------------------------------------------------
+
+COMMISSION_POLICY_MANAGE = register(
+    "commission.policy.manage",
+    domain="commission",
+    resource="policy",
+    action="manage",
+    description=(
+        "Create/activate commission PolicyVersions (global defaults, "
+        "cooperation-type defaults, platform-specific overrides). Guards "
+        "CommissionPolicyService.set_global_defaults()/"
+        "set_cooperation_default()/set_platform_override()."
+    ),
+    platform_scope=True,
+)
+COMMISSION_CONTRACT_PROPOSE = register(
+    "commission.contract.propose",
+    domain="commission",
+    resource="contract",
+    action="propose",
+    description="Propose a company-caregiver commission contract. Guards CommissionContractService.propose().",
+    organization_scope=True,
+)
+COMMISSION_CONTRACT_APPROVE = register(
+    "commission.contract.approve",
+    domain="commission",
+    resource="contract",
+    action="approve",
+    description=(
+        "Approve or reject a proposed company-caregiver commission contract "
+        "(the caregiver's own approval). Guards CommissionContractService.approve()/reject()."
+    ),
+)
+COMMISSION_CONTRACT_TERMINATE = register(
+    "commission.contract.terminate",
+    domain="commission",
+    resource="contract",
+    action="terminate",
+    description="Terminate an active company-caregiver commission contract. Guards CommissionContractService.terminate().",
+    platform_scope=True,
+)
+COMMISSION_DEADLINE_EXTEND = register(
+    "commission.deadline.extend",
+    domain="commission",
+    resource="deadline",
+    action="extend",
+    description="Extend an order's payment deadline with a mandatory reason. Guards PaymentDeadlineService.extend().",
+    platform_scope=True,
+)
+
 # --- apps.finance --------------------------------------------------------
 
 FINANCE_LEDGER_POST = register(

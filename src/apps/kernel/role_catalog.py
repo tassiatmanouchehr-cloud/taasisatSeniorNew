@@ -53,6 +53,11 @@ from apps.kernel.permissions.keys import (
     ADMIN_SYSTEM_READ,
     ADMIN_TENANTS_READ,
     BOOKING_ASSIGNMENT_ASSIGN,
+    COMMISSION_CONTRACT_APPROVE,
+    COMMISSION_CONTRACT_PROPOSE,
+    COMMISSION_CONTRACT_TERMINATE,
+    COMMISSION_DEADLINE_EXTEND,
+    COMMISSION_POLICY_MANAGE,
     ORGANIZATION_MEMBERSHIP_APPROVE,
     ORGANIZATION_MEMBERSHIP_SUSPEND,
     ORGANIZATION_PROFILE_UPDATE,
@@ -78,6 +83,22 @@ ORGANIZATION_ADMIN_PERMISSIONS: tuple[str, ...] = (
     ORGANIZATION_MEMBERSHIP_APPROVE,
     ORGANIZATION_MEMBERSHIP_SUSPEND,
     ORGANIZATION_PROFILE_UPDATE,
+    COMMISSION_CONTRACT_PROPOSE,
+)
+
+# Financial Core PR-A: the caregiver's own approval of a company-proposed
+# commission-split contract (Business Model Section 10 — "any proposed
+# company/caregiver split change requires caregiver approval").
+ORGANIZATION_CAREGIVER_PERMISSIONS: tuple[str, ...] = (COMMISSION_CONTRACT_APPROVE,)
+
+# Financial Core PR-A: platform-side commission policy administration —
+# global/cooperation-type/platform-override management, contract
+# termination, and payment-deadline extension are all platform-controlled
+# actions (Business Model Sections 8/10/2).
+PLATFORM_ACCOUNTING_PERMISSIONS: tuple[str, ...] = (
+    COMMISSION_POLICY_MANAGE,
+    COMMISSION_CONTRACT_TERMINATE,
+    COMMISSION_DEADLINE_EXTEND,
 )
 
 DEFAULT_TENANT_ROLES: tuple[RoleDefinition, ...] = (
@@ -85,12 +106,22 @@ DEFAULT_TENANT_ROLES: tuple[RoleDefinition, ...] = (
     RoleDefinition(slug="platform_admin", name="مدیر پلتفرم"),
     RoleDefinition(slug="platform_operator", name="اپراتور پلتفرم"),
     RoleDefinition(slug="platform_support", name="پشتیبانی پلتفرم"),
-    RoleDefinition(slug="platform_accounting", name="حسابداری پلتفرم"),
+    RoleDefinition(
+        slug="platform_accounting",
+        name="حسابداری پلتفرم",
+        description="Financial Core PR-A: carries commission policy/contract/deadline administration.",
+        permissions=PLATFORM_ACCOUNTING_PERMISSIONS,
+    ),
     RoleDefinition(slug="platform_security", name="امنیت پلتفرم"),
     RoleDefinition(slug="platform_it", name="فناوری اطلاعات پلتفرم"),
     RoleDefinition(slug="customer", name="مشتری / خانواده"),
     RoleDefinition(slug="independent_caregiver", name="مراقب مستقل"),
-    RoleDefinition(slug="organization_caregiver", name="مراقب سازمانی"),
+    RoleDefinition(
+        slug="organization_caregiver",
+        name="مراقب سازمانی",
+        description="Financial Core PR-A: carries commission-contract approval.",
+        permissions=ORGANIZATION_CAREGIVER_PERMISSIONS,
+    ),
     RoleDefinition(
         slug=ORGANIZATION_ADMIN_ROLE_SLUG,
         name=ORGANIZATION_ADMIN_ROLE_NAME,
