@@ -13,25 +13,22 @@ The Django project lives in [`src/`](src/). See
 
 ## Project Documentation
 
-This repository is self-documenting. The documents below are the
-**official project navigation system** — read them to understand where
-the project stands, what's built, what's missing, and what to build next,
-without needing any prior conversation or PR history.
+All active documentation lives under **[`project docs/`](project%20docs/)**.
 
-**Start here: [`docs/architecture/PROJECT_INDEX.md`](docs/architecture/PROJECT_INDEX.md)**
+**Start here: [`project docs/00_START_HERE.md`](project%20docs/00_START_HERE.md)**
 
 | Document | Answers |
 |---|---|
-| [`PROJECT_INDEX.md`](docs/architecture/PROJECT_INDEX.md) | Where do I start, and in what order? |
-| [`PROJECT_STATE.md`](docs/architecture/PROJECT_STATE.md) | Where are we right now? (versions, CI, completed foundations, architecture rules, current phase) |
-| [`PROJECT_MODULE_STATUS.md`](docs/architecture/PROJECT_MODULE_STATUS.md) | What's built, against the original 25-module Blueprint? |
-| [`GAP_ANALYSIS.md`](docs/architecture/GAP_ANALYSIS.md) | What's missing, and how risky is it? |
-| [`PRODUCT_ROADMAP.md`](docs/architecture/PRODUCT_ROADMAP.md) | What should we build next, organized by business value? |
-| [`DECISION_HISTORY.md`](docs/architecture/DECISION_HISTORY.md) | Why does the code look like this? (index of every ADR) |
-| [`docs/adr/`](docs/adr/) | The full reasoning behind each architecture decision |
-| [`docs/architecture/`](docs/architecture/) | Living, topic-by-topic reference docs (bounded contexts, dependency graph, event architecture, RBAC, service-layer rules, API guidelines, technical debt) |
+| [`project docs/00_START_HERE.md`](project%20docs/00_START_HERE.md) | Where do I start, and in what order? |
+| [`project docs/02_PROJECT_CONTINUATION.md`](project%20docs/02_PROJECT_CONTINUATION.md) | Where are we right now? |
+| [`project docs/03_NEXT_TASK.md`](project%20docs/03_NEXT_TASK.md) | What is the immediate next objective? |
+| [`project docs/IMPLEMENTATION_ROADMAP.md`](project%20docs/IMPLEMENTATION_ROADMAP.md) | What should we build next, and in what order? |
+| [`project docs/current/`](project%20docs/current/) | The current implemented system |
+| [`project docs/quality/`](project%20docs/quality/) | Risks, gaps, duplication, backlog |
+| [`project docs/audit/`](project%20docs/audit/) | Deep forensic findings |
+| [`project docs/traceability/`](project%20docs/traceability/) | Implementation and test history |
+| [`project docs/registry/`](project%20docs/registry/) | Documentation ownership and evidence |
 
-A new developer should be able to understand what's implemented, what's
-partially implemented, what hasn't been started, the current architecture
-and its binding rules, and the roadmap — in under 15 minutes, starting
-from `PROJECT_INDEX.md` alone.
+Documents under `_archive/` are historical only and must not be used as
+current authority. The repository code, migrations, and tests remain the
+ultimate source of truth.

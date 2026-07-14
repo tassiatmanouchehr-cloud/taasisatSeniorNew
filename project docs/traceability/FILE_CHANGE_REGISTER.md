@@ -94,3 +94,46 @@ The following files would be created or modified if the Offer Marketplace implem
 | `src/apps/orders/services/status_machine.py` | Wire order cancellation → cancel_all_for_order | Cancellation cleanup |
 | `src/apps/commission/models/deadline.py` | Add nullable order_offer FK | Deadline reuse for offer hold |
 | `src/apps/commission/services/deadline_service.py` | Add offer-hold expiry path in expire_due() | Deadline expiry routing |
+
+---
+
+## 2026-07-14 — Documentation Synchronization (CL-016)
+
+| Path | Change | Purpose | Rollback |
+|------|--------|---------|----------|
+| `README.md` | Modified | Point to `project docs/00_START_HERE.md`; remove archived doc links | git checkout |
+| `AI_START_HERE.md` | Modified | Short entry point to `project docs/` | git checkout |
+| `DOCUMENTATION_RULES.md` | Modified | Point only to `project docs/` | git checkout |
+| `PROJECT_CONTINUATION.md` | Modified | Pointer-only (deduplicated) | git checkout |
+| `NEXT_TASK.md` | Modified | Pointer-only (deduplicated) | git checkout |
+| `project docs/00_START_HERE.md` | Modified | Register IMPLEMENTATION_ROADMAP.md | git checkout |
+| `project docs/01_PROJECT_RULES.md` | Modified | Remove canonical docs/mimo change refs | git checkout |
+| `project docs/DOCUMENTATION_RULES.md` | Modified | Remove canonical docs/mimo change refs | git checkout |
+| `project docs/02_PROJECT_CONTINUATION.md` | Modified | HEAD ce3b30e, Phase 1 committed | git checkout |
+| `project docs/03_NEXT_TASK.md` | Modified | BG-001 done; next = roadmap Phase 1 | git checkout |
+| `project docs/current/IMPLEMENTATION_STATE.md` | Modified | HEAD + committed Phase 1 | git checkout |
+| `project docs/current/SYSTEM_OVERVIEW.md` | Modified | HEAD + maturity + paths | git checkout |
+| `project docs/quality/COMPLETION_BACKLOG.md` | Modified | BG-001 complete; BG-002 evidence | git checkout |
+| `project docs/quality/LEGACY_AND_DEAD_CODE.md` | Modified | Migration table + drift note | git checkout |
+| `project docs/audit/DOCUMENTATION_CONTRADICTIONS.md` | Appended | Resolution update | git checkout |
+| `project docs/registry/DOCUMENTATION_REGISTRY.md` | Rewritten | Active list = project docs/ | git checkout |
+| `project docs/registry/SUPERSESSION_MAP.md` | Rewritten | Superseded paths updated | git checkout |
+| `project docs/IMPLEMENTATION_ROADMAP.md` | Modified | Executed verification evidence | git checkout |
+| `project docs/traceability/TEST_EXECUTION_LOG.md` | Appended | Run 008 | append-only |
+| `project docs/traceability/CHANGE_LEDGER.md` | Appended | Entry 016 | append-only |
+
+---
+
+## 2026-07-14 — BG-002 Order Number Collision Fix (CL-017)
+
+| Path | Change | Purpose | Rollback |
+|------|--------|---------|----------|
+| `src/apps/orders/models.py` | Modified | Bounded savepoint-wrapped retry in `Order.save()`; suffix 4→6 digits; `_is_order_number_collision()` helper | git revert |
+| `src/apps/orders/tests/test_order_number_generation.py` | Added | 8 BG-002 regression tests incl. concurrency | Delete |
+| `project docs/02_PROJECT_CONTINUATION.md` | Modified | Blocker cleared; phase updated | git checkout |
+| `project docs/03_NEXT_TASK.md` | Modified | BG-002 marked done | git checkout |
+| `project docs/quality/COMPLETION_BACKLOG.md` | Modified | BG-002 COMPLETE with resolution | git checkout |
+| `project docs/quality/DEFECT_AND_RISK_REGISTER.md` | Modified | FR-005 RESOLVED | git checkout |
+| `project docs/traceability/CHANGE_LEDGER.md` | Appended | Entry CL-017 | append-only |
+| `project docs/traceability/TEST_EXECUTION_LOG.md` | Appended | Run 009 | append-only |
+| `project docs/traceability/IMPLEMENTATION_JOURNAL.md` | Appended | BG-002 journal entry | append-only |

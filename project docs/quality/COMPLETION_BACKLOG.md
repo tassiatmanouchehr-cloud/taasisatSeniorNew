@@ -1,32 +1,31 @@
 # CURRENT GAPS AND COMPLETION BACKLOG
 
-**Last verified HEAD:** a5dbaf28703142edaa1d770ea8f3c2a45a12640f
-**Last verified date:** 2026-07-14
+**Last verified HEAD:** ce3b30e0f3c06d7b058587f3e75c357bfe588415
+**Last verified date:** 2026-07-14 (documentation sync + executable verification)
 
 ---
 
 ## P0 — Prevents Safe Continuation or Merge
 
-### BG-001: Commit Phase 1 OrderOffer Implementation
+### BG-001: Commit Phase 1 OrderOffer Implementation — **COMPLETE**
 
-**Current evidence:** OrderOffer model, migration, tests, and admin are in working tree but not committed to git.
-**Why needed:** Cannot proceed with Phase 2 or merge until Phase 1 is version-controlled.
-**Dependencies:** Seed test investigation (BG-002)
-**Affected modules:** orders
-**Suggested implementation size:** Single commit
-**Required tests:** Already exist (40 tests)
-**Risk:** Low — all tests pass
-**Not in scope:** Phase 2 services
+**Resolution:** OrderOffer model, migration `orders/0008_orderoffer.py`, tests,
+and admin were committed in `ce3b30e` ("Repository documentation
+reorganization"). Verified by `git log -- src/apps/orders/migrations/0008_orderoffer.py`
+and clean working tree. Closed 2026-07-14.
 
-### BG-002: Fix or Document Pre-Existing Seed Test Race Condition
+### BG-002: Fix Pre-Existing Seed Test order_number Collision — **COMPLETE**
 
-**Current evidence:** `test_reporting_does_not_change_service_supplier_count` fails in full regression due to order_number collision. Baseline verification proves it's pre-existing.
-**Why needed:** CI will always fail with exit code 1. Masks real failures.
-**Affected modules:** kernel (seed command)
-**Suggested implementation size:** Small fix to `_generate_order_number()` or document as known limitation
-**Required tests:** Verify fix doesn't break seed functionality
-**Risk:** Low — isolated to seed command
-**Not in scope:** Full seed command rewrite
+**Root cause:** Random in-run collision of the 4-digit suffix in
+`orders/models.py:_generate_order_number()` (10,000 numbers/day); proven by a
+1/10 isolated-run failure and two full-suite errors on 2026-07-14 at ce3b30e.
+**Resolution (2026-07-14):** `Order.save()` now retries auto-generation up to
+`ORDER_NUMBER_MAX_ATTEMPTS` (5) times when the database unique constraint
+rejects a generated number, each attempt in its own savepoint; suffix widened
+to 6 digits (10^6/day). Caller-supplied duplicates still raise immediately.
+No migration required. Regression tests:
+`orders/tests/test_order_number_generation.py` (8 tests incl. concurrency).
+See CHANGE_LEDGER CL-017 and TEST_EXECUTION_LOG Run 009.
 
 ---
 

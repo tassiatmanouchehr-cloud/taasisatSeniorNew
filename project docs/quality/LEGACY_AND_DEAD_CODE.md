@@ -1,7 +1,7 @@
 # LEGACY AND DEAD CODE CANDIDATES
 
-**Last verified HEAD:** a5dbaf28703142edaa1d770ea8f3c2a45a12640f
-**Last verified date:** 2026-07-14
+**Last verified HEAD:** ce3b30e0f3c06d7b058587f3e75c357bfe588415
+**Last verified date:** 2026-07-14 (documentation sync + executable verification)
 
 ---
 
@@ -72,8 +72,12 @@ These are intentional gates for incremental rollout, not dead code.
 
 | Migration | Status | Note |
 |-----------|--------|------|
-| orders.0008_orderoffer.py | IN WORKING TREE | Phase 1, not committed |
+| orders.0008_orderoffer.py | COMMITTED (ce3b30e) | Phase 1; applies cleanly (verified via `manage.py migrate`, 2026-07-14) |
 | kernel.0012_orderoffer*.py | DELETED | Phantom migration, removed |
 | orders.0009_orderoffer_canonical.py | DELETED | Squashed into 0008 |
 
 No abandoned migrations found in committed code.
+
+Known pre-existing drift: `manage.py makemigrations --check` exits 1 at
+ce3b30e (cosmetic field-alteration drift across accounts/kernel — same
+behavior recorded in CL-013 at the previous HEAD; no schema change intended).

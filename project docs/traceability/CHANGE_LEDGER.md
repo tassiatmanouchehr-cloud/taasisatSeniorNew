@@ -305,3 +305,66 @@ Result: 19 canonical documents + 12 audit reports created. Root PROJECT_CONTINUA
 Rollback method: Delete canonical docs/ directory and mimo change/audit/ directory
 Status: Complete
 ```
+
+## Entry 016
+
+```
+Change ID: CL-016
+Date/time: 2026-07-14 (documentation sync task)
+Task: Documentation synchronization with HEAD ce3b30e + executable current-HEAD verification
+Reason: Verification found material drift: OrderOffer Phase 1 was committed in ce3b30e but active docs still described it as uncommitted working-tree state; root docs and registry referenced obsolete paths (canonical docs/, mimo change/, docs/architecture/) that were archived by ce3b30e's reorganization
+Files added: None (project docs/IMPLEMENTATION_ROADMAP.md added previously in ed33e47)
+Files modified:
+  README.md (documentation section now points to project docs/00_START_HERE.md; removed archived docs/architecture links)
+  AI_START_HERE.md (short entry point to project docs/)
+  DOCUMENTATION_RULES.md (points only to project docs/)
+  PROJECT_CONTINUATION.md (reduced to pointer to project docs/02_PROJECT_CONTINUATION.md)
+  NEXT_TASK.md (reduced to pointer to project docs/03_NEXT_TASK.md)
+  project docs/00_START_HERE.md (roadmap added to reading order and directory roles)
+  project docs/01_PROJECT_RULES.md (paths updated to project docs/)
+  project docs/DOCUMENTATION_RULES.md (paths updated to project docs/)
+  project docs/02_PROJECT_CONTINUATION.md (HEAD ce3b30e, Phase 1 committed, clean tree, repo name taasisatSeniorNew, active-doc paths)
+  project docs/03_NEXT_TASK.md (BG-001 marked done; next task = roadmap Phase 1 Registration & Verification, pending approval)
+  project docs/current/IMPLEMENTATION_STATE.md (HEAD, orders row, offer marketplace section: committed + migrate verified)
+  project docs/current/SYSTEM_OVERVIEW.md (HEAD, maturity row, traceability path)
+  project docs/quality/COMPLETION_BACKLOG.md (BG-001 COMPLETE; BG-002 re-characterized as random in-run collision with 2026-07-14 evidence)
+  project docs/quality/LEGACY_AND_DEAD_CODE.md (HEAD; migration table: 0008 committed; makemigrations drift note)
+  project docs/audit/DOCUMENTATION_CONTRADICTIONS.md (appended resolution update)
+  project docs/registry/DOCUMENTATION_REGISTRY.md (active list rewritten to project docs/ paths; roadmap registered)
+  project docs/registry/SUPERSESSION_MAP.md (governing rule and superseded paths updated)
+  project docs/IMPLEMENTATION_ROADMAP.md (verification row updated with executed evidence; G12 re-characterized)
+  project docs/traceability/TEST_EXECUTION_LOG.md (Run 008 appended)
+  project docs/traceability/FILE_CHANGE_REGISTER.md (this sync appended)
+Files deleted: None
+Database impact: None (verification only; test databases auto-created/destroyed)
+Migration impact: None (no migration files changed; migrate verified clean at ce3b30e)
+Security impact: None
+Financial impact: None
+Tests executed: check (exit 0), makemigrations --check (exit 1, pre-existing cosmetic drift), migrate (exit 0), seed test x10 isolated (9 pass / 1 fail — random in-run order_number collision), full suite (exit 1, 1662 ran, 2 errors, both the pre-existing seed collision)
+Result: Documentation synchronized with repository; HEAD ce3b30e classified GREEN_EXCEPT_CONFIRMED_PRE_EXISTING_FLAKY_TEST
+Rollback method: git checkout of the modified documentation files
+Status: Complete — committed to working branch claude/taasisat-senior-state-verify-9dzzlm (persistence required by repository stop hook; ephemeral environment). Merge to main still awaits owner approval.
+```
+
+## Entry 017
+
+```
+Change ID: CL-017
+Date/time: 2026-07-14 (BG-002 fix task)
+Task: Fix BG-002 — order_number random collision in Order auto-generation
+Reason: Confirmed pre-existing flaky defect: _generate_order_number() used a 4-digit random daily suffix (10,000/day) against a globally unique column; the seed walkthrough collided randomly in isolation (1/10) and in full regression (2 test classes at ce3b30e)
+Root cause: In-run birthday-problem collision; generation was not collision-safe and a rejected insert aborted the caller's transaction
+Chosen fix: Option D — bounded retry + stronger entropy. Order.save() retries auto-generation up to ORDER_NUMBER_MAX_ATTEMPTS=5 on the order_number unique violation, each attempt in its own savepoint (transaction.atomic) so caller @transaction.atomic blocks are not poisoned; caller-supplied duplicates and other IntegrityErrors raise immediately; suffix widened 4→6 digits (format family ORD-YYYYMMDD-NNNNNN preserved, 19 chars ≤ max_length 30). DB unique constraint remains the sole arbiter (no check-then-insert)
+Alternatives rejected: retry-only (10k/day ceiling), entropy-only (defect class survives), DB sequence (format change, volume leak, exceeds minimal scope), timestamp component (concurrent same-instant collision, prohibited by task)
+Files added: src/apps/orders/tests/test_order_number_generation.py (8 regression tests: format ×2, forced-collision retry, no-overwrite, bounded retry, explicit-duplicate passthrough, savepoint non-poisoning, TransactionTestCase concurrency)
+Files modified: src/apps/orders/models.py (generator + save retry), project docs/02_PROJECT_CONTINUATION.md, project docs/03_NEXT_TASK.md, project docs/quality/COMPLETION_BACKLOG.md (BG-002 COMPLETE), project docs/quality/DEFECT_AND_RISK_REGISTER.md (FR-005 RESOLVED), project docs/traceability/* (appends)
+Files deleted: None
+Database impact: None (no schema change; existing 4-digit order numbers remain valid)
+Migration impact: NONE — makemigrations --check output unchanged (pre-existing cosmetic drift only, zero orders entries)
+Security impact: None
+Financial impact: None
+Tests executed: check exit 0; makemigrations --check exit 1 (pre-existing, unchanged); new regression tests 8/8 exit 0; seed walkthrough suite 46 tests exit 0; orders suite 127 tests exit 0; previously flaky isolated test 20/20 exit 0; FULL REGRESSION exit 0 — Ran 1680 tests, OK
+Result: BG-002 resolved; first fully green full regression on record
+Rollback method: git revert of the fix commit; no data cleanup required
+Status: Complete
+```

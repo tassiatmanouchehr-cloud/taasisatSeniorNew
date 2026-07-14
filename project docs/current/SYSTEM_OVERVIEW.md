@@ -1,7 +1,7 @@
 # EXECUTIVE SYSTEM OVERVIEW
 
-**Last verified HEAD:** a5dbaf28703142edaa1d770ea8f3c2a45a12640f
-**Last verified date:** 2026-07-14
+**Last verified HEAD:** ce3b30e0f3c06d7b058587f3e75c357bfe588415
+**Last verified date:** 2026-07-14 (documentation sync + executable verification)
 
 ---
 
@@ -40,7 +40,7 @@
 | Provider Experience | Phase 1 complete |
 | Organization Experience | Phase 1 complete |
 | Financial Core | PR-A (commission/deadlines) + PR-B (escrow/disputes) complete |
-| Offer Marketplace | Phase 1 (domain model) complete, not committed |
+| Offer Marketplace | Phase 1 (domain model) complete, committed in ce3b30e |
 | Real PSP Integration | Not started (fake provider only) |
 | Real SMS/Notification | Not started (fake providers only) |
 | Production Deployment | Not started |
@@ -74,4 +74,4 @@
 2. **Governance rules** — 10 mandatory rules for every task
 3. **Incremental implementation** — small phases, stop for review
 4. **No scope expansion** — complete only approved tasks
-5. **Traceability** — every change documented in `mimo change/`
+5. **Traceability** — every change documented in `project docs/traceability/`

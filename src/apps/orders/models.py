@@ -5,7 +5,7 @@ Service Catalog and Order models.
 import uuid
 
 from django.conf import settings
-from django.db import models
+from django.db import IntegrityError, models, router, transaction
 from django.db.models import F
 from django.utils import timezone
 
@@ -96,12 +96,29 @@ class OrderStatus(models.TextChoices):
 FINAL_STATUSES = {OrderStatus.COMPLETED, OrderStatus.CANCELLED}
 
 
+# order_number is globally unique (not per-tenant) and drawn from a per-day
+# random space, so same-day collisions are possible and must be survivable
+# (BG-002). 6 digits gives 10^6 numbers/day; Order.save() retries a bounded
+# number of times when the database unique constraint rejects a generated
+# number. The constraint itself stays the arbiter — generation never checks
+# first, so concurrent creators cannot race past each other.
+ORDER_NUMBER_SUFFIX_LENGTH = 6
+ORDER_NUMBER_MAX_ATTEMPTS = 5
+
+
 def _generate_order_number():
-    """Generate a human-readable order number: ORD-YYYYMMDD-XXXX."""
+    """Generate a human-readable order number: ORD-YYYYMMDD-XXXXXX."""
     from django.utils.crypto import get_random_string
     date_part = timezone.now().strftime("%Y%m%d")
-    random_part = get_random_string(4, "0123456789").upper()
+    random_part = get_random_string(ORDER_NUMBER_SUFFIX_LENGTH, "0123456789")
     return f"ORD-{date_part}-{random_part}"
+
+
+def _is_order_number_collision(exc):
+    """True when an IntegrityError comes from the order_number unique
+    constraint (PostgreSQL: "orders_order_order_number_key"; SQLite:
+    "orders_order.order_number") rather than some other constraint."""
+    return "order_number" in str(exc)
 
 
 class Order(models.Model):
@@ -172,9 +189,23 @@ class Order(models.Model):
         return f"{self.order_number} [{self.get_status_display()}]"
 
     def save(self, *args, **kwargs):
-        if not self.order_number:
+        if self.order_number:
+            # Caller-supplied numbers are never retried: a duplicate must
+            # surface as an IntegrityError, not be silently replaced.
+            return super().save(*args, **kwargs)
+
+        # Each attempt runs in its own savepoint so a rejected insert does
+        # not poison a caller's surrounding atomic block; a fresh number is
+        # drawn only after the database itself reports the collision.
+        using = kwargs.get("using") or router.db_for_write(type(self), instance=self)
+        for attempt in range(1, ORDER_NUMBER_MAX_ATTEMPTS + 1):
             self.order_number = _generate_order_number()
-        super().save(*args, **kwargs)
+            try:
+                with transaction.atomic(using=using):
+                    return super().save(*args, **kwargs)
+            except IntegrityError as exc:
+                if attempt == ORDER_NUMBER_MAX_ATTEMPTS or not _is_order_number_collision(exc):
+                    raise
 
     @property
     def assigned_provider(self):

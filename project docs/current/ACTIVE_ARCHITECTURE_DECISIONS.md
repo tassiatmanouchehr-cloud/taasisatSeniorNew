@@ -15,7 +15,7 @@
 | 4 | **Repository is source of truth** — no Blueprint, no memory overrides | Always verify from code | all |
 | 5 | **Governance rules** — all 10 rules mandatory | Traceability, safety | all |
 | 6 | **Incremental implementation** — small phases, stop for review | Risk management | all |
-| 7 | **Traceability** — every change documented in mimo change/ | History preservation | all |
+| 7 | **Traceability** — every change documented in `project docs/traceability/` | History preservation | all |
 | 8 | **No premature payment coupling** — Phase 1 model has no PaymentIntent references | Clean separation | orders |
 
 ## Active ADMs (Offer Marketplace)
@@ -36,7 +36,7 @@
 | ADM-012 | PaymentIntent.order_offer FK (1:N) | RESOLVED_IN_CONTRACT |
 | ADM-013 | One canonical OrderOffer per (order, supplier) | VERIFIED_IN_IMPLEMENTATION |
 
-## Architecture-Level ADRs (from docs/adr/)
+## Architecture-Level ADRs (originals archived under `_archive/documentation/20260714-124624/docs/adr/`; decisions remain ACTIVE)
 
 | ADR | Decision | Status |
 |-----|----------|--------|

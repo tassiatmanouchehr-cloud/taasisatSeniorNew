@@ -3,6 +3,11 @@
 **Last verified HEAD:** a5dbaf28703142edaa1d770ea8f3c2a45a12640f
 **Last verified date:** 2026-07-14
 
+> **Path note (2026-07-14 sync):** This document is the historical record of
+> how the audit was performed. The `canonical docs/` and `mimo change/` paths
+> it mentions were subsequently reorganized into `project docs/` by commit
+> ce3b30e; see `registry/SUPERSESSION_MAP.md`.
+
 ---
 
 ## Audit Method
