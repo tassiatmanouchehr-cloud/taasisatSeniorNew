@@ -26,6 +26,8 @@ to 6 digits (10^6/day). Caller-supplied duplicates still raise immediately.
 No migration required. Regression tests:
 `orders/tests/test_order_number_generation.py` (8 tests incl. concurrency).
 See CHANGE_LEDGER CL-017 and TEST_EXECUTION_LOG Run 009.
+**MERGED to main** via PR #1, merge commit `eb51018` (2026-07-14), full
+regression 1680/1680 green.
 
 ---
 
