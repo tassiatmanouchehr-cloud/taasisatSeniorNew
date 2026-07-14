@@ -249,3 +249,30 @@ command was modified by ce3b30e (last seed change: 697d7ea) — PRE-EXISTING.
 `GREEN_EXCEPT_CONFIRMED_PRE_EXISTING_FLAKY_TEST` — all 1660 executed
 non-seed-affected tests passed; the only failures trace to the pre-existing
 random collision (BG-002).
+
+---
+
+## Run 009 — BG-002 Fix Verification
+
+```
+Base commit: bc252fe (branch claude/taasisat-senior-state-verify-9dzzlm,
+  documentation-only ahead of main ce3b30e) + BG-002 fix in working tree
+Settings module: config.settings.testing
+Environment: cloud verification container
+Python: 3.11.15  |  Django: 5.2.16  |  PostgreSQL: 16.13
+Date/time: 2026-07-14
+```
+
+| Command | Exit code | Result |
+|---------|-----------|--------|
+| `python manage.py check` | 0 | No issues |
+| `python manage.py makemigrations --check --dry-run` | 1 | UNCHANGED pre-existing cosmetic drift (accounts/kernel only, ZERO orders entries) — the fix requires no migration |
+| New regression tests (`apps.orders.tests.test_order_number_generation`, verbosity 2) | 0 | 8/8 OK incl. TransactionTestCase concurrency test |
+| `python manage.py test apps.kernel.tests.test_seed_product_walkthrough --verbosity=2` | 0 | Ran 46 tests — OK (previously failed intermittently) |
+| `python manage.py test apps.orders.tests --verbosity=1` | 0 | Ran 127 tests — OK (119 prior + 8 new) |
+| Previously flaky isolated test ×20 | 20×0 | 20/20 PASS (pre-fix: 1/10 failed in isolation) |
+| `python manage.py test --verbosity=1` (full suite) | 0 | **Ran 1680 tests in 92.9s — OK** (1672 pre-existing + 8 new; first fully green full regression on record) |
+
+**Conclusion:** BG-002 resolved. Full regression exits 0. The
+makemigrations drift remains the only pre-existing exit-1 command and is
+unrelated to this fix.

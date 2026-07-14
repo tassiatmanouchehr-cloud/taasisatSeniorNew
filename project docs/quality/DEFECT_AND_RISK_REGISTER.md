@@ -49,14 +49,14 @@
 **Runtime impact:** Anyone with a valid `provider_reference` can trigger payment callbacks. Protected only by unguessable token.
 **Why it matters:** Real PSP webhooks need signature verification. Currently mocked.
 
-### FR-005: Pre-Existing Seed Test Random order_number Collision
+### FR-005: Pre-Existing Seed Test Random order_number Collision — **RESOLVED 2026-07-14**
 
-**Severity:** HIGH
+**Severity:** HIGH (historical)
 **Confidence:** HIGH (proven by repeated execution)
 **Affected:** kernel/tests/test_seed_product_walkthrough.py (root cause in orders/models.py `_generate_order_number()`)
 **Evidence:** 2026-07-14 verification at ce3b30e: failed 1/10 runs **in isolation** (duplicate `ORD-20260714-1003` within a single seed run) and 2 test classes in full regression (distinct colliding keys). The 4-digit random suffix collides randomly among same-day orders created by the seed walkthrough — an in-run birthday-problem collision, NOT an inter-test race as previously recorded.
-**Runtime impact:** Full regression exit code 1 intermittently; when `SeedProductWalkthroughDatasetTest.setUpClass` hits the collision, its 10 tests are skipped (e.g., 1662 of 1672 ran on 2026-07-14).
-**Why it matters:** Masks real failures. Makes CI unreliable.
+**Runtime impact (historical):** Full regression exit code 1 intermittently; when `SeedProductWalkthroughDatasetTest.setUpClass` hit the collision, its 10 tests were skipped (e.g., 1662 of 1672 ran on 2026-07-14).
+**Resolution:** BG-002 fix — bounded savepoint-wrapped retry in `Order.save()` (5 attempts, DB constraint remains the arbiter) + suffix widened to 6 digits. Regression tests in `orders/tests/test_order_number_generation.py`. Evidence: CHANGE_LEDGER CL-017, TEST_EXECUTION_LOG Run 009.
 
 ### FR-006: UserAccount Queries Not Tenant-Scoped
 

@@ -125,3 +125,74 @@ Created `PROJECT_CONTINUATION.md` and `NEXT_TASK.md` at repository root to ensur
 - `NEXT_TASK.md` — next task definition (investigate seed test, then Phase 2)
 
 **Scope:** Documentation only. No code changes.
+
+---
+
+## BG-002 — Order Number Collision Fix
+
+**Date:** 2026-07-14
+**Status:** COMPLETE
+
+### Root Cause
+
+`orders/models.py:_generate_order_number()` produced `ORD-YYYYMMDD-` plus a
+4-digit random suffix — only 10,000 possible numbers per day against a
+globally unique `order_number` column. The seed walkthrough creates enough
+same-day orders that in-run birthday-problem collisions occur randomly.
+Verified at ce3b30e: 1/10 isolated runs failed; full suite hit the collision
+in two test classes (`SeedProductWalkthroughDatasetTest.setUpClass` and
+`SeedProductWalkthroughReportSideEffectTest`).
+
+### Chosen Fix (Option D — retry + stronger entropy)
+
+1. `Order.save()` retries auto-generation up to `ORDER_NUMBER_MAX_ATTEMPTS`
+   (5) times when the database rejects a generated number with the
+   `order_number` unique violation. Each attempt runs inside
+   `transaction.atomic()` (a savepoint inside caller transactions), so a
+   rejected insert does not poison `@transaction.atomic` order-creation
+   services. Any other IntegrityError, and any caller-supplied duplicate
+   `order_number`, still raises immediately.
+2. Suffix widened from 4 to 6 digits (10^6 numbers/day). Format family
+   unchanged: `ORD-YYYYMMDD-NNNNNN`, 19 chars, well within max_length=30.
+   Existing 4-digit rows remain valid; no consumer parses the suffix and no
+   test asserted the old width (verified by repository-wide grep).
+
+### Alternatives Rejected
+
+- **A. Retry only:** fixes the flake but leaves a 10k/day global ceiling —
+  retries would degrade sharply as daily volume grows.
+- **B. Stronger entropy only:** reduces but does not eliminate collision
+  failures; the defect class survives.
+- **C. Database sequence:** deterministic, but changes the public format to
+  monotonic (information leak: daily order volume), requires new DB state,
+  and is more than the minimal fix.
+- **Timestamp component:** rejected per task constraint — concurrent calls
+  in the same instant still collide.
+
+### Concurrency Safety
+
+The unique constraint remains the sole arbiter — generation never
+check-then-inserts. Under concurrent creation, the second inserter receives
+the unique violation from PostgreSQL and retries with a fresh number.
+Proven by `OrderNumberConcurrencyTest` (TransactionTestCase, 2 threads,
+barrier, forced identical first draw), mirroring
+`apps.booking.tests.test_concurrency`.
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/apps/orders/models.py` | 6-digit suffix; `ORDER_NUMBER_SUFFIX_LENGTH`, `ORDER_NUMBER_MAX_ATTEMPTS`, `_is_order_number_collision()`; bounded retry in `Order.save()` |
+| `src/apps/orders/tests/test_order_number_generation.py` | NEW — 8 regression tests (format, forced collision retry, no overwrite, bounded retry, explicit-duplicate passthrough, savepoint behavior, concurrency) |
+
+### Migration Impact
+
+None. No field or constraint changed; `makemigrations --check` output is
+identical to the pre-fix state (pre-existing cosmetic accounts/kernel drift
+only, zero orders entries).
+
+### Rollback Method
+
+`git revert` of the fix commit (or `git checkout` of the two files). No data
+cleanup needed — 6-digit numbers are ordinary values under the existing
+constraint.

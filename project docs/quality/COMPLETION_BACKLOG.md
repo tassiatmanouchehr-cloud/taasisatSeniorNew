@@ -14,15 +14,18 @@ and admin were committed in `ce3b30e` ("Repository documentation
 reorganization"). Verified by `git log -- src/apps/orders/migrations/0008_orderoffer.py`
 and clean working tree. Closed 2026-07-14.
 
-### BG-002: Fix or Document Pre-Existing Seed Test Race Condition
+### BG-002: Fix Pre-Existing Seed Test order_number Collision — **COMPLETE**
 
-**Current evidence:** `test_reporting_does_not_change_service_supplier_count` fails intermittently due to order_number collision. 2026-07-14 verification at ce3b30e: failed 1/10 runs **in isolation** (`ORD-20260714-1003` duplicate within a single seed run) — it is a random in-run collision of the 4-digit random suffix in `orders/models.py:_generate_order_number()`, not an inter-test race.
-**Why needed:** CI/full regression fails intermittently with exit code 1. Masks real failures.
-**Affected modules:** orders (`_generate_order_number()`), kernel seed walkthrough exercises it
-**Suggested implementation size:** Small fix to `_generate_order_number()` (retry on collision, longer suffix, or DB sequence)
-**Required tests:** Verify fix doesn't break seed functionality
-**Risk:** Low — isolated change
-**Not in scope:** Full seed command rewrite
+**Root cause:** Random in-run collision of the 4-digit suffix in
+`orders/models.py:_generate_order_number()` (10,000 numbers/day); proven by a
+1/10 isolated-run failure and two full-suite errors on 2026-07-14 at ce3b30e.
+**Resolution (2026-07-14):** `Order.save()` now retries auto-generation up to
+`ORDER_NUMBER_MAX_ATTEMPTS` (5) times when the database unique constraint
+rejects a generated number, each attempt in its own savepoint; suffix widened
+to 6 digits (10^6/day). Caller-supplied duplicates still raise immediately.
+No migration required. Regression tests:
+`orders/tests/test_order_number_generation.py` (8 tests incl. concurrency).
+See CHANGE_LEDGER CL-017 and TEST_EXECUTION_LOG Run 009.
 
 ---
 

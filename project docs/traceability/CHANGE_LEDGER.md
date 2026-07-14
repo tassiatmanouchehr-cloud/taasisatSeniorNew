@@ -345,3 +345,26 @@ Result: Documentation synchronized with repository; HEAD ce3b30e classified GREE
 Rollback method: git checkout of the modified documentation files
 Status: Complete — committed to working branch claude/taasisat-senior-state-verify-9dzzlm (persistence required by repository stop hook; ephemeral environment). Merge to main still awaits owner approval.
 ```
+
+## Entry 017
+
+```
+Change ID: CL-017
+Date/time: 2026-07-14 (BG-002 fix task)
+Task: Fix BG-002 — order_number random collision in Order auto-generation
+Reason: Confirmed pre-existing flaky defect: _generate_order_number() used a 4-digit random daily suffix (10,000/day) against a globally unique column; the seed walkthrough collided randomly in isolation (1/10) and in full regression (2 test classes at ce3b30e)
+Root cause: In-run birthday-problem collision; generation was not collision-safe and a rejected insert aborted the caller's transaction
+Chosen fix: Option D — bounded retry + stronger entropy. Order.save() retries auto-generation up to ORDER_NUMBER_MAX_ATTEMPTS=5 on the order_number unique violation, each attempt in its own savepoint (transaction.atomic) so caller @transaction.atomic blocks are not poisoned; caller-supplied duplicates and other IntegrityErrors raise immediately; suffix widened 4→6 digits (format family ORD-YYYYMMDD-NNNNNN preserved, 19 chars ≤ max_length 30). DB unique constraint remains the sole arbiter (no check-then-insert)
+Alternatives rejected: retry-only (10k/day ceiling), entropy-only (defect class survives), DB sequence (format change, volume leak, exceeds minimal scope), timestamp component (concurrent same-instant collision, prohibited by task)
+Files added: src/apps/orders/tests/test_order_number_generation.py (8 regression tests: format ×2, forced-collision retry, no-overwrite, bounded retry, explicit-duplicate passthrough, savepoint non-poisoning, TransactionTestCase concurrency)
+Files modified: src/apps/orders/models.py (generator + save retry), project docs/02_PROJECT_CONTINUATION.md, project docs/03_NEXT_TASK.md, project docs/quality/COMPLETION_BACKLOG.md (BG-002 COMPLETE), project docs/quality/DEFECT_AND_RISK_REGISTER.md (FR-005 RESOLVED), project docs/traceability/* (appends)
+Files deleted: None
+Database impact: None (no schema change; existing 4-digit order numbers remain valid)
+Migration impact: NONE — makemigrations --check output unchanged (pre-existing cosmetic drift only, zero orders entries)
+Security impact: None
+Financial impact: None
+Tests executed: check exit 0; makemigrations --check exit 1 (pre-existing, unchanged); new regression tests 8/8 exit 0; seed walkthrough suite 46 tests exit 0; orders suite 127 tests exit 0; previously flaky isolated test 20/20 exit 0; FULL REGRESSION exit 0 — Ran 1680 tests, OK
+Result: BG-002 resolved; first fully green full regression on record
+Rollback method: git revert of the fix commit; no data cleanup required
+Status: Complete
+```

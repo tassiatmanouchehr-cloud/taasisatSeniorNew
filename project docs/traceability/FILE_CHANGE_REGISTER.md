@@ -121,3 +121,19 @@ The following files would be created or modified if the Offer Marketplace implem
 | `project docs/IMPLEMENTATION_ROADMAP.md` | Modified | Executed verification evidence | git checkout |
 | `project docs/traceability/TEST_EXECUTION_LOG.md` | Appended | Run 008 | append-only |
 | `project docs/traceability/CHANGE_LEDGER.md` | Appended | Entry 016 | append-only |
+
+---
+
+## 2026-07-14 — BG-002 Order Number Collision Fix (CL-017)
+
+| Path | Change | Purpose | Rollback |
+|------|--------|---------|----------|
+| `src/apps/orders/models.py` | Modified | Bounded savepoint-wrapped retry in `Order.save()`; suffix 4→6 digits; `_is_order_number_collision()` helper | git revert |
+| `src/apps/orders/tests/test_order_number_generation.py` | Added | 8 BG-002 regression tests incl. concurrency | Delete |
+| `project docs/02_PROJECT_CONTINUATION.md` | Modified | Blocker cleared; phase updated | git checkout |
+| `project docs/03_NEXT_TASK.md` | Modified | BG-002 marked done | git checkout |
+| `project docs/quality/COMPLETION_BACKLOG.md` | Modified | BG-002 COMPLETE with resolution | git checkout |
+| `project docs/quality/DEFECT_AND_RISK_REGISTER.md` | Modified | FR-005 RESOLVED | git checkout |
+| `project docs/traceability/CHANGE_LEDGER.md` | Appended | Entry CL-017 | append-only |
+| `project docs/traceability/TEST_EXECUTION_LOG.md` | Appended | Run 009 | append-only |
+| `project docs/traceability/IMPLEMENTATION_JOURNAL.md` | Appended | BG-002 journal entry | append-only |

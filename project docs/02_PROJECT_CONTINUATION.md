@@ -23,8 +23,8 @@
 |-------|-------|
 | Working tree | Clean at verification time |
 | Offer Marketplace Phase 1 | **COMMITTED** in `ce3b30e` (OrderOffer model, migration `orders/0008_orderoffer.py`, admin, 40 tests) |
-| Current phase | Documentation synchronization complete; awaiting approval to start Phase 1 — Registration and Verification Workflows (see `IMPLEMENTATION_ROADMAP.md`) |
-| Active blocker | Pre-existing seed test race condition (`kernel/tests/test_seed_product_walkthrough.py`); `makemigrations --check` cosmetic drift (pre-existing, exit 1) |
+| Current phase | BG-002 order_number collision FIXED (CL-017); awaiting approval to start Phase 1 — Registration and Verification Workflows (see `IMPLEMENTATION_ROADMAP.md`) |
+| Active blocker | `makemigrations --check` cosmetic drift only (pre-existing, exit 1, accounts/kernel field alters — no schema change intended) |
 | Active work branch | `claude/taasisat-senior-state-verify-9dzzlm` (documentation-only commits ahead of main) |
 
 ---
