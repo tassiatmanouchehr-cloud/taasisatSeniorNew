@@ -9,7 +9,6 @@ inside a savepoint. These tests force collisions deterministically by
 patching the generator — never by relying on randomness.
 """
 
-import re
 import threading
 import uuid
 from unittest import mock
