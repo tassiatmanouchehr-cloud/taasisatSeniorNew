@@ -211,3 +211,41 @@ Nature: Pre-existing race condition in seed command. order_number auto-generatio
          uses random 4-digit suffix that can collide within same second.
          NOT related to OrderOffer model or Phase 1 changes.
 ```
+
+---
+
+## Run 008 — Current-HEAD Verification (Documentation Sync Task)
+
+```
+Commit SHA: ce3b30e0f3c06d7b058587f3e75c357bfe588415 (main)
+Branch during verification: claude/taasisat-senior-state-verify-9dzzlm
+  (= ce3b30e + documentation-only commit ed33e47, IMPLEMENTATION_ROADMAP.md;
+   no src/ differences vs ce3b30e)
+Git status before verification: working tree clean
+Settings module: config.settings.testing
+Environment: cloud verification container
+Python: 3.11.15  |  Django: 5.2.16  |  PostgreSQL: 16.13 (Ubuntu 24.04)
+Database: PostgreSQL (test_marketplace, auto-created and destroyed)
+Date/time: 2026-07-14
+```
+
+| Command | Exit code | Result |
+|---------|-----------|--------|
+| `python manage.py check` | 0 | System check identified no issues |
+| `python manage.py makemigrations --check --dry-run` | 1 | Pre-existing cosmetic drift (accounts ×8 field alters, kernel manager/index-rename/field alters) — same behavior recorded in CL-013 at previous HEAD |
+| `python manage.py migrate` | 0 | All migrations apply cleanly, including orders.0008_orderoffer |
+| Seed test isolated ×10 (`SeedProductWalkthroughReportSideEffectTest.test_reporting_does_not_change_service_supplier_count`) | 9×0, 1×1 | Run 10 failed IN ISOLATION: IntegrityError duplicate order_number `ORD-20260714-1003` |
+| `python manage.py test --verbosity=1` (full suite) | 1 | Ran 1662, FAILED (errors=2). Both errors: duplicate order_number in seed walkthrough (`SeedProductWalkthroughDatasetTest.setUpClass` — its 10 tests therefore not run, explaining 1662 vs 1672 — and `SeedProductWalkthroughReportSideEffectTest`) |
+
+**Failure analysis:** Both failures are the known seed order_number collision:
+`orders/models.py:_generate_order_number()` uses a 4-digit random suffix; the
+seed walkthrough creates enough same-day orders that in-run collisions occur
+randomly (birthday problem). The 1/10 isolated-run failure proves this is a
+RANDOM IN-RUN COLLISION, not an inter-test race or order-dependent effect.
+`git show ce3b30e` confirms neither `_generate_order_number()` nor the seed
+command was modified by ce3b30e (last seed change: 697d7ea) — PRE-EXISTING.
+
+**Classification of HEAD ce3b30e:**
+`GREEN_EXCEPT_CONFIRMED_PRE_EXISTING_FLAKY_TEST` — all 1660 executed
+non-seed-affected tests passed; the only failures trace to the pre-existing
+random collision (BG-002).

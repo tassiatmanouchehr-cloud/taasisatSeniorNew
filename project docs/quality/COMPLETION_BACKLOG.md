@@ -1,31 +1,27 @@
 # CURRENT GAPS AND COMPLETION BACKLOG
 
-**Last verified HEAD:** a5dbaf28703142edaa1d770ea8f3c2a45a12640f
-**Last verified date:** 2026-07-14
+**Last verified HEAD:** ce3b30e0f3c06d7b058587f3e75c357bfe588415
+**Last verified date:** 2026-07-14 (documentation sync + executable verification)
 
 ---
 
 ## P0 — Prevents Safe Continuation or Merge
 
-### BG-001: Commit Phase 1 OrderOffer Implementation
+### BG-001: Commit Phase 1 OrderOffer Implementation — **COMPLETE**
 
-**Current evidence:** OrderOffer model, migration, tests, and admin are in working tree but not committed to git.
-**Why needed:** Cannot proceed with Phase 2 or merge until Phase 1 is version-controlled.
-**Dependencies:** Seed test investigation (BG-002)
-**Affected modules:** orders
-**Suggested implementation size:** Single commit
-**Required tests:** Already exist (40 tests)
-**Risk:** Low — all tests pass
-**Not in scope:** Phase 2 services
+**Resolution:** OrderOffer model, migration `orders/0008_orderoffer.py`, tests,
+and admin were committed in `ce3b30e` ("Repository documentation
+reorganization"). Verified by `git log -- src/apps/orders/migrations/0008_orderoffer.py`
+and clean working tree. Closed 2026-07-14.
 
 ### BG-002: Fix or Document Pre-Existing Seed Test Race Condition
 
-**Current evidence:** `test_reporting_does_not_change_service_supplier_count` fails in full regression due to order_number collision. Baseline verification proves it's pre-existing.
-**Why needed:** CI will always fail with exit code 1. Masks real failures.
-**Affected modules:** kernel (seed command)
-**Suggested implementation size:** Small fix to `_generate_order_number()` or document as known limitation
+**Current evidence:** `test_reporting_does_not_change_service_supplier_count` fails intermittently due to order_number collision. 2026-07-14 verification at ce3b30e: failed 1/10 runs **in isolation** (`ORD-20260714-1003` duplicate within a single seed run) — it is a random in-run collision of the 4-digit random suffix in `orders/models.py:_generate_order_number()`, not an inter-test race.
+**Why needed:** CI/full regression fails intermittently with exit code 1. Masks real failures.
+**Affected modules:** orders (`_generate_order_number()`), kernel seed walkthrough exercises it
+**Suggested implementation size:** Small fix to `_generate_order_number()` (retry on collision, longer suffix, or DB sequence)
 **Required tests:** Verify fix doesn't break seed functionality
-**Risk:** Low — isolated to seed command
+**Risk:** Low — isolated change
 **Not in scope:** Full seed command rewrite
 
 ---

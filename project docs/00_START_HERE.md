@@ -7,13 +7,15 @@ This directory is the active documentation source for ChatGPT and Claude Code.
 1. `01_PROJECT_RULES.md`
 2. `02_PROJECT_CONTINUATION.md`
 3. `03_NEXT_TASK.md`
-4. Relevant document under `current/`
-5. Related risks under `quality/`
-6. Related audit report under `audit/`
-7. Current repository code, migrations, and tests
+4. `IMPLEMENTATION_ROADMAP.md` — the active implementation order
+5. Relevant document under `current/`
+6. Related risks under `quality/`
+7. Related audit report under `audit/`
+8. Current repository code, migrations, and tests
 
 ## Directory roles
 
+- `IMPLEMENTATION_ROADMAP.md` — the single active implementation order
 - `current/` — current implemented system
 - `quality/` — risks, tests, duplication, backlog
 - `audit/` — deep forensic findings

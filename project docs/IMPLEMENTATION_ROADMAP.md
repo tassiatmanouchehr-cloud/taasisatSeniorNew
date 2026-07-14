@@ -23,7 +23,7 @@ The repository code remains the ultimate source of truth.
 | Notifications | Fake providers only |
 | Document verification | Upload-only. `VerificationDocument` model docstring (`src/apps/accounts/models/media.py`) states the admin verification workflow "does not exist yet and is explicitly not built here" |
 | Admin portal | 13 views, financial/dispute focused (`src/apps/admin_portal/urls.py`) — no verification review, no user/profile management |
-| Test execution | NOT run in this session (Django not installed in verification environment). Last recorded run at previous HEAD: 1671/1672 pass, 1 pre-existing seed race (`project docs/traceability/TEST_EXECUTION_LOG.md`) |
+| Test execution | EXECUTED 2026-07-14 at ce3b30e (PostgreSQL 16.13, Django 5.2.16, Python 3.11.15): `check` exit 0; `migrate` exit 0 (0008_orderoffer applies cleanly); `makemigrations --check` exit 1 (pre-existing cosmetic drift, same as CL-013); full suite 1662 run / 2 errors, both the pre-existing seed order_number collision (`TEST_EXECUTION_LOG.md`) |
 
 ### What exists and works (per code inspection + committed test suite)
 
@@ -53,7 +53,7 @@ The repository code remains the ultimate source of truth.
 | G9 | Real SMS/email/push providers | fake providers only |
 | G10 | Deadline expiry + pre-service payment gates enabled end-to-end | `deadline_activation_enabled`, `preservice_payment_enabled` default DISABLED |
 | G11 | Tenant-isolation hardening, RBAC toggle audit | FR-001/FR-002 in `project docs/quality/DEFECT_AND_RISK_REGISTER.md`, verified in `kernel/services/permission_service.py` |
-| G12 | Seed test race condition | `kernel/tests/test_seed_product_walkthrough.py` order_number collision (documented, unfixed) |
+| G12 | Seed test order_number collision | `kernel/tests/test_seed_product_walkthrough.py`; random in-run collision of the 4-digit suffix in `orders/models.py:_generate_order_number()` — 2026-07-14: failed 1/10 isolated runs and 2 test classes in full suite (documented, unfixed) |
 | G13 | AI verification placeholder | Nothing exists; must be a deliberate no-op extension point |
 | G14 | Production deployment config / CI activation | `.github/workflows/ci.yml` present, never run |
 
@@ -154,4 +154,4 @@ Pre-phase (P0 hygiene, small): fix seed test race (G12) so regression is determi
 ## 5. GOVERNANCE
 
 - Every phase ends with: targeted tests + full regression, documentation sync of `project docs/current/` + traceability entries, and a stop for review.
-- This file is the single active implementation order. `03_NEXT_TASK.md` must be updated to point here.
+- This file is the single active implementation order. `03_NEXT_TASK.md` points here (synchronized 2026-07-14).

@@ -1,7 +1,7 @@
 # CURRENT IMPLEMENTATION STATE
 
-**Last verified HEAD:** a5dbaf28703142edaa1d770ea8f3c2a45a12640f
-**Last verified date:** 2026-07-14
+**Last verified HEAD:** ce3b30e0f3c06d7b058587f3e75c357bfe588415
+**Last verified date:** 2026-07-14 (documentation sync + executable verification)
 
 ---
 
@@ -11,7 +11,7 @@
 |-----|--------|----------|-------|-------|--------|
 | **kernel** | 14 (Tenant, Person, UserAccount, Role, Permission, RoleAssignment, EventOutbox, AuditLog, ConfigurationKey, ConfigurationValue, FeatureFlag, PolicyDefinition, PolicyVersion, ServiceSupplier) | 11 | API: 1 | 232 | COMPLETE |
 | **accounts** | 10 (OTPChallenge, CustomerProfile, ElderProfile, TrustedContact, CaregiverProfile, OrganizationProfile, OrganizationMembership, CompanyAffiliationRequest, PlatformTeamMember, VerificationDocument) | 16 | 9 | 180 | COMPLETE |
-| **orders** | 7 (ServiceCategory, ServiceType, Order, OrderStatusHistory, OrderShareLink, OrderOffer, OrderOrganizationEligibility) | 7 | 0 | 119 + 40 (Phase 1) | COMPLETE (Phase 1 Offer domain model in working tree) |
+| **orders** | 7 (ServiceCategory, ServiceType, Order, OrderStatusHistory, OrderShareLink, OrderOffer, OrderOrganizationEligibility) | 7 | 0 | 159 (incl. 40 OrderOffer) | COMPLETE (Offer Phase 1 domain model committed in ce3b30e) |
 | **booking** | 1 (SupplierAssignment) | 5 | 0 | 67 | COMPLETE |
 | **execution** | 1 (ExecutionSession) | 3 | 0 | 58 | COMPLETE |
 | **matching** | 2 (MatchRound, MatchCandidate) | 4 | 0 | 33 | COMPLETE |
@@ -37,16 +37,18 @@
 
 ## Offer Marketplace Current State
 
-Phase 1 (domain model) is implemented in the working tree but NOT committed:
+Phase 1 (domain model) is COMMITTED in `ce3b30e`:
 
 - `OrderOffer` model: 7 lifecycle states, UUID PK, tenant/order/supplier FKs
 - Constraints: unconditional `(order, supplier)` uniqueness + conditional one-selected-per-order
 - Properties: can_edit, can_withdraw, can_select
-- 40 unit tests (all passing)
-- Single migration: `0008_orderoffer.py`
+- 40 unit tests
+- Single migration: `orders/0008_orderoffer.py` (applies cleanly — verified by `manage.py migrate` on PostgreSQL 16)
 - Admin: OrderOfferAdmin registered
 
-Phase 2 (OrderOfferService) is NOT started.
+OrderOfferService is NOT started — it is scheduled as roadmap Phase 5
+(see `project docs/IMPLEMENTATION_ROADMAP.md`), after registration,
+profiles, and portal completion phases.
 
 ## Key Metrics
 
