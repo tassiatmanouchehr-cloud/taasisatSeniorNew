@@ -1,0 +1,19 @@
+﻿ M src/apps/orders/admin.py
+ M src/apps/orders/models.py
+?? MARKETPLACE_GOLDEN_FLOW_GAP_REPORT.md
+?? NEXT_TASK.md
+?? OFFER_MARKETPLACE_CONTRACT.md
+?? OFFER_MARKETPLACE_IMPLEMENTATION_CONTRACT.md
+?? PROJECT_CONTINUATION.md
+?? REPORT_1_CURRENT_SYSTEM_FORENSIC_ANALYSIS.md
+?? REPORT_2_COMPLETION_ASSESSMENT.md
+?? _documentation_cleanup/
+?? "canonical docs/"
+?? "mimo change/"
+?? phase1_untracked_files.txt
+?? phase1_worktree_backup.patch
+?? src/apps/orders/migrations/0008_orderoffer.py
+?? src/apps/orders/tests/test_order_offer_model.py
+?? src/e2e_validation.py
+?? src/fix_perms.py
+?? src/setup_db.py

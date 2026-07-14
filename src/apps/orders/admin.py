@@ -2,7 +2,7 @@
 
 from django.contrib import admin
 
-from .models import Order, OrderStatusHistory, ServiceCategory, ServiceType
+from .models import Order, OrderOffer, OrderStatusHistory, ServiceCategory, ServiceType
 
 
 @admin.register(ServiceCategory)
@@ -36,3 +36,11 @@ class OrderStatusHistoryAdmin(admin.ModelAdmin):
     list_filter = ["to_status", "tenant_id"]
     search_fields = ["order__order_number"]
     readonly_fields = ["id", "tenant_id", "created_at"]
+
+
+@admin.register(OrderOffer)
+class OrderOfferAdmin(admin.ModelAdmin):
+    list_display = ["id", "order", "supplier", "price_amount", "currency", "status", "tenant_id", "created_at"]
+    list_filter = ["status", "currency", "tenant_id"]
+    search_fields = ["order__order_number", "supplier__display_name"]
+    readonly_fields = ["id", "tenant_id", "created_at", "updated_at", "selected_at", "hold_expires_at"]

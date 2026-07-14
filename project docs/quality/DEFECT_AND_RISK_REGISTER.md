@@ -1,0 +1,145 @@
+# DEFECT AND RISK REGISTER
+
+**Last verified HEAD:** a5dbaf28703142edaa1d770ea8f3c2a45a12640f
+**Last verified date:** 2026-07-14
+
+---
+
+## CRITICAL Findings
+
+### FR-001: No Automated Tenant Isolation at ORM Level
+
+**Severity:** CRITICAL
+**Confidence:** HIGH
+**Affected:** All apps
+**Evidence:** `TenantScopedManager.for_tenant()` is opt-in, not default. `TenantAwareModel.tenant_id` is a UUIDField, not a ForeignKey. No middleware injects tenant_id.
+**Runtime impact:** A single forgotten `tenant_id` parameter in a new service creates a cross-tenant data leak.
+**Why it matters:** Multi-tenant isolation is the foundational security guarantee. Currently enforced only by developer discipline.
+**Suggested action:** Consider middleware-based tenant injection or row-level security (PostgreSQL RLS).
+
+### FR-002: RBAC Enforcement Can Be Disabled Per-Tenant
+
+**Severity:** CRITICAL
+**Confidence:** HIGH
+**Affected:** All permission-gated operations
+**Evidence:** `apps/kernel/services/permission_service.py:135` — if `RBACConfiguration.get_enforcement_enabled()` is False, `require()` returns immediately.
+**Runtime impact:** Setting `rbac.enforcement.enabled=false` in ConfigurationValue table disables ALL RBAC for that tenant.
+**Why it matters:** No audit alert when enforcement is toggled. A compromised config change silently bypasses all permissions.
+**Suggested action:** Add audit logging when enforcement is toggled. Consider removing the toggle in production.
+
+---
+
+## HIGH Findings
+
+### FR-003: ownership_authorized_by Bypass in PermissionService
+
+**Severity:** HIGH
+**Confidence:** HIGH
+**Affected:** booking, execution, commission services
+**Evidence:** `permission_service.py:157-188` — if `ownership_authorized_by` is set and actor has no RoleAssignment, authorization is granted. PermissionService trusts the caller.
+**Runtime impact:** Any caller can bypass RBAC by passing `ownership_authorized_by`. Security depends on callers being correct.
+**Why it matters:** Defense-in-depth violation. Service-level auth depends on caller integrity.
+
+### FR-004: FakeProviderCallbackView Unauthenticated
+
+**Severity:** HIGH
+**Confidence:** HIGH
+**Affected:** payments
+**Evidence:** `api/views/payments.py:72-117` — no authentication. Queries `PaymentAttempt` by `provider_reference` without tenant scoping.
+**Runtime impact:** Anyone with a valid `provider_reference` can trigger payment callbacks. Protected only by unguessable token.
+**Why it matters:** Real PSP webhooks need signature verification. Currently mocked.
+
+### FR-005: Pre-Existing Seed Test Race Condition
+
+**Severity:** HIGH
+**Confidence:** HIGH (proven by baseline verification)
+**Affected:** kernel/tests/test_seed_product_walkthrough.py
+**Evidence:** Baseline verification: test passes 10/10 in isolation, fails in full regression. `_generate_order_number()` uses random 4-digit suffix that collides under concurrent test execution.
+**Runtime impact:** Full regression suite exit code 1. 1671/1672 tests pass.
+**Why it matters:** Masks real failures. Makes CI unreliable.
+
+### FR-006: UserAccount Queries Not Tenant-Scoped
+
+**Severity:** MEDIUM
+**Confidence:** HIGH
+**Affected:** accounts/views.py
+**Evidence:** Lines 86, 124, 163, 241 — `UserAccount.objects.filter(phone=phone)` without tenant filter.
+**Runtime impact:** Phone numbers are globally unique login identifiers. Cross-tenant coupling at auth layer.
+**Why it matters:** Design decision, not bug. But means true multi-tenant auth isolation doesn't exist.
+
+---
+
+## MEDIUM Findings
+
+### FR-007: SupplierRegistry Unscoped Queries
+
+**Severity:** MEDIUM
+**Confidence:** HIGH
+**Affected:** kernel/services/supplier_registry.py
+**Evidence:** `find_by_linked_entity()` at line 69-74 has no tenant filter.
+**Runtime impact:** Caller must validate tenant independently.
+
+### FR-008: No @login_required Anywhere
+
+**Severity:** MEDIUM
+**Confidence:** HIGH
+**Affected:** All portal views
+**Evidence:** Custom `require_authenticated()` in each portal module instead of Django's `@login_required`.
+**Runtime impact:** No single enforcement point to audit. Each module maintains its own auth check.
+
+### FR-009: TenantAwareModel.tenant_id Not a ForeignKey
+
+**Severity:** MEDIUM
+**Confidence:** HIGH
+**Affected:** All business models
+**Evidence:** `common/models.py:53` — `tenant_id = UUIDField(db_index=True)`, not FK to Tenant.
+**Runtime impact:** No DB-level referential integrity. No CASCADE/PROTECT on tenant deletion.
+
+### FR-010: Legacy Wallet Still in finance App
+
+**Severity:** MEDIUM
+**Confidence:** HIGH
+**Affected:** finance/models/wallet.py
+**Evidence:** `WalletAccount` and `WalletTransaction` exist in finance but are superseded by apps.wallet.
+**Runtime impact:** Confusion for new developers. Potential for wrong-app usage.
+
+---
+
+## LOW Findings
+
+### FR-011: common App Has Zero Tests
+
+**Severity:** LOW
+**Confidence:** HIGH
+**Affected:** common (shared utilities)
+**Evidence:** No test files in apps/common/
+**Runtime impact:** Shared enums, managers, validators, and abstract models have no dedicated tests.
+
+### FR-012: showcase App Has Zero Tests
+
+**Severity:** LOW
+**Confidence:** HIGH
+**Affected:** showcase
+**Evidence:** No test files in apps/showcase/
+**Runtime impact:** UI component demos untested. Low risk since they render static content.
+
+### FR-013: CI Pipeline Never Executed
+
+**Severity:** MEDIUM
+**Confidence:** HIGH
+**Affected:** .github/workflows/ci.yml
+**Evidence:** Workflow exists but never run.
+**Runtime impact:** No automated test execution on PRs.
+
+---
+
+## Known Limitations (Not Defects)
+
+| ID | Limitation | Impact |
+|----|-----------|--------|
+| KL-001 | Fake PSP only | Cannot process real payments |
+| KL-002 | Fake notification providers | Cannot send real SMS/email/push |
+| KL-003 | No production deployment config | Cannot deploy to production |
+| KL-004 | Deadline expiry gated (disabled) | Payment deadlines don't auto-expire |
+| KL-005 | Pre-service payment gated (disabled) | No escrow hold until payment |
+| KL-006 | GIS disabled on Windows | No geospatial features in dev |

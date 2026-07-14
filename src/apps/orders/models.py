@@ -353,3 +353,136 @@ class OrderShareLink(models.Model):
             access_count=F("access_count") + 1, last_accessed_at=timezone.now(),
         )
         self.refresh_from_db(fields=["access_count", "last_accessed_at"])
+
+
+# ============================================================
+# Order Offers (Offer Marketplace — Phase 1)
+# ============================================================
+
+
+class OrderOfferStatus(models.TextChoices):
+    """Lifecycle states for a supplier-submitted offer on an order."""
+
+    SUBMITTED = "submitted", "Submitted"
+    SELECTED = "selected", "Selected"       # 30-minute hold active
+    ACCEPTED = "accepted", "Accepted"       # Finalized (payment success in later phases)
+    EXPIRED = "expired", "Expired"          # Hold timed out
+    WITHDRAWN = "withdrawn", "Withdrawn"    # Supplier withdrew
+    REJECTED = "rejected", "Rejected"       # Superseded by another selection
+    CANCELLED = "cancelled", "Cancelled"    # Order cancelled while offer was active
+
+
+# Terminal states — no further transitions allowed.
+OFFER_TERMINAL_STATUSES = frozenset({
+    OrderOfferStatus.ACCEPTED,
+    OrderOfferStatus.EXPIRED,
+    OrderOfferStatus.WITHDRAWN,
+    OrderOfferStatus.REJECTED,
+    OrderOfferStatus.CANCELLED,
+})
+
+
+class OrderOffer(models.Model):
+    """A supplier-submitted commercial offer for an order.
+
+    One OrderOffer per (order, supplier). At most one OrderOffer per order
+    may be SELECTED at any time.
+
+    Payment, assignment, deadline, and settlement integrations are
+    introduced in later implementation phases.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "kernel.Tenant", on_delete=models.PROTECT, related_name="order_offers",
+    )
+    order = models.ForeignKey(
+        Order, on_delete=models.CASCADE, related_name="offers",
+    )
+    supplier = models.ForeignKey(
+        "kernel.ServiceSupplier", on_delete=models.CASCADE, related_name="order_offers",
+    )
+
+    # Offer content — DecimalField(14,2) matches repository canonical money representation
+    price_amount = models.DecimalField(max_digits=14, decimal_places=2)
+    currency = models.CharField(max_length=10, default="IRR")
+    estimated_duration_minutes = models.IntegerField(null=True, blank=True)
+    terms = models.TextField(blank=True)
+    message = models.TextField(blank=True)
+
+    # Lifecycle
+    status = models.CharField(
+        max_length=20, choices=OrderOfferStatus.choices,
+        default=OrderOfferStatus.SUBMITTED, db_index=True,
+    )
+
+    # Ownership
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+",
+    )
+
+    # Hold tracking (only meaningful when status=SELECTED)
+    selected_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+    )
+    selected_at = models.DateTimeField(null=True, blank=True)
+    hold_expires_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantScopedManager()
+
+    class Meta:
+        db_table = "orders_order_offer"
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["order", "supplier"],
+                name="uq_order_offer_one_per_supplier",
+            ),
+            models.UniqueConstraint(
+                fields=["order"],
+                condition=models.Q(status="selected"),
+                name="uq_order_offer_one_selected_per_order",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["tenant", "order", "status"], name="idx_offer_tenant_order_st"),
+            models.Index(fields=["tenant", "supplier", "status"], name="idx_offer_tenant_supplier_st"),
+        ]
+
+    def __str__(self):
+        return f"OrderOffer(order={self.order_id}, supplier={self.supplier_id}) [{self.status}]"
+
+    @property
+    def is_terminal(self) -> bool:
+        return self.status in OFFER_TERMINAL_STATUSES
+
+    @property
+    def is_active(self) -> bool:
+        return self.status in (OrderOfferStatus.SUBMITTED, OrderOfferStatus.SELECTED)
+
+    @property
+    def hold_active(self) -> bool:
+        """True if the offer is SELECTED and the hold has not expired."""
+        if self.status != OrderOfferStatus.SELECTED:
+            return False
+        if self.hold_expires_at is None:
+            return False
+        return self.hold_expires_at > timezone.now()
+
+    @property
+    def can_edit(self) -> bool:
+        """True only when the offer is SUBMITTED."""
+        return self.status == OrderOfferStatus.SUBMITTED
+
+    @property
+    def can_withdraw(self) -> bool:
+        """True only when the offer is SUBMITTED."""
+        return self.status == OrderOfferStatus.SUBMITTED
+
+    @property
+    def can_select(self) -> bool:
+        """True only when the offer is SUBMITTED."""
+        return self.status == OrderOfferStatus.SUBMITTED
