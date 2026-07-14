@@ -368,3 +368,32 @@ Result: BG-002 resolved; first fully green full regression on record
 Rollback method: git revert of the fix commit; no data cleanup required
 Status: Complete
 ```
+
+## Entry 018
+
+```
+Change ID: CL-018
+Date/time: 2026-07-14 (post-merge documentation sync)
+Task: Synchronize active documentation with merged main after PR #1
+Reason: PR #1 ("Synchronize active documentation and fix order-number collisions") merged into main as eb51018ffbc9faeebae08adebcc21d6dbfe7b92e; HEAD/status metadata in active docs became outdated
+Files added: None
+Files modified:
+  project docs/02_PROJECT_CONTINUATION.md (main HEAD eb51018; BG-002 merged; Phase 1 ACTIVE; work branch restarted from main)
+  project docs/03_NEXT_TASK.md (BG-002 merged; Phase 1 marked ACTIVE, implementation not started)
+  project docs/IMPLEMENTATION_ROADMAP.md (post-merge header; P0 hygiene + G12 marked done/merged)
+  project docs/quality/COMPLETION_BACKLOG.md (BG-002 merge record)
+  project docs/current/IMPLEMENTATION_STATE.md (HEAD eb51018; orders 167 tests; total 1,680)
+  project docs/current/SYSTEM_OVERVIEW.md (HEAD eb51018)
+  project docs/traceability/CHANGE_LEDGER.md (this entry)
+  project docs/traceability/FILE_CHANGE_REGISTER.md (append)
+  project docs/traceability/IMPLEMENTATION_JOURNAL.md (merge record append)
+Files deleted: None
+Database impact: None
+Migration impact: None
+Security impact: None
+Financial impact: None
+Tests executed: git status --short (clean before doc edits), git log -1 (eb51018 merge commit), manage.py check (exit recorded in this task's report)
+Result: Active documentation synchronized with merged main; Phase 1 — Registration and Verification Workflows is the active implementation phase (not yet started)
+Rollback method: git checkout of the modified documentation files
+Status: Complete
+```

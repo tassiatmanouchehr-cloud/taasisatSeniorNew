@@ -196,3 +196,18 @@ only, zero orders entries).
 `git revert` of the fix commit (or `git checkout` of the two files). No data
 cleanup needed — 6-digit numbers are ordinary values under the existing
 constraint.
+
+---
+
+## PR #1 Merge Record
+
+**Date:** 2026-07-14
+**Merge commit:** `eb51018ffbc9faeebae08adebcc21d6dbfe7b92e`
+**PR:** #1 — "Synchronize active documentation and fix order-number collisions"
+**Merged content:** documentation synchronization (CL-016), IMPLEMENTATION_ROADMAP.md,
+BG-002 order-number collision fix + 8 regression tests (CL-017), traceability updates.
+**Verification at merge:** full regression 1680/1680 (exit 0), seed suite 46/46,
+orders suite 127/127, previously flaky test 20/20 isolated.
+**Consequence:** P0 hygiene complete. **Phase 1 — Registration and Verification
+Workflows is now the active implementation phase.** Implementation not started;
+working branch `claude/taasisat-senior-state-verify-9dzzlm` restarted from merged main.

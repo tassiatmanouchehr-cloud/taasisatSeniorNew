@@ -10,20 +10,23 @@ OrderOffer Phase 1 (model, migration `orders/0008_orderoffer.py`, admin,
 40 tests) was committed in `ce3b30e`. This item is closed
 (see `quality/COMPLETION_BACKLOG.md` BG-001).
 
-### Fix BG-002 Seed order_number Collision — DONE (2026-07-14)
+### Fix BG-002 Seed order_number Collision — DONE and MERGED (2026-07-14)
 
 Bounded savepoint-wrapped retry in `Order.save()` + 6-digit suffix.
-No migration. 8 new regression tests. This was the P0 hygiene precursor
-to roadmap Phase 1 (see BG-002 in `quality/COMPLETION_BACKLOG.md`, CL-017).
+No migration. 8 new regression tests. Merged to main via PR #1
+(merge commit `eb51018`) with full regression 1680/1680 green.
+This was the P0 hygiene precursor to roadmap Phase 1
+(see BG-002 in `quality/COMPLETION_BACKLOG.md`, CL-017).
 
 ---
 
 ## IMMEDIATE NEXT TASK
 
-### Phase 1 — Registration and Verification Workflows
+### Phase 1 — Registration and Verification Workflows — **ACTIVE**
 
 Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active implementation
-order). Awaiting owner approval to start.
+order). This is now the active implementation phase (activated after the
+PR #1 merge, 2026-07-14). Implementation has not started yet.
 
 Scope summary:
 

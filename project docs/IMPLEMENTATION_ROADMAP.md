@@ -2,6 +2,7 @@
 
 **Created:** 2026-07-14
 **Verified against HEAD:** ce3b30e0f3c06d7b058587f3e75c357bfe588415 ("Repository documentation reorganization")
+**Post-merge update:** 2026-07-14 — PR #1 merged to main (`eb51018`): documentation sync + BG-002 fix are on main; P0 hygiene complete; **Phase 1 is the active phase**
 **Branch verified:** main (via claude/taasisat-senior-state-verify-9dzzlm)
 **Authority:** This roadmap replaces every previous implementation order (including
 `project docs/03_NEXT_TASK.md` sequencing and the archived Offer Marketplace phase plans).
@@ -53,7 +54,7 @@ The repository code remains the ultimate source of truth.
 | G9 | Real SMS/email/push providers | fake providers only |
 | G10 | Deadline expiry + pre-service payment gates enabled end-to-end | `deadline_activation_enabled`, `preservice_payment_enabled` default DISABLED |
 | G11 | Tenant-isolation hardening, RBAC toggle audit | FR-001/FR-002 in `project docs/quality/DEFECT_AND_RISK_REGISTER.md`, verified in `kernel/services/permission_service.py` |
-| G12 | Seed test order_number collision | `kernel/tests/test_seed_product_walkthrough.py`; random in-run collision of the 4-digit suffix in `orders/models.py:_generate_order_number()` — 2026-07-14: failed 1/10 isolated runs and 2 test classes in full suite (documented, unfixed) |
+| G12 | ~~Seed test order_number collision~~ **FIXED, merged in PR #1** | Bounded savepoint retry + 6-digit suffix in `orders/models.py`; 8 regression tests in `orders/tests/test_order_number_generation.py`; full regression 1680/1680 (CL-017, Run 009) |
 | G13 | AI verification placeholder | Nothing exists; must be a deliberate no-op extension point |
 | G14 | Production deployment config / CI activation | `.github/workflows/ci.yml` present, never run |
 
@@ -61,7 +62,7 @@ The repository code remains the ultimate source of truth.
 
 ## 3. RECOMMENDED ORDER, DEPENDENCIES, COMPLEXITY
 
-Pre-phase (P0 hygiene, small): fix seed test race (G12) so regression is deterministic before feature work. No feature dependencies.
+Pre-phase (P0 hygiene, small): ~~fix seed test race (G12)~~ — **DONE, merged in PR #1** (`eb51018`); full regression 1680/1680 green.
 
 ### PHASE 1 — Registration & Verification Workflows
 
@@ -144,7 +145,7 @@ Pre-phase (P0 hygiene, small): fix seed test race (G12) so regression is determi
 
 | Item | When |
 |------|------|
-| Seed test race (G12 / BG-002) | Before Phase 1 work (P0 hygiene) |
+| Seed test race (G12 / BG-002) | DONE — merged in PR #1 (`eb51018`) |
 | Tenant isolation hardening (FR-001), RBAC toggle audit (FR-002) | Recommendations in Phases 7–8; guardrail tests may be added any time |
 | Real PSP (G8), real notifications (G9) | After Phase 8 recommendations |
 | CI activation (G14) | Any time; recommended alongside P0 hygiene |

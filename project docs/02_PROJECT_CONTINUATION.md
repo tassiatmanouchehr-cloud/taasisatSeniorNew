@@ -9,8 +9,8 @@
 | Repository name | taasisatSeniorNew |
 | URL | https://github.com/tassiatmanouchehr-cloud/taasisatSeniorNew |
 | Default branch | main |
-| main HEAD SHA | ce3b30e0f3c06d7b058587f3e75c357bfe588415 |
-| Last verified date | July 14, 2026 |
+| main HEAD SHA | eb51018ffbc9faeebae08adebcc21d6dbfe7b92e (merge of PR #1) |
+| Last verified date | July 14, 2026 (post-merge sync) |
 | Python version | 3.12 (owner dev); 3.11.15 (cloud verification environment) |
 | Django version | 5.2.16 |
 | PostgreSQL | 16 |
@@ -22,10 +22,11 @@
 | Field | Value |
 |-------|-------|
 | Working tree | Clean at verification time |
-| Offer Marketplace Phase 1 | **COMMITTED** in `ce3b30e` (OrderOffer model, migration `orders/0008_orderoffer.py`, admin, 40 tests) |
-| Current phase | BG-002 order_number collision FIXED (CL-017); awaiting approval to start Phase 1 — Registration and Verification Workflows (see `IMPLEMENTATION_ROADMAP.md`) |
+| Offer Marketplace Phase 1 | **COMMITTED** in `ce3b30e`, now on main (OrderOffer model, migration `orders/0008_orderoffer.py`, admin, 40 tests) |
+| BG-002 | **MERGED to main** via PR #1 (merge commit `eb51018`); full regression 1680/1680 green at merge |
+| Current phase | **Phase 1 — Registration and Verification Workflows is the ACTIVE implementation phase** (see `IMPLEMENTATION_ROADMAP.md`); implementation not yet started |
 | Active blocker | `makemigrations --check` cosmetic drift only (pre-existing, exit 1, accounts/kernel field alters — no schema change intended) |
-| Active work branch | `claude/taasisat-senior-state-verify-9dzzlm` (documentation-only commits ahead of main) |
+| Active work branch | `claude/taasisat-senior-state-verify-9dzzlm` (restarted from merged main after PR #1) |
 
 ---
 

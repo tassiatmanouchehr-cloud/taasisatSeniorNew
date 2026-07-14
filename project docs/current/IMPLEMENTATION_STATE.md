@@ -1,7 +1,7 @@
 # CURRENT IMPLEMENTATION STATE
 
-**Last verified HEAD:** ce3b30e0f3c06d7b058587f3e75c357bfe588415
-**Last verified date:** 2026-07-14 (documentation sync + executable verification)
+**Last verified HEAD:** eb51018ffbc9faeebae08adebcc21d6dbfe7b92e (merge of PR #1)
+**Last verified date:** 2026-07-14 (post-merge sync)
 
 ---
 
@@ -11,7 +11,7 @@
 |-----|--------|----------|-------|-------|--------|
 | **kernel** | 14 (Tenant, Person, UserAccount, Role, Permission, RoleAssignment, EventOutbox, AuditLog, ConfigurationKey, ConfigurationValue, FeatureFlag, PolicyDefinition, PolicyVersion, ServiceSupplier) | 11 | API: 1 | 232 | COMPLETE |
 | **accounts** | 10 (OTPChallenge, CustomerProfile, ElderProfile, TrustedContact, CaregiverProfile, OrganizationProfile, OrganizationMembership, CompanyAffiliationRequest, PlatformTeamMember, VerificationDocument) | 16 | 9 | 180 | COMPLETE |
-| **orders** | 7 (ServiceCategory, ServiceType, Order, OrderStatusHistory, OrderShareLink, OrderOffer, OrderOrganizationEligibility) | 7 | 0 | 159 (incl. 40 OrderOffer) | COMPLETE (Offer Phase 1 domain model committed in ce3b30e) |
+| **orders** | 7 (ServiceCategory, ServiceType, Order, OrderStatusHistory, OrderShareLink, OrderOffer, OrderOrganizationEligibility) | 7 | 0 | 167 (incl. 40 OrderOffer + 8 BG-002) | COMPLETE (Offer Phase 1 committed in ce3b30e; BG-002 fix merged in eb51018) |
 | **booking** | 1 (SupplierAssignment) | 5 | 0 | 67 | COMPLETE |
 | **execution** | 1 (ExecutionSession) | 3 | 0 | 58 | COMPLETE |
 | **matching** | 2 (MatchRound, MatchCandidate) | 4 | 0 | 33 | COMPLETE |
@@ -58,7 +58,7 @@ profiles, and portal completion phases.
 | Total concrete models | ~70 |
 | Total migrations | ~45 |
 | Total test files | 196 |
-| Total test methods | 1,672 |
+| Total test methods | 1,680 (full regression 1680/1680 green at eb51018) |
 | Total admin registrations | 20 |
 | Total management commands | 15 |
 | Total URL patterns | ~150 |

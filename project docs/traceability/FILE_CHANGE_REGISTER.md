@@ -137,3 +137,18 @@ The following files would be created or modified if the Offer Marketplace implem
 | `project docs/traceability/CHANGE_LEDGER.md` | Appended | Entry CL-017 | append-only |
 | `project docs/traceability/TEST_EXECUTION_LOG.md` | Appended | Run 009 | append-only |
 | `project docs/traceability/IMPLEMENTATION_JOURNAL.md` | Appended | BG-002 journal entry | append-only |
+
+---
+
+## 2026-07-14 — Post-Merge Documentation Sync (CL-018)
+
+| Path | Change | Purpose | Rollback |
+|------|--------|---------|----------|
+| `project docs/02_PROJECT_CONTINUATION.md` | Modified | HEAD eb51018; Phase 1 ACTIVE | git checkout |
+| `project docs/03_NEXT_TASK.md` | Modified | BG-002 merged; Phase 1 ACTIVE | git checkout |
+| `project docs/IMPLEMENTATION_ROADMAP.md` | Modified | P0 hygiene/G12 done + merged | git checkout |
+| `project docs/quality/COMPLETION_BACKLOG.md` | Modified | BG-002 merge record | git checkout |
+| `project docs/current/IMPLEMENTATION_STATE.md` | Modified | HEAD + test counts (1,680) | git checkout |
+| `project docs/current/SYSTEM_OVERVIEW.md` | Modified | HEAD eb51018 | git checkout |
+| `project docs/traceability/CHANGE_LEDGER.md` | Appended | Entry CL-018 | append-only |
+| `project docs/traceability/IMPLEMENTATION_JOURNAL.md` | Appended | PR #1 merge record | append-only |
