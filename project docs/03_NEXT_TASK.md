@@ -149,7 +149,33 @@ merged. Deferred (explicitly, recorded in
 `quality/COMPLETION_BACKLOG.md`): gallery/posts/social features,
 caregiver financial/order dashboards, directory/home-page listing
 eligibility left unchanged (a known, documented inconsistency with the
-now-stricter profile-page eligibility).
+now-stricter profile-page eligibility — **closed by the remediation
+below**).
+
+### Phase 2.1 Remediation — Close Public Caregiver Visibility Gap (BG-022) — IMPLEMENTED (2026-07-15)
+
+PR #6 review found the gap Phase 2.1 itself recorded: its eligibility fix
+(`verification_status == VERIFIED` + account `is_active`) was added only
+to the single caregiver detail page, not to the directory or home-page
+listings, which kept using the older, looser rule. A caregiver could be
+discoverable in a listing while their own detail page 404'd. Fixed in
+place on the same branch/PR:
+
+- `apps.public_site.services.common.is_publicly_visible_attrs()` is now
+  the single canonical public-visibility rule — every public entry point
+  (directory search, home-page featured cards, home-page city filter,
+  detail page) calls it, directly or via `bulk_supplier_attrs()`/
+  `supplier_entity_attrs()`.
+- `CaregiverPublicProfileService.get_profile()`'s now-redundant local
+  duplicate check was removed.
+- `apps.accounts.services.supplier_bridge.resolve_supplier_entities_bulk()`
+  gained `select_related("user")`/`select_related("admin_user")` — a JOIN
+  on the existing batched query, confirmed to add zero new queries
+  regardless of candidate count.
+
+13 new tests, full regression 1887/1887 green. See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-017's second remediation
+note. **BG-022 is now RESOLVED.**
 
 ---
 
@@ -160,9 +186,10 @@ now-stricter profile-page eligibility).
 Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active implementation
 order).
 
-Phase 1 is fully closed (merged via PR #5). Phase 2.1 (this session's work)
-delivers the foundation slice of roadmap Phase 2 — remaining roadmap Phase
-2 scope, explicitly NOT started by this task:
+Phase 1 is fully closed (merged via PR #5). Phase 2.1 (this session's work,
+including the BG-022 remediation) delivers the foundation slice of roadmap
+Phase 2 — remaining roadmap Phase 2 scope, explicitly NOT started by this
+task:
 
 1. Gallery (new model + upload service + moderation flag) — out of scope,
    deferred per explicit governance.
@@ -173,10 +200,11 @@ delivers the foundation slice of roadmap Phase 2 — remaining roadmap Phase
    financial dashboard explicitly excluded from Phase 2.1).
 4. Orders + history pages — deferred (caregiver order dashboard explicitly
    excluded from Phase 2.1).
-5. Directory/home-page listing eligibility does not yet match the single
-   profile page's stricter rule (verification + account-active) — a known,
-   documented gap (ADM-017 Decision 2), not silently fixed to avoid
-   widening this slice's blast radius.
+5. New, recorded during BG-022's remediation: a pre-existing, unrelated
+   per-candidate query cost in directory ranking/card-building
+   (`DiscoveryRankingService.rank()`, `CaregiverDirectoryService
+   ._build_card()`) — see `quality/DEFECT_AND_RISK_REGISTER.md` KL-012,
+   not fixed (separate performance task, out of scope).
 
 Note: the previously listed follow-up "Phase 2: OrderOfferService" is now
 scheduled as roadmap Phase 5 (Marketplace Order Workflow) and must not be

@@ -1,6 +1,6 @@
 # PERMISSION AND TENANT MODEL
 
-**Last verified HEAD:** phase2-caregiver-professional-profile-foundation (from main @ 0c9d70c, PR #5 merged)
+**Last verified HEAD:** phase2-caregiver-professional-profile-foundation (from main @ 0c9d70c, PR #5 merged; PR #6 BG-022 remediation in progress)
 **Last verified date:** 2026-07-15
 
 ---
@@ -78,6 +78,8 @@ the full activation-authority design decision.
 ### Public Caregiver Profile Eligibility (Phase 2.1)
 
 `CaregiverPublicProfileService.get_profile()` (`apps.public_site`) — read-only, unauthenticated-safe. Beyond the existing `common.is_publicly_visible()` check (profile status ACTIVE + organization-membership-active), this phase added a local, additional requirement: `verification_status == "verified"` and the owning account's `user.is_active`. Deliberately added only here, not in the shared `common.py` function the caregiver directory and home-page featured-caregiver listings also call — see `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-017 Decision 2 for the full reasoning and the resulting, explicitly recorded gap (those two listing surfaces do not yet apply the same stricter rule).
+
+**BG-022 remediation (2026-07-15, same PR #6):** the gap above is closed — `is_publicly_visible_attrs()` in `common.py` is now the canonical rule and every public surface (detail page, directory, home-page listings) enforces it identically. This is not an RBAC change: public visibility remains an unauthenticated, account/profile-status-derived rule (`profile.status`, `verification_status`, account `is_active`, organization-membership `is_active`), never a permission key, and is unrelated to the `PermissionService`/`RoleAssignment` mechanism described above. See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-017's second remediation note.
 
 ### Critical Finding: No Middleware Enforcement
 

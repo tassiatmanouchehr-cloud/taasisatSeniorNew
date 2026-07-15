@@ -5,8 +5,11 @@ partial update 2026-07-15 (phase1-registration-manual-verification) — only the
 `accounts`/`admin_portal` rows and grand-total method count were re-verified;
 partial update 2026-07-15 (phase2-caregiver-professional-profile-foundation) — only
 `accounts`/`provider_portal`/`public_site` rows and grand-total method count re-verified;
-a full re-audit of every app was not performed for either incremental change.
-**Last verified date:** 2026-07-14 / 2026-07-15 (partial) / 2026-07-15 (partial, Phase 2.1)
+partial update 2026-07-15 (PR #6 BG-022 remediation) — only the `public_site` row and
+grand-total file/method counts re-verified;
+a full re-audit of every app was not performed for any of the incremental changes.
+**Last verified date:** 2026-07-14 / 2026-07-15 (partial) / 2026-07-15 (partial, Phase 2.1) /
+2026-07-15 (partial, BG-022)
 
 ---
 
@@ -14,9 +17,9 @@ a full re-audit of every app was not performed for either incremental change.
 
 | Metric | Count |
 |--------|-------|
-| Total test files | 204 (198 + 6 accumulated through Phase 1.2/1.3/2.1) |
-| Total test classes | ~440 (not re-audited exactly) |
-| Total test methods | 1,874 (full regression re-run 2026-07-15, phase2-caregiver-professional-profile-foundation) |
+| Total test files | 205 (198 + 7 accumulated through Phase 1.2/1.3/2.1/BG-022) |
+| Total test classes | ~442 (not re-audited exactly) |
+| Total test methods | 1,887 (full regression re-run 2026-07-15, PR #6 BG-022 remediation) |
 
 ## Per-App Confidence
 
@@ -28,7 +31,7 @@ a full re-audit of every app was not performed for either incremental change.
 | orders | 7 | 159 | - | - | - | - | **STRONG** |
 | finance | 17 | 75 | 1 | - | 17 | 1 | **STRONG** |
 | api | 14 | 97 | 7 | - | 4 | - | **HIGH** |
-| public_site | 7 | 93 | 1 | - | - | - | **HIGH** |
+| public_site | 8 | 106 | 1 | - | - | - | **HIGH** |
 | booking | 10 | 67 | 2 | 1 | 1 | 2 | **HIGH** |
 | pricing | 6 | 69 | - | - | - | 1 | **MODERATE-HIGH** |
 | portal | 9 | 74 | 1 | - | 2 | - | **MODERATE-HIGH** |

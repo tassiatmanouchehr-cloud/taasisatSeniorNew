@@ -10,18 +10,15 @@ Never reads or returns anything document-shaped — only the verification
 *status* label, per the Epic's explicit "do not expose private documents"
 requirement.
 
-Phase 2.1 eligibility note: `common.is_publicly_visible()` (shared with
-the caregiver directory and home-page featured-caregiver listings) only
-requires `profile.status == ACTIVE` plus organization-membership activity
-— it deliberately does not also require `verification_status == VERIFIED`
-or the owning account's own `is_active`, because those two listing
-surfaces are outside this phase's scope and changing their eligibility
-rule would be a broader product decision this phase has no evidence for.
-This single-profile page's own eligibility is stricter, per this phase's
-explicit governance ("A caregiver public profile must be visible only
-if: ... verification roll-up is VERIFIED ... "): `get_profile()` adds
-both checks locally, on top of (never instead of)
-`common.is_publicly_visible()`.
+BG-022 (2026-07-15): `common.is_publicly_visible()` is now the single
+canonical public-visibility policy for every public entry point —
+directory, home-page listings, and this detail page all resolve through
+it. It requires profile status ACTIVE, verification_status VERIFIED, the
+owning account's `is_active`, and organization-membership activity. This
+page no longer duplicates any of that locally; see
+`apps.public_site.services.common`'s own docstring for the full rule and
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-017's remediation note for
+why it was originally added only here before being unified.
 """
 
 from apps.accounts.services.public_credential_selector import PublicCredentialSelector
@@ -66,8 +63,6 @@ class CaregiverPublicProfileService:
 
         attrs = common.supplier_entity_attrs(supplier)
         caregiver = resolve_supplier_entity(supplier)
-        if not cls._is_profile_page_eligible(attrs, caregiver):
-            return None
 
         rating = common.rating_summary(supplier)
         service_names = cls._service_names(supplier, tenant_id=tenant_id)
@@ -102,18 +97,6 @@ class CaregiverPublicProfileService:
         )
 
     # ------------------------------------------------------------------
-
-    @staticmethod
-    def _is_profile_page_eligible(attrs, caregiver) -> bool:
-        """Phase 2.1's own, stricter eligibility on top of
-        `common.is_publicly_visible()` — see module docstring. `caregiver`
-        is None only for a data-integrity edge case (a ServiceSupplier row
-        with no resolvable CaregiverProfile), never for a real profile."""
-        if caregiver is None:
-            return False
-        if attrs["verification_status"] != "verified":
-            return False
-        return bool(caregiver.user.is_active)
 
     @classmethod
     def _service_names(cls, supplier, *, tenant_id) -> tuple[str, ...]:

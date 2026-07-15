@@ -1,6 +1,6 @@
 # PORTALS, APIS, AND ENTRY POINTS
 
-**Last verified HEAD:** phase2-caregiver-professional-profile-foundation (from main @ 0c9d70c)
+**Last verified HEAD:** phase2-caregiver-professional-profile-foundation (from main @ 0c9d70c; PR #6 BG-022 remediation in progress)
 **Last verified date:** 2026-07-15
 
 ---
@@ -52,7 +52,7 @@ Entry: `require_admin_permission()` → `require_authenticated()` → RBAC check
 | `/api/v1/health/` | GET | Health check |
 | `/api/v1/sample/order-counts/` | GET | Sample order counts |
 | `/api/v1/sample/providers/` | GET | Sample provider reports |
-| `/api/v1/discovery/suppliers/` | GET | Supplier discovery |
+| `/api/v1/discovery/suppliers/` | GET | Supplier discovery (permission-gated `DISCOVERY_SUPPLIERS_READ`, granted to no role in `DEFAULT_TENANT_ROLES` — internal/operator tooling, not a public/anonymous surface; confirmed out of scope for the BG-022 public-visibility remediation, see `traceability/IMPLEMENTATION_JOURNAL.md`) |
 | `/api/v1/pricing/quotes/` | POST | Quote creation |
 | `/api/v1/reviews/` | POST | Review submission |
 | `/api/v1/suppliers/<id>/reputation/` | GET | Supplier reputation |
@@ -72,5 +72,5 @@ Each portal has presentation services that transform domain models into view-rea
 - `CustomerDashboardPresentationService`, `CustomerProfilePresentationService`, etc. (portal)
 - `ProviderProfilePresentationService` (provider_portal)
 - `OrganizationProfilePresentationService` (organization_portal)
-- `HomePageService`, `CaregiverDirectoryService`, `CaregiverPublicProfileService` (public_site)
+- `HomePageService`, `CaregiverDirectoryService`, `CaregiverPublicProfileService` (public_site) — all three resolve caregiver/organization public visibility through the same canonical function, `apps.public_site.services.common.is_publicly_visible_attrs()` (BG-022 remediation, 2026-07-15); there is exactly one implementation of "is this publicly visible," never a per-surface duplicate
 - `CaregiverSkillService`, `CaregiverExperienceService`, `PublicCredentialSelector` (accounts, Phase 2.1 — domain services/selectors, not presentation services; called by provider_portal/public_site)

@@ -48,7 +48,7 @@ class PublicSiteTestCase(TestCase):
         bio="",
         years_experience=None,
         service_radius_km=None,
-        verification_status="unverified",
+        verification_status="verified",
         provider_type=CaregiverProviderType.INDEPENDENT,
         availability_status=AvailabilityStatus.AVAILABLE,
         supplier_status=SupplierStatus.ACTIVE,

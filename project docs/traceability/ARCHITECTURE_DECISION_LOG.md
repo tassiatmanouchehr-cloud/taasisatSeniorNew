@@ -658,4 +658,53 @@ Affected code: apps/accounts/models/professional_profile.py (new),
         templates/provider_portal/ and templates/public_site/caregiver_profile.html.
 Status: RESOLVED_IN_IMPLEMENTATION — 50 new tests, full regression 1874/1874 green,
         zero new migration drift beyond the two new models.
+
+---------------------------------------------------------------------------------------
+REMEDIATION (PR #6 review), 2026-07-15 — closes BG-022, corrects Decision 2 above
+---------------------------------------------------------------------------------------
+
+PR #6 review correctly identified that Decision 2's chosen alternative (C — add the two
+new checks locally to `CaregiverPublicProfileService.get_profile()` only) left a real,
+user-visible gap: a caregiver could be discoverable in the public directory or the
+home page's featured-caregiver cards while their own detail page 404'd, because
+`common.is_publicly_visible_attrs()` (the function the directory/home-page listings
+already shared) never required `verification_status == VERIFIED` or account `is_active`
+— only the detail page's local, duplicated check did. This was recorded at the time as
+BG-022, a deliberate, scoped deferral — governance for this remediation explicitly
+required closing it inside this same PR rather than leaving it deferred.
+
+Corrected decision: **Alternative A from Decision 2 above (originally rejected) is now
+adopted** — the two checks were moved into `common.is_publicly_visible_attrs()` itself,
+making it the single, genuinely canonical rule for every public entry point (directory,
+home-page listings, and the detail page, which now relies on it exclusively — its own
+local duplicate check was deleted). The reason Alternative A was originally rejected
+(breaking ~80 pre-existing directory/home-page tests whose fixtures default to
+`verification_status="unverified"`) turned out to be a fixable, one-line fixture default
+change (`apps/public_site/tests/helpers.py`), not the broad blast radius originally
+feared — those ~80 tests never asserted anything about verification status (confirmed
+by grep before changing the default) and all continued passing unmodified.
+
+Root correction: "do not silently expand scope" was correctly applied to Decision 2's
+original choice (this phase's own explicit deliverable was the detail page, not a
+directory/listing overhaul), but the resulting inconsistency between two supposedly
+"canonical" functions was itself a defect, not a scope boundary — a caregiver's public
+visibility must have exactly one true answer everywhere it is asked. This remediation
+resolves that: `common.is_publicly_visible_attrs()` is now that one true answer.
+
+A genuine, pre-existing, unrelated per-candidate query cost (one `availability_capacity_rule`
+query and one `reviews_reputation_snapshot`/`orders_order` pair per card, in
+`DiscoveryRankingService.rank()`/`CaregiverDirectoryService._build_card()`) was discovered
+while verifying this remediation added no new N+1. It predates this remediation and is
+unrelated to eligibility — recorded as `quality/DEFECT_AND_RISK_REGISTER.md` KL-012, not
+fixed here (touching `apps.discovery`'s ranking algorithm is a separate, out-of-scope
+performance task).
+
+Affected code (remediation): `apps/public_site/services/common.py` (canonical rule
+extended), `apps/public_site/services/profile_service.py` (local duplicate check
+removed), `apps/accounts/services/supplier_bridge.py` (`select_related("user")`/
+`select_related("admin_user")` added to `resolve_supplier_entities_bulk()`, a JOIN not
+an extra query), `apps/public_site/tests/helpers.py` (fixture default corrected),
+`apps/public_site/tests/test_public_visibility_policy.py` (new, 13 tests).
+Status: RESOLVED_IN_IMPLEMENTATION (remediation) — BG-022 closed, 13 new tests, full
+        regression 1887/1887 green, zero new migration.
 ```

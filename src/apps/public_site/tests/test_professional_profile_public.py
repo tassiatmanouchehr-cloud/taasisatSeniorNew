@@ -143,7 +143,7 @@ class PublicProfileQueryCountTest(PublicSiteTestCase):
             )
             VerificationReviewService.approve(document_id=doc.id, tenant_id=self.tenant.id, reviewer=reviewer)
 
-        with self.assertNumQueries(14):
+        with self.assertNumQueries(13):
             CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id)
 
     def _reviewer_for_query_test(self):

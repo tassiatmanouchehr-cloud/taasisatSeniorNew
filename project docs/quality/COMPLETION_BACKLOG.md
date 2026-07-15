@@ -173,30 +173,41 @@ public document boundary this and prior phases established
 **Not in scope:** Marketplace offer workflow, invoice workflow, payment/settlement
 changes (unrelated to gallery/financial-overview/orders-history display work)
 
-### BG-022: Directory/Home-Page Listing Eligibility Does Not Match the Public Profile Page's Stricter Rule
+### BG-022: Directory/Home-Page Listing Eligibility Does Not Match the Public Profile Page's Stricter Rule — **RESOLVED**
 
-**Current evidence:** Phase 2.1 added `verification_status == VERIFIED` and account
-`is_active` checks to `CaregiverPublicProfileService.get_profile()` (the single caregiver
-profile page) only — deliberately not to the shared `apps.public_site.services.common
-.is_publicly_visible()` function the caregiver directory (`directory_service.py`) and
-home-page featured-caregiver listing (`home_service.py`) also call. A caregiver can now
-appear in directory/home-page listings while their own profile page 404s (unverified or
+**Original evidence (Phase 2.1):** Phase 2.1 added `verification_status == VERIFIED` and
+account `is_active` checks to `CaregiverPublicProfileService.get_profile()` (the single
+caregiver profile page) only — deliberately not to the shared `apps.public_site.services
+.common.is_publicly_visible()` function the caregiver directory (`directory_service.py`)
+and home-page featured-caregiver listing (`home_service.py`) also call. A caregiver could
+appear in directory/home-page listings while their own profile page 404'd (unverified or
 inactive account).
-**Why needed:** Consistency between "discoverable in a listing" and "profile page loads"
-is a reasonable product expectation, though not one Phase 2.1's own governance asked to
-fix — tightening it was judged out of this slice's scope (see
-`ARCHITECTURE_DECISION_LOG.md` ADM-017 Decision 2 for the full reasoning, including that
-~80 pre-existing directory/home-page tests currently depend on the looser rule).
-**Dependencies:** A scoped decision on whether directory/home-page listing eligibility
-should be tightened to match, and if so, updating the ~80 affected pre-existing tests'
-fixtures.
-**Affected modules:** public_site
-**Suggested implementation size:** Small (the check itself is a one-line addition to
-`is_publicly_visible_attrs()`); Medium overall once the fixture/test update cost is
-included
-**Risk:** Low-medium — a real, visible behavior change to who appears in public listings
-**Not in scope:** Any change to `CaregiverPublicProfileService.get_profile()` itself
-(already correct as of Phase 2.1)
+**Original reasoning for deferring (Phase 2.1):** Consistency between "discoverable in a
+listing" and "profile page loads" is a reasonable product expectation, though not one
+Phase 2.1's own governance asked to fix — tightening it was judged out of that slice's
+scope (see `ARCHITECTURE_DECISION_LOG.md` ADM-017 Decision 2 for the full original
+reasoning, including that ~80 pre-existing directory/home-page tests appeared to depend on
+the looser rule).
+**Resolution (2026-07-15, PR #6 review):** governance explicitly overturned the deferral —
+BG-022 was required to close inside PR #6, not be deferred further. Investigation found the
+~80 "affected" pre-existing tests never actually asserted on `verification_status`; only
+the shared test fixture's default needed to change (`verification_status="verified"` in
+`apps/public_site/tests/helpers.py`). `apps.public_site.services.common
+.is_publicly_visible_attrs()` is now the single canonical public-visibility rule (profile
+`status == ACTIVE`, rolled-up `verification_status == "verified"`, account `is_active`,
+active `OrganizationMembership` for org-affiliated caregivers), applied identically by the
+detail page, directory search, and home-page listings. `CaregiverPublicProfileService
+.get_profile()`'s now-redundant local duplicate check was removed.
+`supplier_bridge.resolve_supplier_entities_bulk()` gained `select_related("user")`/
+`select_related("admin_user")` — confirmed a JOIN on the existing batched query, adding
+zero new queries (constant 2 queries regardless of candidate count). 13 new tests, full
+regression 1887/1887 green. See `ARCHITECTURE_DECISION_LOG.md` ADM-017's second remediation
+note and `traceability/IMPLEMENTATION_JOURNAL.md`.
+**Affected modules:** public_site, accounts (supplier_bridge)
+**Not in scope (found during remediation, tracked separately):** a pre-existing, unrelated
+per-candidate N+1 in directory ranking/card-building (`DiscoveryRankingService.rank()`,
+`CaregiverDirectoryService._build_card()`) — see `quality/DEFECT_AND_RISK_REGISTER.md`
+KL-012.
 
 ### BG-003: OrderOfferService (Phase 2)
 

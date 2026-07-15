@@ -727,3 +727,55 @@ Rollback method: git revert of the branch's commit(s); migration 0006 has a clea
 Status: Complete — branch phase2-caregiver-professional-profile-foundation, PR to be
   created, NOT merged
 ```
+
+## Entry 024
+
+```
+Change ID: CL-024
+Date/time: 2026-07-15 (Phase 2.1 remediation — PR #6 review, close BG-022)
+Task: Unify public caregiver visibility into one canonical policy, applied identically by
+      the caregiver directory, home-page listings, and the single profile detail page
+Reason: PR #6 review found that CL-023's own eligibility fix was added only to the detail
+        page, leaving the directory/home-page listings on a looser, pre-existing rule —
+        a caregiver could appear in a listing while their own detail page 404'd. Recorded
+        as BG-022; this closes it inside PR #6 per explicit remediation governance.
+Files added:
+  src/apps/public_site/tests/test_public_visibility_policy.py (13 tests)
+Files modified:
+  src/apps/public_site/services/common.py (is_publicly_visible_attrs() now requires
+    verification_status == VERIFIED and account.is_active, in addition to the existing
+    profile-status-ACTIVE + membership-active checks — the single canonical rule every
+    public entry point shares)
+  src/apps/public_site/services/profile_service.py (removed the now-redundant local
+    duplicate eligibility check added in CL-023; relies solely on the canonical function)
+  src/apps/accounts/services/supplier_bridge.py (resolve_supplier_entities_bulk() adds
+    select_related("user")/select_related("admin_user") — a JOIN on the existing batched
+    query, not a new query, needed for the canonical rule's account.is_active check)
+  src/apps/public_site/tests/helpers.py (_create_caregiver_supplier()'s verification_status
+    default corrected from "unverified" to "verified" — the ~80 pre-existing directory/
+    home-page tests never asserted anything about verification status and continued
+    passing unmodified)
+  src/apps/public_site/tests/test_professional_profile_public.py (query-count assertion
+    updated 14 -> 13, reflecting the removed duplicate check's one fewer query)
+Files deleted: None
+Database impact: None
+Migration impact: None — no model changes.
+Security impact: Closes a real public-visibility inconsistency: a DRAFT, SUSPENDED,
+  ARCHIVED, unverified, pending-verification, inactive-account, or inactive-membership
+  caregiver is now hidden from every public surface uniformly (directory search,
+  home-page featured cards, home-page city filter, and the detail page), never just some
+  of them. Owner-facing and platform-admin-facing visibility unaffected (neither uses
+  this shared function).
+Financial impact: None.
+Tests executed: check (0), 13 new focused tests (all 0), affected-app Level 2 suite
+  (public_site + provider_portal + accounts + discovery + orders combined) 660/660,
+  makemigrations --check --dry-run (1, pre-existing unrelated drift only), full regression
+  1887/1887 (exit 0)
+Result: Success — one canonical public-visibility policy, applied uniformly across every
+  real public entry point; a pre-existing, unrelated per-candidate ranking/card-building
+  query cost was discovered during verification and recorded (KL-012), not fixed (out of
+  scope); zero regressions; zero migration
+Rollback method: git revert of the branch's commit(s); no data migration to reverse
+Status: Complete — branch phase2-caregiver-professional-profile-foundation, PR #6 updated
+  in place, NOT merged
+```

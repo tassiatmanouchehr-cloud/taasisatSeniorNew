@@ -297,3 +297,17 @@ The following files would be created or modified if the Offer Marketplace implem
 | `src/apps/public_site/tests/test_profile_service.py` | Modified | 3 fixtures corrected to verification_status="verified"; 2 new tests | git checkout |
 | `src/apps/public_site/tests/test_views.py` | Modified | 2 fixtures corrected to verification_status="verified" | git checkout |
 | `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |
+
+---
+
+## 2026-07-15 — Phase 2.1 Remediation: Close Public Caregiver Visibility Gap BG-022 (CL-024)
+
+| Path | Change | Purpose | Rollback |
+|------|--------|---------|----------|
+| `src/apps/public_site/tests/test_public_visibility_policy.py` | Added | 13 tests proving one canonical rule across all public surfaces | Delete |
+| `src/apps/public_site/services/common.py` | Modified | is_publicly_visible_attrs() now the single canonical rule (+ verification + account-active) | git checkout |
+| `src/apps/public_site/services/profile_service.py` | Modified | Removed now-redundant local duplicate eligibility check | git checkout |
+| `src/apps/accounts/services/supplier_bridge.py` | Modified | select_related("user")/("admin_user") added to resolve_supplier_entities_bulk() | git checkout |
+| `src/apps/public_site/tests/helpers.py` | Modified | verification_status fixture default corrected "unverified" -> "verified" | git checkout |
+| `src/apps/public_site/tests/test_professional_profile_public.py` | Modified | Query-count assertion 14 -> 13 | git checkout |
+| `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |

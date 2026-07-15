@@ -7,7 +7,8 @@
 **Phase 1.2 update:** 2026-07-15 — verification completion and activation rules implemented on branch `phase1-verification-activation-rules` (from main @ `278098b`); no migration; PR not yet merged
 **Phase 1.3 update:** 2026-07-15 — deterministic profile completion + controlled activation implemented on branch `phase1-activation-completion-final` (from main @ `860640e`, the merged Phase 1.2 PR #4); no migration; PR #5 created; **Phase 1 acceptance criteria now fully met**
 **Phase 1.3 remediation update:** 2026-07-15 — PR #5 review found AuditLog existence, not `profile.status`, was the activation signal; fixed in place (registration now creates DRAFT profiles, ProfileActivationService performs a real DRAFT->ACTIVE transition, `is_activated()` reads `profile.status` directly); no migration; **MERGED to main via PR #5 (merge commit `0c9d70c`); Phase 1 is CLOSED**
-**Phase 2.1 update:** 2026-07-15 — caregiver professional profile foundation (skills, experience, verified-credential public summary, corrected public-profile eligibility) implemented on branch `phase2-caregiver-professional-profile-foundation` (from main @ `0c9d70c`); 1 new migration (2 new tables only); PR pending, not yet merged
+**Phase 2.1 update:** 2026-07-15 — caregiver professional profile foundation (skills, experience, verified-credential public summary, corrected public-profile eligibility) implemented on branch `phase2-caregiver-professional-profile-foundation` (from main @ `0c9d70c`); 1 new migration (2 new tables only); PR #6 created
+**Phase 2.1 remediation update (BG-022):** 2026-07-15 — PR #6 review found the eligibility fix was added only to the detail page, not directory/home-page listings; fixed by extending `common.is_publicly_visible_attrs()` into the single canonical rule every public entry point shares; no migration; PR #6 updated in place, not yet merged
 **Branch verified:** main (via claude/taasisat-senior-state-verify-9dzzlm)
 **Authority:** This roadmap replaces every previous implementation order (including
 `project docs/03_NEXT_TASK.md` sequencing and the archived Offer Marketplace phase plans).
@@ -126,6 +127,11 @@ Pre-phase (P0 hygiene, small): ~~fix seed test race (G12)~~ — **DONE, merged i
 - Corrected public-profile eligibility: `CaregiverPublicProfileService.get_profile()` now also requires `verification_status == VERIFIED` and the owning account's `is_active`, added locally (not in the function shared with the caregiver directory/home-page listings — see `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-017 Decision 2, including the deliberate decision NOT to tighten directory/home-page eligibility in this slice).
 - Provider-portal skill/experience management pages; public profile extended with skills/experience/credentials sections; owner-facing "which credentials will show publicly" panel.
 - 50 new tests, full regression 1874/1874 green. **Gallery, certificates-as-gallery presentation, extended financial overview, and orders + history remain open — Phase 2 as a whole is NOT complete.**
+
+**Phase 2.1 remediation (2026-07-15, PR #6 review, same branch) — close BG-022, unify public visibility:**
+- Root defect: the eligibility fix above was added only to `CaregiverPublicProfileService.get_profile()`, not to `common.is_publicly_visible_attrs()` (the function the caregiver directory and home-page listings already shared) — a caregiver could appear in a listing while their own detail page 404'd.
+- Fix: `common.is_publicly_visible_attrs()` is now the single canonical public-visibility rule (profile ACTIVE + verification VERIFIED + account active + membership active for org-affiliated caregivers), applied identically by directory search, home-page featured cards, home-page city filter, and the detail page (whose own local duplicate check was removed). `supplier_bridge.resolve_supplier_entities_bulk()` gained a `select_related()` for the account relation — a JOIN, not a new query.
+- 13 new tests, zero new migration, full regression 1887/1887 green. **BG-022 is RESOLVED.** A pre-existing, unrelated per-candidate query cost in directory ranking/card-building was discovered and recorded (KL-012), not fixed (separate, out-of-scope performance task). See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-017's second remediation note.
 
 ### PHASE 3 — Company Portal (inherits caregiver capability)
 

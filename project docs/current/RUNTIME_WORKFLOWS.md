@@ -1,6 +1,6 @@
 # RUNTIME WORKFLOWS
 
-**Last verified HEAD:** phase2-caregiver-professional-profile-foundation (from main @ 0c9d70c, PR #5 merged)
+**Last verified HEAD:** phase2-caregiver-professional-profile-foundation (from main @ 0c9d70c, PR #5 merged; PR #6 BG-022 remediation in progress)
 **Last verified date:** 2026-07-15
 
 ---
@@ -32,7 +32,8 @@
 | 21 | Caregiver Skills Management | IMPLEMENTED (Phase 2.1) | `accounts/services/caregiver_professional_profile_service.py:CaregiverSkillService` |
 | 22 | Caregiver Experience Management | IMPLEMENTED (Phase 2.1) | `accounts/services/caregiver_professional_profile_service.py:CaregiverExperienceService` |
 | 23 | Public Credential Summary | IMPLEMENTED (Phase 2.1) | `accounts/services/public_credential_selector.py:PublicCredentialSelector` |
-| 24 | Public Caregiver Profile Page | IMPLEMENTED (Epic 06; eligibility corrected Phase 2.1) | `public_site/services/profile_service.py:CaregiverPublicProfileService` |
+| 24 | Public Caregiver Profile Page | IMPLEMENTED (Epic 06; eligibility corrected Phase 2.1, unified with listings BG-022) | `public_site/services/profile_service.py:CaregiverPublicProfileService` |
+| 25 | Canonical Public Visibility Policy | IMPLEMENTED (BG-022 remediation) | `public_site/services/common.py:is_publicly_visible_attrs()` |
 
 ---
 
@@ -92,6 +93,8 @@ Platform side: `/admin-portal/verification/caregivers/<id>/` and `/admin-portal/
 `PublicCredentialSelector.for_caregiver(caregiver)` — read-only. A `VerificationDocument` contributes to the public summary only if it is APPROVED (`DocumentStatus.VERIFIED`), not effectively expired (`RequiredDocumentPolicy.is_effectively_expired()`, reused from Phase 1.2), one of the caregiver-applicable document types (`CAREGIVER_APPLICABLE_DOCUMENT_TYPES`, reused from Phase 1.2), and owned by the queried caregiver. Returns a 3-field `PublicCredentialSummary` (document_type, label, expiry_date) — never file, document number, reviewer identity, or rejection/correction reason.
 
 Public-profile eligibility (`CaregiverPublicProfileService.get_profile()`, `apps.public_site`) now also requires `verification_status == "verified"` and the owning account's `user.is_active`, added as a check local to the single-profile page — on top of, never replacing, the existing `common.is_publicly_visible()` (profile status ACTIVE + organization-membership-active, unchanged, still shared with the caregiver directory/home-page listings). See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-017 for why this was added locally rather than in the shared function, and the resulting known gap (directory/home-page listings do not yet apply the same stricter rule).
+
+**BG-022 remediation (2026-07-15, same PR #6):** the gap in the paragraph above is closed. `apps.public_site.services.common.is_publicly_visible_attrs()` is now the single canonical public-visibility rule — profile `status == ACTIVE`, rolled-up `verification_status == "verified"`, the owning account's own `is_active`, and (for org-affiliated caregivers) an active `OrganizationMembership`. Every public entry point calls this one function, directly or via `bulk_supplier_attrs()`/`supplier_entity_attrs()`: the detail page (`CaregiverPublicProfileService.get_profile()`, whose now-redundant local duplicate check was removed), directory search and featured listings, and the home-page featured cards/city filter (both go through the directory service). `apps.accounts.services.supplier_bridge.resolve_supplier_entities_bulk()` gained `select_related("user")`/`select_related("admin_user")` so the account's `is_active` is available from the same batched JOIN — no additional query, confirmed constant at 2 queries regardless of candidate count. See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-017's second remediation note and `quality/COMPLETION_BACKLOG.md` BG-022 (RESOLVED).
 
 Caregiver-side management: `/provider/profile/skills/` (add/remove), `/provider/profile/experience/` (list), `/provider/profile/experience/add/`, `/provider/profile/experience/<id>/edit/`, `/provider/profile/experience/<id>/delete/` — all behind `_guard_with_caregiver()` plus a service-level `caregiver=caregiver` filter on every mutation (cross-caregiver/cross-tenant access returns 404, never a silent no-op). The provider profile page also shows a "which verified credential types will appear publicly" panel.
 

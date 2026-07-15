@@ -766,3 +766,104 @@ Authorization and tenant isolation are enforced — met (verified by tests). Tes
 update). **Phase 2.1 is complete; the remainder of roadmap Phase 2 (gallery, certificates-
 as-gallery, orders/history, extended financial overview) remains a separate, future
 slice — not claimed complete here.**
+
+---
+
+## Phase 2.1 Remediation — Close Public Caregiver Visibility Gap (BG-022)
+
+**Date:** July 15, 2026
+**Branch:** `phase2-caregiver-professional-profile-foundation` (same branch, PR #6 updated in place)
+**Status:** IMPLEMENTED, PR #6 updated, not yet merged
+
+PR #6 review found that Phase 2.1's own eligibility fix (`verification_status ==
+VERIFIED` + account `is_active`) was added only to the single caregiver profile detail
+page, not to the caregiver directory or home-page listings — a caregiver could appear in
+a public listing while their own detail page 404'd. Recorded and deliberately deferred as
+BG-022 in the original Phase 2.1 slice (ARCHITECTURE_DECISION_LOG ADM-017 Decision 2);
+this remediation closes it, inside the same PR, per governance instruction.
+
+### Public Entry-Point Matrix (Part 1)
+
+| Entry point | Selector/service | Current eligibility enforcement (before this fix) | Fix required |
+|---|---|---|---|
+| `/find-a-caregiver/<supplier_id>/` (detail) | `CaregiverPublicProfileService.get_profile()` | `common.is_publicly_visible()` (profile ACTIVE + membership) **plus** a local, duplicated check (`verification_status == VERIFIED` + account `is_active`) | Remove the local duplicate; rely solely on the now-unified canonical function |
+| `/find-a-caregiver/` (directory search) | `CaregiverDirectoryService.search()` → `_filter_candidates()` | `common.is_publicly_visible_attrs()` (profile ACTIVE + membership only) | Extend the canonical function (fixes this automatically) |
+| `/` home page — featured caregivers | `CaregiverDirectoryService.featured()` (via `HomePageService`) | Same as directory (shares `_filter_candidates()`) | Same fix, automatic |
+| `/` home page — city filter options | `CaregiverDirectoryService.available_cities()` | Same as directory | Same fix, automatic |
+| `/caregivers/` (static marketing page) | None — `render(request, "public_site/caregivers.html")`, no real caregiver data queried | N/A — no data exposed | None |
+| `GET /api/v1/discovery/suppliers/` | `DiscoveryService.search()` → `SupplierSearchService.filter_suppliers()` | Permission-gated (`DISCOVERY_SUPPLIERS_READ`) — **not** a default-granted role in `DEFAULT_TENANT_ROLES`; no anonymous/public access path exists to it. An internal/operator tool (Module 17B), not a public marketing surface. Applies `ServiceSupplier.status == ACTIVE` only, no `CaregiverProfile`-level eligibility at all — a deliberate difference from the public surfaces, since internal operators/matching may legitimately need to see not-yet-public suppliers. | None — out of BG-022 scope ("Do not alter owner or platform-admin visibility"); this is neither owner nor public, it is internal/operator tooling, confirmed via its permission requirement |
+| `apps.discovery.services.search_service.SupplierSearchService` (internal matching/booking building block) | N/A | `ServiceSupplier.status == ACTIVE` only — used by the matching engine and the above internal API, not a public listing | None — out of scope (Marketplace/matching internals, explicitly not to be touched) |
+| Sitemap / RSS / indexing feed | N/A | Does not exist in this repository | None |
+| Related-recommendation widgets | N/A | Does not exist in this repository (no "similar caregivers" feature) | None |
+
+### Root Visibility Defect
+
+`common.is_publicly_visible_attrs()` (the function `directory_service.py`'s `_filter_candidates()` — used by `search()`, `featured()`, and `available_cities()` — already called) was a *different, looser* rule than the one Phase 2.1 added locally to `CaregiverPublicProfileService.get_profile()`. Two independent implementations of "is this caregiver publicly visible" existed for a matter of days — exactly the "second, parallel eligibility system" this project's governance repeatedly warns against.
+
+### Canonical Public-Visibility Policy (Part 2)
+
+Rather than introduce a new, differently-named class (`PublicCaregiverVisibilityPolicy`, etc.), the existing `apps.public_site.services.common.is_publicly_visible_attrs()`/`is_publicly_visible()` — already the single, batched, shared implementation `directory_service.py`'s own docstring described as "exactly one implementation of both the resolution and the eligibility rule" — was extended in place and is now genuinely canonical: every public entry point calls it, directly or via `bulk_supplier_attrs()`/`supplier_entity_attrs()`. Introducing a differently-named wrapper alongside it would have created exactly the duplication this remediation exists to remove.
+
+The canonical rule now requires ALL of:
+- `profile_status == "active"` (excludes DRAFT, SUSPENDED, ARCHIVED — a single check, since those are mutually exclusive string values)
+- `verification_status == "verified"`
+- the owning account's own `is_active` (resolved via `entity.user` for caregivers / `entity.admin_user` for organizations)
+- organization-membership active, for organization-affiliated caregivers only (unchanged, pre-existing)
+
+Not applicable / not added: no `ServiceSupplier`-level "public visibility" boolean flag exists anywhere in the repository to reuse (confirmed by inspection) — none was invented. Tenant/scope validity is enforced structurally by every entry point's own tenant-scoped query (`ServiceSupplier.objects.get(..., tenant_id=tenant_id)` / `SupplierSearchService.filter_suppliers()`'s `tenant_id=query.tenant_id` filter) — not a new check inside the eligibility function itself.
+
+### Public Surfaces Corrected (Part 3)
+
+Directory search, home-page featured cards, home-page city filter, and the single-profile detail page all now apply the identical rule (confirmed by `CanonicalVisibilityAcrossSurfacesTest`, which checks all four in the same test per scenario). Owner-facing (`provider_portal`) and platform-admin-facing (`admin_portal`) visibility were not touched — neither reads `common.is_publicly_visible_attrs()`, both use their own, already-correct, unrelated ownership/permission checks.
+
+### Query and Performance Impact (Part 4)
+
+`bulk_supplier_attrs()` already resolved the caregiver/organization entity and organization-membership status in exactly 2 batched queries regardless of candidate count (pre-existing, Architecture Review M1/M2). This fix adds the account (`user`/`admin_user`) relation via `select_related()` on the same already-batched query in `resolve_supplier_entities_bulk()` (`apps.accounts.services.supplier_bridge`) — a JOIN, not a new query. Verified directly: `ListingQueryCountTest.test_eligibility_resolution_query_count_is_constant_regardless_of_candidate_count` proves `bulk_supplier_attrs()` costs exactly 2 queries whether given 3 or 13 candidates.
+
+A genuine, pre-existing per-candidate query cost was discovered during this verification — `DiscoveryRankingService.rank()` (one `availability_capacity_rule` query per candidate) and `CaregiverDirectoryService._build_card()` (one `reviews_reputation_snapshot` + one `orders_order` completed-jobs query per card). This is unrelated to eligibility/visibility (it is ranking-score and card-enrichment cost) and pre-dates this remediation — not fixed here, since touching `apps.discovery`'s ranking algorithm or the reputation/completed-jobs enrichment path is a separate, unrelated performance task, out of BG-022's narrow scope. Recorded as `quality/DEFECT_AND_RISK_REGISTER.md` KL-012.
+
+Simplifying `CaregiverPublicProfileService.get_profile()` (removing its now-redundant local eligibility check) actually *reduced* the detail page's own query count by one (14 → 13, confirmed by the existing `PublicProfileQueryCountTest`).
+
+### Tests (Part 5)
+
+New file `apps/public_site/tests/test_public_visibility_policy.py` (13 tests):
+`CanonicalVisibilityAcrossSurfacesTest` (8 tests — active+verified visible everywhere;
+DRAFT/SUSPENDED/ARCHIVED/unverified/pending-verification/inactive-account/inactive-membership
+hidden everywhere, each checked against directory search, home featured, detail-service,
+and the detail HTTP route in one test), `ListingCountAndPrivacyTest` (3 tests — hidden
+profiles don't inflate directory `total_count`, hidden profiles absent from
+`available_cities()`, private contact fields absent from directory HTML), and
+`ListingQueryCountTest` (2 tests — eligibility resolution is O(1), directory search
+remains correct at scale).
+
+Existing pre-existing test fixture default corrected: `PublicSiteTestCase
+._create_caregiver_supplier()`'s `verification_status` default changed from `"unverified"`
+to `"verified"` (`apps/public_site/tests/helpers.py`) — the ~80 pre-existing
+`test_directory_service.py`/`test_home_service.py` tests never asserted anything about
+verification status (confirmed by grep before changing the default) and continued
+passing unmodified once the default matched what a "normal, visible caregiver" fixture
+should represent.
+
+### Test Level Decision
+
+Level 3 (full regression), run once before updating PR #6, justified by: this remediation
+changes a public/private security boundary shared across multiple selectors
+(`apps.public_site`) and reaches into `apps.accounts` (`supplier_bridge.py`); the fix is
+exactly the kind of "shared public selector" change the task's own Level 3 trigger list
+names explicitly.
+
+### Deferred (unchanged, or newly recorded)
+
+1. `quality/DEFECT_AND_RISK_REGISTER.md` KL-012 (new) — pre-existing per-candidate ranking/
+   card-building query cost, unrelated to eligibility, not fixed (out of scope).
+2. Gallery, financial overview, orders + history (BG-021, unchanged) remain deferred.
+3. `GET /api/v1/discovery/suppliers/` and `apps.discovery.services.search_service
+   .SupplierSearchService` were confirmed, not modified — internal/operator tooling
+   (permission-gated, no default role grant), a different trust boundary than the public
+   surfaces this remediation covers.
+
+### BG-022 Status
+
+**RESOLVED.** All four real public entry points (directory search, home-page featured
+cards, home-page city filter, detail page) now apply the identical canonical
+public-visibility rule. 13 new tests, zero regressions, full regression 1887/1887 green.

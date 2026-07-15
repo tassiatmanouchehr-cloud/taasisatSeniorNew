@@ -212,11 +212,20 @@ def resolve_supplier_entities_bulk(suppliers) -> dict:
 
     caregivers_by_id = {}
     if caregiver_ids:
-        caregivers_by_id = {c.id: c for c in CaregiverProfile.objects.filter(id__in=caregiver_ids)}
+        # select_related("user") — BG-022: public-visibility eligibility
+        # (apps.public_site.services.common.bulk_supplier_attrs()) needs
+        # each entity's own user.is_active; a JOIN, not an extra query,
+        # so this stays consistent with this function's own "at most two
+        # queries total" guarantee.
+        caregivers_by_id = {
+            c.id: c for c in CaregiverProfile.objects.select_related("user").filter(id__in=caregiver_ids)
+        }
 
     organizations_by_id = {}
     if organization_ids:
-        organizations_by_id = {o.id: o for o in OrganizationProfile.objects.filter(id__in=organization_ids)}
+        organizations_by_id = {
+            o.id: o for o in OrganizationProfile.objects.select_related("admin_user").filter(id__in=organization_ids)
+        }
 
     resolved = {}
     for supplier in suppliers:
