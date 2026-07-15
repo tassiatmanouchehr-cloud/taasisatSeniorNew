@@ -1,6 +1,6 @@
 """Profile services — completion, elder, trusted contacts, multi-role identity."""
 
-from ..models.profiles import CustomerProfile, CaregiverProfile, ElderProfile, TrustedContact
+from ..models.profiles import CustomerProfile, CaregiverProfile, ElderProfile, OrganizationProfile, TrustedContact
 from .registration import assign_role
 
 
@@ -51,6 +51,30 @@ def calculate_caregiver_profile_completion(profile: CaregiverProfile) -> int:
         bool(profile.bio),
         profile.years_experience is not None,
         profile.service_radius_km is not None,
+    ]
+    filled = sum(fields)
+    return int((filled / len(fields)) * 100)
+
+
+def calculate_organization_profile_completion(profile: OrganizationProfile) -> int:
+    """Calculate profile completion percentage (0-100). Base-field
+    completeness only — document verification status is a separate
+    concern owned by
+    `apps.accounts.services.verification_rollup_service
+    .ProfileVerificationRollupService` (Phase 1.2), not conflated here.
+    `apps.organization_portal.services.profile_service`'s own
+    `_completion()` blends in "at least one verified document" for its
+    own UI purposes; this function deliberately does not, so
+    `ActivationEligibilityService` can compose "profile complete" and
+    "documents verified" as two independent, individually-testable
+    criteria instead of one merged percentage."""
+    fields = [
+        bool(profile.name),
+        bool(profile.city),
+        bool(profile.phone),
+        bool(profile.address),
+        bool(profile.description),
+        bool(profile.company_type),
     ]
     filled = sum(fields)
     return int((filled / len(fields)) * 100)

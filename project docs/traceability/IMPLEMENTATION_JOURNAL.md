@@ -265,3 +265,115 @@ No required-document-type policy exists anywhere in the repository (confirmed by
 2. Customer document verification (no domain model support — see above).
 3. AI evaluator implementation (Protocol only, per task instruction).
 4. Public profile rendering of verified credential types (explicitly excluded by the task).
+
+---
+
+## Phase 1.2 — Verification Completion and Activation Rules
+
+**Date:** 2026-07-15
+**Branch:** phase1-verification-activation-rules (from main @ 278098b)
+
+### Part A — Required-Document Policy
+
+Repository inspection before writing any policy:
+- `apps.provider_portal.services.profile_service.PROVIDER_DOCUMENT_TYPES` (5 types) and
+  `apps.organization_portal.services.profile_service.ORGANIZATION_DOCUMENT_TYPES` (4 types)
+  already partition all 9 `DocumentType` members by profile relevance — reused at the
+  correct dependency layer (accounts cannot import from either portal app) rather than
+  redefined from scratch.
+- No repository infrastructure ties `ServiceCategory`/`ServiceType` to document
+  requirements — confirmed by search; per-service variation is explicitly NOT implemented,
+  not silently assumed absent.
+- `CustomerProfile` has no `verification_status` field; `VerificationDocument` has no
+  customer-owner FK (re-confirmed, unchanged since Phase 1.1). Customer document
+  verification is NOT implemented this phase either. Phone/OTP verification
+  (`apps.accounts.services.otp.OTPService`, already required at registration) is recorded
+  as the current-phase identity verification mechanism for customers.
+- `ConfigResolver`/`ConfigurationKey`/`ConfigurationValue` (existing since kernel.0005)
+  is the established tenant-configuration mechanism every other `*Configuration` wrapper
+  in this codebase uses (`CommissionConfiguration`, `BookingConfiguration`, etc.) —
+  `get_or_default()` requires no `ConfigurationKey` row to pre-exist, so this policy adds
+  zero seeding/migration burden. Reused exactly, no new mechanism invented.
+
+**Policy decided:** caregiver required = IDENTITY + BACKGROUND_CHECK; organization
+required = REGISTRATION + OPERATING_LICENSE. Both tenant-overridable, sanitized against
+the applicable-type set (an override naming an inapplicable type is dropped, not
+honored). Expiry handling reuses the exact "VERIFIED but `expiry_date` < today ->
+effectively expired" rule `provider_portal`/`organization_portal`'s own presentation
+services already compute for display — made reusable outside the portal layer via
+`RequiredDocumentPolicy.is_effectively_expired()`.
+
+### Part B — Profile Verification Roll-Up
+
+`ProfileVerificationRollupService.evaluate_caregiver()/evaluate_organization()` — pure,
+deterministic, idempotent read. `sync_caregiver()/sync_organization()` persist the result
+(row-locked, no-op write when already correct). See ARCHITECTURE_DECISION_LOG ADM-015 for
+the decision to reuse the existing 4-value `VerificationStatus` enum (no 5th
+CORRECTION_REQUIRED value) with `needs_correction` as a separate result flag instead.
+
+Wired into `VerificationReviewService._apply_review()` (end of the same transaction, after
+the `AuditLog` entry) and `DocumentService.resubmit()` — never left to a view, admin
+action, or signal, per governance. Proven safe under concurrent review of two different
+documents belonging to the same profile via `select_for_update()` on the profile row
+inside `sync_*()` (`RollupConcurrencyTest`).
+
+### Part C — Correction and Resubmission Lifecycle
+
+`DocumentService.resubmit(document, *, actor, file)` — the new owner-authorized entry
+point. `replace_document()` (Phase 1.1-era primitive, unconditional) remains but is no
+longer called directly from any request-reachable view; both `provider_portal` and
+`organization_portal`'s `document_manage_view` now call `resubmit()` instead. Confirmed
+via existing test files (`test_profile.py` in both apps) that no pre-existing test
+exercises replacing an already-VERIFIED document — the hardening introduces no regression.
+
+Enforced: owner-only (actor's `UserAccount.id` must equal the document owner's, resolved
+via the new shared `document_ownership.py`, extracted to avoid duplicating logic already
+present in `VerificationReviewService`), VERIFIED documents refuse replacement, row-locked
+for concurrency (`ResubmissionConcurrencyTest` proves two concurrent resubmissions
+serialize without corruption — both succeed deterministically, no crash). Audit: a new
+`accounts.document.resubmitted` `AuditLog` entry is created; the ORIGINAL review's reason
+remains permanently in ITS OWN, earlier `AuditLog` entry (never overwritten) — proven by
+`test_original_review_reason_survives_in_audit_log_after_resubmission`. The document's
+live `rejection_reason` field IS cleared on resubmission (matches Phase 1.1's existing
+`replace_document()` behavior, unchanged) — this is not "erasing audit history" since the
+live field only ever describes the CURRENT state, and the historical record lives in
+`AuditLog`, which is append-only and untouched.
+
+### Part D — Activation Eligibility
+
+`ActivationEligibilityService.evaluate(profile)` — dispatches by type to
+`evaluate_caregiver()`/`evaluate_organization()`. Deliberately upstream of and unrelated
+to `apps.public_site.services.common.is_publicly_visible()` (an existing, different,
+`ServiceSupplier`/`OrganizationMembership`-level marketplace-listing concern) — not
+touched, not composed with this service; that composition is explicitly out of this
+task's scope ("Do not implement: Marketplace").
+
+Criteria: profile `status == ACTIVE`, underlying `UserAccount.is_active`, base-profile
+completion == 100% (`calculate_caregiver_profile_completion()`, and a new
+`calculate_organization_profile_completion()` added to `profiles.py` mirroring that exact
+pattern — deliberately NOT reusing `organization_portal`'s own `_completion()`, which
+blends in "at least one verified document" for its own UI purposes; Part D needed profile-
+completeness and document-verification as two independently testable criteria), and
+rolled-up `verification_status == VERIFIED`. Returns structured `eligible: bool` +
+`reasons: tuple[str, ...]` + the underlying `VerificationRollupResult` — never only a bare
+boolean. Pure read, zero side effects — no auto-activation/publishing wired, since nothing
+in the existing workflow clearly requires it (per task instruction).
+
+### Test Level Decision
+
+Level 3 (full regression) was run, not just Level 1/2, because: (a) `resubmit()`/`sync_*()`
+introduce new `select_for_update()` row locking — a genuine transaction/concurrency
+behavior change; (b) the change reaches through one shared service pair
+(`DocumentService`, `VerificationReviewService`) into three apps (`accounts`,
+`provider_portal`, `organization_portal`) via one workflow. Both are explicit Level-3
+triggers in the governing test-execution policy.
+
+### Deferred (unchanged or newly identified)
+
+1. Customer document verification — still no domain-model support (BG-016, unchanged).
+2. Wiring `ActivationEligibilityService` into an actual activation/publishing action —
+   new item, BG-018.
+3. `profile_completion_percent` auto-recompute on every profile mutation — still open,
+   BG-018 (roadmap Phase 1 acceptance criterion 5).
+4. Per-service document requirement variation — explicitly not implemented, no evidence
+   to ground it (Part A).

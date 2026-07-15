@@ -143,5 +143,5 @@
 | KL-004 | Deadline expiry gated (disabled) | Payment deadlines don't auto-expire |
 | KL-005 | Pre-service payment gated (disabled) | No escrow hold until payment |
 | KL-006 | GIS disabled on Windows | No geospatial features in dev |
-| KL-007 | No customer document verification | `VerificationDocument` has no customer owner FK; `CustomerProfile` has no `verification_status` field (confirmed 2026-07-15, Phase 1.1). See `quality/COMPLETION_BACKLOG.md` BG-016. |
-| KL-008 | No profile verification_status roll-up | Document-level review (BG-015, complete) does not update `CaregiverProfile`/`OrganizationProfile.verification_status` — no required-document-type policy exists to derive it from. See BG-017. |
+| KL-007 | No customer document verification | `VerificationDocument` has no customer owner FK; `CustomerProfile` has no `verification_status` field (confirmed 2026-07-15, Phase 1.1; unchanged by Phase 1.2). Phone/OTP verification is the current-phase mechanism for customers. See `quality/COMPLETION_BACKLOG.md` BG-016. |
+| KL-008 | No activation wiring / completion auto-recompute | `ActivationEligibilityService.evaluate()` (Phase 1.2, BG-017) is read-only — nothing calls it to activate/publish a profile; `profile_completion_percent` is not auto-recomputed on every mutation. See BG-018. Superseded item: profile `verification_status` roll-up itself is now IMPLEMENTED (Phase 1.2), not a limitation. |

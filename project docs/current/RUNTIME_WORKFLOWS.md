@@ -1,6 +1,6 @@
 # RUNTIME WORKFLOWS
 
-**Last verified HEAD:** phase1-registration-manual-verification (from main @ 55b1cb0)
+**Last verified HEAD:** phase1-verification-activation-rules (from main @ 278098b)
 **Last verified date:** 2026-07-15
 
 ---
@@ -23,20 +23,40 @@
 | 12 | Wallet | IMPLEMENTED | `wallet/services/wallet_service.py` + `wallet_transaction_service.py` |
 | 13 | Reviews | IMPLEMENTED | `reviews/services/review_submission_service.py` |
 | 14 | Offer Marketplace | MODEL ONLY (Phase 1) | No service layer yet |
-| 15 | Manual Document Verification (caregiver/organization) | IMPLEMENTED (Phase 1.1) | `accounts/services/verification_review_service.py:VerificationReviewService` |
+| 15 | Manual Document Verification (caregiver/organization) | IMPLEMENTED | `accounts/services/verification_review_service.py:VerificationReviewService` |
+| 16 | Profile Verification Roll-up | IMPLEMENTED (Phase 1.2) | `accounts/services/verification_rollup_service.py:ProfileVerificationRollupService` |
+| 17 | Document Resubmission (correction lifecycle) | IMPLEMENTED (Phase 1.2) | `accounts/services/document_service.py:DocumentService.resubmit()` |
+| 18 | Activation Eligibility (read-only) | IMPLEMENTED (Phase 1.2) | `accounts/services/activation_eligibility_service.py:ActivationEligibilityService` |
 
 ---
 
-## Manual Document Verification Workflow (Phase 1.1)
+## Manual Document Verification Workflow (Phase 1.1, extended Phase 1.2)
 
 1. Caregiver/organization uploads a document via `DocumentService.upload_*_document()` — enters PENDING.
 2. Platform reviewer (role `platform_owner`/`platform_admin`/`platform_support`, permission `accounts.document.review`) opens `/admin-portal/verification/documents/` (queue) and a document's detail page.
 3. Reviewer approves, rejects (reason required), or requests correction (reason required) via `VerificationReviewService.approve()/reject()/request_correction()`.
 4. Legal transitions: PENDING → {VERIFIED, REJECTED, CORRECTION_REQUIRED} only. Same-outcome repeat calls are idempotent no-ops; any other non-PENDING call raises a controlled `VerificationReviewError`. Row-locked (`select_for_update()`) so concurrent conflicting reviews leave exactly one winner.
-5. CORRECTION_REQUIRED → PENDING happens through the owner's existing `DocumentService.replace_document()` resubmission flow — no new code needed there.
-6. Every review action is recorded in `AuditLog` (actor, before/after status, reason).
-7. Owner sees current status and (for REJECTED/CORRECTION_REQUIRED) the reviewer's reason on their own portal page — never on any public page.
-8. Customer document verification and profile-level roll-up (`CaregiverProfile.verification_status`/`OrganizationProfile.verification_status` auto-transition) are explicitly deferred — see `traceability/IMPLEMENTATION_JOURNAL.md`.
+5. Every review action is recorded in `AuditLog` (actor, before/after status, reason). The same transaction also syncs the owning profile's rolled-up `verification_status` (Phase 1.2, step 6 below).
+6. Owner sees current status and (for REJECTED/CORRECTION_REQUIRED) the reviewer's reason on their own portal page — never on any public page.
+
+## Correction and Resubmission Lifecycle (Phase 1.2)
+
+1. Owner resubmits a REJECTED/CORRECTION_REQUIRED (or PENDING) document via `DocumentService.resubmit(document, actor=request.user, file=...)` — replaces `apps.provider_portal`/`apps.organization_portal`'s direct `replace_document()` call from Phase 1.1.
+2. Refuses unless `actor` is the document's own owner user; refuses to touch an already-VERIFIED document (an owner can no longer silently discard a platform decision).
+3. Resets status to PENDING (delegates to `replace_document()`'s existing file-swap mechanics), records an `accounts.document.resubmitted` `AuditLog` entry (the original review's reason remains permanently in its own, earlier `AuditLog` entry — never overwritten), and re-syncs the profile roll-up.
+4. Row-locked — concurrent resubmissions of the same document serialize.
+
+## Profile Verification Roll-up (Phase 1.2)
+
+`ProfileVerificationRollupService.evaluate_caregiver()/evaluate_organization()` derives the existing `CaregiverProfile`/`OrganizationProfile.verification_status` (UNVERIFIED/PENDING/VERIFIED/REJECTED — no new value added) from `RequiredDocumentPolicy`'s required-document set for that profile type: any required document REJECTED → profile REJECTED; any required document CORRECTION_REQUIRED (none rejected) → profile PENDING with `needs_correction=True`; any required document missing/PENDING/effectively-expired → profile PENDING; all required documents VERIFIED and unexpired → profile VERIFIED. Optional document status never affects this. `sync_*()` persists the result (row-locked, idempotent no-op if unchanged) and is called automatically from `VerificationReviewService` and `DocumentService.resubmit()` — never from a view, admin action, or signal.
+
+## Required-Document Policy (Phase 1.2)
+
+`RequiredDocumentPolicy` (mandatory vs optional document types per profile type, tenant-overridable via the existing `ConfigResolver`): caregiver required = IDENTITY + BACKGROUND_CHECK (optional: QUALIFICATION, TRAINING_CERTIFICATE, LICENSE); organization required = REGISTRATION + OPERATING_LICENSE (optional: INSURANCE, PROFESSIONAL_PERMIT). No per-service variation (no repository infrastructure ties `ServiceCategory`/`ServiceType` to document requirements). Customer document verification and profile-level roll-up were explicitly deferred by Phase 1.1 — the roll-up gap is now closed by this phase; customer document verification remains deferred (no domain-model support exists — see `traceability/IMPLEMENTATION_JOURNAL.md` and `quality/COMPLETION_BACKLOG.md` BG-016).
+
+## Activation Eligibility (Phase 1.2, read-only)
+
+`ActivationEligibilityService.evaluate(profile)` returns a structured `eligible: bool` + `reasons: tuple[str, ...]` + the underlying `VerificationRollupResult`, for caregiver or organization. Eligible requires: profile `status == ACTIVE`, underlying `UserAccount.is_active`, base-profile completion at 100% (`calculate_caregiver_profile_completion()`/new `calculate_organization_profile_completion()`), and rolled-up `verification_status == VERIFIED`. Pure read, no side effects — nothing currently calls this to actually activate or publish a profile; wiring it into a real activation action is future work (see `03_NEXT_TASK.md`).
 
 ## Order Lifecycle (Status Machine)
 

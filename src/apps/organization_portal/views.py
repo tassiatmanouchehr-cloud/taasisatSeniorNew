@@ -458,7 +458,7 @@ def document_manage_view(request, document_type):
     if request.method == "POST" and form.is_valid():
         try:
             if existing is not None:
-                DocumentService.replace_document(existing, file=form.cleaned_data["file"])
+                DocumentService.resubmit(existing, actor=request.user, file=form.cleaned_data["file"])
             else:
                 DocumentService.upload_organization_document(
                     organization,

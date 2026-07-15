@@ -180,3 +180,24 @@ The following files would be created or modified if the Offer Marketplace implem
 | `src/templates/provider_portal/document_upload.html` | Modified | action_message wired to real reason | git checkout |
 | `src/templates/organization_portal/document_upload.html` | Modified | Same | git checkout |
 | `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL for full narrative | git checkout |
+
+---
+
+## 2026-07-15 — Phase 1.2 Verification Completion and Activation Rules (CL-020)
+
+| Path | Change | Purpose | Rollback |
+|------|--------|---------|----------|
+| `src/apps/accounts/services/document_ownership.py` | Added | Shared tenant/owner resolution for VerificationDocument | Delete |
+| `src/apps/accounts/services/verification_policy.py` | Added | RequiredDocumentPolicy (Part A) | Delete |
+| `src/apps/accounts/services/verification_rollup_service.py` | Added | ProfileVerificationRollupService (Part B) | Delete |
+| `src/apps/accounts/services/activation_eligibility_service.py` | Added | ActivationEligibilityService (Part D) | Delete |
+| `src/apps/accounts/tests/test_verification_policy.py` | Added | 13 policy tests | Delete |
+| `src/apps/accounts/tests/test_verification_rollup.py` | Added | 13 roll-up tests incl. concurrency | Delete |
+| `src/apps/accounts/tests/test_document_resubmission.py` | Added | 10 resubmission tests incl. concurrency | Delete |
+| `src/apps/accounts/tests/test_activation_eligibility.py` | Added | 11 eligibility tests | Delete |
+| `src/apps/accounts/services/document_service.py` | Modified | resubmit() added (Part C) | git checkout |
+| `src/apps/accounts/services/profiles.py` | Modified | calculate_organization_profile_completion() added | git checkout |
+| `src/apps/accounts/services/verification_review_service.py` | Modified | Delegates ownership helpers; syncs roll-up | git checkout |
+| `src/apps/provider_portal/views.py` | Modified | Uses DocumentService.resubmit() | git checkout |
+| `src/apps/organization_portal/views.py` | Modified | Same | git checkout |
+| `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |

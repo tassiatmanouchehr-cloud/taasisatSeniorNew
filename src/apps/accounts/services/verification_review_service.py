@@ -24,7 +24,11 @@ requested state, a domain error for any other non-PENDING state), and
 records an AuditLog entry — the same shape
 `apps.accounts.services.organization_staff.OrganizationStaffService
 .approve_membership()` already established for platform-authorized
-profile-state changes.
+profile-state changes. Phase 1.2 (Verification Completion and Activation
+Rules) added one more step at the end of every review: syncing the
+owning profile's `verification_status` via
+`apps.accounts.services.verification_rollup_service
+.ProfileVerificationRollupService`, in the same transaction.
 """
 
 from django.db import transaction
@@ -34,6 +38,7 @@ from apps.kernel.permissions.keys import ACCOUNTS_DOCUMENT_REVIEW
 from apps.kernel.services.audit_service import AuditService
 from apps.kernel.services.permission_service import PermissionService
 
+from .document_ownership import owner_user_id_for_document, tenant_id_for_document
 from .errors import AccountsError
 
 MODULE_ID = "M08"
@@ -172,16 +177,24 @@ class VerificationReviewService:
             reason=reason,
             metadata={"owner_user_id": str(owner_user_id)},
         )
+
+        # Keep the profile-level verification summary current — Phase 1.2
+        # (Verification Completion and Activation Rules). Runs inside this
+        # same transaction so the document's new status and the profile's
+        # rolled-up verification_status are never observed out of sync.
+        from .verification_rollup_service import ProfileVerificationRollupService
+
+        if document.caregiver_id:
+            ProfileVerificationRollupService.sync_caregiver(document.caregiver)
+        else:
+            ProfileVerificationRollupService.sync_organization(document.organization)
+
         return document
 
     @staticmethod
     def _tenant_id_for(document):
-        if document.caregiver_id:
-            return document.caregiver.user.tenant_id
-        return document.organization.tenant_id
+        return tenant_id_for_document(document)
 
     @staticmethod
     def _owner_user_id(document):
-        if document.caregiver_id:
-            return document.caregiver.user_id
-        return document.organization.admin_user_id
+        return owner_user_id_for_document(document)

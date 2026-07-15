@@ -18,8 +18,21 @@ Validation mirrors `profile_media_service.py`'s own discipline: hard size
 cap, and a real content sniff (not the client-supplied `content_type`
 header) — PDF via a magic-byte check, images via Pillow, exactly like
 avatar/cover uploads.
+
+Phase 1.2 (Verification Completion and Activation Rules) added
+`resubmit()`: the owner-authorized entry point for the correction/
+resubmission lifecycle (PENDING/REJECTED/CORRECTION_REQUIRED -> new file
+-> PENDING again). `replace_document()` remains the lower-level file-swap
+primitive `resubmit()` wraps — call it directly only from trusted,
+already-ownership-scoped contexts (as the two existing portal views did
+before this phase); anything reachable from a request should go through
+`resubmit()`, which is the one that actually verifies the caller is the
+document's owner and refuses to touch an already-VERIFIED document.
 """
 
+from django.db import transaction
+
+from .document_ownership import owner_user_id_for_document, tenant_id_for_document
 from .errors import AccountsError
 
 MAX_DOCUMENT_BYTES = 10 * 1024 * 1024  # 10 MB
@@ -56,9 +69,9 @@ def _validate_document(file) -> None:
 
 
 class DocumentService:
-    """Read-write, provider-/organization-facing only. Upload and replace
-    are the only mutating operations exposed — never approve/reject/
-    verify (see module docstring)."""
+    """Read-write, provider-/organization-facing only. Upload, replace,
+    and resubmit are the only mutating operations exposed — never
+    approve/reject/verify (see module docstring)."""
 
     @classmethod
     def upload_caregiver_document(cls, caregiver, *, document_type, file):
@@ -102,6 +115,62 @@ class DocumentService:
         if old_file:
             old_file.delete(save=False)
         return document
+
+    @classmethod
+    @transaction.atomic
+    def resubmit(cls, document, *, actor, file):
+        """Owner-authorized resubmission — Phase 1.2 (Verification
+        Completion and Activation Rules). Row-locks the document so two
+        concurrent resubmissions of the same document serialize rather
+        than racing on the old-file delete; refuses an actor who isn't
+        the document's own owner user (cross-tenant/cross-owner denial —
+        no separate tenant_id parameter is needed since ownership alone
+        already implies tenant); refuses to touch an already-VERIFIED
+        document (an owner can no longer silently discard a platform
+        decision by re-uploading — `replace_document()` itself has no
+        such guard, by design, since it is also the primitive
+        `VerificationReviewService` never calls but that pre-Phase-1.2
+        callers used directly). Records an audit entry and re-syncs the
+        owning profile's rolled-up verification_status in the same
+        transaction — a required document leaving REJECTED/
+        CORRECTION_REQUIRED for PENDING must not leave a stale profile-
+        level status behind."""
+        from apps.accounts.models.media import DocumentStatus, VerificationDocument
+        from apps.kernel.services.audit_service import AuditService
+
+        from .verification_rollup_service import ProfileVerificationRollupService
+
+        locked = VerificationDocument.objects.select_for_update().get(id=document.id)
+
+        owner_user_id = owner_user_id_for_document(locked)
+        if actor is None or getattr(actor, "id", None) != owner_user_id:
+            raise AccountsError("Only the document owner may resubmit this document.")
+
+        if locked.status == DocumentStatus.VERIFIED:
+            raise AccountsError("An approved document cannot be replaced.")
+
+        previous_status = locked.status
+        updated = cls.replace_document(locked, file=file)
+
+        AuditService.log(
+            tenant_id=tenant_id_for_document(locked),
+            action="accounts.document.resubmitted",
+            resource_type="VerificationDocument",
+            resource_id=locked.id,
+            module_id="M08",
+            actor_id=getattr(actor, "person_id", None),
+            actor_type="user",
+            before={"status": previous_status},
+            after={"status": DocumentStatus.PENDING},
+            metadata={"owner_user_id": str(owner_user_id)},
+        )
+
+        if locked.caregiver_id:
+            ProfileVerificationRollupService.sync_caregiver(locked.caregiver)
+        else:
+            ProfileVerificationRollupService.sync_organization(locked.organization)
+
+        return updated
 
     @classmethod
     def list_for_caregiver(cls, caregiver):

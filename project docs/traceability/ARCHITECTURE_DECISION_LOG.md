@@ -266,3 +266,61 @@ Risks: None — the field's content is authored by platform staff specifically t
 Status: RESOLVED_IN_IMPLEMENTATION — 41 tests passing (25 service + 16 view), including
         explicit owner-visibility and cross-tenant/self-review denial coverage
 ```
+
+## ADM-015: Profile Verification Roll-Up Reuses the Existing 4-Value Enum; VERIFIED Documents Are No Longer Owner-Replaceable
+
+```
+Decision ID: ADM-015
+Context: Phase 1.2 (Verification Completion and Activation Rules) had to derive
+         CaregiverProfile/OrganizationProfile.verification_status from required-document
+         state (Part B), and had to implement an owner resubmission path for
+         CORRECTION_REQUIRED documents (Part C). Two design questions arose that the task's
+         own governance ("Reuse the existing profile verification status. Do not create a
+         second source of truth.") and explicit Part C requirement ("approved documents
+         cannot be silently replaced") both had direct bearing on.
+
+Decision 1 — no fifth enum value: VerificationStatus (UNVERIFIED/PENDING/VERIFIED/REJECTED)
+         is reused exactly as-is. A required document in CORRECTION_REQUIRED maps to
+         profile-level PENDING (same tier as "still awaiting first review" — both are
+         "not yet resolved, action needed, not a hard block"), with a separate
+         `needs_correction: bool` flag on VerificationRollupResult carrying the distinction
+         instead of a new enum member.
+Alternatives considered:
+  A. Add VerificationStatus.CORRECTION_REQUIRED (rejected — a new field-choices migration,
+     and every existing reader of this field across the codebase — presentation services
+     in provider_portal/organization_portal, public_site — would need updating to handle a
+     5th value it doesn't expect; the task explicitly forbade a second source of truth,
+     and a 5th enum value that most readers can't distinguish from PENDING anyway isn't
+     meaningfully different from just returning PENDING + a side-channel flag)
+  B. Map CORRECTION_REQUIRED to profile REJECTED (rejected — overstates the severity; a
+     correction request is not a hard negative decision, and folding it into REJECTED would
+     make ActivationEligibilityService's "documents_not_verified" reason indistinguishable
+     from an actual rejection, losing exactly the signal Part D needs to report structured
+     reasons)
+  C. PENDING + needs_correction flag (accepted)
+
+Decision 2 — DocumentService.resubmit() hardens replace_document(): before this phase, any
+         caregiver/organization could reset an ALREADY-VERIFIED document straight back to
+         PENDING at any time via the existing upload form (replace_document() applied no
+         status check). Part C's explicit "approved documents cannot be silently replaced"
+         closes this. resubmit() is now the sole authorized entry point reachable from a
+         request; replace_document() remains its lower-level file-swap primitive.
+Alternatives considered:
+  A. Leave replace_document() as the only method, add the guard there directly (rejected —
+     VerificationReviewService and any other trusted internal caller would then also be
+     blocked from ever resetting a VERIFIED document even in a legitimate system-initiated
+     scenario; separating the raw primitive from the owner-authorized entry point keeps
+     that door open without weakening the owner-facing guarantee)
+  B. New resubmit() wrapping replace_document() with ownership + status checks (accepted)
+
+Reason: Both decisions follow the same principle — extend behavior at the correct layer
+        (a result field, a wrapping method) rather than widening a shared enum or weakening
+        a shared primitive that other trusted callers rely on.
+Affected code: apps/accounts/services/verification_rollup_service.py (new),
+        apps/accounts/services/document_service.py (resubmit() added),
+        apps/accounts/services/document_ownership.py (new, shared helper extracted from
+        verification_review_service.py to avoid duplicating tenant/owner resolution)
+Risks: None identified — 47 new tests cover both decisions directly (state-mapping matrix,
+        VERIFIED-replacement refusal, concurrency for both resubmit() and sync_*()).
+Status: RESOLVED_IN_IMPLEMENTATION — full regression 1768/1768 green
+```
