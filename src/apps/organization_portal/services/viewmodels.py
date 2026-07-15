@@ -71,6 +71,10 @@ class OrganizationProfileViewModel:
     is_activated: bool = False
     activation_eligible: bool = False
     activation_blocking_reasons: tuple[str, ...] = field(default_factory=tuple)
+    activation_profile_status: str = ""
+    """Raw `ProfileStatus` value (draft/active/suspended/archived) — Phase
+    1.3 remediation, so the template can display DRAFT/ACTIVE/SUSPENDED
+    accurately instead of only a derived eligible/ineligible badge."""
 
 
 @dataclass(frozen=True)

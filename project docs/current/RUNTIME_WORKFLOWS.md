@@ -1,6 +1,6 @@
 # RUNTIME WORKFLOWS
 
-**Last verified HEAD:** phase1-activation-completion-final (from main @ 860640e)
+**Last verified HEAD:** phase1-activation-completion-final (from main @ 860640e, PR #5 remediation applied)
 **Last verified date:** 2026-07-15
 
 ---
@@ -64,19 +64,20 @@
 
 `ProfileCompletionService.evaluate_caregiver(profile)/evaluate_organization(profile)` is the single source of truth for the base-profile-field checklist per profile type (caregiver: display_name, phone, city, specialty, bio, years_experience, service_radius_km — 7 fields; organization: name, city, phone, address, description, company_type — 6 fields). Returns a frozen `ProfileCompletionResult(percent, completed, missing)` — deterministic and idempotent (no persisted state, recomputed live on every call). `0` in a numeric field (e.g. `years_experience=0`) counts as filled, not missing; blank string/`None` counts as missing. `calculate_caregiver_profile_completion()`/`calculate_organization_profile_completion()` in `profiles.py` delegate their percentage to this service (bare-int call signature unchanged for existing callers). Optional fields (anything not in the checklist) never block 100%.
 
-## Controlled Profile Activation (Phase 1.3)
+## Controlled Profile Activation (Phase 1.3, corrected in the PR #5 remediation)
 
-`ProfileActivationService.activate_caregiver(caregiver_id, *, tenant_id, actor)`/`activate_organization(organization_id, *, tenant_id, actor)` is the controlled, audited action that wires `ActivationEligibilityService` into a real effect:
+`ProfileActivationService.activate_caregiver(caregiver_id, *, tenant_id, actor)`/`activate_organization(organization_id, *, tenant_id, actor)` is the controlled, audited action that wires `ActivationEligibilityService` into a real effect. **`profile.status` is the sole source of truth for current activation state — `AuditLog` is historical evidence of the transition only, never consulted to determine current state** (the root defect the PR #5 remediation fixed: the original implementation used `AuditLog` existence as the activation signal, which never actually needed to transition `profile.status` because registration used to leave profiles `ACTIVE` by default).
 
 1. Resolves and row-locks (`select_for_update()`) the profile inside `transaction.atomic`; a profile from another tenant is treated as not found.
 2. Enforces `accounts.profile.activate` (`ACCOUNTS_PROFILE_ACTIVATE`, platform-scoped — granted to `platform_owner`/`platform_admin`/`platform_support` only) via `PermissionService.require()`.
 3. Refuses self-activation (the acting `UserAccount` cannot be the profile's own owner), independent of RBAC grants.
-4. Calls `ActivationEligibilityService.evaluate(profile)` unchanged; if ineligible, raises `ProfileActivationError` carrying the service's own structured reasons — no state changes.
-5. If eligible: idempotent no-op if an `accounts.profile.activated` `AuditLog` entry already exists for this exact profile (repeated activation is a no-op, not an error); otherwise sets `status = ProfileStatus.ACTIVE` (a no-op in the common case, since profiles already default to ACTIVE at registration) and writes the `AuditLog` entry — this entry is the actual, permanent, queryable record of platform approval.
-6. Concurrent activation attempts on the same profile serialize via the row lock; exactly one `AuditLog` entry results.
-7. A SUSPENDED profile remains ineligible — activation is explicitly not a path out of suspension in this slice (no suspension/revalidation workflow exists yet; see `quality/COMPLETION_BACKLOG.md` BG-019). No automatic deactivation of an already-active profile is performed when verification later becomes invalid — recorded as the same deferred item.
+4. If the profile is already `ACTIVE`, returns immediately with `transitioned=False` — an idempotent no-op, no eligibility re-check, no duplicate `AuditLog` entry.
+5. Otherwise calls `ActivationEligibilityService.evaluate(profile)`; if ineligible, raises `ProfileActivationError` carrying the service's own structured reasons — no state change. `SUSPENDED`/`ARCHIVED` profiles are always ineligible this way (`ActivationEligibilityService` blocks those statuses outright).
+6. If eligible: sets `status = ProfileStatus.ACTIVE` (a real `DRAFT -> ACTIVE` transition — registration now creates caregiver/organization profiles as `ProfileStatus.DRAFT`, not `ACTIVE`) and writes an `AuditLog` entry recording `before_snapshot`/`after_snapshot` status — the permanent record of *when* and *by whom* the transition happened, not the thing that determines current state. Returns a structured `ProfileActivationResult(profile, previous_status, status, transitioned=True)`.
+7. Concurrent activation attempts on the same profile serialize via the row lock; exactly one real transition and one `AuditLog` entry result.
+8. No automatic deactivation of an already-active profile is performed when verification later becomes invalid — recorded as a deferred item (`quality/COMPLETION_BACKLOG.md` BG-019); an already-`ACTIVE` profile stays activatable/idempotent even if a fresh eligibility check would now fail.
 
-Platform side: `/admin-portal/verification/caregivers/<id>/` and `/admin-portal/verification/organizations/<id>/` (detail + blocking reasons) with a POST `/activate/` action, both permission-gated identically to the Phase 1.1 document-review views. Owner side: the provider/organization portal profile page shows one of three states — "فعال‌شده توسط پلتفرم" (activated), "آماده فعال‌سازی — در انتظار بررسی پلتفرم" (eligible, awaiting platform action), or "هنوز آماده فعال‌سازی نیست" (not yet eligible, with the blocking reasons listed) — via a new reusable `ui/components/portal/activation_status.html` component. See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-016 for the full design rationale.
+Platform side: `/admin-portal/verification/caregivers/<id>/` and `/admin-portal/verification/organizations/<id>/` (detail + blocking reasons) with a POST `/activate/` action, both permission-gated identically to the Phase 1.1 document-review views. The detail page shows a distinct "معلق" (Suspended) badge for a `SUSPENDED` profile rather than folding it into the generic ineligible case. Owner side: the provider/organization portal profile page shows one of four states — "فعال‌شده توسط پلتفرم" (activated, `profile.status == ACTIVE`), "پروفایل معلق شده است" (suspended), "آماده فعال‌سازی — در انتظار بررسی پلتفرم" (eligible DRAFT, awaiting platform action), or "هنوز آماده فعال‌سازی نیست" (ineligible DRAFT, with the blocking reasons listed) — via a reusable `ui/components/portal/activation_status.html` component, driven by `is_activated`/`eligible`/`profile_status` values the ViewModel derives from `profile.status` directly. See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-016 (including its remediation note) for the full design rationale.
 
 ## Order Lifecycle (Status Machine)
 

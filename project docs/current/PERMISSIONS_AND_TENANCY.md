@@ -1,6 +1,6 @@
 # PERMISSION AND TENANT MODEL
 
-**Last verified HEAD:** phase1-activation-completion-final (from main @ 860640e)
+**Last verified HEAD:** phase1-activation-completion-final (from main @ 860640e, PR #5 remediation applied)
 **Last verified date:** 2026-07-15
 
 ---
@@ -61,9 +61,11 @@ independent of whatever RBAC grants exist, mirroring the same pattern
 `VerificationReviewService` established for self-review refusal. Cross-tenant activation
 is refused by resolving and tenant-checking the locked profile *before* permission
 enforcement and returning "not found" (mirrors the existing cross-tenant 404 convention
-elsewhere in `admin_portal`) rather than "forbidden". See
-`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-016 for the full activation-authority
-design decision.
+elsewhere in `admin_portal`) rather than "forbidden". Authorization/tenancy behavior is
+unchanged by the PR #5 remediation — only *what a successful activation does* (a real
+`profile.status` transition, not an `AuditLog`-only record) was corrected. See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-016 (including its remediation note) for
+the full activation-authority design decision.
 
 ### Owner Resubmission Authorization (Phase 1.2)
 

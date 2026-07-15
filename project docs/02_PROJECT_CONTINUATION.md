@@ -28,7 +28,8 @@
 | Current phase | **Phase 1 — Registration and Verification Workflows is COMPLETE** (all acceptance criteria met; PR pending merge — see `IMPLEMENTATION_ROADMAP.md`) |
 | Phase 1.1 | Manual document verification (caregiver + organization) **MERGED to main** via PR #3 (merge commit `278098b`); full regression 1721/1721 green at merge |
 | Phase 1.2 | Verification completion and activation rules (required-document policy, profile roll-up, resubmission lifecycle, activation eligibility) **MERGED to main** via PR #4 (merge commit `860640e`); full regression 1768/1768 green at merge |
-| Phase 1.3 | Deterministic profile completion + controlled, authorized, audited activation (`ProfileCompletionService`, `ProfileActivationService`) IMPLEMENTED on `phase1-activation-completion-final`; 40 new tests, no migration; PR pending, not yet merged — closes Phase 1 |
+| Phase 1.3 | Deterministic profile completion + controlled, authorized, audited activation (`ProfileCompletionService`, `ProfileActivationService`) IMPLEMENTED on `phase1-activation-completion-final`; 40 new tests, no migration; PR #5 created, then **remediated** (see Phase 1.3 remediation row below) — closes Phase 1 |
+| Phase 1.3 remediation | PR #5 review found AuditLog existence, not `profile.status`, was the activation signal. Fixed: registration now creates DRAFT profiles; `ProfileActivationService` performs a real DRAFT→ACTIVE transition; `is_activated()` reads `profile.status` directly. 16 new/renamed tests, no migration; PR #5 updated in place, not yet merged |
 | Active blocker | `makemigrations --check` cosmetic drift only (pre-existing, exit 1, accounts/kernel field alters — no schema change intended) |
 | Active work branch | `phase1-activation-completion-final` (from main @ 860640e) |
 

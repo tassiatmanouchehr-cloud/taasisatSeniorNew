@@ -5,7 +5,8 @@
 **Post-merge update:** 2026-07-14 — PR #1 merged to main (`eb51018`): documentation sync + BG-002 fix are on main; P0 hygiene complete; **Phase 1 is the active phase**
 **Phase 1.1 update:** 2026-07-15 — manual document verification workflow merged to main via PR #3 (merge commit `278098b`); full regression 1721/1721 green at merge
 **Phase 1.2 update:** 2026-07-15 — verification completion and activation rules implemented on branch `phase1-verification-activation-rules` (from main @ `278098b`); no migration; PR not yet merged
-**Phase 1.3 update:** 2026-07-15 — deterministic profile completion + controlled activation implemented on branch `phase1-activation-completion-final` (from main @ `860640e`, the merged Phase 1.2 PR #4); no migration; PR not yet merged; **Phase 1 acceptance criteria now fully met**
+**Phase 1.3 update:** 2026-07-15 — deterministic profile completion + controlled activation implemented on branch `phase1-activation-completion-final` (from main @ `860640e`, the merged Phase 1.2 PR #4); no migration; PR #5 created; **Phase 1 acceptance criteria now fully met**
+**Phase 1.3 remediation update:** 2026-07-15 — PR #5 review found AuditLog existence, not `profile.status`, was the activation signal; fixed in place (registration now creates DRAFT profiles, ProfileActivationService performs a real DRAFT->ACTIVE transition, `is_activated()` reads `profile.status` directly); no migration; PR #5 updated, not yet merged
 **Branch verified:** main (via claude/taasisat-senior-state-verify-9dzzlm)
 **Authority:** This roadmap replaces every previous implementation order (including
 `project docs/03_NEXT_TASK.md` sequencing and the archived Offer Marketplace phase plans).
@@ -102,6 +103,11 @@ Pre-phase (P0 hygiene, small): ~~fix seed test race (G12)~~ — **DONE, merged i
 - `ProfileActivationService.activate_caregiver()/activate_organization()` — wires `ActivationEligibilityService` (unchanged) into a real, controlled action: `transaction.atomic` + row lock, permission-gated (`ACCOUNTS_PROFILE_ACTIVATE`, platform staff only), refuses owner self-activation and cross-tenant activation, refuses when ineligible with structured reasons, idempotent (AuditLog-existence based, no new field), audited. Activation is an audited approval record over the existing default-ACTIVE status, not a new lifecycle state — see `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-016.
 - Minimum usable platform-operator UI (activation detail + activate action, `admin_portal`) and owner-facing UI (activation status + blocking reasons on the provider/organization profile page).
 - 40 new tests, zero new migrations, full regression 1808/1808 green. **All Phase 1 acceptance criteria are now met — Phase 1 (Registration and Verification Workflows) is COMPLETE.** Deferred (explicitly, recorded as BG-019, not a defect): automatic deactivation of an already-active profile when verification later becomes invalid — no suspension/revalidation workflow exists yet to hook it into.
+
+**Phase 1.3 remediation (2026-07-15, PR #5 review, same branch) — fix activation state semantics:**
+- Root defect: `AuditLog` existence, not `profile.status`, was the activation signal, because registration left profiles `ACTIVE` by default and `ProfileActivationService` never performed a real status transition in the common case.
+- Fix: registration (`RegistrationService.create_caregiver()`/`create_company_admin()`, `ensure_caregiver_profile()`) now creates profiles as `ProfileStatus.DRAFT` (the existing enum value, no new status, no migration); `ActivationEligibilityService` no longer requires `status == ACTIVE` (removes the circularity); `ProfileActivationService` performs a real `DRAFT -> ACTIVE` transition and judges idempotency from `profile.status`, never `AuditLog`.
+- 16 new/renamed tests, zero new migrations, full regression 1824/1824 green. See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-016's remediation note.
 
 ### PHASE 2 — Caregiver Profile (production complete)
 

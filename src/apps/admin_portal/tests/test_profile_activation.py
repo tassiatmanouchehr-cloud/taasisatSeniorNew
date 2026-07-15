@@ -24,24 +24,24 @@ class ProfileActivationViewsTestCase(AdminPortalTestCase):
         self.organization = self._create_organization(tenant=self.tenant)
         self._grant(self.actor, self.tenant, [ACCOUNTS_DOCUMENT_REVIEW, ACCOUNTS_PROFILE_ACTIVATE])
 
-    def _create_caregiver(self, *, tenant, full_name="Test Caregiver") -> CaregiverProfile:
+    def _create_caregiver(self, *, tenant, full_name="Test Caregiver", status=ProfileStatus.DRAFT) -> CaregiverProfile:
         phone = f"0912{uuid.uuid4().hex[:7]}"
         person = Person.objects.create(tenant=tenant, full_name=full_name)
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         return CaregiverProfile.objects.create(
             user=user, person=person, phone=phone, display_name=full_name,
             city="tehran", specialty="elderly-care", bio="Experienced caregiver.",
-            years_experience=5, service_radius_km=10,
+            years_experience=5, service_radius_km=10, status=status,
         )
 
-    def _create_organization(self, *, tenant, name="Test Org") -> OrganizationProfile:
+    def _create_organization(self, *, tenant, name="Test Org", status=ProfileStatus.DRAFT) -> OrganizationProfile:
         phone = f"0912{uuid.uuid4().hex[:7]}"
         person = Person.objects.create(tenant=tenant, full_name=f"{name} Admin")
         admin_user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         return OrganizationProfile.objects.create(
             name=name, code=f"ORG-{uuid.uuid4().hex[:6].upper()}", admin_user=admin_user, tenant=tenant,
             city="tehran", phone="09120000000", address="Some address",
-            description="A senior-care company.", company_type="home_care",
+            description="A senior-care company.", company_type="home_care", status=status,
         )
 
     def _approve_required_caregiver_documents(self):
@@ -87,6 +87,7 @@ class ActivateActionTest(ProfileActivationViewsTestCase):
         self.assertEqual(response.status_code, 403)
 
     def test_authorized_reviewer_activates_eligible_caregiver(self):
+        self.assertEqual(self.caregiver.status, ProfileStatus.DRAFT)
         self._approve_required_caregiver_documents()
         self.client.force_login(self.actor)
 
@@ -95,13 +96,33 @@ class ActivateActionTest(ProfileActivationViewsTestCase):
         self.caregiver.refresh_from_db()
         self.assertEqual(self.caregiver.status, ProfileStatus.ACTIVE)
 
-    def test_activating_ineligible_caregiver_does_not_raise_and_stays_unactivated(self):
+    def test_activating_ineligible_caregiver_does_not_raise_and_stays_draft(self):
         self.client.force_login(self.actor)
         response = self.client.post(f"/admin-portal/verification/caregivers/{self.caregiver.id}/activate/")
         self.assertEqual(response.status_code, 302)  # redirects back, no 500
 
         detail = self.client.get(f"/admin-portal/verification/caregivers/{self.caregiver.id}/")
         self.assertEqual(detail.status_code, 200)
+        self.caregiver.refresh_from_db()
+        self.assertEqual(self.caregiver.status, ProfileStatus.DRAFT)
+
+    def test_suspended_caregiver_activation_is_refused(self):
+        self.caregiver.status = ProfileStatus.SUSPENDED
+        self.caregiver.save(update_fields=["status"])
+        self._approve_required_caregiver_documents()
+        self.client.force_login(self.actor)
+
+        response = self.client.post(f"/admin-portal/verification/caregivers/{self.caregiver.id}/activate/")
+        self.assertEqual(response.status_code, 302)
+        self.caregiver.refresh_from_db()
+        self.assertEqual(self.caregiver.status, ProfileStatus.SUSPENDED)
+
+    def test_suspended_caregiver_detail_page_shows_suspended(self):
+        self.caregiver.status = ProfileStatus.SUSPENDED
+        self.caregiver.save(update_fields=["status"])
+        self.client.force_login(self.actor)
+        response = self.client.get(f"/admin-portal/verification/caregivers/{self.caregiver.id}/")
+        self.assertContains(response, "معلق")
 
     def test_caregiver_cannot_self_activate_via_view(self):
         from apps.kernel.models.audit import AuditLog

@@ -574,3 +574,78 @@ Result: Success — profile completion is deterministic and single-source-of-tru
 Rollback method: git revert of the branch's commit(s); no data migration to reverse
 Status: Complete — branch phase1-activation-completion-final, PR to be created, NOT merged
 ```
+
+## Entry 022
+
+```
+Change ID: CL-022
+Date/time: 2026-07-15 (Phase 1.3 remediation — PR #5 fix activation state semantics)
+Task: Make profile.status the sole source of truth for activation state; AuditLog becomes
+      historical evidence only, never the activation signal
+Reason: PR #5 review found that AuditLog existence, not profile.status, was determining
+        "is this profile activated" — because registration left profiles ACTIVE by
+        default, ProfileActivationService never performed a real status transition in the
+        common case. Root architectural issue corrected before merge.
+Files added: None
+Files modified:
+  src/apps/accounts/services/registration.py (create_caregiver()/create_company_admin()
+    now create profiles with status=ProfileStatus.DRAFT, not the ACTIVE model default)
+  src/apps/accounts/services/profiles.py (ensure_caregiver_profile() defaults to DRAFT too)
+  src/apps/accounts/services/activation_eligibility_service.py (blocking check changed
+    from "status != ACTIVE" to "status in (SUSPENDED, ARCHIVED)" — removes the circular
+    "must already be ACTIVE to become eligible" rule; reason code renamed
+    profile_status_not_active -> profile_status_blocked)
+  src/apps/accounts/services/profile_activation_service.py (rewritten: real DRAFT ->
+    ACTIVE transition, ProfileActivationResult structured return, idempotency judged by
+    profile.status not AuditLog existence, before/after status recorded on AuditLog)
+  src/apps/admin_portal/views.py (is_activated(profile) call-site update)
+  src/apps/provider_portal/services/profile_service.py (same; activation_profile_status
+    passed to the ViewModel)
+  src/apps/organization_portal/services/profile_service.py (same)
+  src/apps/provider_portal/services/viewmodels.py (activation_profile_status field added)
+  src/apps/organization_portal/services/viewmodels.py (same)
+  src/templates/provider_portal/profile.html (passes profile_status to the component)
+  src/templates/organization_portal/profile.html (same)
+  src/ui/components/portal/activation_status.html (explicit SUSPENDED badge branch)
+  src/templates/admin_portal/caregiver_activation_detail.html (same)
+  src/templates/admin_portal/organization_activation_detail.html (same)
+  src/apps/accounts/tests/test_profile_activation.py (rewritten: DRAFT fixtures, new
+    ProfileActivationResult assertions, AuditLogIsNotSourceOfTruthTest,
+    EligibilitySemanticsTest, organization-suspended coverage)
+  src/apps/accounts/tests/test_activation_eligibility.py (renamed reason assertion;
+    added archived/draft-eligible/organization-suspended coverage)
+  src/apps/accounts/tests/test_registration.py (added DRAFT-on-registration assertions)
+  src/apps/admin_portal/tests/test_profile_activation.py (DRAFT fixtures; added
+    suspended-activation-refused, suspended-detail-shows-suspended)
+  src/apps/provider_portal/tests/test_activation_presentation.py (DRAFT fixture fix)
+  src/apps/organization_portal/tests/test_activation_presentation.py (same)
+  src/apps/provider_portal/tests/test_profile.py (locked query-count baseline 10 -> 9 —
+    is_activated() no longer queries AuditLog)
+  src/apps/organization_portal/tests/test_profile.py (locked query-count baseline
+    11 -> 10, same reason)
+Files deleted: None
+Database impact: None
+Migration impact: None — CaregiverProfile.status/OrganizationProfile.status's own Django
+  field default remains ProfileStatus.ACTIVE, unchanged; only the three canonical
+  registration/bootstrap call sites now pass an explicit status=DRAFT override. See
+  ARCHITECTURE_DECISION_LOG ADM-016 remediation note for the full "why no model-default
+  change" reasoning and the confirmed complete inventory of profile-creation call sites.
+Security impact: None new — same ACCOUNTS_PROFILE_ACTIVATE permission, same self-
+  activation/cross-tenant refusals, unchanged.
+Financial impact: Indirect, out of code scope: a freshly registered caregiver/organization
+  is no longer counted ACTIVE by apps.orders.services.eligibility_service
+  .OrderEligibilityService.is_eligible()/apps.accounts.services.supplier_bridge
+  .is_organization_supplier_active() until platform staff formally activate it. No
+  Marketplace/Financial/Booking code was modified — this is the intended consequence of
+  activation being a real, explicit action.
+Tests executed: check (0), makemigrations --check --dry-run (1, pre-existing unrelated
+  drift only, no CaregiverProfile/OrganizationProfile.status field change present), 16 new/
+  renamed focused tests (all 0), affected-app Level 2 suite (accounts + admin_portal +
+  provider_portal + organization_portal) 455/455 (incl. 2 locked query-count baselines
+  updated), full regression 1824/1824 (exit 0)
+Result: Success — profile.status is now the sole activation-state source of truth;
+  AuditLog is historical evidence only; DRAFT is the real pre-activation registration
+  state; zero regressions; zero migrations
+Rollback method: git revert of the branch's commit(s); no data migration to reverse
+Status: Complete — branch phase1-activation-completion-final, PR #5 updated in place, NOT merged
+```

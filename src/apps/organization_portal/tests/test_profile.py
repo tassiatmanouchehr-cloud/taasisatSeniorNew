@@ -280,17 +280,18 @@ class OrganizationProfileQueryCountTest(OrganizationPortalTestCase):
         row already exists, matching real usage after the first ever
         page load): session+user+org resolution (3), supplier lookup (1),
         rating summary (1), document list (1), active-staff count (1),
-        plus Phase 1.3's fixed-cost activation-status lookup (audit-log
-        existence check, session/user re-resolution inside the
-        eligibility check, required-document-policy config lookup,
-        document list for eligibility) (4) — 11 queries. A regression
+        plus Phase 1.3's fixed-cost activation-status lookup
+        (session/user re-resolution inside the eligibility check,
+        required-document-policy config lookup, document list for
+        eligibility — `is_activated` itself is a status check with no
+        query, Phase 1.3 remediation) (3) — 10 queries. A regression
         that turns any of these into a per-item loop would raise this
         count; this test exists specifically to catch that."""
         from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_organization
 
         get_or_create_supplier_for_organization(self.organization, tenant_id=self.tenant.id)
         self.login_as_admin()
-        with self.assertNumQueries(11):
+        with self.assertNumQueries(10):
             self.client.get(reverse("organization_portal:profile"))
 
     def test_query_count_does_not_grow_with_document_or_staff_count(self):

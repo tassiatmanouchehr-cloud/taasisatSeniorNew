@@ -497,7 +497,117 @@ customer/caregiver/organization registration works (verified, no defect); docume
 works; manual review works (approve/reject/correction, Phase 1.1); resubmission works
 (Phase 1.2); required-document policy exists (Phase 1.2); verification roll-up works
 (Phase 1.2); profile completion is deterministic (Phase 1.3 Part A); activation
-eligibility is enforced (Phase 1.2, unchanged); authorized activation works (Phase 1.3
-Part B/C); private documents remain protected (unchanged); tests are green (1808/1808);
-active documentation is synchronized (this update). Phase 1 — Registration and
+eligibility is enforced (Phase 1.2, corrected below); authorized activation works (Phase
+1.3 Part B/C, corrected below); private documents remain protected (unchanged); tests are
+green; active documentation is synchronized (this update). Phase 1 — Registration and
 Verification Workflows is COMPLETE.
+
+---
+
+## Phase 1.3 Remediation — Fix Activation State Semantics (PR #5)
+
+**Date:** July 15, 2026
+**Branch:** `phase1-activation-completion-final` (same branch, PR #5 updated in place)
+**Status:** IMPLEMENTED, PR #5 updated, not yet merged
+
+### The Root Defect
+
+PR #5 review correctly identified that the Phase 1.3 implementation above had no
+canonical profile-state transition. Because `CaregiverProfile.status`/
+`OrganizationProfile.status` already defaulted to `ProfileStatus.ACTIVE` at registration
+(a fact Phase 1.3 treated as a fixed, unchangeable constraint — see ADM-016's original
+"apparent circularity" reasoning), `ProfileActivationService` never actually needed to
+flip a profile's status in the ordinary case. "Activation" degenerated into "write an
+`AuditLog` entry," and `ProfileActivationService.is_activated()` read that `AuditLog`'s
+existence — not `profile.status` — to answer "is this profile currently active." A
+historical log became a live source of truth, which is exactly backwards, and which a new
+regression test (`AuditLogIsNotSourceOfTruthTest`) now proves was possible: writing an
+`accounts.profile.activated` `AuditLog` entry by hand, with no real transition behind it,
+previously would have made `is_activated()` return `True`.
+
+### The Fix
+
+`profile.status` is now the sole source of truth for current activation state.
+`AuditLog` is written on every real transition as permanent historical evidence of when
+and by whom it happened, and is never read back to answer "is this active right now."
+Concretely, this required breaking the original circularity at its actual root — the
+registration default, not the eligibility check:
+
+1. **Registration bootstrap now creates DRAFT profiles.**
+   `RegistrationService.create_caregiver()`/`create_company_admin()` and
+   `ensure_caregiver_profile()` (the multi-role attach helper) now explicitly pass
+   `status=ProfileStatus.DRAFT` at creation. `DRAFT` already existed in the
+   `ProfileStatus` enum — no new status value was invented, satisfying the remediation
+   task's explicit instruction to reuse an existing pre-activation state rather than add
+   one. Repository-wide grep confirmed these are the *only* three production code paths
+   that create a `CaregiverProfile`/`OrganizationProfile` at all — every other creation
+   site (test fixtures across `accounts`/`provider_portal`/`organization_portal`/
+   `admin_portal`/`orders`/`booking`/`commission`; the `seed_demo_people`/
+   `seed_demo_accounts` dev-only commands) uses `.objects.create()` directly, outside the
+   canonical registration layer.
+2. **No model-field default change, no migration.** `CaregiverProfile.status`/
+   `OrganizationProfile.status`'s own Django field default remains `ProfileStatus.ACTIVE`.
+   Changing it would have silently flipped status for every one of the call sites named
+   above, including test fixtures in apps this task is explicitly forbidden from touching
+   (`orders`, `booking`, `commission` — where `OrderEligibilityService.is_eligible()`/
+   `is_organization_supplier_active()` read `organization.status == ACTIVE` for unrelated
+   marketplace/financial-core purposes). Passing an explicit `status=` override at the
+   three canonical entry points is the smaller, correct-scope fix.
+3. **`ActivationEligibilityService` no longer requires `status == ACTIVE`.** This was the
+   literal circularity: under the old rule, a DRAFT profile could never be "eligible"
+   (since eligibility required already being ACTIVE), so it could never be activated. The
+   corrected rule blocks only `SUSPENDED`/`ARCHIVED` (`BLOCKING_PROFILE_STATUSES`); DRAFT
+   and ACTIVE are both non-blocking, evaluable statuses. The reason code changed from
+   `profile_status_not_active:{status}` to `profile_status_blocked:{status}`.
+4. **`ProfileActivationService._activate()` performs the real transition.** DRAFT +
+   eligible now genuinely sets `status = ACTIVE` and returns a structured
+   `ProfileActivationResult(profile, previous_status, status, transitioned)`. Idempotency
+   is now judged by `profile.status == ACTIVE` directly — a repeated call on an
+   already-ACTIVE profile short-circuits (`transitioned=False`) without re-running
+   eligibility, so an activated profile stays activatable even if some later fact (e.g. an
+   expired document) would fail a *fresh* eligibility check — that is the same, already
+   explicitly deferred deactivation/revalidation gap (BG-019), not a new one.
+   `AuditLog.before_snapshot`/`after_snapshot` now capture the real
+   `{"status": "draft"}` -> `{"status": "active"}` transition.
+5. **`is_activated()` reads `profile.status` directly** — `profile.status ==
+   ProfileStatus.ACTIVE`, no query at all. This also *removed* one query from every
+   provider/organization profile page load (the old `AuditLog.objects.filter(...).exists()`
+   check), which is why the two locked query-count regression tests
+   (`ProviderProfileQueryCountTest`, `OrganizationProfileQueryCountTest`) had their
+   baselines reduced by exactly one (10→9, 11→10) rather than increased.
+6. **UI now distinguishes SUSPENDED explicitly.** A new `activation_profile_status` field
+   was added to both portal ViewModels (the raw `ProfileStatus` value), and
+   `ui/components/portal/activation_status.html` plus the two `admin_portal`
+   activation-detail templates gained an explicit "معلق" / "پروفایل معلق شده است"
+   (Suspended) badge branch, rather than folding SUSPENDED into the generic "not eligible"
+   case.
+
+### Tests
+
+16 new/renamed focused tests across `test_profile_activation.py` (accounts, rewritten:
+DRAFT fixtures, `ProfileActivationResult` field assertions, `AuditLogIsNotSourceOfTruthTest`
+proving a hand-written `AuditLog` entry does *not* imply activation,
+`EligibilitySemanticsTest` proving DRAFT is eligible and ACTIVE remains evaluable,
+organization-SUSPENDED coverage), `test_activation_eligibility.py` (reason-code rename,
+archived/draft-eligible/organization-suspended coverage), `test_registration.py` (DRAFT-
+on-registration assertions for both caregiver and organization), and
+`test_profile_activation.py` (admin_portal, suspended-activation-refused and
+suspended-detail-shows-suspended). Full regression 1824/1824 green (1808 baseline + 16).
+
+### Test Level Decision
+
+Level 3 (full regression), run once before updating PR #5, justified by: this remediation
+changes what status a real user's caregiver/organization profile starts in — a
+foundational, widely-depended-on fact (registration bootstrap); it changes the
+activation-eligibility precondition logic; and it rewrites the same
+`select_for_update()`-guarded service already covered by Level 3 in the original Phase 1.3
+run. The status-default change is upstream of `apps.orders`/`apps.accounts.services
+.supplier_bridge` marketplace/financial-core eligibility reads even though those apps'
+own code was not modified, which the full suite exercises.
+
+### Deferred (unchanged)
+
+Automatic deactivation of an already-active profile when verification later becomes
+invalid/expired remains deferred (BG-019) — this remediation did not add or remove that
+gap, only made the *current* activation state (DRAFT/ACTIVE/SUSPENDED) accurately
+reflected by `profile.status` at all times.

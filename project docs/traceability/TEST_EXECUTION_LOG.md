@@ -370,3 +370,42 @@ Phase 1 — a medium/high-risk merge-prep trigger in its own right.
 tests (two intentional, documented query-count baseline updates in pre-existing tests, not
 failures — the new fixed-cost activation-status lookup on the profile page), migration
 drift unchanged from pre-task baseline (no new migration).
+
+---
+
+## Run 013 — Phase 1.3 Remediation: Fix Activation State Semantics (PR #5)
+
+```
+Branch: phase1-activation-completion-final (from main @ 860640e)
+Settings module: config.settings.testing
+Python: 3.11.15  |  Django: 5.2.16  |  PostgreSQL: 16.13
+Date/time: 2026-07-15
+```
+
+| Command | Exit code | Result |
+|---------|-----------|--------|
+| `python manage.py check` | 0 | System check identified no issues |
+| `apps.accounts.tests.test_profile_completion` | 0 | 11/11 (unchanged, unaffected) |
+| `apps.accounts.tests.test_profile_activation` | 0 | 24/24 (rewritten: DRAFT fixtures, `ProfileActivationResult` assertions, `AuditLogIsNotSourceOfTruthTest`, `EligibilitySemanticsTest`, organization-suspended coverage, incl. `ConcurrentActivationTest`) |
+| `apps.accounts.tests.test_activation_eligibility` | 0 | 15/15 (reason-code rename verified; archived/draft-eligible/organization-suspended coverage added) |
+| `apps.accounts.tests.test_registration` | 0 | 10/10 (incl. 2 new DRAFT-on-registration assertions) |
+| `apps.admin_portal.tests.test_profile_activation` | 0 | 11/11 (incl. 2 new suspended-activation tests) |
+| `apps.provider_portal.tests.test_activation_presentation` | 0 | 2/2 (DRAFT fixture fix) |
+| `apps.organization_portal.tests.test_activation_presentation` | 0 | 2/2 (same) |
+| `apps.accounts apps.admin_portal apps.provider_portal apps.organization_portal` (Level 2 — all directly affected apps) | 0 | 455/455 (incl. 2 locked query-count baselines updated: provider_portal 10->9, organization_portal 11->10 — `is_activated()` no longer queries `AuditLog`) |
+| `python manage.py makemigrations --check --dry-run` | 1 | Pre-existing cosmetic drift only, unchanged; confirmed no `CaregiverProfile`/`OrganizationProfile.status` field entry present (model-level default intentionally unchanged) |
+| **Full regression (Level 3 — registration bootstrap changed, profile-status semantics changed, transaction/concurrency-adjacent service rewritten, spans 4+ apps)** | **0** | **Ran 1824 tests — OK** (1808 baseline + 16 new/renamed) |
+
+**Test level used:** Level 3 (full regression), run exactly once before updating PR #5,
+justified by: this remediation changes what status a real user's caregiver/organization
+profile starts in (registration bootstrap — a foundational, widely-depended-on fact);
+changes the activation-eligibility precondition logic; and touches the same
+`select_for_update()`-guarded service already covered by Level 3 in Run 012. Repository-wide
+grep confirmed no app outside `accounts`/`admin_portal`/`provider_portal`/`organization_portal`
+references `ActivationEligibilityService`/`ProfileActivationService` directly, but the status
+default change is upstream of `apps.orders`/`apps.accounts.services.supplier_bridge`
+marketplace/financial-core eligibility reads, which the full suite exercises.
+
+**Classification:** GREEN — all new/renamed tests pass, zero regressions in 1808 pre-existing
+tests (two intentional, documented query-count baseline reductions), migration drift
+unchanged from pre-task baseline (no new migration).

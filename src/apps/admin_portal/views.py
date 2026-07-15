@@ -285,9 +285,7 @@ def caregiver_activation_detail(request, caregiver_id):
         raise Http404("Profile not found.") from None
 
     eligibility = ActivationEligibilityService.evaluate_caregiver(caregiver)
-    is_activated = ProfileActivationService.is_activated(
-        resource_type="CaregiverProfile", resource_id=caregiver.id, tenant_id=tenant_id,
-    )
+    is_activated = ProfileActivationService.is_activated(caregiver)
     return render(
         request,
         "admin_portal/caregiver_activation_detail.html",
@@ -322,9 +320,7 @@ def organization_activation_detail(request, organization_id):
         raise Http404("Profile not found.") from None
 
     eligibility = ActivationEligibilityService.evaluate_organization(organization)
-    is_activated = ProfileActivationService.is_activated(
-        resource_type="OrganizationProfile", resource_id=organization.id, tenant_id=tenant_id,
-    )
+    is_activated = ProfileActivationService.is_activated(organization)
     return render(
         request,
         "admin_portal/organization_activation_detail.html",

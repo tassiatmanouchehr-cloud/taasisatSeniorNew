@@ -236,3 +236,33 @@ The following files would be created or modified if the Offer Marketplace implem
 | `src/apps/provider_portal/tests/test_profile.py` | Modified | Locked query-count baseline 7 -> 10 (fixed-cost activation lookup) | git checkout |
 | `src/apps/organization_portal/tests/test_profile.py` | Modified | Locked query-count baseline 7 -> 11, same reason | git checkout |
 | `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |
+
+---
+
+## 2026-07-15 — Phase 1.3 Remediation: Fix Activation State Semantics (PR #5, CL-022)
+
+| Path | Change | Purpose | Rollback |
+|------|--------|---------|----------|
+| `src/apps/accounts/services/registration.py` | Modified | create_caregiver()/create_company_admin() create profiles as DRAFT, not ACTIVE | git checkout |
+| `src/apps/accounts/services/profiles.py` | Modified | ensure_caregiver_profile() defaults to DRAFT | git checkout |
+| `src/apps/accounts/services/activation_eligibility_service.py` | Modified | Blocks SUSPENDED/ARCHIVED only, not "status != ACTIVE" (removes circularity) | git checkout |
+| `src/apps/accounts/services/profile_activation_service.py` | Rewritten | Real DRAFT->ACTIVE transition; status-based idempotency; ProfileActivationResult | git checkout |
+| `src/apps/admin_portal/views.py` | Modified | is_activated(profile) call-site update | git checkout |
+| `src/apps/provider_portal/services/profile_service.py` | Modified | Same; passes activation_profile_status | git checkout |
+| `src/apps/organization_portal/services/profile_service.py` | Modified | Same | git checkout |
+| `src/apps/provider_portal/services/viewmodels.py` | Modified | activation_profile_status field added | git checkout |
+| `src/apps/organization_portal/services/viewmodels.py` | Modified | Same | git checkout |
+| `src/templates/provider_portal/profile.html` | Modified | Passes profile_status to activation_status.html | git checkout |
+| `src/templates/organization_portal/profile.html` | Modified | Same | git checkout |
+| `src/ui/components/portal/activation_status.html` | Modified | Explicit SUSPENDED badge branch | git checkout |
+| `src/templates/admin_portal/caregiver_activation_detail.html` | Modified | Same | git checkout |
+| `src/templates/admin_portal/organization_activation_detail.html` | Modified | Same | git checkout |
+| `src/apps/accounts/tests/test_profile_activation.py` | Rewritten | DRAFT fixtures; ProfileActivationResult assertions; AuditLog-not-source-of-truth test | git checkout |
+| `src/apps/accounts/tests/test_activation_eligibility.py` | Modified | Reason-code rename; archived/draft-eligible/org-suspended coverage | git checkout |
+| `src/apps/accounts/tests/test_registration.py` | Modified | DRAFT-on-registration assertions | git checkout |
+| `src/apps/admin_portal/tests/test_profile_activation.py` | Modified | DRAFT fixtures; suspended-activation coverage | git checkout |
+| `src/apps/provider_portal/tests/test_activation_presentation.py` | Modified | DRAFT fixture fix | git checkout |
+| `src/apps/organization_portal/tests/test_activation_presentation.py` | Modified | Same | git checkout |
+| `src/apps/provider_portal/tests/test_profile.py` | Modified | Locked query-count baseline 10 -> 9 (AuditLog query removed) | git checkout |
+| `src/apps/organization_portal/tests/test_profile.py` | Modified | Locked query-count baseline 11 -> 10, same reason | git checkout |
+| `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |

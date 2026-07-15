@@ -1,6 +1,13 @@
 """Profile services — completion, elder, trusted contacts, multi-role identity."""
 
-from ..models.profiles import CustomerProfile, CaregiverProfile, ElderProfile, OrganizationProfile, TrustedContact
+from ..models.profiles import (
+    CustomerProfile,
+    CaregiverProfile,
+    ElderProfile,
+    OrganizationProfile,
+    ProfileStatus,
+    TrustedContact,
+)
 from .profile_completion_service import ProfileCompletionService
 from .registration import assign_role
 
@@ -125,12 +132,19 @@ def ensure_customer_profile(user, *, phone=None, display_name=None, **kwargs) ->
 
 def ensure_caregiver_profile(user, *, phone=None, display_name=None, **kwargs) -> CaregiverProfile:
     """Idempotently attach a CaregiverProfile to an existing UserAccount.
-    Returns the existing profile if one is already attached."""
+    Returns the existing profile if one is already attached. Phase 1.3
+    remediation: this is a real registration/bootstrap entry point (a
+    caregiver identity being attached to an existing account for the
+    first time), so it defaults to `ProfileStatus.DRAFT` exactly like
+    `RegistrationService.create_caregiver()` — callers may still pass an
+    explicit `status=` to override (e.g. a trusted internal caller
+    re-attaching a profile that should start elsewhere)."""
     existing = CaregiverProfile.objects.filter(user=user).first()
     if existing:
         return existing
     if user.person is None:
         raise ValueError("UserAccount must have a Person before a profile can be attached.")
+    kwargs.setdefault("status", ProfileStatus.DRAFT)
     profile = CaregiverProfile.objects.create(
         user=user, person=user.person,
         phone=phone or user.phone,

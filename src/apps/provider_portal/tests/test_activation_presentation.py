@@ -26,13 +26,19 @@ class OwnerActivationStatusTest(ProviderPortalTestCase):
         return reviewer
 
     def test_owner_sees_not_yet_eligible_before_documents_reviewed(self):
+        from apps.accounts.models.profiles import CaregiverProfile, ProfileStatus
+
+        caregiver = CaregiverProfile.objects.get(user=self.provider_user)
+        caregiver.status = ProfileStatus.DRAFT  # mirrors real registration bootstrap
+        caregiver.save(update_fields=["status"])
+
         self.login_as_provider()
         response = self.client.get(reverse("provider_portal:profile"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "هنوز آماده فعال‌سازی نیست")
 
     def test_owner_sees_activated_badge_after_platform_activation(self):
-        from apps.accounts.models.profiles import CaregiverProfile
+        from apps.accounts.models.profiles import CaregiverProfile, ProfileStatus
 
         caregiver = CaregiverProfile.objects.get(user=self.provider_user)
         caregiver.city = "tehran"
@@ -40,6 +46,7 @@ class OwnerActivationStatusTest(ProviderPortalTestCase):
         caregiver.bio = "Experienced caregiver."
         caregiver.years_experience = 5
         caregiver.service_radius_km = 10
+        caregiver.status = ProfileStatus.DRAFT  # mirrors real registration bootstrap
         caregiver.save()
         reviewer = self._reviewer()
         for doc_type in (DocumentType.IDENTITY, DocumentType.BACKGROUND_CHECK):

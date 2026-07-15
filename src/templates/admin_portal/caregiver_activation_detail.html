@@ -10,7 +10,9 @@
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-base font-bold text-text">وضعیت فعال‌سازی</h2>
       {% if is_activated %}
-      {% include "ui/components/feedback/badge.html" with label="فعال‌شده" variant="success" %}
+      {% include "ui/components/feedback/badge.html" with label="فعال" variant="success" %}
+      {% elif caregiver.status == "suspended" %}
+      {% include "ui/components/feedback/badge.html" with label="معلق" variant="danger" %}
       {% elif eligibility.eligible %}
       {% include "ui/components/feedback/badge.html" with label="آماده فعال‌سازی" variant="warning" %}
       {% else %}

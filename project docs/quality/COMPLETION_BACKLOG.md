@@ -101,6 +101,16 @@ ADM-016.
 **Not included:** automatic deactivation of an already-active profile when
 verification later becomes invalid/expired (see BG-019 — no
 suspension/revalidation workflow exists to hook it into).
+**Remediated (2026-07-15, PR #5 review):** the initial implementation used
+`AuditLog` existence, not `profile.status`, as the activation signal —
+because registration left profiles `ACTIVE` by default, activation never
+performed a real status transition in the common case. Fixed: caregiver/
+organization registration now creates `ProfileStatus.DRAFT` profiles;
+`ActivationEligibilityService` no longer requires `status == ACTIVE`
+(removed the resulting circularity); `ProfileActivationService` now
+performs a real `DRAFT -> ACTIVE` transition and judges idempotency from
+`profile.status` directly. See `traceability/ARCHITECTURE_DECISION_LOG.md`
+ADM-016's remediation note.
 
 ### BG-019: Automatic Deactivation on Verification Becoming Invalid/Expired
 

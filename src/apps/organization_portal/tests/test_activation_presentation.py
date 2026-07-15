@@ -26,17 +26,25 @@ class OwnerActivationStatusTest(OrganizationPortalTestCase):
         return reviewer
 
     def test_owner_sees_not_yet_eligible_before_documents_reviewed(self):
+        from apps.accounts.models.profiles import ProfileStatus
+
+        self.organization.status = ProfileStatus.DRAFT  # mirrors real registration bootstrap
+        self.organization.save(update_fields=["status"])
+
         self.login_as_admin()
         response = self.client.get(reverse("organization_portal:profile"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "هنوز آماده فعال‌سازی نیست")
 
     def test_owner_sees_activated_badge_after_platform_activation(self):
+        from apps.accounts.models.profiles import ProfileStatus
+
         self.organization.city = "tehran"
         self.organization.phone = "09120000000"
         self.organization.address = "Some address"
         self.organization.description = "A senior-care company."
         self.organization.company_type = "home_care"
+        self.organization.status = ProfileStatus.DRAFT  # mirrors real registration bootstrap
         self.organization.save()
 
         reviewer = self._reviewer()

@@ -1,32 +1,42 @@
 """ProfileActivationService — Phase 1.3 (Profile Activation and
-Completion).
+Completion), corrected in the Phase 1.3 remediation (PR #5).
 
-The explicit, audited, platform-staff-gated action that formally records
-a caregiver's/organization's profile as activated. Distinct from the
-`ProfileStatus.ACTIVE` a profile's own `status` field already carries by
-default at registration (unchanged, existing behavior — see
-`RegistrationService.create_caregiver()`/`create_company_admin()`): most
-profiles are already "active" in that narrower DB-field sense the moment
-they are created. What did NOT exist before this phase was any explicit,
-permission-gated, audited record of platform staff having reviewed and
-approved a profile against the platform's activation bar
-(`ActivationEligibilityService`, Phase 1.2, itself unchanged by this
-module) — that record is what this service adds.
+The explicit, authorized, audited action that performs the real
+DRAFT -> ACTIVE profile-status transition for a caregiver's/
+organization's profile.
+
+Root defect fixed in this remediation: the original Phase 1.3
+implementation treated `AuditLog` existence as the activation source of
+truth ("activation is true because a matching AuditLog exists") and never
+actually changed `profile.status`, because profiles already defaulted to
+`ProfileStatus.ACTIVE` at registration. That made "activation" a no-op
+recording action with no real state transition behind it.
+
+`profile.status` is now the sole source of truth for a profile's current
+activation state — `ProfileStatus.DRAFT` (registered, not yet
+platform-activated; the new default at registration —
+`RegistrationService.create_caregiver()`/`create_company_admin()`),
+`ProfileStatus.ACTIVE` (explicitly activated), `ProfileStatus.SUSPENDED`
+(administratively blocked). `AuditLog` is written on every real
+transition as permanent historical evidence of *when* and *by whom* the
+transition happened — it is consulted for nothing else. In particular,
+`is_activated()` below reads `profile.status` directly and never queries
+`AuditLog`.
 
 Never activates automatically — nothing calls this except an explicit,
 authorized request. Never suspends/deactivates an already-active profile
 — that is an explicitly deferred, distinct revalidation/suspension
-workflow (see `project docs/quality/COMPLETION_BACKLOG.md`).
+workflow (see `project docs/quality/COMPLETION_BACKLOG.md` BG-019).
 
-Idempotency without a new field: the presence of an
-"accounts.profile.activated" `AuditLog` entry for this exact
-(tenant, resource_type, resource_id) is the sole signal that a profile
-has already been activated — reusing `AuditLog` as the natural
-idempotency key, the same "look up before create" shape
-`apps.commission`'s `idempotency_key`-based services already use
-elsewhere in this codebase, rather than adding a new field to track
-"has this profile been activated."
+Idempotency is now derived from `profile.status` itself: if the locked
+profile is already `ACTIVE`, `activate_*()` returns immediately with
+`transitioned=False` — no eligibility re-check (an already-active profile
+must not be re-blocked by, say, a document that expired after it was
+activated — that is the same deferred deactivation concern) and no
+second "effective" `AuditLog` entry.
 """
+
+from dataclasses import dataclass
 
 from django.db import transaction
 
@@ -45,17 +55,35 @@ ACTIVATION_AUDIT_ACTION = "accounts.profile.activated"
 class ProfileActivationError(AccountsError):
     """Raised when activation is refused — a controlled domain error
     carrying the exact `ActivationEligibilityResult` reasons, never a
-    bare exception."""
+    bare exception. Covers both "DRAFT but ineligible" and "SUSPENDED/
+    ARCHIVED" refusals, since both are reported as blocking reasons by
+    `ActivationEligibilityService`."""
 
     def __init__(self, result: ActivationEligibilityResult):
         self.result = result
         super().__init__(f"Profile is not eligible for activation: {', '.join(result.reasons)}")
 
 
+@dataclass(frozen=True)
+class ProfileActivationResult:
+    """The structured outcome of one `activate_*()` call.
+
+    `transitioned` is True only when this call actually performed the
+    DRAFT -> ACTIVE state change and wrote the corresponding `AuditLog`
+    entry. A repeated call against an already-`ACTIVE` profile returns
+    `transitioned=False` (idempotent no-op: no duplicate state
+    transition, no duplicate effective audit entry)."""
+
+    profile: object
+    previous_status: str
+    status: str
+    transitioned: bool
+
+
 class ProfileActivationService:
     @classmethod
     @transaction.atomic
-    def activate_caregiver(cls, caregiver_id, *, tenant_id, actor):
+    def activate_caregiver(cls, caregiver_id, *, tenant_id, actor) -> ProfileActivationResult:
         try:
             locked = CaregiverProfile.objects.select_for_update().get(id=caregiver_id)
         except CaregiverProfile.DoesNotExist:
@@ -73,7 +101,7 @@ class ProfileActivationService:
 
     @classmethod
     @transaction.atomic
-    def activate_organization(cls, organization_id, *, tenant_id, actor):
+    def activate_organization(cls, organization_id, *, tenant_id, actor) -> ProfileActivationResult:
         try:
             locked = OrganizationProfile.objects.select_for_update().get(id=organization_id)
         except OrganizationProfile.DoesNotExist:
@@ -112,34 +140,28 @@ class ProfileActivationService:
             raise AccountsError("Profile not found.")
         return organization
 
-    @classmethod
-    def is_activated(cls, *, resource_type: str, resource_id, tenant_id) -> bool:
-        """Read-only — used by both `_activate()`'s idempotency guard and
-        presentation services (`ProviderProfilePresentationService`/
-        `OrganizationProfilePresentationService`) that need to show the
-        owner their current activation state without duplicating this
-        lookup."""
-        from apps.kernel.models.audit import AuditLog
-
-        return AuditLog.objects.filter(
-            tenant_id=tenant_id,
-            resource_type=resource_type,
-            resource_id=resource_id,
-            action=ACTIVATION_AUDIT_ACTION,
-        ).exists()
+    @staticmethod
+    def is_activated(profile) -> bool:
+        """`profile.status` is the sole source of truth for current
+        activation state. `AuditLog` is historical evidence of the
+        transition only and is never consulted here."""
+        return profile.status == ProfileStatus.ACTIVE
 
     @classmethod
-    def _activate(cls, profile, *, resource_type: str, tenant_id, actor):
-        if cls.is_activated(resource_type=resource_type, resource_id=profile.id, tenant_id=tenant_id):
-            return profile  # idempotent no-op — already formally activated
+    def _activate(cls, profile, *, resource_type: str, tenant_id, actor) -> ProfileActivationResult:
+        previous_status = profile.status
+
+        if profile.status == ProfileStatus.ACTIVE:
+            return ProfileActivationResult(
+                profile=profile, previous_status=previous_status, status=profile.status, transitioned=False,
+            )
 
         result = ActivationEligibilityService.evaluate(profile)
         if not result.eligible:
             raise ProfileActivationError(result)
 
-        if profile.status != ProfileStatus.ACTIVE:
-            profile.status = ProfileStatus.ACTIVE
-            profile.save(update_fields=["status", "updated_at"])
+        profile.status = ProfileStatus.ACTIVE
+        profile.save(update_fields=["status", "updated_at"])
 
         AuditService.log(
             tenant_id=tenant_id,
@@ -149,6 +171,9 @@ class ProfileActivationService:
             module_id=MODULE_ID,
             actor_id=getattr(actor, "person_id", None),
             actor_type="user" if actor else "system",
+            before={"status": previous_status},
             after={"status": profile.status, "verification_status": result.verification.verification_status},
         )
-        return profile
+        return ProfileActivationResult(
+            profile=profile, previous_status=previous_status, status=profile.status, transitioned=True,
+        )

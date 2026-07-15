@@ -1,13 +1,11 @@
 """ActivationEligibilityService — Phase 1.2 (Verification Completion and
-Activation Rules).
+Activation Rules), corrected in the Phase 1.3 remediation (PR #5).
 
 A pure, read-only query: "is this caregiver's/organization's profile
 allowed to be activated right now, and if not, why." No side effects —
-it does not activate, publish, or change anything. Nothing in this
-repository currently requires auto-activation on eligibility (there is
-no existing workflow that clearly calls for it), so none is added here;
-a future PR can wire this into an explicit activation action once one is
-actually needed.
+it does not activate, publish, or change anything. Since Phase 1.3,
+`ProfileActivationService` is the caller that wires this into a real
+DRAFT -> ACTIVE transition.
 
 This is deliberately upstream of, and distinct from,
 `apps.public_site.services.common.is_publicly_visible()` — that function
@@ -19,8 +17,20 @@ organization itself meet the platform's activation bar. The two may be
 composed by a future caller; this task does not wire them together
 (marketplace visibility is explicitly out of this task's scope).
 
-Eligibility requires ALL of:
-  - the profile's own `status` is ACTIVE (not draft/suspended/archived)
+Root defect fixed in the Phase 1.3 remediation: this service used to
+require `status == ACTIVE` as an eligibility precondition, which is
+circular once registration correctly starts a profile in DRAFT (a DRAFT
+profile could never become "eligible," so it could never be activated).
+Eligibility must instead distinguish *current activation state*
+(`profile.status`, owned and mutated only by `ProfileActivationService`)
+from *eligibility to become active* (this service). Eligibility requires
+ALL of:
+  - the profile's own `status` is not a blocking status — SUSPENDED or
+    ARCHIVED. DRAFT and ACTIVE are both non-blocking: DRAFT is the normal
+    pre-activation state a fresh registration starts in, and an
+    already-ACTIVE profile remains evaluable (e.g. for display purposes,
+    or so `ProfileActivationService`'s idempotent repeat-activation path
+    can still reason about eligibility if it ever needs to).
   - the underlying UserAccount is active
   - the base profile is complete (100% — see MINIMUM_PROFILE_COMPLETION_PERCENT)
   - the rolled-up verification_status is VERIFIED (Part B) — this already
@@ -40,6 +50,11 @@ MINIMUM_PROFILE_COMPLETION_PERCENT = 100
 """The smallest explicit definition of "complete" available without
 guessing a partial threshold no product evidence supports: every base
 field present."""
+
+BLOCKING_PROFILE_STATUSES = (ProfileStatus.SUSPENDED, ProfileStatus.ARCHIVED)
+"""Statuses that block eligibility outright, regardless of completion or
+verification. DRAFT and ACTIVE are deliberately excluded — see the module
+docstring's "Root defect fixed" note."""
 
 
 @dataclass(frozen=True)
@@ -61,8 +76,8 @@ class ActivationEligibilityService:
     @classmethod
     def evaluate_caregiver(cls, caregiver: CaregiverProfile) -> ActivationEligibilityResult:
         reasons = []
-        if caregiver.status != ProfileStatus.ACTIVE:
-            reasons.append(f"profile_status_not_active:{caregiver.status}")
+        if caregiver.status in BLOCKING_PROFILE_STATUSES:
+            reasons.append(f"profile_status_blocked:{caregiver.status}")
         if not caregiver.user.is_active:
             reasons.append("user_account_inactive")
 
@@ -78,8 +93,8 @@ class ActivationEligibilityService:
     @classmethod
     def evaluate_organization(cls, organization: OrganizationProfile) -> ActivationEligibilityResult:
         reasons = []
-        if organization.status != ProfileStatus.ACTIVE:
-            reasons.append(f"profile_status_not_active:{organization.status}")
+        if organization.status in BLOCKING_PROFILE_STATUSES:
+            reasons.append(f"profile_status_blocked:{organization.status}")
         if not organization.admin_user.is_active:
             reasons.append("user_account_inactive")
 

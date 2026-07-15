@@ -81,12 +81,36 @@ Closes the two items Phase 1.2 explicitly left open (BG-018):
 
 40 new tests, zero new migrations, full regression 1808/1808 green.
 **All Phase 1 acceptance criteria are now met.** Branch
-`phase1-activation-completion-final`, PR pending, not yet merged — see
+`phase1-activation-completion-final`, PR #5 created — see
 `traceability/IMPLEMENTATION_JOURNAL.md` and `ARCHITECTURE_DECISION_LOG`
 ADM-016. Deferred (explicitly, recorded as BG-019, not a defect):
 automatic deactivation of an already-active profile when verification
 later becomes invalid — no suspension/revalidation workflow exists yet to
 hook it into.
+
+### Phase 1.3 Remediation — Fix Activation State Semantics (PR #5) — IMPLEMENTED (2026-07-15)
+
+PR #5 review found the root defect described above under a different name:
+`AuditLog` existence, not `profile.status`, was determining current
+activation state, because registration left profiles `ACTIVE` by default
+and `ProfileActivationService` never performed a real status transition.
+Fixed in place on the same branch/PR:
+
+- `RegistrationService.create_caregiver()`/`create_company_admin()` and
+  `ensure_caregiver_profile()` now create profiles with
+  `status=ProfileStatus.DRAFT` (the existing enum value, reused — no new
+  status invented, no migration).
+- `ActivationEligibilityService` no longer requires `status == ACTIVE`
+  (the exact circularity being fixed); it now blocks only
+  `SUSPENDED`/`ARCHIVED`.
+- `ProfileActivationService` performs a real `DRAFT -> ACTIVE` transition,
+  returns a structured `ProfileActivationResult`, and judges idempotency
+  from `profile.status` — never from `AuditLog`.
+- Owner/platform UI now distinguishes SUSPENDED explicitly.
+
+16 new/renamed tests, full regression 1824/1824 green. See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-016's remediation note and
+`traceability/IMPLEMENTATION_JOURNAL.md` for the full record.
 
 ---
 

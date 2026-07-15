@@ -64,7 +64,7 @@ class OrganizationProfilePresentationService:
         documents = cls._document_rows(organization)
         active_provider_count = OrganizationStaffService.list_active_caregivers(organization).count()
         completion_percent, missing = cls._completion(organization, documents)
-        is_activated, eligibility = cls._activation_status(organization, tenant_id=tenant_id)
+        is_activated, eligibility = cls._activation_status(organization)
 
         return OrganizationProfileViewModel(
             organization_id=str(organization.id),
@@ -94,20 +94,21 @@ class OrganizationProfilePresentationService:
             is_activated=is_activated,
             activation_eligible=eligibility.eligible,
             activation_blocking_reasons=eligibility.reasons,
+            activation_profile_status=organization.status,
         )
 
     @staticmethod
-    def _activation_status(organization, *, tenant_id):
+    def _activation_status(organization):
         """Phase 1.3 (Profile Activation and Completion): owner-facing
         activation state + blockers, reusing
         `ActivationEligibilityService`/`ProfileActivationService`'s own
-        read-only queries — never recomputed here."""
+        read-only queries — never recomputed here. `is_activated` is
+        derived from `organization.status` directly (the sole source of
+        truth, Phase 1.3 remediation) — no query needed."""
         from apps.accounts.services.activation_eligibility_service import ActivationEligibilityService
         from apps.accounts.services.profile_activation_service import ProfileActivationService
 
-        is_activated = ProfileActivationService.is_activated(
-            resource_type="OrganizationProfile", resource_id=organization.id, tenant_id=tenant_id,
-        )
+        is_activated = ProfileActivationService.is_activated(organization)
         eligibility = ActivationEligibilityService.evaluate_organization(organization)
         return is_activated, eligibility
 
