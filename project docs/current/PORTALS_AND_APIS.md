@@ -1,6 +1,6 @@
 # PORTALS, APIS, AND ENTRY POINTS
 
-**Last verified HEAD:** phase2-caregiver-gallery-media (from main @ c5259b3, PR #6 merged)
+**Last verified HEAD:** phase2-caregiver-gallery-media (from main @ c5259b3, PR #6 merged; PR #7 file-lifecycle/image-safety remediation in progress)
 **Last verified date:** 2026-07-15
 
 ---
@@ -74,4 +74,4 @@ Each portal has presentation services that transform domain models into view-rea
 - `OrganizationProfilePresentationService` (organization_portal)
 - `HomePageService`, `CaregiverDirectoryService`, `CaregiverPublicProfileService` (public_site) — all three resolve caregiver/organization public visibility through the same canonical function, `apps.public_site.services.common.is_publicly_visible_attrs()` (BG-022 remediation, 2026-07-15); there is exactly one implementation of "is this publicly visible," never a per-surface duplicate
 - `CaregiverSkillService`, `CaregiverExperienceService`, `PublicCredentialSelector` (accounts, Phase 2.1 — domain services/selectors, not presentation services; called by provider_portal/public_site)
-- `CaregiverGalleryService` (accounts, Sprint 2.2 — domain service, not a presentation service; called by provider_portal; `CaregiverPublicProfileService._gallery()` is the read-only public-facing counterpart, gated by the existing BG-022 canonical visibility policy, no second rule)
+- `CaregiverGalleryService` (accounts, Sprint 2.2 — domain service, not a presentation service; called by provider_portal; `CaregiverPublicProfileService._gallery()` is the read-only public-facing counterpart, gated by the existing BG-022 canonical visibility policy, no second rule). **PR #7 remediation:** physical file deletion is deferred to `transaction.on_commit()` rather than performed inline before the row commits, and `apps.accounts.services.image_validation.validate_image()` (called from every route into this service) now also bounds decoded image width/height/pixel count, not just upload byte size.

@@ -10,9 +10,13 @@ grand-total file/method counts re-verified;
 partial update 2026-07-15 (Sprint 2.2 — Caregiver Gallery and Media Portfolio) — only
 `accounts`/`provider_portal`/`public_site` rows and grand-total file/method counts
 re-verified;
+partial update 2026-07-15 (PR #7 file-lifecycle/image-safety remediation) — only the
+`accounts` row (test methods, +2 classes in the existing gallery test file, no new file)
+and grand-total method count re-verified;
 a full re-audit of every app was not performed for any of the incremental changes.
 **Last verified date:** 2026-07-14 / 2026-07-15 (partial) / 2026-07-15 (partial, Phase 2.1) /
-2026-07-15 (partial, BG-022) / 2026-07-15 (partial, Sprint 2.2)
+2026-07-15 (partial, BG-022) / 2026-07-15 (partial, Sprint 2.2) / 2026-07-15 (partial,
+PR #7 remediation)
 
 ---
 
@@ -20,16 +24,16 @@ a full re-audit of every app was not performed for any of the incremental change
 
 | Metric | Count |
 |--------|-------|
-| Total test files | 208 (198 + 10 accumulated through Phase 1.2/1.3/2.1/BG-022/Sprint 2.2) |
-| Total test classes | ~453 (not re-audited exactly) |
-| Total test methods | 1,932 (full regression re-run 2026-07-15, Sprint 2.2 — Caregiver Gallery and Media Portfolio) |
+| Total test files | 208 (198 + 10 accumulated through Phase 1.2/1.3/2.1/BG-022/Sprint 2.2; PR #7 remediation added no new file) |
+| Total test classes | ~455 (not re-audited exactly; +2 classes added to the existing gallery test file) |
+| Total test methods | 1,948 (full regression re-run 2026-07-15, PR #7 file-lifecycle/image-safety remediation) |
 
 ## Per-App Confidence
 
 | App | Files | Methods | Auth Tests | Concurrency | Financial | Mock | **Confidence** |
 |-----|-------|---------|------------|-------------|-----------|------|----------------|
 | kernel | 19 | 232 | 7 | - | 5 | 2 | **STRONG** |
-| accounts | 25 | 338 | 6 | 2 | - | 1 | **STRONG** |
+| accounts | 25 | 354 | 6 | 2 | - | 1 | **STRONG** |
 | commission | 22 | 132 | 15 | 1 | 20 | 2 | **STRONG** |
 | orders | 7 | 159 | - | - | - | - | **STRONG** |
 | finance | 17 | 75 | 1 | - | 17 | 1 | **STRONG** |

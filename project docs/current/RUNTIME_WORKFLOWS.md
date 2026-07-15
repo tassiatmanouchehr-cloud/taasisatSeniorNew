@@ -1,6 +1,6 @@
 # RUNTIME WORKFLOWS
 
-**Last verified HEAD:** phase2-caregiver-gallery-media (from main @ c5259b3, PR #6 merged)
+**Last verified HEAD:** phase2-caregiver-gallery-media (from main @ c5259b3, PR #6 merged; PR #7 file-lifecycle/image-safety remediation in progress)
 **Last verified date:** 2026-07-15
 
 ---
@@ -111,6 +111,18 @@ two concurrent uploads cannot both bypass `MAX_GALLERY_ITEMS_PER_CAREGIVER = 12`
 hardcoded cap — not tenant-configurable, no product requirement calls for that). New items
 append at the next `display_order`.
 
+`validate_image()` also bounds the **decoded** image, not just the uploaded byte size
+(**remediation, PR #7 review, 2026-07-15**): `MAX_IMAGE_WIDTH`/`MAX_IMAGE_HEIGHT`/
+`MAX_IMAGE_PIXELS` (8000px/8000px/25M px) are read from the image header immediately after
+`Image.open()` — before any full pixel decode — and enforced ahead of that decode. A small,
+adversarially-crafted file claiming an enormous decoded pixel grid ("decompression bomb")
+is rejected by these explicit limits; Pillow's own `DecompressionBombError`/
+`DecompressionBombWarning` are also caught (the warning promoted to a catchable exception
+via a scoped filter) as defense-in-depth, both mapped to the same controlled
+`AccountsError` — never an unhandled 500. Validation stays a single decode pass (open once,
+read format/size, `verify()` once); the file stream is reset to position 0 afterward so the
+subsequent `ImageField` save reads from the start.
+
 `update_item(caregiver, *, item_id, caption, alt_text, is_visible)` — re-verifies
 `caregiver=caregiver` in the same lookup that resolves the row; `is_visible` is the only
 visibility lever short of permanent deletion (this model has no soft-delete/archive field —
@@ -123,10 +135,21 @@ reorder. The provider-portal UI exposes this as simple "move up"/"move down" but
 item (plain POST forms, no JS drag-and-drop dependency), computing the swapped order before
 calling `reorder()`.
 
-`remove_item(caregiver, *, item_id)` — row-locks the target item, deletes the physical file
-(`image.delete(save=False)`) before deleting the row — never leaves an orphaned file,
-mirroring `ProfileMediaService._replace()`'s own convention. Removing a gallery item never
-touches `avatar`/`cover_image` (three distinct responsibilities, never conflated).
+`remove_item(caregiver, *, item_id)` — row-locks the target item, deletes the database row,
+then schedules physical file deletion via `transaction.on_commit()` — never inline, and
+never before the row is gone. **Remediation (PR #7 review, 2026-07-15):** the original
+implementation deleted the physical file first and the row second, inside the same
+transaction; since filesystem operations don't participate in a database transaction, a
+later rollback of that transaction would have left a live row pointing at an
+already-deleted file. Now the order is reversed and the file deletion is deferred to
+post-commit — if the transaction rolls back, Django discards the scheduled callback
+entirely and the file is never touched; if the file deletion itself later fails, the
+failure is logged (`_delete_stored_file()`), never raised — the row is already committed
+gone either way, so the only possible outcome is a detectable orphaned file, never a
+resurrected row or a broken request. Orphan-file cleanup/retry is explicitly deferred (no
+cleanup-job infrastructure exists in this repository). Removing a gallery item never
+touches `avatar`/`cover_image` (three distinct responsibilities, never conflated). See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-018's remediation note.
 
 Public exposure: `CaregiverPublicProfileService._gallery()` adds no eligibility check of
 its own — it only runs after `get_profile()`'s existing canonical

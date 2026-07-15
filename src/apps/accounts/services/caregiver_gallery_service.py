@@ -21,13 +21,26 @@ constraint the way "no duplicate skill name" is. This mirrors
 this app for a mutation that genuinely needs an explicit lock, rather
 than skill/experience's lighter, constraint-backed pattern.
 
-Deletion is a hard delete that always removes the stored file
-(`image.delete(save=False)`), the same convention
-`ProfileMediaService._replace()` uses for avatar/cover replacement — see
+Deletion is a hard delete that always removes the stored file — see
 `apps.accounts.models.gallery` for why no soft-delete/archive field
 exists on this model. `is_visible` is the only visibility lever short of
 permanent deletion.
+
+Remediation (PR #7 review, 2026-07-15): physical file deletion is
+scheduled via `transaction.on_commit()`, never performed inline inside
+the same atomic block that deletes the database row. Filesystem/storage
+operations do not participate in the database transaction — deleting the
+file first (the original implementation) meant a later rollback of the
+row deletion (e.g. an outer caller's transaction failing after this
+method returns) would leave a live database row pointing at a file that
+no longer exists. Scheduling the physical delete for after commit means
+the row is deleted, guaranteed, before the file ever is; if the file
+delete itself later fails, the database is never left inconsistent — see
+`_delete_stored_file()` below and
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-018's remediation note.
 """
+
+import logging
 
 from django.db import transaction
 
@@ -35,6 +48,8 @@ from ..models.gallery import CaregiverGalleryItem
 from ..models.profiles import CaregiverProfile
 from .errors import AccountsError
 from .image_validation import validate_image
+
+logger = logging.getLogger(__name__)
 
 MAX_GALLERY_ITEMS_PER_CAREGIVER = 12
 """Explicit, hardcoded cap — no product requirement or existing repo
@@ -123,9 +138,39 @@ class CaregiverGalleryService:
             item = CaregiverGalleryItem.objects.select_for_update().get(id=item_id, caregiver=locked_caregiver)
         except CaregiverGalleryItem.DoesNotExist:
             raise AccountsError("Gallery item not found.") from None
-        if item.image:
-            item.image.delete(save=False)
+
+        # Capture the storage handle and stored name before the row is
+        # gone — `item.image` is unusable once the row no longer exists.
+        storage = item.image.storage
+        file_name = item.image.name
+
         item.delete()
+
+        # Physical deletion only ever runs after this transaction (or the
+        # outermost transaction it's nested in) actually commits. If it
+        # rolls back instead, Django discards the callback entirely — the
+        # row deletion is undone and the file was never touched, so no
+        # inconsistency is possible either way.
+        if file_name:
+            transaction.on_commit(lambda: cls._delete_stored_file(storage, file_name))
+
+    @staticmethod
+    def _delete_stored_file(storage, file_name: str) -> None:
+        """Runs once the row deletion is durably committed — the database
+        is never the thing that can still be wrong by the time this runs.
+        If the storage backend itself fails to delete the file, that
+        failure is swallowed and logged, not raised: the row is already
+        gone and its public URL is already unreachable (the view/selector
+        that served it no longer finds the row), so the only possible
+        consequence of a storage failure here is an orphaned file on disk,
+        never a resurrected row or a broken request. No cleanup-job
+        infrastructure exists in this repository to hook automatic retry
+        into (see `ARCHITECTURE_DECISION_LOG.md` ADM-018's remediation
+        note) — orphan cleanup is deferred, not implemented here."""
+        try:
+            storage.delete(file_name)
+        except Exception:
+            logger.exception("Failed to delete orphaned gallery file %r after its row was removed.", file_name)
 
     @staticmethod
     def _clean_text(value: str, *, label: str) -> str:

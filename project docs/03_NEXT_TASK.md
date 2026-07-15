@@ -214,15 +214,39 @@ portfolio — closes the gallery portion of BG-021:
   introduced.
 
 45 new tests, one new migration (one new, empty table), full regression
-1932/1932 green. Branch `phase2-caregiver-gallery-media`, PR to be
-created — see `traceability/IMPLEMENTATION_JOURNAL.md` and
+1932/1932 green. Branch `phase2-caregiver-gallery-media`, PR #7 created —
+see `traceability/IMPLEMENTATION_JOURNAL.md` and
 `ARCHITECTURE_DECISION_LOG.md` ADM-018. **Not merged — awaiting review.**
+
+### Sprint 2.2 Remediation — Harden Gallery File Lifecycle and Image Safety (PR #7 review) — IMPLEMENTED (2026-07-15)
+
+PR #7 review found two bounded issues, both fixed in place on the same
+branch/PR (no new branch, no new PR):
+
+- `CaregiverGalleryService.remove_item()` deleted the physical file
+  *before* the database row, inside the same transaction — unsafe, since
+  filesystem operations aren't transactional. Fixed: the row is deleted
+  first; physical deletion is scheduled via `transaction.on_commit()`,
+  which Django discards entirely if the transaction rolls back. A
+  storage-deletion failure after commit is caught and logged, never
+  raised or allowed to restore the row.
+- `apps.accounts.services.image_validation.validate_image()` bounded
+  upload byte size but not decoded pixel dimensions — no defense against
+  a small file claiming an enormous decoded image
+  ("decompression bomb"). Fixed: `MAX_IMAGE_WIDTH`/`MAX_IMAGE_HEIGHT`/
+  `MAX_IMAGE_PIXELS` are read from the image header and enforced before
+  any full decode; Pillow's own `DecompressionBombError`/`Warning` are
+  caught and mapped to the existing controlled error.
+
+16 new tests, zero new migration, full regression 1948/1948 green. See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-018's remediation note.
+PR #7 updated in place. **Not merged — awaiting review.**
 
 ---
 
 ## IMMEDIATE NEXT TASK
 
-### Await review of the Sprint 2.2 PR; do not start Sprint 2.3 automatically
+### Await review of the Sprint 2.2 PR (#7); do not start Sprint 2.3 automatically
 
 Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active implementation
 order).

@@ -341,4 +341,14 @@ The following files would be created or modified if the Offer Marketplace implem
 | `src/apps/provider_portal/tests/test_profile.py` | Modified | Locked query-count baseline 12 -> 13 | git checkout |
 | `src/apps/public_site/tests/test_professional_profile_public.py` | Modified | Query-count assertion 13 -> 14 | git checkout |
 | `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |
+
+---
+
+## 2026-07-15 — PR #7 Remediation: Harden Gallery File Lifecycle and Image Safety (CL-026)
+
+| Path | Change | Purpose | Rollback |
+|------|--------|---------|----------|
+| `src/apps/accounts/services/caregiver_gallery_service.py` | Modified | remove_item() defers physical deletion to transaction.on_commit(); new _delete_stored_file() | git checkout |
+| `src/apps/accounts/services/image_validation.py` | Modified | Decoded-dimension/pixel-count limits; decompression-bomb handling | git checkout |
+| `src/apps/accounts/tests/test_caregiver_gallery.py` | Modified | 16 new tests (file-lifecycle safety + image-safety limits); existing remove-item tests updated for deferred deletion | git checkout |
 | `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |

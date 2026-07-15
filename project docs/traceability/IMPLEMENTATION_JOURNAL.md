@@ -1063,3 +1063,137 @@ regression: 1932/1932 green (1887 baseline + 45 new).
 
 **RESOLVED.** Gallery/media-portfolio scope is delivered. Extended financial overview and
 orders + history (the remainder of BG-021) remain open, scheduled for Sprint 2.5.
+
+---
+
+## Sprint 2.2 Remediation — Harden Gallery File Lifecycle and Image Safety (PR #7 review, 2026-07-15)
+
+PR #7 review found two bounded issues before approving merge. Both are corrected in place
+on the same branch (`phase2-caregiver-gallery-media`) and PR (#7) — no new branch, no new
+PR, no scope expansion into Sprint 2.3 or social features.
+
+### Root file-lifecycle defect
+
+`CaregiverGalleryService.remove_item()` originally called `item.image.delete(save=False)`
+(the physical file) *before* `item.delete()` (the database row), both inside the same
+`transaction.atomic()` block. Filesystem operations do not participate in a database
+transaction — if the transaction (or an outer transaction this call was nested inside) had
+later rolled back for any reason, the row deletion would be undone while the file it
+pointed to was already, irreversibly gone: a live database row referencing a dead file,
+with no way to detect or recover from it short of manual inspection.
+
+### Corrected deletion sequence
+
+1. Resolve and row-lock the item (unchanged — ownership/tenancy authorization still
+   happens first, exactly as before).
+2. Capture the storage handle and stored file name (`item.image.storage`,
+   `item.image.name`) — `item.image` becomes unusable once the row is deleted, so this
+   must happen before that.
+3. Delete the database row (`item.delete()`).
+4. Schedule physical deletion via `transaction.on_commit(lambda: cls._delete_stored_file(storage, file_name))`
+   — Django guarantees this only runs after the outermost enclosing transaction actually
+   commits, and discards it entirely (never runs it) if that transaction instead rolls
+   back. No model signal was used — the scheduling is explicit, in the same service method
+   that performs the deletion, matching this codebase's "every mutation goes through an
+   explicit service call" convention.
+
+The database can therefore never be left inconsistent by this operation: either both the
+row and (eventually) the file are gone, or neither ever was.
+
+### Storage-deletion failure behavior (now defined)
+
+If the post-commit physical deletion itself fails (a storage/filesystem error), the new
+`_delete_stored_file()` catches the exception and logs it (`logger.exception(...)`) —
+never re-raises. By the time it runs, the row is already durably committed gone and cannot
+be un-deleted by this failure, and the item is already unreachable (nothing resolves the
+deleted row anymore, so its public URL is already dead). The only possible consequence of
+a storage failure here is an orphaned file left on disk — now detectable via the error log
+(`apps.accounts.services.caregiver_gallery_service`). Automatic retry/cleanup of orphaned
+files is explicitly **deferred** — no cleanup-job/retry infrastructure exists anywhere in
+this repository to hook it into, and building one was out of this remediation's scope
+("do not implement a broad background-cleanup subsystem"). Recorded as
+`quality/DEFECT_AND_RISK_REGISTER.md` KL-014.
+
+### Image safety limits
+
+`apps.accounts.services.image_validation.validate_image()` previously bounded only the
+*uploaded, compressed* byte size (`MAX_IMAGE_BYTES`). A small, adversarially-crafted file
+can still declare an enormous *decoded* pixel grid ("decompression bomb") — the byte-size
+cap does nothing to stop this, since compression ratio is exactly what a bomb file
+exploits. Added `MAX_IMAGE_WIDTH = 8000`, `MAX_IMAGE_HEIGHT = 8000`,
+`MAX_IMAGE_PIXELS = 25_000_000` — explicit constants, matching this module's own existing
+style (`MAX_IMAGE_BYTES`), not tenant-configurable (no product requirement or existing repo
+convention calls for that). Both `width`/`height` are read from `image.size` immediately
+after `Image.open()` — a cheap, header-only read that happens before any full pixel
+decode — so an oversized image is rejected before the expensive/dangerous decode is ever
+attempted, not after.
+
+### Pillow/decompression-bomb handling
+
+Pillow's own `Image.DecompressionBombError` (raised outright when decoded size exceeds
+twice its own global `Image.MAX_IMAGE_PIXELS` threshold, ~89M px by default) and
+`DecompressionBombWarning` (only warned, not raised, for sizes between 1x and 2x that
+threshold) are both caught. The warning case required promoting it to a catchable
+exception first — Python warnings don't propagate as exceptions by default — via a
+`warnings.catch_warnings()` block scoped to just this validation call with
+`warnings.simplefilter("error", Image.DecompressionBombWarning)`. Both are mapped to the
+same controlled `AccountsError` the rest of this validator already uses — never a raw
+`DecompressionBombError`/`Warning` reaching the caller, never an unhandled 500. Truncated/
+corrupted content (`image.verify()`), unsupported formats, and image-open failures
+(`UnidentifiedImageError`/`OSError`) all continued to map to the same controlled error, as
+before this remediation — this was existing, correct behavior, just re-verified.
+
+### Validation order (single decode pass)
+
+Byte-size check -> `Image.open()` (format + size read from header, no decode) ->
+`image.verify()` (integrity check) -> exceptions mapped to `AccountsError` -> format
+allow-list check -> width/height/pixel-count checks -> `file.seek(0)` (stream reset for
+the subsequent `ImageField` save). The image is opened and decoded exactly once — never
+re-opened to re-check dimensions, matching the "avoid decoding the same image repeatedly"
+requirement. No thumbnail generation was added (out of scope, matching
+`ProfileMediaService`'s own pre-existing "no derivative image sizes" choice).
+
+### Files changed
+
+`apps/accounts/services/caregiver_gallery_service.py` (`remove_item()` restructured, new
+`_delete_stored_file()`), `apps/accounts/services/image_validation.py` (dimension/pixel
+limits, decompression-bomb handling), `apps/accounts/tests/test_caregiver_gallery.py`
+(existing remove-item tests updated for the new deferred-deletion behavior; 16 new tests).
+No model, no migration, no template, no URL change — this remediation is entirely
+service-layer.
+
+### Test infrastructure note
+
+Proving "a rollback discards the scheduled physical deletion" and "a storage-deletion
+failure does not raise or restore the row" both require observing `transaction.on_commit()`
+behavior. `TransactionTestCase` (this repo's usual tool for genuine commit semantics) was
+tried first; it triggered a pre-existing, unrelated Postgres/Django flush-teardown
+incompatibility in this specific environment (`cannot truncate a table referenced in a
+foreign key constraint` on `UserAccount`'s auto-generated `groups`/`user_permissions`
+M2M-through tables) — reproduced independently with a minimal `TransactionTestCase` that
+does nothing but create a single `UserAccount` row, confirming it is unrelated to this
+remediation's own code and out of this narrowly-scoped remediation's mandate to fix.
+Switched to `django.test.TestCase.captureOnCommitCallbacks()` instead, after directly
+verifying (with a small standalone check) that it correctly reflects Django's real
+nested-atomic-block rollback discard behavior — a genuine property of `transaction.atomic()`'s
+own bookkeeping, not a simulation — without requiring the outermost per-test transaction to
+ever truly commit.
+
+### Test Level Decision
+
+Level 3 (full regression), run exactly once before updating PR #7, justified by: the
+shared `image_validation.validate_image()` function and the gallery's file-lifecycle logic
+are both security/data-integrity boundaries reached from multiple surfaces (avatar/cover
+upload, gallery upload, the public profile page). 16 new tests. Level 2 (accounts +
+provider_portal + public_site combined): 552/552. Full regression: 1948/1948 green (1932
+baseline + 16 new).
+
+### Deferred (explicitly, recorded)
+
+1. Automatic orphan-file cleanup/retry — `quality/DEFECT_AND_RISK_REGISTER.md` KL-014, no
+   cleanup-job infrastructure exists to hook into, out of this remediation's scope.
+2. Tenant-configurable image dimension/pixel limits — `quality/DEFECT_AND_RISK_REGISTER.md`
+   KL-015, not a defect, a deliberate simplicity choice matching this module's existing
+   constant-based style.
+3. Thumbnail/derivative-image generation — unchanged, still out of scope (Sprint 2.2's own
+   deferral, restated).

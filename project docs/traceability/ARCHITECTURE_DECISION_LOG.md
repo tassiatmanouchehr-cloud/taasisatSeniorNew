@@ -792,4 +792,62 @@ governance): video support (no canonical video infrastructure exists in this rep
 reuse), AI/automatic content moderation, thumbnail/derivative-image generation (the
 existing avatar/cover convention has none either — `ProfileMediaService`'s own docstring
 states "no derivative image sizes" as a deliberate simplicity choice, extended here).
-```
+
+---
+
+## ADM-018 Remediation — File-Lifecycle Transaction Safety and Decoded-Image Limits (PR #7 review, 2026-07-15)
+
+PR #7 review found two bounded gaps in the design above, neither invalidating any of the
+six decisions recorded — both closed in place, on the same branch/PR, without touching
+Sprint 2.2's model, storage strategy, or public-visibility composition.
+
+**Gap 1 — file-deletion transaction order.** `CaregiverGalleryService.remove_item()`
+originally deleted the physical file (`image.delete(save=False)`) *before* deleting the
+database row, inside the same `transaction.atomic()` block. Filesystem operations do not
+participate in a database transaction — if anything after the file deletion caused that
+transaction (or an outer transaction this call was nested inside) to roll back, the row
+would be restored while the file it points to was already gone: a live row referencing a
+dead file. **Fixed:** the row is deleted first; the storage handle and stored file name are
+captured beforehand (since `item.image` is unusable once the row is gone); physical
+deletion is scheduled via `transaction.on_commit()`, which Django guarantees to run only
+after the outermost enclosing transaction actually commits — and to discard entirely,
+never run, if that transaction instead rolls back. The database is therefore never left
+inconsistent by this operation in either outcome. No model signal was used for this — the
+scheduling happens directly in the same service method that performs the deletion, matching
+this codebase's "every mutation goes through an explicit service call, not an implicit
+signal" convention.
+
+**Gap 2 — storage-deletion failure behavior (defined, not left implicit).** If the
+post-commit physical deletion itself fails (a storage/filesystem error), the failure is
+caught and logged (`logger.exception(...)`), never re-raised: by the time it runs, the row
+is already durably gone (committed) and cannot be un-deleted by this failure, and the
+item's public URL is already unreachable (nothing resolves the deleted row anymore) — the
+only possible consequence is an orphaned file left on disk, now detectable via the log.
+Retrying or sweeping orphaned files is explicitly **deferred** — no cleanup-job
+infrastructure exists anywhere in this repository to hook automatic retry into, and
+building one was out of this narrowly-scoped remediation's mandate ("do not implement a
+broad background-cleanup subsystem").
+
+**Gap 3 — decoded-image safety limits.** `image_validation.validate_image()` bounded the
+*compressed* upload size (`MAX_IMAGE_BYTES`) but not the *decoded* image dimensions — a
+small, adversarially-crafted file can declare an enormous pixel grid
+("decompression bomb"), and the byte-size cap alone does nothing to stop it. **Fixed:**
+`MAX_IMAGE_WIDTH`/`MAX_IMAGE_HEIGHT`/`MAX_IMAGE_PIXELS` (8000px / 8000px / 25M px,
+explicit constants, not tenant-configurable — matching every other numeric limit in this
+module's own style) are read from the image header immediately after `Image.open()` — a
+cheap, non-decoding read — and enforced before any full pixel decode is ever attempted.
+Pillow's own `Image.DecompressionBombError` (raised outright for extreme cases) and
+`DecompressionBombWarning` (only warned by default; promoted to a catchable exception here
+via a scoped `warnings.simplefilter("error", ...)`) are both caught as defense-in-depth and
+mapped to the same controlled `AccountsError` — never a raw exception, never a 500.
+Validation remains a single decode pass (open once, read format/size, `verify()` once) —
+no re-opening, no repeated decoding of the same bytes. The file stream is reset to
+position 0 after validation, exactly as before, so the subsequent `ImageField` save still
+reads the file from the start.
+
+Affected code: `apps/accounts/services/caregiver_gallery_service.py` (`remove_item()`
+restructured; new `_delete_stored_file()`), `apps/accounts/services/image_validation.py`
+(`MAX_IMAGE_WIDTH`/`MAX_IMAGE_HEIGHT`/`MAX_IMAGE_PIXELS` added; decompression-bomb handling
+added). No model or migration change — these are service-layer behavior corrections only.
+16 new tests, full regression 1948/1948 green.
+Status: RESOLVED_IN_IMPLEMENTATION (remediation).

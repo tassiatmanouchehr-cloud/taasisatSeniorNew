@@ -1,6 +1,6 @@
 # PERMISSION AND TENANT MODEL
 
-**Last verified HEAD:** phase2-caregiver-gallery-media (from main @ c5259b3, PR #6 merged)
+**Last verified HEAD:** phase2-caregiver-gallery-media (from main @ c5259b3, PR #6 merged; PR #7 file-lifecycle/image-safety remediation in progress)
 **Last verified date:** 2026-07-15
 
 ---
@@ -94,7 +94,15 @@ edit/reorder/remove another caregiver's gallery item even by guessing its UUID �
 directly (not just structurally) by `test_another_caregiver_cannot_edit`/
 `test_another_caregiver_cannot_remove`/
 `test_another_caregiver_cannot_reorder_items_they_do_not_own`/`test_cross_tenant_cannot_edit`,
-all asserting a 404/no-op rather than trusting the structural argument alone. Public
+all asserting a 404/no-op rather than trusting the structural argument alone.
+
+**Remediation (PR #7 review, 2026-07-15):** the same authorization boundary now also
+governs *when physical file deletion is even scheduled* — `remove_item()` only reaches its
+`transaction.on_commit()` scheduling line after the `caregiver=caregiver`-filtered row lock
+has already succeeded, so an unauthorized or cross-tenant removal attempt (which raises
+before that point) schedules no file deletion at all, proven directly by
+`test_another_caregiver_cannot_remove` (asserts the mocked deletion callback is never
+called) and `test_cross_tenant_removal_schedules_no_deletion`. Public
 gallery visibility is not an RBAC concern at all — it flows entirely through the existing
 BG-022 canonical `common.is_publicly_visible()` policy (profile/account/membership status),
 the same as skills/experience/credentials.
