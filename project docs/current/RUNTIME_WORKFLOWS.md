@@ -1,6 +1,6 @@
 # RUNTIME WORKFLOWS
 
-**Last verified HEAD:** phase2-caregiver-professional-profile-foundation (from main @ 0c9d70c, PR #5 merged; PR #6 BG-022 remediation in progress)
+**Last verified HEAD:** phase2-caregiver-gallery-media (from main @ c5259b3, PR #6 merged)
 **Last verified date:** 2026-07-15
 
 ---
@@ -32,8 +32,9 @@
 | 21 | Caregiver Skills Management | IMPLEMENTED (Phase 2.1) | `accounts/services/caregiver_professional_profile_service.py:CaregiverSkillService` |
 | 22 | Caregiver Experience Management | IMPLEMENTED (Phase 2.1) | `accounts/services/caregiver_professional_profile_service.py:CaregiverExperienceService` |
 | 23 | Public Credential Summary | IMPLEMENTED (Phase 2.1) | `accounts/services/public_credential_selector.py:PublicCredentialSelector` |
-| 24 | Public Caregiver Profile Page | IMPLEMENTED (Epic 06; eligibility corrected Phase 2.1, unified with listings BG-022) | `public_site/services/profile_service.py:CaregiverPublicProfileService` |
+| 24 | Public Caregiver Profile Page | IMPLEMENTED (Epic 06; eligibility corrected Phase 2.1, unified with listings BG-022, gallery section Sprint 2.2) | `public_site/services/profile_service.py:CaregiverPublicProfileService` |
 | 25 | Canonical Public Visibility Policy | IMPLEMENTED (BG-022 remediation) | `public_site/services/common.py:is_publicly_visible_attrs()` |
+| 26 | Caregiver Gallery Management | IMPLEMENTED (Sprint 2.2) | `accounts/services/caregiver_gallery_service.py:CaregiverGalleryService` |
 
 ---
 
@@ -97,6 +98,51 @@ Public-profile eligibility (`CaregiverPublicProfileService.get_profile()`, `apps
 **BG-022 remediation (2026-07-15, same PR #6):** the gap in the paragraph above is closed. `apps.public_site.services.common.is_publicly_visible_attrs()` is now the single canonical public-visibility rule — profile `status == ACTIVE`, rolled-up `verification_status == "verified"`, the owning account's own `is_active`, and (for org-affiliated caregivers) an active `OrganizationMembership`. Every public entry point calls this one function, directly or via `bulk_supplier_attrs()`/`supplier_entity_attrs()`: the detail page (`CaregiverPublicProfileService.get_profile()`, whose now-redundant local duplicate check was removed), directory search and featured listings, and the home-page featured cards/city filter (both go through the directory service). `apps.accounts.services.supplier_bridge.resolve_supplier_entities_bulk()` gained `select_related("user")`/`select_related("admin_user")` so the account's `is_active` is available from the same batched JOIN — no additional query, confirmed constant at 2 queries regardless of candidate count. See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-017's second remediation note and `quality/COMPLETION_BACKLOG.md` BG-022 (RESOLVED).
 
 Caregiver-side management: `/provider/profile/skills/` (add/remove), `/provider/profile/experience/` (list), `/provider/profile/experience/add/`, `/provider/profile/experience/<id>/edit/`, `/provider/profile/experience/<id>/delete/` — all behind `_guard_with_caregiver()` plus a service-level `caregiver=caregiver` filter on every mutation (cross-caregiver/cross-tenant access returns 404, never a silent no-op). The provider profile page also shows a "which verified credential types will appear publicly" panel.
+
+## Caregiver Gallery and Media Portfolio (Sprint 2.2)
+
+`CaregiverGalleryService.add_item(caregiver, *, image, caption="", alt_text="")` —
+validates caption/alt-text length (255 chars), then calls the shared
+`apps.accounts.services.image_validation.validate_image()` (Pillow content-sniff, 5MB cap,
+JPEG/PNG/WEBP — the identical function `ProfileMediaService` uses for avatar/cover, now
+extracted into its own module so neither duplicates the check). Row-locks the owning
+`CaregiverProfile` (`select_for_update()`) for the duration of a count-check-then-create so
+two concurrent uploads cannot both bypass `MAX_GALLERY_ITEMS_PER_CAREGIVER = 12` (a fixed,
+hardcoded cap — not tenant-configurable, no product requirement calls for that). New items
+append at the next `display_order`.
+
+`update_item(caregiver, *, item_id, caption, alt_text, is_visible)` — re-verifies
+`caregiver=caregiver` in the same lookup that resolves the row; `is_visible` is the only
+visibility lever short of permanent deletion (this model has no soft-delete/archive field —
+see `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-018 Decision 4 for why).
+
+`reorder(caregiver, *, ordered_item_ids)` — row-locks the owning profile and every one of
+its gallery items, then requires the id list to be exactly the caregiver's own items, each
+exactly once; any foreign/missing/duplicate id refuses the whole operation, never a partial
+reorder. The provider-portal UI exposes this as simple "move up"/"move down" buttons per
+item (plain POST forms, no JS drag-and-drop dependency), computing the swapped order before
+calling `reorder()`.
+
+`remove_item(caregiver, *, item_id)` — row-locks the target item, deletes the physical file
+(`image.delete(save=False)`) before deleting the row — never leaves an orphaned file,
+mirroring `ProfileMediaService._replace()`'s own convention. Removing a gallery item never
+touches `avatar`/`cover_image` (three distinct responsibilities, never conflated).
+
+Public exposure: `CaregiverPublicProfileService._gallery()` adds no eligibility check of
+its own — it only runs after `get_profile()`'s existing canonical
+`common.is_publicly_visible(supplier)` gate (BG-022) has already passed, then filters to
+`caregiver.gallery_items.filter(is_visible=True)`, the identical per-item pattern
+`_skills()`/`_experience()` already established. A caregiver failing the canonical policy
+(DRAFT/SUSPENDED/ARCHIVED/unverified/pending-verification/inactive-account/inactive-
+membership) never has their gallery resolved at all.
+
+Caregiver-side management: `/provider/profile/gallery/` (list + upload),
+`/provider/profile/gallery/<id>/edit/` (caption/alt-text/visibility),
+`/provider/profile/gallery/<id>/remove/`, `/provider/profile/gallery/<id>/move/<up|down>/`
+— all behind `_guard_with_caregiver()` plus the same `caregiver=caregiver` ownership
+filter. The provider profile page shows a gallery summary tile ("N / 12 تصویر ثبت‌شده").
+The public profile page shows a responsive photo grid, only when both the caregiver passes
+the canonical visibility policy and the item itself is `is_visible=True`.
 
 ## Order Lifecycle (Status Machine)
 

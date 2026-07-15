@@ -1,6 +1,6 @@
 # PERMISSION AND TENANT MODEL
 
-**Last verified HEAD:** phase2-caregiver-professional-profile-foundation (from main @ 0c9d70c, PR #5 merged; PR #6 BG-022 remediation in progress)
+**Last verified HEAD:** phase2-caregiver-gallery-media (from main @ c5259b3, PR #6 merged)
 **Last verified date:** 2026-07-15
 
 ---
@@ -80,6 +80,24 @@ the full activation-authority design decision.
 `CaregiverPublicProfileService.get_profile()` (`apps.public_site`) — read-only, unauthenticated-safe. Beyond the existing `common.is_publicly_visible()` check (profile status ACTIVE + organization-membership-active), this phase added a local, additional requirement: `verification_status == "verified"` and the owning account's `user.is_active`. Deliberately added only here, not in the shared `common.py` function the caregiver directory and home-page featured-caregiver listings also call — see `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-017 Decision 2 for the full reasoning and the resulting, explicitly recorded gap (those two listing surfaces do not yet apply the same stricter rule).
 
 **BG-022 remediation (2026-07-15, same PR #6):** the gap above is closed — `is_publicly_visible_attrs()` in `common.py` is now the canonical rule and every public surface (detail page, directory, home-page listings) enforces it identically. This is not an RBAC change: public visibility remains an unauthenticated, account/profile-status-derived rule (`profile.status`, `verification_status`, account `is_active`, organization-membership `is_active`), never a permission key, and is unrelated to the `PermissionService`/`RoleAssignment` mechanism described above. See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-017's second remediation note.
+
+### Caregiver Gallery Authorization (Sprint 2.2)
+
+`CaregiverGalleryService` — no new permission key, same ownership shape as
+`CaregiverSkillService`/`CaregiverExperienceService`/`ProfileMediaService`. The
+provider-portal views resolve the caller's own `CaregiverProfile` via
+`request.user.caregiver_profile` (`_guard_with_caregiver()`) — a customer or
+organization-only user gets `PermissionDenied` (403) before any service call. Every
+mutation additionally filters/locks by `caregiver=caregiver` (the caller's own resolved
+profile, never a request-supplied id trusted as ownership proof), so a caregiver cannot
+edit/reorder/remove another caregiver's gallery item even by guessing its UUID — verified
+directly (not just structurally) by `test_another_caregiver_cannot_edit`/
+`test_another_caregiver_cannot_remove`/
+`test_another_caregiver_cannot_reorder_items_they_do_not_own`/`test_cross_tenant_cannot_edit`,
+all asserting a 404/no-op rather than trusting the structural argument alone. Public
+gallery visibility is not an RBAC concern at all — it flows entirely through the existing
+BG-022 canonical `common.is_publicly_visible()` policy (profile/account/membership status),
+the same as skills/experience/credentials.
 
 ### Critical Finding: No Middleware Enforcement
 

@@ -28,6 +28,7 @@ from .viewmodels import (
     BadgeViewModel,
     DocumentRowViewModel,
     ExperienceRowViewModel,
+    GalleryItemViewModel,
     NavItemViewModel,
     ProviderBasicInfoFormViewModel,
     ProviderProfessionalInfoFormViewModel,
@@ -127,7 +128,15 @@ class ProviderProfilePresentationService:
             skills_count=caregiver.skills.count(),
             experience_count=caregiver.experiences.count(),
             public_credential_labels=public_credential_labels,
+            gallery_count=caregiver.gallery_items.count(),
+            gallery_limit=cls._gallery_limit(),
         )
+
+    @staticmethod
+    def _gallery_limit() -> int:
+        from apps.accounts.services.caregiver_gallery_service import MAX_GALLERY_ITEMS_PER_CAREGIVER
+
+        return MAX_GALLERY_ITEMS_PER_CAREGIVER
 
     @staticmethod
     def _public_credential_labels(caregiver) -> tuple[str, ...]:
@@ -180,6 +189,19 @@ class ProviderProfilePresentationService:
     @classmethod
     def get_experience_view(cls, caregiver) -> tuple[ExperienceRowViewModel, ...]:
         return tuple(cls._experience_row(entry) for entry in caregiver.experiences.all())
+
+    @classmethod
+    def get_gallery_view(cls, caregiver) -> tuple[GalleryItemViewModel, ...]:
+        return tuple(
+            GalleryItemViewModel(
+                id=str(item.id),
+                image_url=item.image.url if item.image else "",
+                caption=item.caption,
+                alt_text=item.alt_text,
+                is_visible=item.is_visible,
+            )
+            for item in caregiver.gallery_items.all()
+        )
 
     @staticmethod
     def _experience_row(entry) -> ExperienceRowViewModel:

@@ -1,6 +1,6 @@
 # PORTALS, APIS, AND ENTRY POINTS
 
-**Last verified HEAD:** phase2-caregiver-professional-profile-foundation (from main @ 0c9d70c; PR #6 BG-022 remediation in progress)
+**Last verified HEAD:** phase2-caregiver-gallery-media (from main @ c5259b3, PR #6 merged)
 **Last verified date:** 2026-07-15
 
 ---
@@ -27,9 +27,9 @@ Dashboard, profile, care recipients (CRUD), requests (list/detail/financial), sh
 
 Entry: `_guard()` → `require_authenticated()` → `resolve_tenant_id()` → `resolve_customer_profile()`
 
-## Provider Portal (26 views)
+## Provider Portal (30 views)
 
-Dashboard, assignments (list/detail/confirm/decline), visits (start/complete), availability (working windows, blocked periods), earnings, profile, documents, skills (list/add/remove — Phase 2.1), experience (list/add/edit/delete — Phase 2.1).
+Dashboard, assignments (list/detail/confirm/decline), visits (start/complete), availability (working windows, blocked periods), earnings, profile, documents, skills (list/add/remove — Phase 2.1), experience (list/add/edit/delete — Phase 2.1), gallery (list/upload, edit, remove, move up/down — Sprint 2.2).
 
 Entry: `_guard()` → `require_authenticated()` → `resolve_tenant_id()` → `resolve_supplier()`. Profile-editing views additionally use `_guard_with_caregiver()`, resolving `request.user.caregiver_profile`.
 
@@ -74,3 +74,4 @@ Each portal has presentation services that transform domain models into view-rea
 - `OrganizationProfilePresentationService` (organization_portal)
 - `HomePageService`, `CaregiverDirectoryService`, `CaregiverPublicProfileService` (public_site) — all three resolve caregiver/organization public visibility through the same canonical function, `apps.public_site.services.common.is_publicly_visible_attrs()` (BG-022 remediation, 2026-07-15); there is exactly one implementation of "is this publicly visible," never a per-surface duplicate
 - `CaregiverSkillService`, `CaregiverExperienceService`, `PublicCredentialSelector` (accounts, Phase 2.1 — domain services/selectors, not presentation services; called by provider_portal/public_site)
+- `CaregiverGalleryService` (accounts, Sprint 2.2 — domain service, not a presentation service; called by provider_portal; `CaregiverPublicProfileService._gallery()` is the read-only public-facing counterpart, gated by the existing BG-022 canonical visibility policy, no second rule)

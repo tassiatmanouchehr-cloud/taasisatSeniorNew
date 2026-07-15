@@ -1,6 +1,6 @@
 # DATA OWNERSHIP AND RELATIONSHIPS
 
-**Last verified HEAD:** phase2-caregiver-professional-profile-foundation (from main @ 0c9d70c)
+**Last verified HEAD:** phase2-caregiver-gallery-media (from main @ c5259b3, PR #6 merged)
 **Last verified date:** 2026-07-15
 
 ---
@@ -72,14 +72,15 @@ EscrowRecord
 EscrowMovement → EscrowRecord (PROTECT) — immutable audit trail
 ```
 
-### CaregiverProfile → Related Entities (Phase 2.1 additions in bold)
+### CaregiverProfile → Related Entities (Phase 2.1 additions in bold; Sprint 2.2 additions in italics)
 ```
 CaregiverProfile
 ├── user → AUTH_USER_MODEL (CASCADE, OneToOne)
 ├── person → kernel.Person (CASCADE, OneToOne)
 ├── documents → accounts.VerificationDocument (CASCADE, reverse FK, related_name="documents")
 ├── **skills → accounts.CaregiverSkill (CASCADE, reverse FK, related_name="skills")**
-└── **experiences → accounts.CaregiverExperience (CASCADE, reverse FK, related_name="experiences")**
+├── **experiences → accounts.CaregiverExperience (CASCADE, reverse FK, related_name="experiences")**
+└── *gallery_items → accounts.CaregiverGalleryItem (CASCADE, reverse FK, related_name="gallery_items")*
 
 CaregiverSkill (Phase 2.1, new)
 ├── caregiver → accounts.CaregiverProfile (CASCADE)
@@ -88,10 +89,17 @@ CaregiverSkill (Phase 2.1, new)
 CaregiverExperience (Phase 2.1, new)
 ├── caregiver → accounts.CaregiverProfile (CASCADE)
 └── CHECK(end_date IS NULL OR end_date >= start_date)
+
+CaregiverGalleryItem (Sprint 2.2, new)
+├── caregiver → accounts.CaregiverProfile (CASCADE)
+└── INDEX(caregiver, display_order)
 ```
-Neither new model carries its own `tenant_id` — tenant is derived transitively via
-`caregiver.user.tenant`, the same pattern `VerificationDocument` already uses for its own
-caregiver/organization FKs (no `TenantAwareModel` base for any of the three).
+None of the three child models carries its own `tenant_id` — tenant is derived
+transitively via `caregiver.user.tenant`, the same pattern `VerificationDocument` already
+uses for its own caregiver/organization FKs (no `TenantAwareModel` base for any of them).
+`CaregiverGalleryItem` has no unique constraint (unlike `CaregiverSkill`) — a caregiver may
+legitimately upload duplicate-looking photos; ordering is enforced at the service layer
+(`CaregiverGalleryService.reorder()`, row-locked), not the database.
 
 ## Unique Constraints (Significant)
 

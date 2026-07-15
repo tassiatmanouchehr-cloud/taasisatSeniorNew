@@ -19,6 +19,14 @@ page no longer duplicates any of that locally; see
 `apps.public_site.services.common`'s own docstring for the full rule and
 `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-017's remediation note for
 why it was originally added only here before being unified.
+
+Sprint 2.2 (Caregiver Gallery and Media Portfolio): `_gallery()` reuses
+the exact same `is_visible=True` per-item filter `_skills()`/
+`_experience()` already established — no second visibility rule. Because
+`_gallery()` only ever runs after `common.is_publicly_visible(supplier)`
+has already gated the whole method, a caregiver who fails the canonical
+policy (DRAFT/suspended/unverified/inactive account/inactive membership)
+never has their gallery resolved at all, not merely filtered client-side.
 """
 
 from apps.accounts.services.public_credential_selector import PublicCredentialSelector
@@ -34,6 +42,7 @@ from .viewmodels import (
     CaregiverProfileViewModel,
     PublicCredentialViewModel,
     PublicExperienceViewModel,
+    PublicGalleryItemViewModel,
     PublicSkillViewModel,
     ReviewViewModel,
 )
@@ -70,6 +79,7 @@ class CaregiverPublicProfileService:
         skills = cls._skills(caregiver)
         experience = cls._experience(caregiver)
         credentials = cls._credentials(caregiver)
+        gallery = cls._gallery(caregiver)
 
         return CaregiverProfileViewModel(
             supplier_id=supplier.id,
@@ -94,6 +104,7 @@ class CaregiverPublicProfileService:
             skills=skills,
             experience=experience,
             credentials=credentials,
+            gallery=gallery,
         )
 
     # ------------------------------------------------------------------
@@ -146,6 +157,28 @@ class CaregiverPublicProfileService:
                 expiry_label=summary.expiry_date.strftime("%Y/%m/%d") if summary.expiry_date else "",
             )
             for summary in summaries
+        )
+
+    @classmethod
+    def _gallery(cls, caregiver) -> tuple[PublicGalleryItemViewModel, ...]:
+        """Sprint 2.2 (Caregiver Gallery and Media Portfolio). Only
+        `is_visible=True` items — the same per-item visibility lever
+        `_skills()`/`_experience()` already apply. Never reached at all
+        unless `get_profile()`'s own `common.is_publicly_visible(supplier)`
+        gate above already passed, so a DRAFT/suspended/unverified/
+        inactive-account caregiver's gallery is never resolved in the
+        first place — no separate profile-level visibility rule is
+        duplicated here."""
+        if caregiver is None:
+            return ()
+        visible = caregiver.gallery_items.filter(is_visible=True)
+        return tuple(
+            PublicGalleryItemViewModel(
+                image_url=item.image.url if item.image else "",
+                caption=item.caption,
+                alt_text=item.alt_text,
+            )
+            for item in visible
         )
 
     @classmethod

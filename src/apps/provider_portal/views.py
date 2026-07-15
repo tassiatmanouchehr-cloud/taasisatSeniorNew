@@ -24,6 +24,7 @@ from django.http import Http404
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 
+from apps.accounts.services.caregiver_gallery_service import MAX_GALLERY_ITEMS_PER_CAREGIVER, CaregiverGalleryService
 from apps.accounts.services.caregiver_professional_profile_service import (
     CaregiverExperienceService,
     CaregiverSkillService,
@@ -55,6 +56,8 @@ from .forms import (
     DeclineAssignmentForm,
     DocumentUploadForm,
     ExperienceForm,
+    GalleryItemEditForm,
+    GalleryUploadForm,
     ImageUploadForm,
     ProfessionalInfoForm,
     SkillForm,
@@ -648,6 +651,110 @@ def profile_experience_delete_view(request, experience_id):
     except AccountsError:
         pass  # already removed / not owned — page still shows current state.
     return redirect("provider_portal:profile-experience")
+
+
+# ============================================================
+# Gallery — Sprint 2.2 (Caregiver Professional Profile: Gallery and
+# Media Portfolio)
+# ============================================================
+
+
+@require_http_methods(["GET", "POST"])
+def profile_gallery_view(request):
+    supplier, tenant_id, caregiver = _guard_with_caregiver(request)
+    form = GalleryUploadForm(request.POST or None, request.FILES or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            CaregiverGalleryService.add_item(
+                caregiver,
+                image=form.cleaned_data["image"],
+                caption=form.cleaned_data["caption"],
+                alt_text=form.cleaned_data["alt_text"],
+            )
+        except AccountsError as exc:
+            form.add_error(None, str(exc))
+        else:
+            return redirect("provider_portal:profile-gallery")
+    return render(
+        request,
+        "provider_portal/profile_gallery.html",
+        {
+            "form": form,
+            "gallery_items": ProviderProfilePresentationService.get_gallery_view(caregiver),
+            "gallery_count": caregiver.gallery_items.count(),
+            "gallery_limit": MAX_GALLERY_ITEMS_PER_CAREGIVER,
+            "public_preview_url": f"/find-a-caregiver/{supplier.id}/",
+            "nav_items": ProviderProfilePresentationService.build_nav_items(active="profile"),
+        },
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def profile_gallery_item_edit_view(request, item_id):
+    supplier, tenant_id, caregiver = _guard_with_caregiver(request)
+    try:
+        item = caregiver.gallery_items.get(id=item_id)
+    except caregiver.gallery_items.model.DoesNotExist:
+        raise Http404("Gallery item not found.") from None
+
+    form = GalleryItemEditForm(
+        request.POST or None,
+        initial={"caption": item.caption, "alt_text": item.alt_text, "is_visible": item.is_visible},
+    )
+    if request.method == "POST" and form.is_valid():
+        try:
+            CaregiverGalleryService.update_item(
+                caregiver,
+                item_id=item_id,
+                caption=form.cleaned_data["caption"],
+                alt_text=form.cleaned_data["alt_text"],
+                is_visible=form.cleaned_data["is_visible"],
+            )
+        except AccountsError as exc:
+            form.add_error(None, str(exc))
+        else:
+            return redirect("provider_portal:profile-gallery")
+    return render(
+        request,
+        "provider_portal/profile_gallery_item_edit.html",
+        {
+            "form": form,
+            "item": item,
+            "nav_items": ProviderProfilePresentationService.build_nav_items(active="profile"),
+        },
+    )
+
+
+@require_http_methods(["POST"])
+def profile_gallery_item_remove_view(request, item_id):
+    supplier, tenant_id, caregiver = _guard_with_caregiver(request)
+    try:
+        CaregiverGalleryService.remove_item(caregiver, item_id=item_id)
+    except AccountsError:
+        pass  # already removed / not owned — page still shows current state.
+    return redirect("provider_portal:profile-gallery")
+
+
+@require_http_methods(["POST"])
+def profile_gallery_item_move_view(request, item_id, direction):
+    supplier, tenant_id, caregiver = _guard_with_caregiver(request)
+    if direction not in ("up", "down"):
+        raise Http404("Unknown direction.")
+
+    ids = [str(item.id) for item in CaregiverGalleryService.list_items(caregiver)]
+    try:
+        index = ids.index(str(item_id))
+    except ValueError:
+        return redirect("provider_portal:profile-gallery")  # not owned — silent no-op.
+
+    swap_with = index - 1 if direction == "up" else index + 1
+    if 0 <= swap_with < len(ids):
+        ids[index], ids[swap_with] = ids[swap_with], ids[index]
+        try:
+            CaregiverGalleryService.reorder(caregiver, ordered_item_ids=ids)
+        except AccountsError:
+            pass
+    return redirect("provider_portal:profile-gallery")
 
 
 @require_http_methods(["GET", "POST"])

@@ -479,3 +479,39 @@ in `apps/public_site/tests/helpers.py`, confirmed safe by grep showing no pre-ex
 test asserted on the old default), migration drift unchanged from pre-task baseline (no
 new migration). A pre-existing, unrelated per-candidate query cost in directory ranking/
 card-building was discovered and recorded (KL-012), not fixed (out of scope).
+
+---
+
+## Run 016 — Sprint 2.2: Caregiver Gallery and Media Portfolio
+
+```
+Branch: phase2-caregiver-gallery-media (from main @ c5259b3, PR #6 merged)
+Settings module: config.settings.testing
+Python: 3.11.15  |  Django: 5.2.16  |  PostgreSQL: 16.13
+Date/time: 2026-07-15
+```
+
+| Command | Exit code | Result |
+|---------|-----------|--------|
+| `python manage.py check` | 0 | System check identified no issues |
+| `apps.accounts.tests.test_caregiver_gallery` (new) | 0 | 21/21 |
+| `apps.provider_portal.tests.test_gallery` (new) | 0 | 13/13 |
+| `apps.public_site.tests.test_gallery_public` (new) | 0 | 11/11 |
+| `apps.accounts apps.provider_portal apps.public_site` (Level 2 — directly affected) | 0 | 536/536 |
+| `apps.kernel.tests.test_architecture_guardrails` | 0 | 13/13 |
+| `python manage.py makemigrations --check --dry-run` | 1 | Pre-existing cosmetic drift only, unchanged; the new `accounts/0007_caregiver_gallery_item.py` migration is fully applied/detected, no residual drift from it |
+| **Full regression (Level 3 — new model + migration, file-upload/privacy boundary, public profile change, spans accounts/provider_portal/public_site)** | **0** | **Ran 1932 tests — OK** (1887 baseline + 45 new) |
+
+**Test level used:** Level 3 (full regression), run exactly once before creating the
+Sprint 2.2 PR, justified by: a new model and migration, a file-upload/privacy boundary
+(gallery image validation and ownership), a public-profile change, and several apps
+(accounts, provider_portal, public_site) — exactly this repository's own stated Level-3
+trigger set.
+
+**Classification:** GREEN — all 45 new tests pass, zero regressions in 1887 pre-existing
+tests (two intentional, documented query-count bumps: the provider profile page's own
+locked baseline moved 12 -> 13 for the new `gallery_count` query, and the public profile
+page's locked baseline moved 13 -> 14 for the new `_gallery()` query — both are fixed,
+O(1) costs, proven by dedicated query-count tests in the new test files, not per-item
+N+1s), migration drift unchanged from pre-task baseline beyond the one new, intentional
+table.

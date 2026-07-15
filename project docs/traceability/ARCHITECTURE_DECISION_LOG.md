@@ -707,4 +707,89 @@ an extra query), `apps/public_site/tests/helpers.py` (fixture default corrected)
 `apps/public_site/tests/test_public_visibility_policy.py` (new, 13 tests).
 Status: RESOLVED_IN_IMPLEMENTATION (remediation) — BG-022 closed, 13 new tests, full
         regression 1887/1887 green, zero new migration.
+
+---
+
+## ADM-018: Caregiver Gallery — Ownership, Storage, Deletion, and Limit (Sprint 2.2)
+
+**Date:** 2026-07-15
+**Status:** DECIDED
+**Context:** Sprint 2.2 (Caregiver Professional Profile: Gallery and Media Portfolio) —
+first PR after PR #6 (Phase 2.1 foundation) merged to `main`. Roadmap Phase 2 requires a
+caregiver-managed, Instagram-like professional photo portfolio, distinct from the existing
+single-field avatar/cover images and from `VerificationDocument`'s private evidence store.
+
+**Decision 1 — Model shape and ownership.** `CaregiverGalleryItem`
+(`apps/accounts/models/gallery.py`) is a new, plain `models.Model` (no `TenantAwareModel`
+base), UUID PK, single FK to `CaregiverProfile` with `related_name="gallery_items"` —
+copied directly from `CaregiverSkill`/`CaregiverExperience`'s established shape (Phase 2.1,
+ADM-017), not from `VerificationDocument`'s dual-owner (`caregiver`/`organization`) shape,
+because a gallery item only ever has one possible owner type. Tenant is derived
+transitively via `caregiver.user.tenant`, never duplicated onto the child row — the same
+reasoning ADM-017 already recorded for skills/experience. Rejected alternative: a generic,
+polymorphic `Media`/`Attachment` model reusable across apps — no such model exists anywhere
+in this repository (confirmed by repo-wide search before implementing), and
+`VerificationDocument`'s own docstring already rejected the polymorphic
+`linked_entity_id`/`linked_entity_type` pattern for the weaker case of two possible owners
+in the same app; a gallery item's single owner type makes a dedicated model the simpler,
+DB-validated choice here too.
+
+**Decision 2 — Storage strategy.** Gallery images are stored under `public/gallery/
+caregiver/<uuid4>.<ext>` (`caregiver_gallery_path()`, `media_paths.py`), the same `public/`
+convention `avatar`/`cover_image`/organization `logo`/`cover_image` already use — never
+`private/` (that prefix is reserved for `VerificationDocument`, the only model
+`config/urls.py`'s dev `static()` helper deliberately does not serve). A gallery photo is,
+by definition, meant to be shown on the public profile, so it belongs on the public side of
+that existing, load-bearing split from day one — there is no "pending private review"
+state for a gallery photo the way there is for a verification document.
+
+**Decision 3 — Validation reuse, not duplication.** The Pillow-based, content-sniffing
+image validator (`ProfileMediaService`'s former `_validate_image()`) was extracted verbatim
+into `apps.accounts.services.image_validation.validate_image()` and both
+`ProfileMediaService` and the new `CaregiverGalleryService` now call the one shared
+function — behavior unchanged, MAX_IMAGE_BYTES/ALLOWED_IMAGE_FORMATS unchanged. This is the
+"reuse existing validators, do not duplicate" governance rule applied literally: gallery
+upload validation is not a second implementation of the same check.
+
+**Decision 4 — Deletion is hard delete; `is_visible` is the only soft lever.** No
+`is_deleted`/`archived_at`/`ArchivableModel` field exists on `CaregiverGalleryItem`.
+Investigated first: `apps.common.models.SoftDeleteMixin`/`ActiveManager` exist but are used
+by zero models in `apps.accounts` (confirmed by repo search) — `VerificationDocument`,
+`CaregiverSkill`, and `CaregiverExperience` all hard-delete, and `ProfileMediaService
+._replace()` already deletes the physical file on avatar/cover replacement/removal. Rather
+than introduce a new soft-delete concept for this one model (against this app's own
+established convention), gallery deletion follows the same hard-delete-plus-physical-file-
+removal pattern, and `is_visible` (identical shape to `CaregiverSkill.is_visible`/
+`CaregiverExperience.is_visible`) is the sole visibility lever a caregiver has short of
+permanent deletion — hiding an item never deletes its file, only removes it from
+`CaregiverGalleryService`'s (owner-facing) and the public selector's (`_gallery()` in
+`apps.public_site.services.profile_service`) results.
+
+**Decision 5 — Gallery limit is an explicit constant, not tenant-configurable.**
+`MAX_GALLERY_ITEMS_PER_CAREGIVER = 12` (`caregiver_gallery_service.py`) is a fixed,
+hardcoded cap, matching `CaregiverSkillService.MAX_SKILL_NAME_LENGTH`'s own explicit-
+constant style — no product requirement or existing repo convention (e.g.
+`RequiredDocumentPolicy`'s `ConfigResolver`, Phase 1.2) calls for a caregiver photo count
+cap to vary per tenant. Enforced by row-locking the owning `CaregiverProfile`
+(`select_for_update()`) for the duration of the count-check-then-create — the cap has no
+unique-constraint equivalent to fall back on the way `uq_caregiver_skill_name` gives
+`add_skill()`'s lighter, lock-free pattern, so `CaregiverGalleryService.add_item()`/
+`reorder()` instead mirror `DocumentService.resubmit()`'s heavier, explicit-lock precedent.
+
+**Decision 6 — No second public-visibility rule.** `CaregiverGalleryService`'s public
+counterpart (`CaregiverPublicProfileService._gallery()`) performs no eligibility check of
+its own — it only ever runs after `get_profile()`'s existing canonical
+`common.is_publicly_visible(supplier)` gate (BG-022, ADM-017's second remediation note) has
+already passed, and then filters to `is_visible=True` items, the identical per-item pattern
+`_skills()`/`_experience()` already established. A caregiver who fails the canonical policy
+never has their gallery resolved at all — not merely filtered out after the fact.
+
+**Consequences:** One new model, one new migration (one new table with a composite index,
+no altered tables). No new soft-delete concept introduced. No new
+tenant-configuration mechanism introduced. No second image-validation implementation. No
+second public-visibility rule. Deferred (out of this sprint's scope, per its own
+governance): video support (no canonical video infrastructure exists in this repository to
+reuse), AI/automatic content moderation, thumbnail/derivative-image generation (the
+existing avatar/cover convention has none either — `ProfileMediaService`'s own docstring
+states "no derivative image sizes" as a deliberate simplicity choice, extended here).
 ```

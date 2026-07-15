@@ -1,0 +1,78 @@
+{% extends "provider_portal/base.html" %}
+
+{% block portal_title %}گالری تصاویر{% endblock %}
+{% block page_title %}مدیریت گالری تصاویر{% endblock %}
+{% block page_description %}
+<p class="mt-1 text-sm text-text-muted">تصاویر حرفه‌ای که در نمایه عمومی شما نمایش داده می‌شوند.</p>
+{% endblock %}
+
+{% block portal_content %}
+<div class="mx-auto max-w-3xl space-y-6">
+  <div class="flex items-center justify-between">
+    <p class="text-sm text-text-muted ltr-value">{{ gallery_count }} / {{ gallery_limit }}</p>
+    <a href="{{ public_preview_url }}" class="text-sm text-primary hover:underline">مشاهده نمایه عمومی</a>
+  </div>
+
+  {% if gallery_items %}
+  <div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
+    {% for item in gallery_items %}
+    {% url 'provider_portal:profile-gallery-item-move' item_id=item.id direction='up' as move_up_url %}
+    {% url 'provider_portal:profile-gallery-item-move' item_id=item.id direction='down' as move_down_url %}
+    {% url 'provider_portal:profile-gallery-item-edit' item_id=item.id as edit_url %}
+    {% url 'provider_portal:profile-gallery-item-remove' item_id=item.id as remove_url %}
+    <div class="overflow-hidden rounded-2xl border border-border bg-surface">
+      <img src="{{ item.image_url }}" alt="{{ item.alt_text|default:item.caption }}" class="h-32 w-full object-cover">
+      <div class="space-y-2 p-3">
+        {% if item.caption %}<p class="truncate text-xs text-text">{{ item.caption }}</p>{% endif %}
+        {% include "ui/components/feedback/badge.html" with label=item.is_visible|yesno:"عمومی,پنهان" variant=item.is_visible|yesno:"success,neutral" %}
+        <div class="flex flex-wrap items-center gap-2 pt-1">
+          <form method="post" action="{{ move_up_url }}">
+            {% csrf_token %}
+            <button type="submit" class="text-xs text-text-muted hover:underline">بالا</button>
+          </form>
+          <form method="post" action="{{ move_down_url }}">
+            {% csrf_token %}
+            <button type="submit" class="text-xs text-text-muted hover:underline">پایین</button>
+          </form>
+          <a href="{{ edit_url }}" class="text-xs text-primary hover:underline">ویرایش</a>
+          <div x-data="{ open: false }" class="contents">
+            <button type="button" @click="open = true" class="text-xs text-danger hover:underline">حذف</button>
+            {% include "ui/components/portal/confirmation_dialog.html" with dialog_id="remove-gallery-item"|add:item.id title="حذف تصویر" message="این تصویر برای همیشه حذف خواهد شد." confirm_label="حذف" confirm_action_url=remove_url danger=True %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  {% include "ui/components/data/empty_state.html" with title="هنوز تصویری اضافه نشده" description="اولین تصویر حرفه‌ای خود را اضافه کنید." size="sm" %}
+  {% endif %}
+
+  <div class="rounded-2xl border border-border bg-surface p-5">
+    <h2 class="text-base font-bold text-text mb-4">افزودن تصویر جدید</h2>
+    {% if gallery_count >= gallery_limit %}
+    <p class="text-sm text-text-muted">به حداکثر تعداد تصاویر مجاز رسیده‌اید.</p>
+    {% else %}
+    <form method="post" enctype="multipart/form-data" class="space-y-3">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+      <div role="alert" class="rounded-lg border border-danger-200 bg-danger-50 p-3 text-sm text-danger">
+        {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+      </div>
+      {% endif %}
+      {% for field in form %}
+      <div>
+        <label class="block text-sm font-bold text-text">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}<p class="mt-1 text-xs text-danger">{{ field.errors.0 }}</p>{% endif %}
+      </div>
+      {% endfor %}
+      <p class="text-xs text-text-muted">JPEG، PNG یا WEBP — حداکثر ۵ مگابایت.</p>
+      <button type="submit" class="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-700">افزودن تصویر</button>
+    </form>
+    {% endif %}
+  </div>
+
+  <a href="{% url 'provider_portal:profile' %}" class="inline-block text-sm text-text-muted hover:underline">بازگشت به نمایه</a>
+</div>
+{% endblock %}

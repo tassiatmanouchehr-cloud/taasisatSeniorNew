@@ -83,6 +83,13 @@ class PublicCredentialViewModel:
 
 
 @dataclass(frozen=True)
+class PublicGalleryItemViewModel:
+    image_url: str
+    caption: str
+    alt_text: str
+
+
+@dataclass(frozen=True)
 class CaregiverProfileViewModel:
     """The full Public Caregiver Profile page."""
 
@@ -108,6 +115,7 @@ class CaregiverProfileViewModel:
     skills: tuple[PublicSkillViewModel, ...] = field(default_factory=tuple)
     experience: tuple[PublicExperienceViewModel, ...] = field(default_factory=tuple)
     credentials: tuple[PublicCredentialViewModel, ...] = field(default_factory=tuple)
+    gallery: tuple[PublicGalleryItemViewModel, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True)

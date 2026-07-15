@@ -867,3 +867,199 @@ names explicitly.
 **RESOLVED.** All four real public entry points (directory search, home-page featured
 cards, home-page city filter, detail page) now apply the identical canonical
 public-visibility rule. 13 new tests, zero regressions, full regression 1887/1887 green.
+
+---
+
+## Sprint 2.2 — Caregiver Professional Profile: Gallery and Media Portfolio (2026-07-15)
+
+First sprint on a fresh branch (`phase2-caregiver-gallery-media`, from `main` @ `c5259b3`)
+after PR #6 (Phase 2.1 foundation + BG-022 remediation) was merged. Delivers a
+caregiver-managed, Instagram-like professional photo portfolio — explicitly "a
+professional portfolio, not a social network" (no posts/feed/likes/comments/follows/
+stories/messaging).
+
+### Current Media Architecture Inspection
+
+| Capability | Existing | Reusable | Missing |
+|---|---|---|---|
+| Single-image profile fields (avatar/cover) | `CaregiverProfile.avatar`/`.cover_image` (`ImageField`, `apps/accounts/models/profiles.py`) | Yes — pattern copied, field type never touched by gallery | A *list*-type image model (avatar/cover are singular) |
+| Private-file-owned-by-caregiver pattern | `VerificationDocument` (`apps/accounts/models/media.py`) — UUID PK, FK to caregiver, no `TenantAwareModel`, `CheckConstraint` for exactly-one-owner | Model *shape* (UUID PK, FK+`related_name`, no `TenantAwareModel`) reused via `CaregiverSkill`/`CaregiverExperience`'s already-established variant of it | `VerificationDocument` itself is private/PDF-oriented — not reused directly (gallery images are public, image-only) |
+| List-type caregiver-owned child model | `CaregiverSkill`/`CaregiverExperience` (Phase 2.1, `apps/accounts/models/professional_profile.py`) | Yes — `CaregiverGalleryItem` copies this exact skeleton (plain `models.Model`, UUID PK, FK+`related_name`, `display_order`, `is_visible`, no `TenantAwareModel`) | Neither existing model holds a file |
+| Image upload validator | `ProfileMediaService._validate_image()` (Pillow content-sniff, 5MB cap, JPEG/PNG/WEBP) | Yes — extracted verbatim to `apps.accounts.services.image_validation.validate_image()`, called by both `ProfileMediaService` and the new `CaregiverGalleryService` | — |
+| Upload-path generator | `media_paths.py` (`caregiver_avatar_path`, `caregiver_cover_path`, `verification_document_path`) | Yes — `caregiver_gallery_path()` added alongside, same `uuid4()`-filename, type-scoped-directory pattern | — |
+| Storage backend | Plain Django `FileSystemStorage` (`MEDIA_ROOT`/`MEDIA_URL`, `config/settings/base.py`); no S3/django-storages | Yes — no change needed; gallery images live under `public/`, exactly like avatar/cover | Production storage strategy (local disk) remains an acknowledged, pre-existing open item (BG-021's original dependency note) — unchanged, not worsened |
+| Public/private file-serving split | `public/` vs `private/` path-prefix convention (`config/urls.py`'s dev `static()` helper only serves `MEDIA_ROOT/public`); `admin_portal.views.document_verification_file` streams `private/` documents to authorized reviewers only | Yes — gallery images use `public/`, need no authenticated streaming view | — |
+| Thumbnail/derivative-image generation | None anywhere in the repo — `ProfileMediaService`'s own docstring states this as a deliberate simplicity choice ("no derivative image sizes") | N/A | Genuinely absent; Sprint 2.2 follows the same choice (deferred, not a defect — see Deferred section below) |
+| Audit logging on media mutation | `AuditLog` written only for document *resubmission* (`document_service.py`); avatar/cover/skill/experience CRUD write no audit entries | N/A (convention is "no audit for this class of mutation") | Gallery upload/edit/reorder/remove follow the same no-audit convention, matching avatar/cover/skills/experience, not documents |
+| Soft-delete / archive mixin | `apps.common.models.SoftDeleteMixin`/`ActiveManager` exist but are used by zero `apps.accounts` models | No — `apps.accounts`'s own convention is hard delete (`VerificationDocument`, `CaregiverSkill`, `CaregiverExperience` all hard-delete) | A soft-delete/archive field would be a new, non-conforming pattern for this app — not introduced (see ADM-018 Decision 4) |
+| Tenant ownership pattern | `TenantAwareModel` (own `tenant_id` column) vs. transitive-via-FK (no own column) — `CaregiverSkill`/`CaregiverExperience`/`VerificationDocument` all use the transitive pattern | Yes — `CaregiverGalleryItem` follows the transitive pattern, no own `tenant_id` | — |
+| Generic Media/Attachment model | None found repo-wide (confirmed by search before implementing) | N/A | A dedicated `CaregiverGalleryItem` was built instead — a gallery item has exactly one owner type, so `VerificationDocument`'s own reasoning for rejecting a polymorphic model applies even more strongly here |
+| Test-image construction helper | `_png_bytes()` duplicated in `provider_portal`/`organization_portal` test files (real, Pillow-verifiable 1x1 PNG via `SimpleUploadedFile`) | Yes — copied verbatim into the three new gallery test files, matching this repo's existing style of duplicating this small helper rather than centralizing it | — |
+
+No genuine architectural blocker was found — proceeded directly to implementation per the
+task's own instruction.
+
+### Canonical Gallery Model
+
+`CaregiverGalleryItem` (`apps/accounts/models/gallery.py`) — plain `models.Model`, UUID PK,
+single FK to `CaregiverProfile` (`related_name="gallery_items"`, `on_delete=CASCADE`),
+`image` (`ImageField`, `caregiver_gallery_path()`), `caption`/`alt_text` (both
+`CharField(max_length=255, blank=True)` — `alt_text` for accessibility, distinct from
+`caption`), `display_order` (`IntegerField(default=0)`), `is_visible`
+(`BooleanField(default=True)`), `created_at`/`updated_at`. `Meta.ordering =
+["display_order", "created_at"]`, one composite index `(caregiver, display_order)`. No
+`TenantAwareModel` base — tenant derived transitively via `caregiver.user.tenant`, the
+same pattern `CaregiverSkill`/`CaregiverExperience` already established. Never touches
+`CaregiverProfile.avatar`/`.cover_image` — avatar is the primary identity image, cover is
+the profile header image, a gallery item is one entry in a list of portfolio photos; three
+distinct responsibilities, never conflated. See `ARCHITECTURE_DECISION_LOG.md` ADM-018 for
+the full ownership/storage/deletion/limit reasoning.
+
+### Image Validation
+
+Extracted `ProfileMediaService`'s former private `_validate_image()` into a new, shared,
+public function: `apps.accounts.services.image_validation.validate_image()` — behavior is
+byte-for-byte unchanged (5MB cap checked first, then Pillow `Image.open().verify()` on the
+file's own bytes, never the client-supplied `Content-Type` header; only JPEG/PNG/WEBP
+accepted). `ProfileMediaService` now imports and re-exports the same constants
+(`MAX_IMAGE_BYTES`, `ALLOWED_IMAGE_FORMATS`) so no existing importer of that module breaks
+(grep-verified: nothing outside `profile_media_service.py` referenced these before this
+change). `CaregiverGalleryService` calls the identical function — one implementation of
+"is this a valid image," not two.
+
+### Gallery Business Rules and Mutation Service
+
+`CaregiverGalleryService` (`apps/accounts/services/caregiver_gallery_service.py`) —
+owner-authorized only, no RBAC permission key (ownership via
+`request.user.caregiver_profile` is the boundary, mirroring
+`CaregiverSkillService`/`CaregiverExperienceService`):
+
+- `add_item(caregiver, *, image, caption="", alt_text="")` — validates caption/alt-text
+  length (255 chars, matching the field width), validates the image, then row-locks the
+  owning `CaregiverProfile` (`select_for_update()`) for the count-check-then-create so two
+  concurrent uploads from the same caregiver cannot both observe `count < MAX` and both
+  succeed — `MAX_GALLERY_ITEMS_PER_CAREGIVER = 12` has no unique-constraint backstop the
+  way `uq_caregiver_skill_name` gives `add_skill()`.
+- `update_item(caregiver, *, item_id, caption, alt_text, is_visible)` — re-verifies
+  `caregiver=caregiver` in the same `.get()` call that resolves the row (the filter itself
+  is the authorization boundary), same shape as `CaregiverExperienceService.update()`.
+- `reorder(caregiver, *, ordered_item_ids)` — row-locks the owning profile and every one of
+  the caregiver's own gallery items, then requires `ordered_item_ids` to be exactly the
+  caregiver's own item ids, each exactly once — any foreign id, missing id, or duplicate
+  refuses the *entire* operation (no partial reorder), verified directly by
+  `test_reorder_with_foreign_item_id_refused`/`test_reorder_with_missing_item_refused`.
+- `remove_item(caregiver, *, item_id)` — row-locks the target item (ownership-filtered),
+  deletes the physical file (`image.delete(save=False)`) before deleting the row — never
+  leaves an orphaned file, mirroring `ProfileMediaService._replace()`'s own convention.
+  Verified not to touch avatar/cover
+  (`test_removing_gallery_item_does_not_touch_avatar_or_cover`).
+
+Provider-portal views (`profile_gallery_view`, `profile_gallery_item_edit_view`,
+`profile_gallery_item_remove_view`, `profile_gallery_item_move_view`) are thin controllers
+— `_guard_with_caregiver()` then a service call then a redirect/render, matching
+`ProviderPortalOrmDisciplineTest`'s zero-ORM-in-views rule (verified: no `.objects.`/
+`.filter(`/`.save(`/`.delete()` pattern appears in the added view code; `caregiver
+.gallery_items.get(...)`/`.count()` mirror the pre-existing, already-guardrail-compliant
+`caregiver.experiences.get(...)` idiom). Reordering is exposed as simple "move up"/"move
+down" actions per item (not a drag-and-drop widget) — theme-independent, keyboard/
+screen-reader operable by construction (plain `<form method="post">` + `<button>`, no new
+JS dependency), and each move computes the full desired order client-side-free by swapping
+two adjacent ids before calling `reorder()`.
+
+### Public Selector and Visibility Composition
+
+`CaregiverPublicProfileService._gallery()` (`apps/public_site/services/profile_service.py`)
+adds no eligibility check of its own. It runs only after `get_profile()`'s existing,
+canonical `common.is_publicly_visible(supplier)` gate (BG-022) has already passed, then
+filters to `caregiver.gallery_items.filter(is_visible=True)` — the identical per-item
+pattern `_skills()`/`_experience()` already established. A caregiver failing the canonical
+policy (DRAFT/SUSPENDED/ARCHIVED/unverified/pending-verification/inactive-account/
+inactive-membership) never has their gallery resolved at all — proven directly by
+`test_draft_caregiver_profile_exposes_no_gallery`/
+`test_suspended_caregiver_profile_exposes_no_gallery`/
+`test_unverified_caregiver_profile_exposes_no_gallery`, each asserting `get_profile()`
+returns `None` entirely (not merely an empty gallery on an otherwise-populated profile).
+No second visibility rule was written.
+
+### Public Surfaces Corrected/Extended
+
+Only the single-caregiver detail page (`caregiver_profile.html`) gained a gallery section
+— directory cards, home-page featured cards, and city-filtered listings show only
+existing summary fields (name, city, specialty, rating), unchanged; a gallery grid was
+never in scope for those listing surfaces (strict scope: "Extend the existing public
+caregiver profile with a gallery section").
+
+### Query/Performance Impact
+
+`_gallery()` adds exactly one fixed query
+(`caregiver.gallery_items.filter(is_visible=True)`) to `get_profile()`'s existing pipeline
+— confirmed by `PublicGalleryQueryCountTest.test_gallery_resolution_is_a_single_bounded_
+query` (`assertNumQueries(14)` with 5 gallery items present, same as with 0). The
+pre-existing `PublicProfileQueryCountTest` (Phase 2.1) locked baseline moved 13 -> 14
+accordingly — documented inline in that test as an intentional, fixed-cost addition, not a
+regression. The provider profile page's own locked baseline
+(`ProviderProfileQueryCountTest.test_profile_page_query_count_bounded`) moved 12 -> 13 for
+the equivalent `gallery_count` count query. Both are proven O(1) by dedicated tests, not
+guessed.
+
+### Files Changed
+
+See `traceability/CHANGE_LEDGER.md` CL-025 and `traceability/FILE_CHANGE_REGISTER.md`'s
+"2026-07-15 — Sprint 2.2" section for the complete, categorized list.
+
+### Security/Privacy Behavior Proven by Tests
+
+Owner may upload/edit/reorder/remove own items; another caregiver cannot mutate another
+caregiver's items (structurally — the `caregiver=caregiver` filter is the boundary — and
+directly, via `test_another_caregiver_cannot_edit`/`test_another_caregiver_cannot_remove`/
+`test_another_caregiver_cannot_reorder_items_they_do_not_own`); a customer/unauthenticated
+user cannot upload at all (403, `_guard_with_caregiver()`); cross-tenant access denied
+(404, `test_cross_tenant_cannot_edit`); non-image and corrupted files rejected
+(`test_non_image_file_rejected`/`test_corrupted_image_rejected`); oversized images
+rejected (`test_oversized_image_rejected`); hidden/removed items never public
+(`test_hidden_item_does_not_appear`/`test_removed_item_does_not_appear`); a
+DRAFT/SUSPENDED/unverified caregiver's gallery is entirely unreachable, not just filtered
+(three dedicated tests, above); the gallery limit is enforced atomically under the
+owning-profile row lock (`test_gallery_limit_enforced`, and per-caregiver independence via
+`test_gallery_limit_is_per_caregiver`); no storage path or filesystem metadata is ever
+rendered on the public page (`test_public_page_never_leaks_storage_path`); captions are
+HTML-escaped by Django's autoescaping, verified directly
+(`test_caption_rendered_safely`); another caregiver's gallery items never leak onto a
+different caregiver's public profile (`test_another_caregivers_gallery_never_appears`).
+
+### Test Level Decision
+
+Level 3 (full regression), run exactly once before creating the Sprint 2.2 PR, justified
+by: a new model + migration, a file-upload/privacy boundary, a public-profile change, and
+several apps (accounts, provider_portal, public_site) touched — the task's own explicit
+Level-3 trigger set. 45 new tests (21 accounts + 13 provider_portal + 11 public_site).
+Level 2 (accounts + provider_portal + public_site combined): 536/536. Architecture
+guardrails (`ServiceSupplierProfileCouplingTest` + ORM-discipline tests): 13/13. Full
+regression: 1932/1932 green (1887 baseline + 45 new).
+
+### Deferred (explicitly, recorded)
+
+1. Video support — not implemented; no canonical video-upload/processing infrastructure
+   exists anywhere in this repository to reuse, and the task's own scope explicitly
+   excludes it "unless the repository already has safe canonical video support" (it does
+   not).
+2. Thumbnail/derivative-image generation — not implemented, matching
+   `ProfileMediaService`'s own pre-existing "no derivative image sizes" simplicity choice;
+   the full-size, Pillow-validated image is served directly (bounded at 5MB), same as
+   avatar/cover.
+3. AI/automatic content moderation — not implemented, per explicit task scope exclusion.
+4. Company gallery, customer gallery, order attachments, financial dashboard, order
+   dashboard, marketplace/invoice/payment/settlement changes — none touched, per explicit
+   task scope exclusion.
+5. Certificates-as-visual-gallery presentation (surfacing verified documents as a photo-
+   style gallery, distinct from this sprint's plain photo grid) — Sprint 2.3's stated
+   territory, not started here.
+6. Production media storage strategy (currently local `FileField`/`FileSystemStorage`, no
+   S3/CDN) — a pre-existing, acknowledged roadmap blocking item (BG-021's original
+   dependency note); gallery images inherit this exactly as avatar/cover already do, they
+   do not worsen it.
+
+### BG-021 Status (gallery portion)
+
+**RESOLVED.** Gallery/media-portfolio scope is delivered. Extended financial overview and
+orders + history (the remainder of BG-021) remain open, scheduled for Sprint 2.5.
