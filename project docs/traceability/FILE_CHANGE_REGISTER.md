@@ -404,3 +404,13 @@ The following files would be created or modified if the Offer Marketplace implem
 | `src/templates/provider_portal/availability.html` | Modified | Inline edit/toggle per window; public-summary preview | git checkout |
 | `src/templates/public_site/caregiver_profile.html` | Modified | +privacy-safe schedule-summary sidebar card | git checkout |
 | `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |
+
+---
+
+## 2026-07-15 — PR #9 Review: Availability Mutation Concurrency Remediation (CL-029)
+
+| Path | Change | Purpose | Rollback |
+|------|--------|---------|----------|
+| `src/apps/availability/services/mutation_service.py` | Modified | add_working_window()/update_working_window() lock the owning ServiceSupplier row before overlap validation | git checkout |
+| `src/apps/availability/tests/test_concurrency.py` | Added | 9 TransactionTestCase concurrency tests | git rm |
+| `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |

@@ -632,3 +632,37 @@ summary needs, proven O(1) by the existing gallery-item-count scaling structure;
 provider-portal availability-page query count was newly locked at 9, no prior baseline
 existed to compare against), migration drift unchanged from pre-task baseline (no new
 migration, confirmed identical to merged main via git stash comparison).
+
+## Run 020 — PR #9 Review Remediation: Availability Mutation Concurrency
+
+```
+Branch: phase2-caregiver-availability-schedule (from main @ 20c532e, PR #8 merged;
+  PR #9 open, not yet merged)
+Settings module: config.settings.testing
+Python: 3.11.15  |  Django: 5.2.16  |  PostgreSQL: 16.13
+Date/time: 2026-07-15
+```
+
+| Command | Exit code | Result |
+|---------|-----------|--------|
+| `python manage.py check` | 0 | System check identified no issues |
+| `apps.availability.tests.test_concurrency` (new, focused) | 0 | 9/9 |
+| `apps.availability` (full app suite, includes the 9 new concurrency tests) | 0 | 65/65 |
+| `apps.provider_portal` (full app suite) | 0 | 107/107 |
+| `python manage.py makemigrations --check --dry-run` | 1 | Pre-existing cosmetic drift only, unchanged; no schema change this remediation |
+| **Full regression (production locking/mutation code changed)** | **0** | **Ran 2033 tests — OK** (2024 baseline + 9 new) |
+
+**Test level used:** Full regression, run exactly once, per this remediation's own explicit
+policy ("if production locking or mutation code changes, run the full repository suite
+exactly once before updating PR #9") — `AvailabilityMutationService` (production mutation
+code) was modified. `apps.booking` was not re-run: `AvailabilityQueryService`/
+`is_supplier_available()` (booking's own dependency) were not touched by this remediation,
+and the remediation's own test policy only requires a booking re-run "if shared evaluator
+behavior is modified."
+
+**Classification:** GREEN — all 9 new concurrency tests pass against real, separately-
+committed transactions (`TransactionTestCase`, not `TestCase`), each asserting final
+database state rather than only the raised/absent exception. Zero regressions in the 2024
+pre-existing tests. Zero new migration — `makemigrations --check --dry-run` drift
+unchanged from the pre-remediation baseline (only the pre-existing, unrelated
+`kernel.ServiceSupplier`/`UserAccount` field drift).

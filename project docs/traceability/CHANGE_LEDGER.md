@@ -1064,3 +1064,47 @@ Rollback method: git revert of the branch's commit(s); no data migration to reve
 Status: Complete — branch phase2-caregiver-availability-schedule (from main @ 20c532e, PR
   #8 merged), PR to be created, NOT merged
 ```
+
+## Entry 029
+
+```
+Change ID: CL-029
+Date/time: 2026-07-15 (PR #9 review remediation — availability mutation concurrency;
+  same branch, phase2-caregiver-availability-schedule, PR #9 not yet merged)
+Task: Prove and enforce that concurrent schedule mutations cannot commit overlapping
+  active working windows — the initial Sprint 2.4 implementation added overlap validation
+  but explicitly deferred proving it was concurrency-safe; review found it genuinely was
+  not
+Reason: PR #9 review — one acceptance requirement ("concurrent schedule mutations must not
+  create overlapping active working windows") remained unproven; must be resolved before
+  merge
+Files added:
+  src/apps/availability/tests/test_concurrency.py (new, 9 TransactionTestCase tests)
+Files modified:
+  src/apps/availability/services/mutation_service.py (add_working_window()/
+    update_working_window() now lock the owning ServiceSupplier row via
+    select_for_update() before running _validate_no_overlap(), in a consistent
+    supplier-then-window acquisition order)
+Files deleted: None
+Database impact: None.
+Migration impact: None — no schema change, only a new lock acquired inside existing
+  transaction.atomic blocks. makemigrations --check --dry-run confirmed only pre-existing,
+  unrelated drift.
+Security impact: Closes a genuine race condition (not previously exploitable for
+  privilege escalation or cross-tenant leakage, but capable of committing two overlapping
+  active working windows for the same supplier under concurrent load, which the overlap
+  validation was supposed to prevent). No new authorization boundary — ownership
+  enforcement (view-layer resolve-then-mutate-by-id) is unchanged and unaffected by this
+  service-layer locking change.
+Financial impact: None.
+Tests executed: check (0), 9 new concurrency tests (all green, each asserting final
+  database state), apps.availability full suite 65/65, apps.provider_portal full suite
+  107/107, makemigrations --check --dry-run (pre-existing unrelated drift only),
+  full regression run once (production locking/mutation code changed) — see
+  traceability/TEST_EXECUTION_LOG.md Run 020 for the exact count
+Result: Success — the concurrency invariant is now proven and enforced at the database
+  level via row locking; zero regressions; zero new migration
+Rollback method: git revert of the remediation commit; no data migration to reverse
+Status: Complete — remediation kept inside PR #9 (same branch, same PR, description
+  updated), NOT merged
+```

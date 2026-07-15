@@ -331,13 +331,36 @@ from `20c532e`) per governance. Completes the caregiver availability layer
 40 new tests, zero new migration, full regression 2024/2024 green. Branch
 `phase2-caregiver-availability-schedule`, PR created — see
 `traceability/IMPLEMENTATION_JOURNAL.md` and
-`ARCHITECTURE_DECISION_LOG.md` ADM-020. **Not merged — awaiting review.**
+`ARCHITECTURE_DECISION_LOG.md` ADM-020.
+
+### PR #9 Review Remediation — Availability Mutation Concurrency — IMPLEMENTED (2026-07-15)
+
+Review found the initial Sprint 2.4 implementation's overlap validation
+was not concurrency-safe: `_validate_no_overlap()` was an unlocked
+`SELECT`, and `add_working_window()` took no lock at all before its
+check-then-insert — two concurrent transactions could both read "no
+conflict" before either committed, then both insert overlapping active
+windows. `update_working_window()`'s existing `select_for_update()` on
+the window-being-updated didn't close the gap either (it locks no row a
+concurrent create touches). Fixed by locking the owning
+`kernel.ServiceSupplier` row first, before any overlap check, in both
+`add_working_window()`/`update_working_window()` — mirroring
+`CaregiverGalleryService.add_item()`'s existing precedent for the same
+class of problem. `toggle_working_window()` inherited the fix
+automatically. 9 new `TransactionTestCase` tests
+(`apps.availability.tests.test_concurrency`) prove the invariant against
+real, separately-committed transactions, each asserting final database
+state. Zero new migration. Remediation kept inside PR #9 (same branch,
+same PR, description updated) — see
+`traceability/IMPLEMENTATION_JOURNAL.md` and
+`ARCHITECTURE_DECISION_LOG.md` ADM-020's remediation note. **Not
+merged — awaiting review.**
 
 ---
 
 ## IMMEDIATE NEXT TASK
 
-### Await review of the Sprint 2.4 PR; do not start Sprint 2.5 automatically
+### Await review of the Sprint 2.4 PR (including the concurrency remediation); do not start Sprint 2.5 automatically
 
 Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active implementation
 order).

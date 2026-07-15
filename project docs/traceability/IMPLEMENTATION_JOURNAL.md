@@ -1560,3 +1560,141 @@ provider_portal + 6 public_site). Level 2 (`apps.availability` + `apps.provider_
 **RECORDED.** Per-caregiver time zone is not modeled; every caregiver is scheduled in the
 platform's single default time zone regardless of their own physical location. See
 `quality/COMPLETION_BACKLOG.md` BG-024.
+
+## PR #9 Review Remediation — Availability Mutation Concurrency (2026-07-15)
+
+The Sprint 2.4 section above explicitly deferred "multi-threaded concurrency race testing
+for the overlap-validation `select_for_update()` path... not written, consistent with this
+repository's existing testing conventions." PR #9 review challenged that deferral directly:
+"concurrent schedule mutations must not create overlapping active working windows" was
+listed as an unproven acceptance requirement. Inspection during this remediation confirmed
+the review's premise correctly — this was a genuine implementation gap, not merely an
+untested-but-safe design.
+
+### Inspection Finding
+
+`AvailabilityMutationService._validate_no_overlap()` is a plain, unlocked `SELECT`.
+`add_working_window()` acquired no lock at all before its check-then-insert sequence.
+Under PostgreSQL's default READ COMMITTED isolation, `transaction.atomic` guarantees each
+transaction is all-or-nothing, but does **not** make concurrent transactions serialize
+their reads against each other — two concurrent `add_working_window()` calls for the same
+supplier/day with overlapping times could both execute `_validate_no_overlap()` before
+either had committed, both observe "no conflict," and both proceed to `INSERT`, producing
+two overlapping active `ProviderWorkingWindow` rows. `update_working_window()` did already
+call `select_for_update()`, but only on the window row being updated — this did not close
+the gap for two reasons: (1) a concurrent `add_working_window()` touches no existing window
+row at all, so locking one specific row provides no serialization against it; (2) two
+concurrent `update_working_window()` calls against two *different* existing windows of the
+same supplier/day each lock a different row, so neither blocks the other's overlap check
+against the other's in-flight (uncommitted) change.
+
+### Fix
+
+Both `add_working_window()` and `update_working_window()` now lock the owning
+`kernel.ServiceSupplier` row (`select_for_update()`) as the first statement inside their
+`transaction.atomic` block, before running `_validate_no_overlap()` or touching any window
+row. This directly mirrors `apps.accounts.services.caregiver_gallery_service
+.CaregiverGalleryService.add_item()`'s pre-existing, already-established precedent for the
+identical shape of problem: a cross-row invariant ("no two active windows for this
+supplier/day overlap," analogous to gallery's "count < MAX_GALLERY_ITEMS_PER_CAREGIVER")
+with no single-row database constraint to back it, resolved by locking the one stable
+parent row every relevant child row shares, rather than a not-yet-existing or
+individually-scoped child row. `update_working_window()` resolves the target window's
+`supplier_id` with a plain, unlocked read first (safe — a window's supplier never changes
+after creation), then locks the supplier before locking the window row itself, using the
+identical supplier-then-window acquisition order `add_working_window()` uses — the two
+methods can therefore never deadlock against each other by acquiring the two locks in
+reverse order. `toggle_working_window()` required no change: it already delegates to
+`update_working_window()` and inherited the fix automatically.
+
+An alternative — a PostgreSQL `ExclusionConstraint` (GiST index, range-overlap operator)
+enforcing the same invariant at the database level regardless of application code — was
+considered and rejected for this remediation: it would require a new migration, and the
+review's own governance named explicit application-level locking (mirroring an existing
+repository pattern) as the preferred solution when no equally strong constraint already
+exists — confirmed by inspection that none did, before or after this remediation.
+
+### Toggle-Enable Safety
+
+Enabling a disabled window runs through the exact same locked, validated code path as
+creating or updating an active window — there is no separate "enable" code path to miss.
+Disabling a window remains unconditional (no overlap check applies when deactivating,
+matching the established "disabled intervals do not count as available" rule) and
+idempotent — disabling an already-disabled window is a safe no-op, proven directly by
+`test_disabling_a_window_is_safe_and_idempotent`. Two disabled, mutually-conflicting
+windows may still coexist, per the pre-existing, established policy (ADM-020 Decision 3)
+— only the *transition* to active is guarded, proven by
+`test_enabling_disabled_window_overlapping_active_window_is_refused` and
+`test_concurrent_enabling_of_two_conflicting_disabled_windows_yields_at_most_one_enabled`.
+
+### Concurrency Test Evidence
+
+9 new tests in `apps/availability/tests/test_concurrency.py`, using `TransactionTestCase`
+(real, separately-committed transactions on separate threads/connections — the same
+requirement, and the same `available_apps`/`threading.Barrier`/`connection.close()`
+pattern, `apps.booking.tests.test_concurrency.ConcurrentAssignmentTest` already
+established) rather than `TestCase` (whose wrapping transaction would make Postgres row
+locking invisible across threads):
+
+1. `test_concurrent_overlapping_creates_result_in_at_most_one_success` — two concurrent
+   `add_working_window()` calls with overlapping times: exactly one succeeds, one raises
+   `AvailabilityError`, and exactly one active window exists in the final database state.
+2. `test_concurrent_exact_duplicate_creates_result_in_at_most_one_success` — same shape,
+   identical start/end.
+3. `test_non_overlapping_mutation_remains_possible_after_first_completes` — proves the
+   lock serializes, not permanently blocks.
+4. `test_transaction_usable_after_controlled_conflict` — a refused mutation's rollback
+   leaves the service usable for an immediate, valid retry in the same process.
+5. `test_concurrent_create_and_update_cannot_commit_overlap` — a concurrent create (whose
+   *input* does not conflict with the existing window's *original* state) racing an update
+   to that existing window (whose *input* also does not itself conflict) — the two
+   *outcomes* would conflict; exactly one commits, and the final database state contains
+   no pairwise overlap among active windows (checked exhaustively, not just count-based).
+6. `test_concurrent_enabling_of_two_conflicting_disabled_windows_yields_at_most_one_enabled`
+   — two disabled, mutually-conflicting windows raced to enable: exactly one ends active.
+7. `test_enabling_disabled_window_overlapping_active_window_is_refused` — sequential
+   correctness proof for Section 3's required toggle behavior.
+8. `test_disabling_a_window_is_safe_and_idempotent`.
+9. `test_different_suppliers_do_not_block_each_other` — two different suppliers'
+   identical-time creates both succeed and remain tenant-isolated under concurrent load —
+   proves the lock is scoped per-supplier, not global.
+
+Every test asserts final database state via a fresh query after both threads join, not
+merely the returned exception — satisfying the review's explicit "tests must verify final
+database state, not only returned exceptions" requirement.
+
+### Performance Impact
+
+One additional `SELECT ... FOR UPDATE` per mutation (the supplier row), held only for the
+duration of that single transaction. Confirmed by grep that no other code path in this
+repository locks `ServiceSupplier` via `select_for_update()` — this introduces no new
+contention with bookings, assignments, or any other supplier-touching operation. Contention
+is scoped strictly to concurrent availability mutations against the *same* supplier,
+proven independent across different suppliers by
+`test_different_suppliers_do_not_block_each_other`.
+
+### Test Level Decision
+
+Full regression, run exactly once, per this remediation's own explicit policy: production
+locking/mutation code (`AvailabilityMutationService`) was changed. 9 new focused tests (all
+green). `apps.availability` full suite: 65/65 (56 pre-existing + 9 new). `apps.provider_portal`
+full suite: 107/107 (unaffected — ownership enforcement, the only thing that layer depends
+on from this service, is unchanged). `apps.booking` not re-run: its dependency
+(`AvailabilityQueryService`/`is_supplier_available()`) was not touched. Full regression:
+2033/2033 green (2024 baseline + 9 new).
+
+### Files Changed
+
+`src/apps/availability/services/mutation_service.py` (modified — locking added, zero
+behavior change to any existing test's expected outcome), `src/apps/availability/tests
+/test_concurrency.py` (new, 9 tests). No other source file touched — booking, matching,
+company scheduling, and external calendars were not expanded into, per this remediation's
+own explicit scope boundary.
+
+### Deferred (unchanged)
+
+The `ExclusionConstraint` alternative remains available as a stronger, database-native
+guarantee if ever needed (e.g. if a future code path bypasses `AvailabilityMutationService`
+entirely) — not pursued here since it requires a migration and the review's own governance
+named locking as the preferred, repository-consistent solution when reached via the
+service layer, which is the only mutation path that exists today.

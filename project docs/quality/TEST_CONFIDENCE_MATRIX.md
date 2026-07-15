@@ -19,10 +19,14 @@ no new test file this sprint (all additions inside existing files);
 partial update 2026-07-15 (Sprint 2.4 — Caregiver Availability and Working Schedule) — only
 `availability`/`provider_portal`/`public_site` rows and grand-total method count
 re-verified; no new test file this sprint (all additions inside existing files);
+partial update 2026-07-15 (PR #9 review — availability mutation concurrency remediation) —
+only the `availability` row (test methods, concurrency column, +1 new test file:
+`test_concurrency.py`) and grand-total file/method counts re-verified;
 a full re-audit of every app was not performed for any of the incremental changes.
 **Last verified date:** 2026-07-14 / 2026-07-15 (partial) / 2026-07-15 (partial, Phase 2.1) /
 2026-07-15 (partial, BG-022) / 2026-07-15 (partial, Sprint 2.2) / 2026-07-15 (partial,
-PR #7 remediation) / 2026-07-15 (partial, Sprint 2.3) / 2026-07-15 (partial, Sprint 2.4)
+PR #7 remediation) / 2026-07-15 (partial, Sprint 2.3) / 2026-07-15 (partial, Sprint 2.4) /
+2026-07-15 (partial, PR #9 concurrency remediation)
 
 ---
 
@@ -30,9 +34,9 @@ PR #7 remediation) / 2026-07-15 (partial, Sprint 2.3) / 2026-07-15 (partial, Spr
 
 | Metric | Count |
 |--------|-------|
-| Total test files | 208 (198 + 10 accumulated through Phase 1.2/1.3/2.1/BG-022/Sprint 2.2; PR #7 remediation, Sprint 2.3, and Sprint 2.4 added no new file) |
-| Total test classes | ~461 (not re-audited exactly; +3 classes added across existing test files in Sprint 2.4) |
-| Total test methods | 2,024 (full regression re-run 2026-07-15, Sprint 2.4 — Caregiver Availability and Working Schedule) |
+| Total test files | 209 (198 + 10 accumulated through Phase 1.2/1.3/2.1/BG-022/Sprint 2.2 + 1 new in the PR #9 concurrency remediation, `test_concurrency.py`; PR #7 remediation, Sprint 2.3, and Sprint 2.4 itself added no new file) |
+| Total test classes | ~466 (not re-audited exactly; +3 classes in Sprint 2.4, +5 classes in the PR #9 concurrency remediation) |
+| Total test methods | 2,033 (full regression re-run 2026-07-15, PR #9 review — availability mutation concurrency remediation) |
 
 ## Per-App Confidence
 

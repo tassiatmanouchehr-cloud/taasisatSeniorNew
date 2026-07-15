@@ -224,6 +224,17 @@ add (existing), inline edit (new — `working_window_update_view`), enable/disab
 (new — `working_window_toggle_view`, mirrors Sprint 2.3's skill-visibility-toggle pattern),
 remove (existing).
 
+**Concurrency (PR #9 review, 2026-07-15):** the overlap check above is only correct if two
+concurrent mutations against the same supplier's schedule cannot both read "no conflict"
+before either commits. `add_working_window()` and `update_working_window()` both now lock
+the owning `kernel.ServiceSupplier` row (`select_for_update()`) as the first statement inside
+their transaction, before running `_validate_no_overlap()` — so two concurrent creates,
+updates, or enable-toggles against the same supplier always serialize, and the loser sees the
+winner's already-committed state. `toggle_working_window()` inherits this automatically
+(it delegates to `update_working_window()`). Different suppliers never contend for the same
+lock. Proven by 9 `TransactionTestCase` tests in `apps.availability.tests.test_concurrency`.
+See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-020's remediation note.
+
 Time-off: unchanged from Module 10 foundation — `AvailabilityMutationService
 .add_blocked_period()`/`remove_blocked_period()`, no cancelled/active state (hard delete is
 the existing, kept convention). Overlapping blocked periods are deliberately still allowed

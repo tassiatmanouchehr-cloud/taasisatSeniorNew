@@ -115,12 +115,19 @@ ServiceSupplier
 ├── blocked_periods → availability.AvailabilityBlockedPeriod (CASCADE, reverse FK, related_name="blocked_periods")
 └── capacity_rule → availability.CapacityRule (CASCADE, reverse OneToOne, related_name="capacity_rule")
 
-ProviderWorkingWindow (Module 10 foundation; overlap/duplicate refusal added Sprint 2.4)
+ProviderWorkingWindow (Module 10 foundation; overlap/duplicate refusal added Sprint 2.4;
+concurrency-proven PR #9 review)
 ├── supplier → kernel.ServiceSupplier (CASCADE)
-└── INDEX(tenant, supplier, day_of_week) — no DB-level uniqueness constraint; overlap/
-    duplicate prevention is enforced at the service layer
+└── INDEX(tenant, supplier, day_of_week) — no DB-level uniqueness/exclusion constraint;
+    overlap/duplicate prevention is enforced at the service layer
     (AvailabilityMutationService._validate_no_overlap()), not the database, matching this
-    repository's existing convention for CaregiverGalleryItem's own ordering invariant
+    repository's existing convention for CaregiverGalleryItem's own ordering invariant.
+    Concurrency-safe as of the PR #9 review: add_working_window()/update_working_window()
+    lock the owning ServiceSupplier row (select_for_update()) before running
+    _validate_no_overlap(), so two concurrent mutations against the same supplier's
+    schedule always serialize on that one shared row — proven by 9 TransactionTestCase
+    tests in apps.availability.tests.test_concurrency (see
+    traceability/ARCHITECTURE_DECISION_LOG.md ADM-020's remediation note)
 
 AvailabilityBlockedPeriod (Module 10 foundation; unchanged by Sprint 2.4)
 ├── supplier → kernel.ServiceSupplier (CASCADE)
