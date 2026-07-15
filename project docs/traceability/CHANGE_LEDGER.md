@@ -911,3 +911,82 @@ Rollback method: git revert of the branch's commit(s); no data migration to reve
 Status: Complete — branch phase2-caregiver-gallery-media (from main @ c5259b3, PR #6
   merged), PR #7 to be updated in place, NOT merged
 ```
+
+## Entry 027
+
+```
+Change ID: CL-027
+Date/time: 2026-07-15 (Sprint 2.3 — Caregiver Professional Profile: Credentials, Skills,
+  Experience, Highlights; first sprint on a fresh branch after PR #7 merged to main)
+Task: Complete the professional-credibility presentation layer — precise verification
+  badges, owner-facing skill/experience visibility toggles, derived highlights, an
+  owner-facing "expiring soon" credential state, and an explicit self-declared-vs-verified
+  distinction on the public profile
+Reason: Roadmap Phase 2's next scheduled sprint (IMPLEMENTATION_ROADMAP.md); closes BG-023
+  (new backlog item recorded and resolved in the same session — the gaps it describes were
+  only identified once this sprint's own governance called for them, not previously
+  tracked).
+Files added: None
+Files modified:
+  src/apps/accounts/services/caregiver_professional_profile_service.py
+    (CaregiverSkillService.toggle_visibility(); CaregiverExperienceService.create()/
+    update() gained is_visible)
+  src/apps/accounts/services/verification_policy.py (RequiredDocumentPolicy
+    .is_expiring_soon(), EXPIRING_SOON_WINDOW_DAYS = 30)
+  src/apps/accounts/tests/test_caregiver_professional_profile.py (8 new tests)
+  src/apps/accounts/tests/test_verification_policy.py (6 new tests)
+  src/apps/provider_portal/forms.py (ExperienceForm gained is_visible)
+  src/apps/provider_portal/services/profile_service.py (get_skills_view()/
+    _experience_row() surface is_visible; _document_rows() gained expiring_soon status;
+    new _highlights())
+  src/apps/provider_portal/services/viewmodels.py (SkillRowViewModel/
+    ExperienceRowViewModel gained is_visible; new HighlightsViewModel;
+    ProviderProfileViewModel gained highlights)
+  src/apps/provider_portal/tests/test_professional_profile.py (13 new tests)
+  src/apps/provider_portal/tests/test_profile.py (locked query-count baseline 13 -> 15)
+  src/apps/provider_portal/urls.py (+1 skill-visibility-toggle route)
+  src/apps/provider_portal/views.py (+1 view: profile_skill_visibility_toggle_view;
+    experience add/edit views pass is_visible through)
+  src/apps/public_site/services/profile_service.py (_credentials() passes document_type;
+    new _highlights()/_verification_badges())
+  src/apps/public_site/services/viewmodels.py (PublicCredentialViewModel gained
+    document_type; new ProfessionalHighlightsViewModel/VerificationBadgeViewModel;
+    CaregiverProfileViewModel gained highlights/verification_badges)
+  src/apps/public_site/tests/test_professional_profile_public.py (15 new tests)
+  src/templates/provider_portal/profile.html (+3 highlights stat tiles)
+  src/templates/provider_portal/profile_experience.html (+visibility badge per entry)
+  src/templates/provider_portal/profile_experience_form.html (checkbox rendering for
+    is_current/is_visible)
+  src/templates/provider_portal/profile_skills.html (+visibility badge + toggle button
+    per skill)
+  src/templates/public_site/caregiver_profile.html (precise badges replace single
+    generic "Verified" pill; +highlights stat tiles; +self-declared/platform-reviewed
+    disclaimers)
+  src/ui/components/portal/verification_badge.html (+expiring_soon status branch —
+    shared component, also used by apps.organization_portal; additive only, verified not
+    to change any existing status's rendering)
+Files deleted: None
+Database impact: None.
+Migration impact: None — both is_visible columns already existed (Phase 2.1); every other
+  change is a new dataclass field or a purely derived value.
+Security impact: No new attack surface. Public credential presentation now derives
+  precise, evidence-based badges instead of one generic claim — reduces the risk of a
+  reader over-trusting a vague "Verified" label. Self-declared experience is now
+  explicitly labeled as such, preventing an implied verification claim the platform never
+  made. Visibility toggles reuse the identical ownership-filtered mutation pattern already
+  established for every other caregiver-owned child row (verified directly by tests, not
+  just structurally) — no new authorization boundary introduced.
+Financial impact: None — no Marketplace, Invoice, Financial, Payment, or Settlement code
+  touched.
+Tests executed: check (0), 36 new focused tests (all 0), affected-app Level 2 suite
+  (accounts + provider_portal + public_site combined) 588/588, apps.organization_portal
+  (shared verification_badge.html component blast-radius check) 51/51, architecture
+  guardrails 13/13, makemigrations --check --dry-run (1, pre-existing unrelated drift
+  only, no new drift), full regression 1984/1984 (exit 0)
+Result: Success — professional credibility layer complete; zero regressions; zero new
+  migration; zero new public-visibility rule (badges/highlights are pure derivations
+  gated by the existing BG-022 canonical policy)
+Rollback method: git revert of the branch's commit(s); no data migration to reverse
+Status: Complete — branch phase2-caregiver-credentials-skills-experience-ui (from main @
+  f7b7b2b, PR #7 merged), PR to be created, NOT merged
+```

@@ -117,3 +117,43 @@ class EffectiveExpiryTest(TestCase):
         # expiry only matters for a document the platform already approved.
         doc = self._Doc(DocumentStatus.PENDING, timezone.now().date() - timedelta(days=1))
         self.assertFalse(RequiredDocumentPolicy.is_effectively_expired(doc))
+
+
+class ExpiringSoonTest(TestCase):
+    """Sprint 2.3 (Credentials, Skills, Experience, Highlights) —
+    owner-facing-only "expiring soon" derived fact, a sibling of
+    is_effectively_expired() with no DB status mutation."""
+
+    class _Doc:
+        def __init__(self, status, expiry_date):
+            self.status = status
+            self.expiry_date = expiry_date
+
+    def test_verified_expiring_within_window_is_expiring_soon(self):
+        doc = self._Doc(DocumentStatus.VERIFIED, timezone.now().date() + timedelta(days=10))
+        self.assertTrue(RequiredDocumentPolicy.is_expiring_soon(doc))
+
+    def test_verified_expiring_far_in_future_is_not_expiring_soon(self):
+        doc = self._Doc(DocumentStatus.VERIFIED, timezone.now().date() + timedelta(days=365))
+        self.assertFalse(RequiredDocumentPolicy.is_expiring_soon(doc))
+
+    def test_already_expired_is_not_expiring_soon(self):
+        # mutually exclusive with is_effectively_expired() — a document is
+        # either already expired or expiring soon, never both.
+        doc = self._Doc(DocumentStatus.VERIFIED, timezone.now().date() - timedelta(days=1))
+        self.assertFalse(RequiredDocumentPolicy.is_expiring_soon(doc))
+        self.assertTrue(RequiredDocumentPolicy.is_effectively_expired(doc))
+
+    def test_verified_with_no_expiry_is_not_expiring_soon(self):
+        doc = self._Doc(DocumentStatus.VERIFIED, None)
+        self.assertFalse(RequiredDocumentPolicy.is_expiring_soon(doc))
+
+    def test_pending_document_is_not_expiring_soon(self):
+        doc = self._Doc(DocumentStatus.PENDING, timezone.now().date() + timedelta(days=10))
+        self.assertFalse(RequiredDocumentPolicy.is_expiring_soon(doc))
+
+    def test_expiring_exactly_at_window_boundary_is_expiring_soon(self):
+        from apps.accounts.services.verification_policy import RequiredDocumentPolicy as Policy
+
+        doc = self._Doc(DocumentStatus.VERIFIED, timezone.now().date() + timedelta(days=Policy.EXPIRING_SOON_WINDOW_DAYS))
+        self.assertTrue(RequiredDocumentPolicy.is_expiring_soon(doc))

@@ -223,6 +223,41 @@ per-candidate N+1 in directory ranking/card-building (`DiscoveryRankingService.r
 `CaregiverDirectoryService._build_card()`) — see `quality/DEFECT_AND_RISK_REGISTER.md`
 KL-012.
 
+### BG-023: Professional Credibility Layer — Precise Badges, Skill/Experience Visibility, Highlights — **RESOLVED**
+
+**Original evidence:** Phase 2.1 delivered skills/experience CRUD and a plain-badge
+credential summary, but left several gaps: `CaregiverSkill.is_visible`/
+`CaregiverExperience.is_visible` existed on both models with no owner-facing way to change
+either; the public profile showed one generic "تأییدشده" (Verified) badge regardless of
+what was actually verified; no derived "highlights" summary existed anywhere; nothing
+distinguished self-declared experience from platform-verified credentials in the UI; no
+"credential expiring soon" state existed for the owner.
+**Resolution (2026-07-15, Sprint 2.3):** `CaregiverSkillService.toggle_visibility()` and
+`CaregiverExperienceService.create()`/`update()`'s new `is_visible` parameter close the
+visibility gap (no migration — the column already existed). The single generic "Verified"
+badge was replaced with precise, evidence-derived `VerificationBadgeViewModel` entries
+("Profile verified", "Identity verified", "Professional credential verified") — never
+implying broader approval than the underlying credential set supports. A fully derived
+`ProfessionalHighlightsViewModel`/`HighlightsViewModel` (years of experience, verified-
+credential count, visible-skill count, completed-jobs/review count) was added on both the
+public profile and the provider-portal preview — zero new queries on the public side,
+two new fixed-cost `.count()` queries on the provider side. The public experience section
+gained an explicit "self-declared, not platform-verified" disclaimer, contrasted with a
+matching "platform-reviewed" note on the credentials section.
+`RequiredDocumentPolicy.is_expiring_soon()` (30-day window, owner-facing only, never
+surfaced publicly) and `verification_badge.html`'s new `expiring_soon` status branch close
+the last gap. 36 new tests, zero new migration, full regression 1984/1984 green. See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-019 and
+`traceability/IMPLEMENTATION_JOURNAL.md`.
+**Affected modules:** accounts, provider_portal, public_site, plus the shared
+`ui/components/portal/verification_badge.html` component (also used by
+`organization_portal`; its own suite re-run to confirm no regression).
+**Not in scope (explicitly deferred, not this sprint's mandate):** a skill catalog/
+normalization layer (`CaregiverSkill.name` stays free-text — see
+`quality/DEFECT_AND_RISK_REGISTER.md` KL-016); certificates-as-visual-gallery presentation
+(distinct from this sprint's precise-badge/label treatment — remains open under BG-021);
+availability/calendar (Sprint 2.4); financial overview and orders + history (Sprint 2.5).
+
 ### BG-003: OrderOfferService (Phase 2)
 
 **Current evidence:** Phase 1 model exists. No service layer.

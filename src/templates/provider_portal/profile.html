@@ -103,6 +103,9 @@
       {% if profile.is_organization_affiliated %}
       {% include "ui/components/portal/profile_stat.html" with label="سازمان" value=profile.organization_name %}
       {% endif %}
+      {% include "ui/components/portal/profile_stat.html" with label="مدارک تأییدشده" value=profile.highlights.verified_credential_count %}
+      {% include "ui/components/portal/profile_stat.html" with label="مهارت‌های نمایش‌داده‌شده" value=profile.highlights.visible_skill_count %}
+      {% include "ui/components/portal/profile_stat.html" with label="سوابق نمایش‌داده‌شده" value=profile.highlights.visible_experience_count %}
     </div>
   </div>
 </div>

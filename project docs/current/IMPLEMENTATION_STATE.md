@@ -1,6 +1,6 @@
 # CURRENT IMPLEMENTATION STATE
 
-**Last verified HEAD:** phase2-caregiver-gallery-media (from main @ c5259b3, PR #6 merged)
+**Last verified HEAD:** phase2-caregiver-credentials-skills-experience-ui (from main @ f7b7b2b, PR #7 merged)
 **Last verified date:** 2026-07-15
 
 ---
@@ -10,7 +10,7 @@
 | App | Models | Services | Views | Tests | Status |
 |-----|--------|----------|-------|-------|--------|
 | **kernel** | 14 (Tenant, Person, UserAccount, Role, Permission, RoleAssignment, EventOutbox, AuditLog, ConfigurationKey, ConfigurationValue, FeatureFlag, PolicyDefinition, PolicyVersion, ServiceSupplier) | 11 | API: 1 | 232 | COMPLETE |
-| **accounts** | 13 (OTPChallenge, CustomerProfile, ElderProfile, TrustedContact, CaregiverProfile, OrganizationProfile, OrganizationMembership, CompanyAffiliationRequest, PlatformTeamMember, VerificationDocument, CaregiverSkill, CaregiverExperience — Phase 2.1, CaregiverGalleryItem — Sprint 2.2) | 27 (+VerificationReviewService, RequiredDocumentPolicy, ProfileVerificationRollupService, ActivationEligibilityService, document_ownership helpers — Phase 1.1/1.2; +ProfileCompletionService, ProfileActivationService — Phase 1.3; +CaregiverSkillService, CaregiverExperienceService, PublicCredentialSelector — Phase 2.1; +CaregiverGalleryService, image_validation.validate_image() — Sprint 2.2) | 9 | 338 (+25 Phase 1.1, +47 Phase 1.2, +27 Phase 1.3, +14 Phase 1.3 remediation, +24 Phase 2.1, +21 Sprint 2.2) | COMPLETE (manual document verification + roll-up/activation rules + controlled activation + skills/experience/credential-summary + gallery/media portfolio added; profile.status is now the activation-state source of truth) |
+| **accounts** | 13 (OTPChallenge, CustomerProfile, ElderProfile, TrustedContact, CaregiverProfile, OrganizationProfile, OrganizationMembership, CompanyAffiliationRequest, PlatformTeamMember, VerificationDocument, CaregiverSkill, CaregiverExperience — Phase 2.1, CaregiverGalleryItem — Sprint 2.2) | 27 (+VerificationReviewService, RequiredDocumentPolicy, ProfileVerificationRollupService, ActivationEligibilityService, document_ownership helpers — Phase 1.1/1.2; +ProfileCompletionService, ProfileActivationService — Phase 1.3; +CaregiverSkillService, CaregiverExperienceService, PublicCredentialSelector — Phase 2.1; +CaregiverGalleryService, image_validation.validate_image() — Sprint 2.2; +CaregiverSkillService.toggle_visibility(), RequiredDocumentPolicy.is_expiring_soon() — Sprint 2.3) | 9 | 368 (+25 Phase 1.1, +47 Phase 1.2, +27 Phase 1.3, +14 Phase 1.3 remediation, +24 Phase 2.1, +21 Sprint 2.2, +14 Sprint 2.3) | COMPLETE (manual document verification + roll-up/activation rules + controlled activation + skills/experience/credential-summary + gallery/media portfolio + professional credibility layer added; profile.status is now the activation-state source of truth) |
 | **orders** | 7 (ServiceCategory, ServiceType, Order, OrderStatusHistory, OrderShareLink, OrderOffer, OrderOrganizationEligibility) | 7 | 0 | 167 (incl. 40 OrderOffer + 8 BG-002) | COMPLETE (Offer Phase 1 committed in ce3b30e; BG-002 fix merged in eb51018) |
 | **booking** | 1 (SupplierAssignment) | 5 | 0 | 67 | COMPLETE |
 | **execution** | 1 (ExecutionSession) | 3 | 0 | 58 | COMPLETE |
@@ -28,11 +28,11 @@
 | **jobs** | 2 (JobDefinition, JobRun) | 1 | 0 | 35 | COMPLETE |
 | **common** | 3 (abstract: TimestampedModel, TenantAwareModel, SoftDeleteMixin) | 0 | 0 | 0 | COMPLETE (no tests) |
 | **portal** | 0 | 5 (presentation) | 30+ | 74 | COMPLETE |
-| **provider_portal** | 0 | 1 (presentation) | 30 (+5 skills/experience management Phase 2.1, +4 gallery management Sprint 2.2) | 81 (+2 Phase 1.3, +13 Phase 2.1, +13 Sprint 2.2) | COMPLETE |
+| **provider_portal** | 0 | 1 (presentation) | 31 (+5 skills/experience management Phase 2.1, +4 gallery management Sprint 2.2, +1 skill-visibility-toggle Sprint 2.3) | 92 (+2 Phase 1.3, +13 Phase 2.1, +13 Sprint 2.2, +11 Sprint 2.3) | COMPLETE |
 | **organization_portal** | 0 | 1 (presentation) | 18 | 51 (+2 Phase 1.3) | COMPLETE |
 | **admin_portal** | 0 | 0 | 20 (+4 document verification Phase 1.1, +4 activation Phase 1.3) | 56 (+16 Phase 1.1, +9 Phase 1.3, +2 Phase 1.3 remediation) | COMPLETE |
 | **api** | 0 | 0 | 12 | 97 | COMPLETE |
-| **public_site** | 0 | 4 | 18 | 117 (+2 Phase 2.1 eligibility, +11 Phase 2.1 skills/experience/credentials, +13 BG-022 canonical visibility, +11 Sprint 2.2 gallery) | COMPLETE |
+| **public_site** | 0 | 4 | 18 | 128 (+2 Phase 2.1 eligibility, +11 Phase 2.1 skills/experience/credentials, +13 BG-022 canonical visibility, +11 Sprint 2.2 gallery, +11 Sprint 2.3 highlights/badges) | COMPLETE |
 | **showcase** | 0 | 0 | 15 | 0 | COMPLETE (no tests) |
 
 ## Offer Marketplace Current State
@@ -58,9 +58,9 @@ profiles, and portal completion phases.
 | Total concrete models | ~73 (+CaregiverSkill, CaregiverExperience — Phase 2.1; +CaregiverGalleryItem — Sprint 2.2) |
 | Total migrations | ~47 |
 | Total test files | 208 |
-| Total test methods | 1,932 (full regression 1932/1932 green on phase2-caregiver-gallery-media) |
+| Total test methods | 1,984 (full regression 1984/1984 green on phase2-caregiver-credentials-skills-experience-ui) |
 | Total admin registrations | 20 |
 | Total management commands | 15 |
-| Total URL patterns | ~154 |
+| Total URL patterns | ~155 |
 | Total Celery tasks | 4 |
 | Total job handlers | 7 |

@@ -1197,3 +1197,169 @@ baseline + 16 new).
    constant-based style.
 3. Thumbnail/derivative-image generation — unchanged, still out of scope (Sprint 2.2's own
    deferral, restated).
+
+---
+
+## Sprint 2.3 — Caregiver Professional Profile: Credentials, Skills, Experience, Highlights (2026-07-15)
+
+First sprint on a fresh branch (`phase2-caregiver-credentials-skills-experience-ui`, from
+`main` @ `f7b7b2b`) after PR #7 (Sprint 2.2 gallery + file-lifecycle/image-safety
+remediation) was merged. Completes the professional-credibility presentation layer of the
+caregiver profile — precise verification badges, owner-completable skill/experience
+visibility, derived highlights, an owner-facing "expiring soon" credential state, and an
+explicit self-declared-vs-verified distinction. Presentation and management of existing
+credibility signals, not a new verification workflow and not a social system.
+
+### Current-State Inspection
+
+| Capability | Existing | Reusable | Missing |
+|---|---|---|---|
+| Skill model | `CaregiverSkill` — free-text `CharField`, `is_visible` field (unused), add/remove CRUD | Yes, kept exactly as-is per governance ("do not silently redesign") | Owner-facing way to change `is_visible` |
+| Experience model | `CaregiverExperience` — `is_visible` field (unused), create/edit/delete CRUD | Yes | Owner-facing way to change `is_visible` |
+| Credential summary | `PublicCredentialSelector` — `document_type`/`label`/`expiry_date` only, APPROVED + unexpired + applicable-type filter | Yes, extended (added `document_type` to the public ViewModel — the selector itself needed no change) | Per-type badge derivation at the presentation layer |
+| Expiry derived fact | `RequiredDocumentPolicy.is_effectively_expired()` (Phase 1.2) | Yes, sibling added | "Expiring soon" (no expiry-window concept existed) |
+| Owner credential-status preview | `ProviderProfilePresentationService._document_rows()` + `document_status.html` — already renders PENDING/VERIFIED/REJECTED/CORRECTION_REQUIRED/expired with reviewer-authored reason (owner-only) | Yes, reused as-is, only extended with one more derived status | "Expiring soon" status/badge |
+| Verification badge component | `ui/components/portal/verification_badge.html` — icon+text, WCAG 1.4.1 compliant, `verified\|pending\|rejected\|correction_required\|expired\|unverified` | Yes, extended (also used by `apps.organization_portal`) | `expiring_soon` status branch |
+| Public badge presentation | Single generic `"تأییدشده"` (Verified) pill tied to `is_verified` | Replaced, not extended — a compound, imprecise claim | Precise, per-claim badges |
+| Highlights/professional summary | None anywhere | N/A | New, fully derived selector |
+| Self-declared vs verified distinction | None (implicit only) | N/A | Explicit UI disclaimer |
+| Service catalog | `ServiceCategory` (already shown as `service_names` on both portal and public pages) | Unrelated to this sprint — no per-service credential enforcement exists or was requested | N/A, out of scope by design |
+| Skill catalog/normalization | None — free-text only | N/A | Explicitly out of scope this sprint (see Deferred) |
+
+No genuine architectural blocker was found — proceeded directly to implementation.
+
+### Credential Presentation Behavior
+
+`PublicCredentialSelector` itself was not modified — it already returns only APPROVED,
+unexpired, caregiver-owned, applicable-type documents, and already excludes file, document
+number (never modeled — nothing to leak), reviewer identity, and rejection/correction
+reason. `PublicCredentialViewModel` gained one new field, `document_type` (a type code, not
+evidence), purely so the presentation layer (`_verification_badges()`) can derive precise
+per-type badges without a new query or touching the selector's own privacy boundary. Owner
+side is unchanged in scope — approved/pending/rejected/correction-required/expiring-soon/
+expired states, reviewer reason shown only to the owner, private file access only through
+the existing protected admin-portal route (never touched this sprint).
+
+### Skills Behavior
+
+`CaregiverSkillService.toggle_visibility(caregiver, *, skill_id)` — ownership-filtered
+(`caregiver=caregiver` in the same lookup, defense-in-depth against a guessed id),
+flips `is_visible`. Provider portal: a "نمایش/پنهان کردن" button per skill row
+(`profile_skill_visibility_toggle_view`, new POST-only route), plus a status badge.
+Public profile: `_skills()` (unchanged) already filtered `is_visible=True` since Phase
+2.1 — this sprint only added the means to actually change that value. No catalog/
+normalization was introduced (`CaregiverSkill.name` stays free-text) — the resulting
+duplicate-spelling ambiguity is recorded, not fixed (`quality/DEFECT_AND_RISK_REGISTER.md`
+KL-016).
+
+### Experience Behavior
+
+`CaregiverExperienceService.create()`/`update()` gained an `is_visible: bool = True`
+keyword parameter (backward compatible — every existing caller that omits it keeps
+today's behavior). `ExperienceForm` gained a matching checkbox field, rendered inline
+with its label (matching the existing `is_current` checkbox's presentation, made
+consistent in the same template edit). Public profile: `_experience()` (unchanged)
+already filtered `is_visible=True`. The public experience section gained an explicit
+disclaimer — "این سوابق توسط خود مراقب اعلام شده و توسط پلتفرم تأیید نشده است." (this
+experience is self-declared by the caregiver and not verified by the platform) — since no
+experience-verification record exists anywhere in this repository to derive such a claim
+from, and this sprint's own governance explicitly forbids implying one.
+
+### Highlights Behavior
+
+Two parallel, independently-computed ViewModels — `ProfessionalHighlightsViewModel`
+(public) and `HighlightsViewModel` (provider-portal owner preview) — both entirely
+derived, never a new stored/duplicated statistic. Public: `years_experience` (existing
+attribute), `verified_credential_count`/`visible_skill_count` (`len()` of tuples
+`get_profile()` already resolved), `completed_jobs_count`/`review_count` (values already
+computed for the rating sidebar) — zero new queries, confirmed unchanged at 14 by the
+pre-existing `PublicProfileQueryCountTest`. Owner-side: mirrors the same shape but needs
+two new, fixed-cost `.count()` queries (`visible_skill_count`/`visible_experience_count`
+require a `WHERE is_visible` filter distinct from the existing unfiltered
+`skills_count`/`experience_count`) — the provider profile page's own locked query-count
+baseline moved 13 -> 15 accordingly, proven fixed-cost by the test's own unchanged
+structure (no per-item loop introduced).
+
+### Badge Semantics
+
+Replaced the single generic `"تأییدشده"` pill with `VerificationBadgeViewModel` entries,
+each naming exactly one evidence-backed claim: "نمایه تأییدشده" (Profile verified — the
+canonical BG-022 visibility gate passed), "هویت تأییدشده" (Identity verified — an
+approved, unexpired IDENTITY document exists), "مدرک حرفه‌ای تأییدشده" (Professional
+credential verified — at least one approved credential of any applicable type exists).
+Under the *default* required-document policy these badges co-occur (IDENTITY is
+mandatory for "verified" status at all), but they are independently derived, evidence-
+backed facts, not aliases — proven by a test that narrows a tenant's required-document
+policy (the same override mechanism `RequiredDocumentPolicy` has supported since Phase
+1.2) to exclude IDENTITY and confirms the "Identity verified" badge correctly does not
+appear even though the profile itself is publicly verified. Owner side: `verification_
+badge.html` gained one new, purely additive `expiring_soon` status branch (warning-
+colored, icon+text, matching the existing pending/correction-required treatment) —
+verified not to change any of the six pre-existing status branches' rendering, and
+`apps.organization_portal`'s own suite (which also renders this shared component) was
+re-run to confirm (51/51).
+
+### Public/Private Boundary
+
+No new boundary was introduced. Every new public field (`document_type` on credentials,
+`highlights`, `verification_badges`) is either already-public data reshaped, or a pure
+derivation of data already resolved behind the existing BG-022 canonical visibility gate.
+A caregiver failing that gate (DRAFT/SUSPENDED/ARCHIVED/unverified/pending-verification/
+inactive-account/inactive-membership) has `get_profile()` return `None` entirely —
+highlights and badges are never computed at all for such a caregiver, proven directly by
+`test_hidden_caregiver_profile_has_no_highlights_or_badges`.
+
+### Files Added / Modified
+
+See `traceability/CHANGE_LEDGER.md` CL-027 and `traceability/FILE_CHANGE_REGISTER.md`'s
+"2026-07-15 — Sprint 2.3" section for the complete, categorized list. No files added — all
+changes extend existing files. No migration.
+
+### Security/Privacy Behavior Proven by Tests
+
+Caregiver manages only their own skills/experience (structurally, via the
+`caregiver=caregiver` filter, and directly via dedicated tests); cross-tenant mutation
+denied (404, `test_cross_tenant_cannot_toggle_skill_visibility`); customer cannot mutate
+(403); an account with no `caregiver_profile` at all (representing an unrelated
+organization user) cannot mutate
+(`test_unrelated_organization_user_cannot_mutate_skills`); private credential files,
+document numbers (never modeled), reviewer identity, and rejection/correction reason
+never appear publicly (existing tests plus a new direct rejection-reason check); pending/
+rejected/correction-required/expired credentials never appear publicly (existing tests,
+re-verified unchanged); hidden skills/experience never appear publicly (existing +1 new
+test for experience specifically); a hidden caregiver profile exposes no professional-
+credibility section at all, not just filtered ones; skill names and experience
+descriptions are HTML-escaped (2 new direct tests); query count stays bounded (public: 14,
+unchanged; provider: 15, +2 fixed-cost, proven not per-item).
+
+### Test Level Decision
+
+Level 3 (full regression), run exactly once before creating the Sprint 2.3 PR, justified
+by: shared selector/ViewModel changes, a public/private presentation boundary change, and
+a shared UI component (`verification_badge.html`) reaching into `apps.organization_portal`
+as well as `apps.provider_portal` — the sprint's own explicit Level-3 trigger set. 36 new
+tests (14 accounts + 11 provider_portal + 11 public_site). Level 2 (accounts +
+provider_portal + public_site combined): 588/588. `apps.organization_portal` (shared-
+component blast-radius check): 51/51. Architecture guardrails: 13/13. Full regression:
+1984/1984 green (1948 baseline + 36 new).
+
+### Deferred (explicitly, recorded)
+
+1. Skill catalog/normalization (`CaregiverSkill.name` stays free-text) —
+   `quality/DEFECT_AND_RISK_REGISTER.md` KL-016, a genuine future modeling decision, not a
+   UI-completion task, explicitly out of this sprint's mandate ("do not silently
+   redesign").
+2. Certificates-as-visual-gallery presentation (distinct from this sprint's precise-badge/
+   label treatment) — remains open under BG-021, Sprint 2.3's own governance did not
+   include it.
+3. Availability/calendar (Sprint 2.4), extended financial overview and orders + history
+   (Sprint 2.5) — unchanged, not started.
+4. Per-service credential enforcement — no repository infrastructure ties `ServiceCategory`
+   to document/credential requirements (confirmed, unchanged since Phase 1.2); inventing
+   one would be guessing a business rule with no evidence to ground it.
+
+### BG-023 Status
+
+**RESOLVED.** Professional credibility layer (badges, visibility management, highlights,
+expiring-soon state, self-declared/verified distinction) delivered. See
+`quality/COMPLETION_BACKLOG.md` BG-023.

@@ -27,6 +27,18 @@ the exact same `is_visible=True` per-item filter `_skills()`/
 has already gated the whole method, a caregiver who fails the canonical
 policy (DRAFT/suspended/unverified/inactive account/inactive membership)
 never has their gallery resolved at all, not merely filtered client-side.
+
+Sprint 2.3 (Credentials, Skills, Experience, Highlights): `_highlights()`
+and `_verification_badges()` are pure, read-only aggregations over data
+this method already resolved for the rest of the page (`skills`,
+`credentials`, `rating`, `completed_jobs`) — neither adds a query, and
+neither runs at all unless the same canonical visibility gate above has
+already passed, exactly like every other section on this page. Precise
+badges only ("Profile verified", "Identity verified", "Professional
+credential verified") — never one generic "Verified" badge conflating
+unrelated claims. Self-declared experience is never labeled as platform-
+verified — that distinction is made explicit in the template, not derived
+here (there is no experience-verification record to derive it from).
 """
 
 from apps.accounts.services.public_credential_selector import PublicCredentialSelector
@@ -40,11 +52,13 @@ from . import common
 from .directory_service import CAREGIVER_SUPPLIER_TYPES
 from .viewmodels import (
     CaregiverProfileViewModel,
+    ProfessionalHighlightsViewModel,
     PublicCredentialViewModel,
     PublicExperienceViewModel,
     PublicGalleryItemViewModel,
     PublicSkillViewModel,
     ReviewViewModel,
+    VerificationBadgeViewModel,
 )
 
 MAX_REVIEWS = 20
@@ -80,6 +94,7 @@ class CaregiverPublicProfileService:
         experience = cls._experience(caregiver)
         credentials = cls._credentials(caregiver)
         gallery = cls._gallery(caregiver)
+        completed_jobs = common.completed_jobs_count(tenant_id=tenant_id, supplier_id=supplier.id)
 
         return CaregiverProfileViewModel(
             supplier_id=supplier.id,
@@ -99,12 +114,20 @@ class CaregiverPublicProfileService:
             verification_label=common.verification_label(attrs["verification_status"]),
             is_verified=attrs["verification_status"] == "verified",
             rating=rating,
-            completed_jobs=common.completed_jobs_count(tenant_id=tenant_id, supplier_id=supplier.id),
+            completed_jobs=completed_jobs,
             reviews=reviews,
             skills=skills,
             experience=experience,
             credentials=credentials,
             gallery=gallery,
+            highlights=cls._highlights(
+                years_experience=attrs["years_experience"],
+                skills=skills,
+                credentials=credentials,
+                completed_jobs=completed_jobs,
+                review_count=rating.review_count,
+            ),
+            verification_badges=cls._verification_badges(attrs, credentials),
         )
 
     # ------------------------------------------------------------------
@@ -155,6 +178,7 @@ class CaregiverPublicProfileService:
             PublicCredentialViewModel(
                 label=summary.label,
                 expiry_label=summary.expiry_date.strftime("%Y/%m/%d") if summary.expiry_date else "",
+                document_type=summary.document_type,
             )
             for summary in summaries
         )
@@ -180,6 +204,29 @@ class CaregiverPublicProfileService:
             )
             for item in visible
         )
+
+    @staticmethod
+    def _highlights(
+        *, years_experience, skills, credentials, completed_jobs: int, review_count: int,
+    ) -> ProfessionalHighlightsViewModel:
+        return ProfessionalHighlightsViewModel(
+            years_experience=years_experience,
+            verified_credential_count=len(credentials),
+            visible_skill_count=len(skills),
+            completed_jobs_count=completed_jobs,
+            review_count=review_count,
+        )
+
+    @staticmethod
+    def _verification_badges(attrs, credentials) -> tuple[VerificationBadgeViewModel, ...]:
+        badges = []
+        if attrs["verification_status"] == "verified":
+            badges.append(VerificationBadgeViewModel(label="نمایه تأییدشده", variant="info"))
+        if any(credential.document_type == "identity" for credential in credentials):
+            badges.append(VerificationBadgeViewModel(label="هویت تأییدشده", variant="success"))
+        if credentials:
+            badges.append(VerificationBadgeViewModel(label="مدرک حرفه‌ای تأییدشده", variant="success"))
+        return tuple(badges)
 
     @classmethod
     def _reviews(cls, supplier, *, tenant_id) -> tuple[ReviewViewModel, ...]:

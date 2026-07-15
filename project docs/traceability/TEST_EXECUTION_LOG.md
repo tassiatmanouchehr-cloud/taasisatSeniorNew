@@ -558,3 +558,41 @@ limit tests, one of which — a genuine `PIL.Image.DecompressionBombError`, not 
 is triggered by patching Pillow's own global threshold down, not by mocking the exception
 itself), zero regressions in 1932 pre-existing tests, migration drift unchanged from
 pre-task baseline (no new migration).
+
+---
+
+## Run 018 — Sprint 2.3: Credentials, Skills, Experience, Highlights
+
+```
+Branch: phase2-caregiver-credentials-skills-experience-ui (from main @ f7b7b2b, PR #7 merged)
+Settings module: config.settings.testing
+Python: 3.11.15  |  Django: 5.2.16  |  PostgreSQL: 16.13
+Date/time: 2026-07-15
+```
+
+| Command | Exit code | Result |
+|---------|-----------|--------|
+| `python manage.py check` | 0 | System check identified no issues |
+| `apps.accounts.tests.{test_caregiver_professional_profile,test_verification_policy}` | 0 | 51/51 |
+| `apps.provider_portal.tests.test_professional_profile` | 0 | 24/24 |
+| `apps.public_site.tests.test_professional_profile_public` | 0 | 22/22 |
+| `apps.accounts apps.provider_portal apps.public_site` (Level 2 — directly affected) | 0 | 588/588 |
+| `apps.organization_portal` (shared verification_badge.html blast-radius check) | 0 | 51/51 |
+| `apps.kernel.tests.test_architecture_guardrails` | 0 | 13/13 |
+| `python manage.py makemigrations --check --dry-run` | 1 | Pre-existing cosmetic drift only, unchanged; no model change this sprint |
+| **Full regression (Level 3 — public credential presentation changes across several apps, per this sprint's own explicit Level-3 trigger)** | **0** | **Ran 1984 tests — OK** (1948 baseline + 36 new) |
+
+**Test level used:** Level 3 (full regression), run exactly once before creating the
+Sprint 2.3 PR, justified by: shared selector/ViewModel changes
+(`PublicCredentialViewModel`, `CaregiverProfileViewModel`), a public/private presentation
+boundary change (precise badges, highlights), and a shared UI component
+(`verification_badge.html`) reaching into `apps.organization_portal` as well as
+`apps.provider_portal` — exactly the sprint's own stated Level-3 trigger set.
+
+**Classification:** GREEN — all 36 new tests pass, zero regressions in 1948 pre-existing
+tests (one intentional, documented query-count bump: the provider profile page's own
+locked baseline moved 13 -> 15 for the two new visible-skill/visible-experience count
+queries the owner-side highlights preview needs — proven fixed-cost, not per-item, by the
+unchanged test structure; the public profile page's own query count stayed at 14,
+confirming the public highlights/badges add zero new queries as designed), migration
+drift unchanged from pre-task baseline (no new migration).

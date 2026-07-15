@@ -17,6 +17,12 @@ passing an id belonging to someone else's record.
 No endorsements, rankings, or skill-verification workflow — a caregiver's
 own skill/experience entries are never treated as platform-verified (see
 this app's `professional_profile.py` model docstring).
+
+Sprint 2.3 (Credentials, Skills, Experience, Highlights): both models have
+carried `is_visible` since Phase 2.1, but nothing previously let an owner
+change it after creation. `CaregiverSkillService.toggle_visibility()` and
+`CaregiverExperienceService.create()`/`update()`'s new `is_visible`
+parameter close that gap — no migration, the column already existed.
 """
 
 from django.db import IntegrityError, transaction
@@ -64,6 +70,16 @@ class CaregiverSkillService:
         if not deleted:
             raise AccountsError("Skill not found.")
 
+    @classmethod
+    def toggle_visibility(cls, caregiver, *, skill_id) -> CaregiverSkill:
+        try:
+            skill = CaregiverSkill.objects.get(id=skill_id, caregiver=caregiver)
+        except CaregiverSkill.DoesNotExist:
+            raise AccountsError("Skill not found.") from None
+        skill.is_visible = not skill.is_visible
+        skill.save(update_fields=["is_visible", "updated_at"])
+        return skill
+
 
 class CaregiverExperienceService:
     """Read-write: a caregiver's own experience entries only."""
@@ -83,6 +99,7 @@ class CaregiverExperienceService:
         start_date,
         end_date=None,
         is_current: bool = False,
+        is_visible: bool = True,
     ) -> CaregiverExperience:
         cls._validate(title=title, start_date=start_date, end_date=end_date, is_current=is_current)
         return CaregiverExperience.objects.create(
@@ -93,6 +110,7 @@ class CaregiverExperienceService:
             start_date=start_date,
             end_date=None if is_current else end_date,
             is_current=is_current,
+            is_visible=is_visible,
         )
 
     @classmethod
@@ -107,6 +125,7 @@ class CaregiverExperienceService:
         start_date,
         end_date=None,
         is_current: bool = False,
+        is_visible: bool = True,
     ) -> CaregiverExperience:
         cls._validate(title=title, start_date=start_date, end_date=end_date, is_current=is_current)
         try:
@@ -120,10 +139,11 @@ class CaregiverExperienceService:
         experience.start_date = start_date
         experience.end_date = None if is_current else end_date
         experience.is_current = is_current
+        experience.is_visible = is_visible
         experience.save(
             update_fields=[
                 "title", "organization_name", "description",
-                "start_date", "end_date", "is_current", "updated_at",
+                "start_date", "end_date", "is_current", "is_visible", "updated_at",
             ],
         )
         return experience

@@ -12,6 +12,13 @@ public-safe one (compare apps.public_site.services.profile_service
 .CaregiverPublicProfileService, which this service deliberately does not
 import from — different trust boundary, different ViewModel shape,
 intentionally not shared).
+
+Sprint 2.3 (Credentials, Skills, Experience, Highlights): skill/experience
+rows now surface `is_visible` (the field existed since Phase 2.1; nothing
+previously read it here); `_document_rows()` gained an `expiring_soon`
+status (`RequiredDocumentPolicy.is_expiring_soon()`, owner-facing only —
+never surfaced on the public profile); `_highlights()` is a small,
+read-only aggregation over data this method already has in hand.
 """
 
 from django.utils import timezone
@@ -19,6 +26,7 @@ from django.utils import timezone
 from apps.accounts.models.media import DocumentStatus, DocumentType
 from apps.accounts.models.profiles import OrganizationMembership, OrgMembershipRole, OrgMembershipStatus
 from apps.accounts.services.document_service import DocumentService
+from apps.accounts.services.verification_policy import RequiredDocumentPolicy
 from apps.kernel.models.supplier import SupplierType
 from apps.orders.models import Order, OrderStatus
 from apps.orders.services.queries import CatalogQueryService
@@ -29,6 +37,7 @@ from .viewmodels import (
     DocumentRowViewModel,
     ExperienceRowViewModel,
     GalleryItemViewModel,
+    HighlightsViewModel,
     NavItemViewModel,
     ProviderBasicInfoFormViewModel,
     ProviderProfessionalInfoFormViewModel,
@@ -130,6 +139,25 @@ class ProviderProfilePresentationService:
             public_credential_labels=public_credential_labels,
             gallery_count=caregiver.gallery_items.count(),
             gallery_limit=cls._gallery_limit(),
+            highlights=cls._highlights(
+                caregiver, public_credential_count=len(public_credential_labels),
+            ),
+        )
+
+    @staticmethod
+    def _highlights(caregiver, *, public_credential_count: int) -> HighlightsViewModel:
+        """Sprint 2.3 — every input here is either a plain attribute
+        already on `caregiver`/`supplier` or a value this method's own
+        caller already computed elsewhere in `get_profile_view()`
+        (`public_credential_count`); the two `.count()` calls below are
+        the only new queries, matching `skills_count`/`experience_count`
+        above them (already fixed-cost, already present before this
+        sprint) — no per-item loop, no new N+1."""
+        return HighlightsViewModel(
+            years_experience=caregiver.years_experience,
+            verified_credential_count=public_credential_count,
+            visible_skill_count=caregiver.skills.filter(is_visible=True).count(),
+            visible_experience_count=caregiver.experiences.filter(is_visible=True).count(),
         )
 
     @staticmethod
@@ -182,7 +210,7 @@ class ProviderProfilePresentationService:
     @classmethod
     def get_skills_view(cls, caregiver) -> tuple[SkillRowViewModel, ...]:
         return tuple(
-            SkillRowViewModel(id=str(skill.id), name=skill.name)
+            SkillRowViewModel(id=str(skill.id), name=skill.name, is_visible=skill.is_visible)
             for skill in caregiver.skills.all()
         )
 
@@ -216,6 +244,7 @@ class ProviderProfilePresentationService:
             end_date=entry.end_date,
             is_current=entry.is_current,
             period_label=f"{start} - {end}",
+            is_visible=entry.is_visible,
         )
 
     @classmethod
@@ -311,12 +340,19 @@ class ProviderProfilePresentationService:
                 and doc.expiry_date is not None
                 and doc.expiry_date < timezone.now().date()
             )
-            status = "expired" if expired else doc.status
-            action_message = (
-                "این مدرک منقضی شده است — لطفاً نسخه جدیدی بارگذاری کنید."
-                if expired
-                else _DOCUMENT_ACTION_MESSAGES.get(doc.status, "")
-            )
+            expiring_soon = not expired and RequiredDocumentPolicy.is_expiring_soon(doc)
+            if expired:
+                status = "expired"
+            elif expiring_soon:
+                status = "expiring_soon"
+            else:
+                status = doc.status
+            if expired:
+                action_message = "این مدرک منقضی شده است — لطفاً نسخه جدیدی بارگذاری کنید."
+            elif expiring_soon:
+                action_message = "این مدرک به‌زودی منقضی می‌شود — می‌توانید زودتر تمدید کنید."
+            else:
+                action_message = _DOCUMENT_ACTION_MESSAGES.get(doc.status, "")
             rows.append(
                 DocumentRowViewModel(
                     id=str(doc.id),
