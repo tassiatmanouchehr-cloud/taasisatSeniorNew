@@ -86,6 +86,8 @@ class ProviderProfileViewModel:
     """Which verified credential types will appear on the public profile
     right now — Phase 2.1 Part J ("see which verified credential types
     will appear publicly")."""
+    gallery_count: int = 0
+    gallery_limit: int = 0
 
 
 @dataclass(frozen=True)
@@ -104,6 +106,15 @@ class ExperienceRowViewModel:
     end_date: object  # date | None
     is_current: bool
     period_label: str
+
+
+@dataclass(frozen=True)
+class GalleryItemViewModel:
+    id: str
+    image_url: str
+    caption: str
+    alt_text: str
+    is_visible: bool
 
 
 @dataclass(frozen=True)

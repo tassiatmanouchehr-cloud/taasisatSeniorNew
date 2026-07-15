@@ -143,7 +143,12 @@ class PublicProfileQueryCountTest(PublicSiteTestCase):
             )
             VerificationReviewService.approve(document_id=doc.id, tenant_id=self.tenant.id, reviewer=reviewer)
 
-        with self.assertNumQueries(13):
+        # 14, not 13 — Sprint 2.2 (Caregiver Gallery and Media Portfolio)
+        # added one more fixed query for _gallery(); still O(1) regardless
+        # of skill/experience/credential/gallery-item count (see
+        # test_gallery_public.PublicGalleryQueryCountTest for the gallery
+        # item count scaling proof).
+        with self.assertNumQueries(14):
             CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id)
 
     def _reviewer_for_query_test(self):

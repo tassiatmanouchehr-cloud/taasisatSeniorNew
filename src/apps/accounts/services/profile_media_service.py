@@ -23,34 +23,14 @@ JPEG/PNG/WEBP are accepted. Max size is enforced before ever touching
 Pillow (a cheap, fast rejection for absurdly large uploads).
 """
 
-import io
-
 from django.core.files.uploadedfile import UploadedFile
 
-from .errors import AccountsError
+from .image_validation import ALLOWED_IMAGE_FORMATS, MAX_IMAGE_BYTES, validate_image as _validate_image
 
-MAX_IMAGE_BYTES = 5 * 1024 * 1024  # 5 MB
-ALLOWED_IMAGE_FORMATS = {"JPEG", "PNG", "WEBP"}
-
-
-def _validate_image(file: UploadedFile) -> None:
-    if file.size > MAX_IMAGE_BYTES:
-        raise AccountsError(f"Image exceeds the {MAX_IMAGE_BYTES // (1024 * 1024)}MB size limit.")
-
-    from PIL import Image, UnidentifiedImageError
-
-    file.seek(0)
-    data = file.read()
-    file.seek(0)
-    try:
-        with Image.open(io.BytesIO(data)) as image:
-            image.verify()
-            image_format = image.format
-    except (UnidentifiedImageError, OSError):
-        raise AccountsError("The uploaded file is not a valid image.") from None
-
-    if image_format not in ALLOWED_IMAGE_FORMATS:
-        raise AccountsError(f"Unsupported image format: {image_format}. Use JPEG, PNG, or WEBP.")
+# Re-exported for any existing importer of this module's own constants —
+# the validation logic itself now lives in .image_validation (Sprint 2.2),
+# shared with CaregiverGalleryService rather than duplicated.
+__all__ = ["ALLOWED_IMAGE_FORMATS", "MAX_IMAGE_BYTES", "ProfileMediaService"]
 
 
 class ProfileMediaService:

@@ -153,9 +153,9 @@ only), full regression 1874/1874 green. Branch
 moderation flag), certificates-as-gallery presentation, extended financial overview,
 orders + history pages — see BG-021.
 
-### BG-021: Caregiver Profile — Gallery, Financial Overview, Orders + History
+### BG-021: Caregiver Profile — Gallery, Financial Overview, Orders + History — **Gallery portion RESOLVED**
 
-**Current evidence:** Roadmap Phase 2's full scope (`IMPLEMENTATION_ROADMAP.md`) includes
+**Original evidence:** Roadmap Phase 2's full scope (`IMPLEMENTATION_ROADMAP.md`) includes
 an Instagram-like gallery, certificates surfaced as a visual gallery (distinct from
 Phase 2.1's plain verified-credential badges), an extended financial/earnings overview,
 and an orders + history page. None of these were implemented in Phase 2.1 — explicitly
@@ -164,7 +164,9 @@ gallery... caregiver financial dashboard... caregiver order dashboard...").
 **Why needed:** Roadmap Phase 2 acceptance criteria are not met until these exist.
 **Dependencies:** BG-020 (done — foundation this work builds on). Gallery specifically
 also depends on the still-open media storage strategy for production (currently local
-`FileField` — a pre-existing, acknowledged roadmap blocking item).
+`FileField` — a pre-existing, acknowledged roadmap blocking item, still unresolved — Sprint
+2.2 stores gallery images the same way avatar/cover already do, so it inherits, not
+worsens, this open item).
 **Affected modules:** accounts, provider_portal, public_site
 **Suggested implementation size:** Medium-High (new GalleryItem model + upload/moderation
 service; financial overview extension; orders/history read views)
@@ -172,6 +174,18 @@ service; financial overview extension; orders/history read views)
 public document boundary this and prior phases established
 **Not in scope:** Marketplace offer workflow, invoice workflow, payment/settlement
 changes (unrelated to gallery/financial-overview/orders-history display work)
+
+**Resolution — gallery portion only (2026-07-15, Sprint 2.2):** `CaregiverGalleryItem`
+(new model), `CaregiverGalleryService` (owner-authorized upload/edit/reorder/remove, row-
+locked, Pillow-verified JPEG/PNG/WEBP, 5MB cap, 12-item cap), provider-portal gallery
+management page, and a public-profile gallery section reusing the canonical BG-022
+visibility policy (no second visibility rule). 45 new tests, one new migration (one new
+table), full regression 1932/1932 green. See `traceability/IMPLEMENTATION_JOURNAL.md` and
+`ARCHITECTURE_DECISION_LOG.md` ADM-018. Certificates-as-visual-gallery presentation
+(distinct from Phase 2.1's plain badges) was explicitly out of Sprint 2.2's own scope
+(Sprint 2.3's stated territory) and remains open. **Still open under BG-021:**
+certificates-as-gallery presentation (Sprint 2.3), extended financial overview
+(Sprint 2.5), orders + history (Sprint 2.5).
 
 ### BG-022: Directory/Home-Page Listing Eligibility Does Not Match the Public Profile Page's Stricter Rule — **RESOLVED**
 

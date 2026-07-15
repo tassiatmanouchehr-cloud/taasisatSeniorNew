@@ -779,3 +779,135 @@ Rollback method: git revert of the branch's commit(s); no data migration to reve
 Status: Complete — branch phase2-caregiver-professional-profile-foundation, PR #6 updated
   in place, NOT merged
 ```
+
+## Entry 025
+
+```
+Change ID: CL-025
+Date/time: 2026-07-15 (Sprint 2.2 — Caregiver Professional Profile: Gallery and Media
+  Portfolio; first sprint on a fresh branch after PR #6 merged to main)
+Task: Caregiver-managed professional photo gallery — upload, caption, reorder, visibility
+  toggle, remove, and a public-profile gallery section, reusing the canonical BG-022
+  public-visibility policy rather than introducing a second one
+Reason: Roadmap Phase 2's next scheduled sprint (IMPLEMENTATION_ROADMAP.md); closes the
+  gallery portion of BG-021 (Caregiver Profile — Gallery, Financial Overview, Orders +
+  History).
+Files added:
+  src/apps/accounts/models/gallery.py (CaregiverGalleryItem)
+  src/apps/accounts/migrations/0007_caregiver_gallery_item.py
+  src/apps/accounts/services/image_validation.py (extracted from profile_media_service.py)
+  src/apps/accounts/services/caregiver_gallery_service.py (CaregiverGalleryService)
+  src/apps/accounts/tests/test_caregiver_gallery.py (21 tests)
+  src/apps/provider_portal/tests/test_gallery.py (13 tests)
+  src/apps/public_site/tests/test_gallery_public.py (11 tests)
+  src/templates/provider_portal/profile_gallery.html
+  src/templates/provider_portal/profile_gallery_item_edit.html
+Files modified:
+  src/apps/accounts/models/media_paths.py (+caregiver_gallery_path())
+  src/apps/accounts/models/__init__.py (export CaregiverGalleryItem)
+  src/apps/accounts/services/profile_media_service.py (validation extracted to
+    image_validation.py; behavior unchanged)
+  src/apps/provider_portal/forms.py (+GalleryUploadForm, +GalleryItemEditForm)
+  src/apps/provider_portal/services/viewmodels.py (+GalleryItemViewModel; ProviderProfile
+    ViewModel +gallery_count/+gallery_limit)
+  src/apps/provider_portal/services/profile_service.py (+get_gallery_view(),
+    gallery_count/gallery_limit on get_profile_view())
+  src/apps/provider_portal/views.py (+5 gallery views: list/upload, edit, remove, move-up,
+    move-down)
+  src/apps/provider_portal/urls.py (+4 gallery routes)
+  src/templates/provider_portal/profile.html (+gallery summary tile)
+  src/apps/public_site/services/viewmodels.py (+PublicGalleryItemViewModel;
+    CaregiverProfileViewModel +gallery)
+  src/apps/public_site/services/profile_service.py (+_gallery(), reuses the existing
+    common.is_publicly_visible() gate — no new eligibility check)
+  src/templates/public_site/caregiver_profile.html (+gallery section)
+  src/apps/provider_portal/tests/test_profile.py (locked query-count baseline 12 -> 13)
+  src/apps/public_site/tests/test_professional_profile_public.py (query-count assertion
+    13 -> 14)
+Files deleted: None
+Database impact: One new table, `accounts_caregiver_gallery_item` (empty on creation),
+  plus one composite index `(caregiver, display_order)`. No existing table altered.
+Migration impact: `accounts/0007_caregiver_gallery_item.py` — hand-curated to exclude the
+  same pre-existing, unrelated field-alter drift every prior migration in this app has
+  excluded. Applies cleanly; reverses cleanly (DROP the one new, empty table).
+Security impact: New public-facing upload surface, gated identically to every other
+  caregiver self-service surface in this app (ownership via `request.user.caregiver_profile`,
+  no RBAC key, no cross-caregiver/cross-tenant access — verified directly by tests, not
+  just structurally). Image validation reused verbatim from `ProfileMediaService`
+  (Pillow content-sniff, never trusts client Content-Type; 5MB cap; JPEG/PNG/WEBP only).
+  Public gallery visibility reuses the existing BG-022 canonical policy — no second
+  visibility rule, no new gap of the kind BG-022 itself closed. Deletion always removes
+  the physical file (no orphans); a hidden/removed item's URL is never served again.
+Financial impact: None — no Marketplace, Invoice, Financial, Payment, or Settlement code
+  touched.
+Tests executed: check (0), 45 new focused tests (all 0), affected-app Level 2 suite
+  (accounts + provider_portal + public_site combined) 536/536, architecture guardrails
+  13/13, makemigrations --check --dry-run (1, pre-existing unrelated drift only, no new
+  drift from this sprint's own migration), full regression 1932/1932 (exit 0)
+Result: Success — caregiver gallery/media portfolio delivered; zero regressions; one new
+  migration; zero new public-visibility rule (reused BG-022's canonical policy); one
+  pre-existing duplicate validator eliminated (image_validation.py extraction)
+Rollback method: git revert of the branch's commit(s); migration 0007 reverses cleanly
+  (DROP the one new, empty table — no data loss, nothing else references it)
+Status: Complete — branch phase2-caregiver-gallery-media (from main @ c5259b3, PR #6
+  merged), PR to be created, NOT merged
+```
+
+## Entry 026
+
+```
+Change ID: CL-026
+Date/time: 2026-07-15 (PR #7 review remediation — harden gallery file lifecycle and image
+  safety; same branch/PR as CL-025, not a new branch)
+Task: Fix an unsafe file-deletion transaction order in CaregiverGalleryService.remove_item()
+  and add decoded-image safety limits (dimension/pixel-count bounds, decompression-bomb
+  handling) to the shared image_validation.validate_image() validator
+Reason: PR #7 review found two bounded defects: (1) physical file deletion ran before the
+  database row deletion, inside the same transaction — filesystem operations don't
+  participate in a DB transaction, so a later rollback could leave a live row pointing at
+  an already-deleted file; (2) image validation bounded upload byte size but not decoded
+  pixel dimensions, leaving no defense against a small file claiming an enormous decoded
+  image ("decompression bomb").
+Files added: None
+Files modified:
+  src/apps/accounts/services/caregiver_gallery_service.py (remove_item() restructured:
+    row deleted first, physical deletion scheduled via transaction.on_commit(); new
+    _delete_stored_file() catches and logs storage-deletion failures rather than raising)
+  src/apps/accounts/services/image_validation.py (MAX_IMAGE_WIDTH/MAX_IMAGE_HEIGHT/
+    MAX_IMAGE_PIXELS added; Image.DecompressionBombError/Warning caught and mapped to the
+    existing AccountsError; validation order adjusted to a single decode pass with the
+    dimension/pixel check ahead of the full pixel decode)
+  src/apps/accounts/tests/test_caregiver_gallery.py (existing remove-item tests updated
+    to use captureOnCommitCallbacks for the new deferred-deletion behavior; 16 new tests:
+    unauthorized/cross-tenant removal schedules no deletion, rollback discards the
+    scheduled deletion, a DB deletion failure leaves the file intact, a storage-deletion
+    failure neither raises nor restores the row, excessive width/height/pixel-count
+    rejected, a genuine Pillow DecompressionBombError is caught and controlled, corrupted
+    images still rejected, valid JPEG/PNG/WEBP still accepted, the file stream remains
+    usable after validation, avatar/cover upload still behaves correctly)
+Files deleted: None
+Database impact: None.
+Migration impact: None — no model change; this remediation is service-layer behavior only.
+Security impact: Closes a real (if narrow-window) data-integrity defect: a rolled-back
+  transaction could previously leave a database row referencing a file that no longer
+  existed on disk, which would have surfaced as a broken image on the public profile with
+  no way to detect or recover short of manual inspection. Also closes a real availability/
+  resource-exhaustion gap: before this change, image validation had no defense against a
+  small, adversarially crafted file that decodes to an enormous pixel grid — such a file
+  would have passed the byte-size check and then consumed unbounded memory/CPU when
+  something eventually decoded it. Neither gap was exploitable for privilege escalation or
+  cross-tenant data access — both are availability/data-integrity hardening.
+Financial impact: None — no Marketplace, Invoice, Financial, Payment, or Settlement code
+  touched.
+Tests executed: check (0), 16 new focused tests (all 0), affected-app Level 2 suite
+  (accounts + provider_portal + public_site combined) 552/552, makemigrations --check
+  --dry-run (1, pre-existing unrelated drift only, no new drift), full regression
+  1948/1948 (exit 0)
+Result: Success — file deletion is now transaction-safe (row-then-file, post-commit,
+  rollback-safe), storage-deletion failures are handled without raising or corrupting
+  state, decoded-image dimensions/pixel count are bounded, decompression-bomb conditions
+  are controlled validation failures, zero regressions, zero new migration
+Rollback method: git revert of the branch's commit(s); no data migration to reverse
+Status: Complete — branch phase2-caregiver-gallery-media (from main @ c5259b3, PR #6
+  merged), PR #7 to be updated in place, NOT merged
+```

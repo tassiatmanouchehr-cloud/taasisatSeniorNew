@@ -9,8 +9,8 @@
 | Repository name | taasisatSeniorNew |
 | URL | https://github.com/tassiatmanouchehr-cloud/taasisatSeniorNew |
 | Default branch | main |
-| main HEAD SHA | 0c9d70c4fb529dbeb4d5964f278c8c4916e50e48 (merge of PR #5) |
-| Feature branch HEAD | `phase2-caregiver-professional-profile-foundation` (from main @ 0c9d70c) — PR not yet merged |
+| main HEAD SHA | c5259b3787569b48df4c40133a5733d8567fa505 (merge of PR #6) |
+| Feature branch HEAD | `phase2-caregiver-gallery-media` (from main @ c5259b3) — PR #7 open, file-lifecycle/image-safety remediation in progress, not yet merged |
 | Last verified date | July 15, 2026 |
 | Python version | 3.12 (owner dev); 3.11.15 (cloud verification environment) |
 | Django version | 5.2.16 |
@@ -26,11 +26,12 @@
 | Offer Marketplace Phase 1 | **COMMITTED** in `ce3b30e`, now on main (OrderOffer model, migration `orders/0008_orderoffer.py`, admin, 40 tests) |
 | BG-002 | **MERGED to main** via PR #1 (merge commit `eb51018`); full regression 1680/1680 green at merge |
 | Phase 1 | **COMPLETE and MERGED to main** via PR #5 (merge commit `0c9d70c`); all acceptance criteria met; full regression 1824/1824 green at merge (includes Phase 1.1 PR #3 `278098b`, Phase 1.2 PR #4 `860640e`, Phase 1.3 + remediation PR #5 `0c9d70c`) |
-| Current phase | **Phase 2 — Caregiver Professional Profile is ACTIVE**; this session implements **Phase 2.1 — Caregiver Professional Profile Foundation** (see `IMPLEMENTATION_ROADMAP.md`) |
-| Phase 2.1 | Skills (`CaregiverSkill`), experience (`CaregiverExperience`), verified-credential public summary (`PublicCredentialSelector`), corrected public-profile eligibility, and caregiver-side management UI IMPLEMENTED on `phase2-caregiver-professional-profile-foundation`; 50 new tests, 1 new migration (2 new tables only). Biography/headline/services-offered/avatar/reviews were already implemented (Epic 06 Sprint 2) and reused, not rebuilt. Gallery/posts/financial/orders remain separate, future slices. |
-| Phase 2.1 remediation (BG-022) | PR #6 review found the eligibility fix above was added only to the detail page, not the directory/home-page listings. Fixed: `common.is_publicly_visible_attrs()` is now the single canonical public-visibility rule, applied identically by directory search, home-page listings, and the detail page. 13 new tests, no migration; PR #6 updated in place, not yet merged. |
+| Phase 2.1 (+ BG-022 remediation) | **MERGED to main** via PR #6 (merge commit `c5259b3`); skills (`CaregiverSkill`), experience (`CaregiverExperience`), verified-credential public summary (`PublicCredentialSelector`), and the canonical public-visibility policy (`common.is_publicly_visible_attrs()`, applied uniformly by directory/home-page/detail page) all now on `main`. 63 tests (50 Phase 2.1 + 13 BG-022 remediation), 1 migration, full regression 1887/1887 green at merge. |
+| Current phase | **Phase 2 — Caregiver Professional Profile is ACTIVE**; this session implements **Sprint 2.2 — Caregiver Gallery and Media Portfolio** (see `IMPLEMENTATION_ROADMAP.md`) |
+| Sprint 2.2 | Caregiver gallery/media portfolio (`CaregiverGalleryItem`, `CaregiverGalleryService`) IMPLEMENTED on `phase2-caregiver-gallery-media` (branched from merged main @ c5259b3): owner-authorized upload/caption/reorder/visibility-toggle/remove, provider-portal management page, public-profile gallery section reusing the existing canonical BG-022 visibility policy (no second rule). 45 new tests, 1 new migration (1 new table). Certificates-as-gallery, financial overview, orders/history remain separate, future sprints (2.3/2.5). |
+| Sprint 2.2 remediation (PR #7 review) | PR #7 review found (1) physical gallery file deletion ran before the DB row deletion inside the same transaction — unsafe since filesystem ops aren't transactional; (2) image validation didn't bound decoded pixel dimensions, only upload byte size. Fixed: `remove_item()` now deletes the row first and schedules physical deletion via `transaction.on_commit()`; `image_validation.validate_image()` now bounds decoded width/height/pixel count and catches Pillow's own decompression-bomb error/warning. 16 new tests, no migration; PR #7 updated in place, not yet merged. |
 | Active blocker | `makemigrations --check` cosmetic drift only (pre-existing, exit 1, accounts/kernel field alters — no schema change intended) |
-| Active work branch | `phase2-caregiver-professional-profile-foundation` (from main @ 0c9d70c) |
+| Active work branch | `phase2-caregiver-gallery-media` (from main @ c5259b3) |
 
 ---
 

@@ -87,5 +87,17 @@ class ImageUploadForm(StyledForm):
     image = forms.ImageField(label="تصویر", error_messages={"required": "لطفاً یک تصویر انتخاب کنید."})
 
 
+class GalleryUploadForm(StyledForm):
+    image = forms.ImageField(label="تصویر", error_messages={"required": "لطفاً یک تصویر انتخاب کنید."})
+    caption = forms.CharField(max_length=255, label="عنوان", required=False)
+    alt_text = forms.CharField(max_length=255, label="متن جایگزین (دسترس‌پذیری)", required=False)
+
+
+class GalleryItemEditForm(StyledForm):
+    caption = forms.CharField(max_length=255, label="عنوان", required=False)
+    alt_text = forms.CharField(max_length=255, label="متن جایگزین (دسترس‌پذیری)", required=False)
+    is_visible = forms.BooleanField(label="نمایش در نمایه عمومی", required=False, initial=True)
+
+
 class DocumentUploadForm(StyledForm):
     file = forms.FileField(label="فایل", error_messages={"required": "لطفاً یک فایل انتخاب کنید."})

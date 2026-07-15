@@ -479,3 +479,82 @@ in `apps/public_site/tests/helpers.py`, confirmed safe by grep showing no pre-ex
 test asserted on the old default), migration drift unchanged from pre-task baseline (no
 new migration). A pre-existing, unrelated per-candidate query cost in directory ranking/
 card-building was discovered and recorded (KL-012), not fixed (out of scope).
+
+---
+
+## Run 016 — Sprint 2.2: Caregiver Gallery and Media Portfolio
+
+```
+Branch: phase2-caregiver-gallery-media (from main @ c5259b3, PR #6 merged)
+Settings module: config.settings.testing
+Python: 3.11.15  |  Django: 5.2.16  |  PostgreSQL: 16.13
+Date/time: 2026-07-15
+```
+
+| Command | Exit code | Result |
+|---------|-----------|--------|
+| `python manage.py check` | 0 | System check identified no issues |
+| `apps.accounts.tests.test_caregiver_gallery` (new) | 0 | 21/21 |
+| `apps.provider_portal.tests.test_gallery` (new) | 0 | 13/13 |
+| `apps.public_site.tests.test_gallery_public` (new) | 0 | 11/11 |
+| `apps.accounts apps.provider_portal apps.public_site` (Level 2 — directly affected) | 0 | 536/536 |
+| `apps.kernel.tests.test_architecture_guardrails` | 0 | 13/13 |
+| `python manage.py makemigrations --check --dry-run` | 1 | Pre-existing cosmetic drift only, unchanged; the new `accounts/0007_caregiver_gallery_item.py` migration is fully applied/detected, no residual drift from it |
+| **Full regression (Level 3 — new model + migration, file-upload/privacy boundary, public profile change, spans accounts/provider_portal/public_site)** | **0** | **Ran 1932 tests — OK** (1887 baseline + 45 new) |
+
+**Test level used:** Level 3 (full regression), run exactly once before creating the
+Sprint 2.2 PR, justified by: a new model and migration, a file-upload/privacy boundary
+(gallery image validation and ownership), a public-profile change, and several apps
+(accounts, provider_portal, public_site) — exactly this repository's own stated Level-3
+trigger set.
+
+**Classification:** GREEN — all 45 new tests pass, zero regressions in 1887 pre-existing
+tests (two intentional, documented query-count bumps: the provider profile page's own
+locked baseline moved 12 -> 13 for the new `gallery_count` query, and the public profile
+page's locked baseline moved 13 -> 14 for the new `_gallery()` query — both are fixed,
+O(1) costs, proven by dedicated query-count tests in the new test files, not per-item
+N+1s), migration drift unchanged from pre-task baseline beyond the one new, intentional
+table.
+
+---
+
+## Run 017 — PR #7 Remediation: Harden Gallery File Lifecycle and Image Safety
+
+```
+Branch: phase2-caregiver-gallery-media (from main @ c5259b3, PR #6 merged)
+Settings module: config.settings.testing
+Python: 3.11.15  |  Django: 5.2.16  |  PostgreSQL: 16.13
+Date/time: 2026-07-15
+```
+
+| Command | Exit code | Result |
+|---------|-----------|--------|
+| `python manage.py check` | 0 | System check identified no issues |
+| `apps.accounts.tests.test_caregiver_gallery` (16 new + 21 existing, updated) | 0 | 37/37 |
+| `apps.accounts apps.provider_portal apps.public_site` (Level 2 — directly affected) | 0 | 552/552 |
+| `python manage.py makemigrations --check --dry-run` | 1 | Pre-existing cosmetic drift only, unchanged; no model change in this remediation |
+| **Full regression (Level 3 — shared image validator and public file lifecycle are security boundaries across multiple surfaces)** | **0** | **Ran 1948 tests — OK** (1932 baseline + 16 new) |
+
+**Test level used:** Level 3 (full regression), run exactly once before updating PR #7,
+justified by: the shared `image_validation.validate_image()` function and the gallery's
+public file lifecycle are both security/data-integrity boundaries reached from multiple
+surfaces (avatar/cover upload, gallery upload, the public profile page) — exactly this
+remediation's own stated Level-3 trigger.
+
+**Note on test infrastructure:** proving "rollback discards a scheduled physical deletion"
+and "a storage-deletion failure does not raise or restore the row" required
+`transaction.on_commit()`-aware assertions. `TransactionTestCase` (this repo's usual tool
+for real-commit semantics) was tried first and found to trip a pre-existing, unrelated
+Postgres/Django flush-teardown incompatibility in this environment — reproduced with a
+minimal fixture-only `TransactionTestCase` that does nothing but create a `UserAccount`
+row, confirmed unrelated to this remediation, and explicitly out of this narrowly-scoped
+remediation's mandate to fix. Used `django.test.TestCase.captureOnCommitCallbacks()`
+instead, which correctly reflects Django's real nested-atomic-rollback discard behavior
+(verified directly before relying on it) without requiring the outermost per-test
+transaction to ever truly commit.
+
+**Classification:** GREEN — all 16 new tests pass (7 file-lifecycle safety + 9 image-safety
+limit tests, one of which — a genuine `PIL.Image.DecompressionBombError`, not simulated —
+is triggered by patching Pillow's own global threshold down, not by mocking the exception
+itself), zero regressions in 1932 pre-existing tests, migration drift unchanged from
+pre-task baseline (no new migration).

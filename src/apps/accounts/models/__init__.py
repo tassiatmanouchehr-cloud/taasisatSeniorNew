@@ -1,5 +1,6 @@
 """Accounts models."""
 
+from .gallery import CaregiverGalleryItem
 from .media import DocumentStatus, DocumentType, VerificationDocument
 from .otp import OTPChallenge, OTPPurpose
 from .professional_profile import CaregiverExperience, CaregiverSkill
@@ -32,6 +33,7 @@ __all__ = [
     "VerificationDocument",
     "CaregiverSkill",
     "CaregiverExperience",
+    "CaregiverGalleryItem",
     "ProfileStatus",
     "CaregiverProviderType",
     "VerificationStatus",

@@ -177,34 +177,105 @@ place on the same branch/PR:
 `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-017's second remediation
 note. **BG-022 is now RESOLVED.**
 
+### PR #6 — MERGED (2026-07-15)
+
+Final verification confirmed the branch was exactly two commits ahead of
+`main`, contained only Phase 2.1 + BG-022 remediation work (no gallery/
+Sprint 2.2 code), the canonical visibility policy was applied consistently
+everywhere it needed to be, private verification files/review information
+stayed non-public, and documentation was synchronized. Merged via
+`merge_pull_request` (merge commit `c5259b3787569b48df4c40133a5733d8567fa505`).
+Local `main` fast-forwarded to match `origin/main`; `manage.py check` exits 0.
+**Phase 2.1 (including BG-022) is now CLOSED and on `main`.**
+
+### Sprint 2.2 — Caregiver Gallery and Media Portfolio — IMPLEMENTED (2026-07-15)
+
+Branched fresh from merged `main` (`phase2-caregiver-gallery-media`, from
+`c5259b3`) per governance ("do not stack new sprint work on an unmerged
+feature branch"). Delivers a caregiver-managed professional photo
+portfolio — closes the gallery portion of BG-021:
+
+- `CaregiverGalleryItem` (new model, `apps/accounts/models/gallery.py`):
+  plain FK child of `CaregiverProfile`, same shape as `CaregiverSkill`/
+  `CaregiverExperience` (Phase 2.1) — UUID PK, no `TenantAwareModel`,
+  `image`/`caption`/`alt_text`/`display_order`/`is_visible`.
+- `CaregiverGalleryService`: owner-authorized upload (row-locked, 12-item
+  cap), caption/alt-text/visibility edit, reorder (row-locked, all-or-
+  nothing), remove (hard delete + physical file cleanup) — mirrors
+  `CaregiverSkillService`/`CaregiverExperienceService`'s ownership shape,
+  `DocumentService.resubmit()`'s row-locking precedent where a lock is
+  genuinely needed.
+- `apps.accounts.services.image_validation.validate_image()` (new,
+  extracted from `ProfileMediaService`'s former private validator) — one
+  shared implementation of image validation, not a second one.
+- Provider-portal gallery management page (upload/caption/visibility/
+  reorder/remove); public-profile gallery section reusing the existing
+  BG-022 canonical visibility policy — no second visibility rule
+  introduced.
+
+45 new tests, one new migration (one new, empty table), full regression
+1932/1932 green. Branch `phase2-caregiver-gallery-media`, PR #7 created —
+see `traceability/IMPLEMENTATION_JOURNAL.md` and
+`ARCHITECTURE_DECISION_LOG.md` ADM-018. **Not merged — awaiting review.**
+
+### Sprint 2.2 Remediation — Harden Gallery File Lifecycle and Image Safety (PR #7 review) — IMPLEMENTED (2026-07-15)
+
+PR #7 review found two bounded issues, both fixed in place on the same
+branch/PR (no new branch, no new PR):
+
+- `CaregiverGalleryService.remove_item()` deleted the physical file
+  *before* the database row, inside the same transaction — unsafe, since
+  filesystem operations aren't transactional. Fixed: the row is deleted
+  first; physical deletion is scheduled via `transaction.on_commit()`,
+  which Django discards entirely if the transaction rolls back. A
+  storage-deletion failure after commit is caught and logged, never
+  raised or allowed to restore the row.
+- `apps.accounts.services.image_validation.validate_image()` bounded
+  upload byte size but not decoded pixel dimensions — no defense against
+  a small file claiming an enormous decoded image
+  ("decompression bomb"). Fixed: `MAX_IMAGE_WIDTH`/`MAX_IMAGE_HEIGHT`/
+  `MAX_IMAGE_PIXELS` are read from the image header and enforced before
+  any full decode; Pillow's own `DecompressionBombError`/`Warning` are
+  caught and mapped to the existing controlled error.
+
+16 new tests, zero new migration, full regression 1948/1948 green. See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-018's remediation note.
+PR #7 updated in place. **Not merged — awaiting review.**
+
 ---
 
 ## IMMEDIATE NEXT TASK
 
-### Merge the Phase 2.1 PR
+### Await review of the Sprint 2.2 PR (#7); do not start Sprint 2.3 automatically
 
 Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active implementation
 order).
 
-Phase 1 is fully closed (merged via PR #5). Phase 2.1 (this session's work,
-including the BG-022 remediation) delivers the foundation slice of roadmap
-Phase 2 — remaining roadmap Phase 2 scope, explicitly NOT started by this
-task:
+Phase 1 and Phase 2.1 (+ BG-022) are fully closed and merged to `main`.
+Sprint 2.2 (this session's work) delivers the gallery/media-portfolio slice
+of roadmap Phase 2 — remaining roadmap Phase 2 scope, explicitly NOT
+started by this task:
 
-1. Gallery (new model + upload service + moderation flag) — out of scope,
-   deferred per explicit governance.
-2. Certificates-as-gallery presentation (surfacing verified documents as a
-   visual gallery, distinct from this slice's plain-badge credential
-   summary) — deferred.
-3. Extended financial overview / earnings detail — deferred (caregiver
-   financial dashboard explicitly excluded from Phase 2.1).
-4. Orders + history pages — deferred (caregiver order dashboard explicitly
-   excluded from Phase 2.1).
-5. New, recorded during BG-022's remediation: a pre-existing, unrelated
+1. Sprint 2.3 — Professional Certificates, Credential Presentation,
+   Professional Skills UI, Experience Timeline, Professional Highlights,
+   Verification Badges — not started.
+2. Sprint 2.4 — Availability, Working Hours, Calendar, Vacation,
+   Availability Rules, Availability Presentation — not started.
+3. Sprint 2.5 — Professional Dashboard, Orders Summary, Financial Summary,
+   Review Summary, Statistics, Performance Overview — not started (closes
+   the rest of BG-021: extended financial overview, orders + history).
+4. Sprint 2.6 — Public Profile Finalization (SEO, caching, search, public
+   APIs, accessibility, performance, privacy review, architecture cleanup,
+   final acceptance) — not started.
+5. Known, recorded during BG-022's remediation: a pre-existing, unrelated
    per-candidate query cost in directory ranking/card-building
    (`DiscoveryRankingService.rank()`, `CaregiverDirectoryService
    ._build_card()`) — see `quality/DEFECT_AND_RISK_REGISTER.md` KL-012,
    not fixed (separate performance task, out of scope).
+6. Known, pre-existing, unchanged by Sprint 2.2: production media storage
+   strategy (currently local `FileField`/`FileSystemStorage`, no S3/CDN) —
+   BG-021's original dependency note; gallery images inherit this exactly
+   as avatar/cover already do.
 
 Note: the previously listed follow-up "Phase 2: OrderOfferService" is now
 scheduled as roadmap Phase 5 (Marketplace Order Workflow) and must not be

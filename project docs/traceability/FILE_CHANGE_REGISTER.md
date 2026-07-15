@@ -310,4 +310,45 @@ The following files would be created or modified if the Offer Marketplace implem
 | `src/apps/accounts/services/supplier_bridge.py` | Modified | select_related("user")/("admin_user") added to resolve_supplier_entities_bulk() | git checkout |
 | `src/apps/public_site/tests/helpers.py` | Modified | verification_status fixture default corrected "unverified" -> "verified" | git checkout |
 | `src/apps/public_site/tests/test_professional_profile_public.py` | Modified | Query-count assertion 14 -> 13 | git checkout |
+
+---
+
+## 2026-07-15 — Sprint 2.2: Caregiver Gallery and Media Portfolio (CL-025)
+
+| Path | Change | Purpose | Rollback |
+|------|--------|---------|----------|
+| `src/apps/accounts/models/gallery.py` | Added | CaregiverGalleryItem model | Delete |
+| `src/apps/accounts/migrations/0007_caregiver_gallery_item.py` | Added | Migration for the new table | Delete + migrate back |
+| `src/apps/accounts/services/image_validation.py` | Added | Shared image validator, extracted from profile_media_service.py | Delete |
+| `src/apps/accounts/services/caregiver_gallery_service.py` | Added | CaregiverGalleryService (upload/edit/reorder/remove) | Delete |
+| `src/apps/accounts/tests/test_caregiver_gallery.py` | Added | 21 service-layer tests | Delete |
+| `src/apps/provider_portal/tests/test_gallery.py` | Added | 13 view-layer tests | Delete |
+| `src/apps/public_site/tests/test_gallery_public.py` | Added | 11 public-visibility tests | Delete |
+| `src/templates/provider_portal/profile_gallery.html` | Added | Gallery management page | Delete |
+| `src/templates/provider_portal/profile_gallery_item_edit.html` | Added | Gallery item edit form | Delete |
+| `src/apps/accounts/models/media_paths.py` | Modified | +caregiver_gallery_path() | git checkout |
+| `src/apps/accounts/models/__init__.py` | Modified | Export CaregiverGalleryItem | git checkout |
+| `src/apps/accounts/services/profile_media_service.py` | Modified | Validation extracted to image_validation.py | git checkout |
+| `src/apps/provider_portal/forms.py` | Modified | GalleryUploadForm, GalleryItemEditForm | git checkout |
+| `src/apps/provider_portal/services/viewmodels.py` | Modified | GalleryItemViewModel + gallery_count/limit fields | git checkout |
+| `src/apps/provider_portal/services/profile_service.py` | Modified | get_gallery_view(), gallery_count/limit | git checkout |
+| `src/apps/provider_portal/views.py` | Modified | 5 gallery views | git checkout |
+| `src/apps/provider_portal/urls.py` | Modified | 4 gallery routes | git checkout |
+| `src/templates/provider_portal/profile.html` | Modified | Gallery summary tile | git checkout |
+| `src/apps/public_site/services/viewmodels.py` | Modified | PublicGalleryItemViewModel + gallery field | git checkout |
+| `src/apps/public_site/services/profile_service.py` | Modified | _gallery() (reuses existing visibility gate) | git checkout |
+| `src/templates/public_site/caregiver_profile.html` | Modified | Gallery section | git checkout |
+| `src/apps/provider_portal/tests/test_profile.py` | Modified | Locked query-count baseline 12 -> 13 | git checkout |
+| `src/apps/public_site/tests/test_professional_profile_public.py` | Modified | Query-count assertion 13 -> 14 | git checkout |
+| `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |
+
+---
+
+## 2026-07-15 — PR #7 Remediation: Harden Gallery File Lifecycle and Image Safety (CL-026)
+
+| Path | Change | Purpose | Rollback |
+|------|--------|---------|----------|
+| `src/apps/accounts/services/caregiver_gallery_service.py` | Modified | remove_item() defers physical deletion to transaction.on_commit(); new _delete_stored_file() | git checkout |
+| `src/apps/accounts/services/image_validation.py` | Modified | Decoded-dimension/pixel-count limits; decompression-bomb handling | git checkout |
+| `src/apps/accounts/tests/test_caregiver_gallery.py` | Modified | 16 new tests (file-lifecycle safety + image-safety limits); existing remove-item tests updated for deferred deletion | git checkout |
 | `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |

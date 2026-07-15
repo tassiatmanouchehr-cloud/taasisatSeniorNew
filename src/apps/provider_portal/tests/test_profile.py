@@ -286,15 +286,16 @@ class ProviderProfileQueryCountTest(ProviderPortalTestCase):
         Phase 1.3's fixed-cost activation-status lookup
         (required-document-policy config lookup + document list for
         eligibility — `is_activated` itself is a status check with no
-        query, Phase 1.3 remediation) (2), plus Phase 2.1's fixed-cost
+        query, Phase 1.3 remediation) (2), Phase 2.1's fixed-cost
         skills/experience counts and public-credential-label lookup
         (skills count, experience count, verified-document lookup for
-        PublicCredentialSelector) (3) — 12 queries for this fixture (no
-        org affiliation, no service names). A regression that turns any
-        of these into a per-item loop would raise this count; this test
+        PublicCredentialSelector) (3), plus Sprint 2.2's fixed-cost
+        gallery-item count (1) — 13 queries for this fixture (no org
+        affiliation, no service names). A regression that turns any of
+        these into a per-item loop would raise this count; this test
         exists specifically to catch that."""
         self.login_as_provider()
-        with self.assertNumQueries(12):
+        with self.assertNumQueries(13):
             self.client.get(reverse("provider_portal:profile"))
 
     def test_query_count_does_not_grow_with_document_or_order_count(self):

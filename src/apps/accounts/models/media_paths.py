@@ -47,6 +47,10 @@ def caregiver_cover_path(instance, filename: str) -> str:
     return f"public/covers/caregiver/{uuid.uuid4().hex}.{_safe_extension(filename, default='jpg')}"
 
 
+def caregiver_gallery_path(instance, filename: str) -> str:
+    return f"public/gallery/caregiver/{uuid.uuid4().hex}.{_safe_extension(filename, default='jpg')}"
+
+
 def organization_logo_path(instance, filename: str) -> str:
     return f"public/logos/organization/{uuid.uuid4().hex}.{_safe_extension(filename, default='jpg')}"
 

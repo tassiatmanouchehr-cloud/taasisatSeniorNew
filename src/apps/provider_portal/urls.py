@@ -48,5 +48,19 @@ urlpatterns = [
         views.profile_experience_delete_view,
         name="profile-experience-delete",
     ),
+    path("profile/gallery/", views.profile_gallery_view, name="profile-gallery"),
+    path(
+        "profile/gallery/<uuid:item_id>/edit/", views.profile_gallery_item_edit_view, name="profile-gallery-item-edit"
+    ),
+    path(
+        "profile/gallery/<uuid:item_id>/remove/",
+        views.profile_gallery_item_remove_view,
+        name="profile-gallery-item-remove",
+    ),
+    path(
+        "profile/gallery/<uuid:item_id>/move/<str:direction>/",
+        views.profile_gallery_item_move_view,
+        name="profile-gallery-item-move",
+    ),
     path("documents/<str:document_type>/", views.document_manage_view, name="document-manage"),
 ]
