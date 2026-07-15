@@ -1108,3 +1108,58 @@ Rollback method: git revert of the remediation commit; no data migration to reve
 Status: Complete — remediation kept inside PR #9 (same branch, same PR, description
   updated), NOT merged
 ```
+
+## Entry 030
+
+```
+Change ID: CL-030
+Date/time: 2026-07-15 (Sprint 2.5 — Caregiver Professional Dashboard; first sprint on a
+  fresh branch after PR #9 merged to main @ 125dd3b)
+Task: Complete the caregiver's own professional dashboard — work summary, financial
+  overview, wallet movements, invoice summary, reviews/reputation, and professional
+  statistics, all read-only and sourced from canonical selectors
+Reason: Roadmap Phase 2's next scheduled sprint (IMPLEMENTATION_ROADMAP.md); closes new
+  backlog item BG-026
+Files added:
+  src/apps/orders/tests/test_supplier_queries.py (8 new tests)
+  src/apps/finance/tests/test_beneficiary_queries.py (6 new tests)
+  src/apps/provider_portal/services/dashboard_service.py (CaregiverDashboardPresentationService)
+  src/apps/provider_portal/tests/test_professional_dashboard.py (24 new tests)
+Files modified:
+  src/apps/orders/services/queries.py (+list_for_supplier()/count_by_status_for_supplier()
+    on OrderQueryService)
+  src/apps/finance/services/document_service.py (+list_for_beneficiary_party()/
+    count_by_status_for_beneficiary_party() on FinancialDocumentService)
+  src/apps/reviews/services/reputation_service.py
+    (+list_recent_reviews_with_reviewer_names())
+  src/apps/reviews/tests/test_reputation_service.py (6 new tests)
+  src/apps/provider_portal/services/viewmodels.py (+11 new dashboard ViewModels)
+  src/apps/provider_portal/views.py (dashboard_view extended: _guard_with_caregiver(),
+    +dashboard context var via CaregiverDashboardPresentationService.build_for_supplier())
+  src/templates/provider_portal/dashboard.html (+work summary, financial overview, wallet
+    movements, invoice summary, recent reviews, professional statistics sections)
+Files deleted: None
+Database impact: None.
+Migration impact: None — every new selector reads existing tables/columns; no new model,
+  no new field. makemigrations --check --dry-run confirmed only pre-existing, unrelated
+  drift.
+Security impact: No new attack surface. Every new selector filters by the caller's own
+  supplier/party/tenant_id, resolved once via the existing _guard_with_caregiver() (never
+  accepted from the request) — verified directly by cross-caregiver/cross-tenant/customer/
+  unrelated-organization-user denial tests, not just structurally. No customer-private or
+  internal-accounting data added to the dashboard.
+Financial impact: None — no new financial calculation, ledger logic, wallet logic, invoice
+  lifecycle, payment flow, or settlement flow; every financial value is read through an
+  existing canonical service (WalletService, WalletTransactionService,
+  FinancialDocumentService) exactly as it already computed it.
+Tests executed: check (0), 44 new focused tests (all green), affected-app suites
+  (apps.provider_portal + apps.orders + apps.finance + apps.reviews combined) 420/420,
+  proactive extra check apps.booking + apps.execution 125/125,
+  makemigrations --check --dry-run (pre-existing unrelated drift only, no new drift),
+  full regression 2077/2077 (exit 0)
+Result: Success — caregiver professional dashboard complete; zero regressions; zero new
+  migration; bonus/penalty explicitly documented as not modeled rather than invented
+Rollback method: git revert of the branch's commit(s); no data migration to reverse
+Status: Complete — branch phase2-caregiver-professional-dashboard (from main @ 125dd3b, PR
+  #9 merged), PR to be created, NOT merged
+```

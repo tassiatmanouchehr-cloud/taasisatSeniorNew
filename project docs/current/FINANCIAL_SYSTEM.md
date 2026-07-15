@@ -1,7 +1,9 @@
 # FINANCIAL SYSTEM AS-IS
 
-**Last verified HEAD:** a5dbaf28703142edaa1d770ea8f3c2a45a12640f
-**Last verified date:** 2026-07-14
+**Last verified HEAD:** a5dbaf28703142edaa1d770ea8f3c2a45a12640f (full audit) / partial
+update 2026-07-15 (phase2-caregiver-professional-dashboard, PR #9 merged) — only the new
+"Caregiver-Facing Read Paths" section added; no change to any existing section above
+**Last verified date:** 2026-07-14 / 2026-07-15 (partial, Sprint 2.5)
 
 ---
 
@@ -96,3 +98,22 @@ Created after service completion when preservice payment is enabled. Window for 
 ## Legacy Wallet (finance.WalletAccount)
 
 `finance.WalletAccount` and `finance.WalletTransaction` exist in `apps/finance` but are documented as legacy/frozen. The canonical wallet is `apps.wallet`. See `11_DUPLICATION_AND_SOURCE_OF_TRUTH_REGISTER.md`.
+
+## Caregiver-Facing Read Paths (Sprint 2.5, 2026-07-15)
+
+The Caregiver Professional Dashboard (`apps.provider_portal`) reads, but does not
+calculate, financial state — no new money representation, no new financial document type,
+no new wallet transaction type. It reuses:
+
+- `WalletService.get_wallet_or_none()` + `WalletTransactionService.list_transactions()`
+  (both pre-existing) for the available balance and recent movements.
+- A new `FinancialDocumentService.list_for_beneficiary_party()`/
+  `count_by_status_for_beneficiary_party()` pair — the `beneficiary_party` side of the same
+  `FinancialDocument` model `list_for_payer_party()` already reads for customers; not a new
+  document type or status.
+
+**Bonus/penalty is not modeled anywhere in this repository** — confirmed by inspection
+(no dedicated model/field, and `WalletTransactionType`'s 6 values carry no bonus/penalty
+semantic). The dashboard documents this gap explicitly (`FinancialOverviewViewModel
+.bonus_penalty_note`) rather than inventing a classification. See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-021.

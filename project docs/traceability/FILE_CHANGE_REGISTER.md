@@ -414,3 +414,22 @@ The following files would be created or modified if the Offer Marketplace implem
 | `src/apps/availability/services/mutation_service.py` | Modified | add_working_window()/update_working_window() lock the owning ServiceSupplier row before overlap validation | git checkout |
 | `src/apps/availability/tests/test_concurrency.py` | Added | 9 TransactionTestCase concurrency tests | git rm |
 | `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |
+
+---
+
+## 2026-07-15 — Sprint 2.5: Caregiver Professional Dashboard (CL-030)
+
+| Path | Change | Purpose | Rollback |
+|------|--------|---------|----------|
+| `src/apps/orders/services/queries.py` | Modified | +list_for_supplier()/count_by_status_for_supplier() on OrderQueryService | git checkout |
+| `src/apps/orders/tests/test_supplier_queries.py` | Added | 8 new tests | git rm |
+| `src/apps/finance/services/document_service.py` | Modified | +list_for_beneficiary_party()/count_by_status_for_beneficiary_party() | git checkout |
+| `src/apps/finance/tests/test_beneficiary_queries.py` | Added | 6 new tests | git rm |
+| `src/apps/reviews/services/reputation_service.py` | Modified | +list_recent_reviews_with_reviewer_names() | git checkout |
+| `src/apps/reviews/tests/test_reputation_service.py` | Modified | 6 new tests | git checkout |
+| `src/apps/provider_portal/services/dashboard_service.py` | Added | CaregiverDashboardPresentationService | git rm |
+| `src/apps/provider_portal/services/viewmodels.py` | Modified | +11 new dashboard ViewModels | git checkout |
+| `src/apps/provider_portal/views.py` | Modified | dashboard_view extended (_guard_with_caregiver(), +dashboard context var) | git checkout |
+| `src/apps/provider_portal/tests/test_professional_dashboard.py` | Added | 24 new tests | git rm |
+| `src/templates/provider_portal/dashboard.html` | Modified | +work summary/financial overview/wallet movements/invoice summary/reviews/statistics sections | git checkout |
+| `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |

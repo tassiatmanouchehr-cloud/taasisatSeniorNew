@@ -108,6 +108,47 @@ class OrderQueryService:
         return cls.list_unassigned_for_tenant(tenant_id=tenant_id)[:limit]
 
     @classmethod
+    def list_for_supplier(cls, *, supplier, tenant_id, only=None, limit=None):
+        """`only`: None (all), "current" (IN_PROGRESS), "upcoming"
+        (WAITING_SERVICE), "completed", or "cancelled" — Sprint 2.5
+        (Caregiver Professional Dashboard) work-summary tabs. Mirrors
+        list_for_customer()'s exact shape, scoped by assigned_supplier
+        instead of customer_profile. No new statuses invented — these are
+        Order.status's own existing values (see orders.models.OrderStatus)."""
+        from ..models import Order, OrderStatus
+
+        queryset = Order.objects.for_tenant(tenant_id).filter(
+            assigned_supplier=supplier,
+        ).select_related("service_category").order_by("-created_at")
+
+        if only == "current":
+            queryset = queryset.filter(status=OrderStatus.IN_PROGRESS)
+        elif only == "upcoming":
+            queryset = queryset.filter(status=OrderStatus.WAITING_SERVICE)
+        elif only == "completed":
+            queryset = queryset.filter(status=OrderStatus.COMPLETED)
+        elif only == "cancelled":
+            queryset = queryset.filter(status=OrderStatus.CANCELLED)
+
+        return queryset[:limit] if limit else queryset
+
+    @classmethod
+    def count_by_status_for_supplier(cls, *, supplier, tenant_id) -> dict:
+        """Single aggregate query — the dashboard summary counts, without
+        loading full row sets for a caregiver with a long order history."""
+        from django.db.models import Count, Q
+
+        from ..models import Order, OrderStatus
+
+        counts = Order.objects.for_tenant(tenant_id).filter(assigned_supplier=supplier).aggregate(
+            current=Count("id", filter=Q(status=OrderStatus.IN_PROGRESS)),
+            upcoming=Count("id", filter=Q(status=OrderStatus.WAITING_SERVICE)),
+            completed=Count("id", filter=Q(status=OrderStatus.COMPLETED)),
+            cancelled=Count("id", filter=Q(status=OrderStatus.CANCELLED)),
+        )
+        return {key: (value or 0) for key, value in counts.items()}
+
+    @classmethod
     def count_unassigned_for_tenant(cls, *, tenant_id):
         return cls.list_unassigned_for_tenant(tenant_id=tenant_id).count()
 

@@ -1,6 +1,6 @@
 # PERMISSION AND TENANT MODEL
 
-**Last verified HEAD:** phase2-caregiver-availability-schedule (from main @ 20c532e, PR #8 merged)
+**Last verified HEAD:** phase2-caregiver-professional-dashboard (from main @ 125dd3b, PR #9 merged)
 **Last verified date:** 2026-07-15
 
 ---
@@ -172,6 +172,26 @@ Every view and service must independently call auth/tenant/permission checks.
 ### Critical Finding: No Automated Tenant Isolation
 
 Tenant filtering depends entirely on every developer passing `tenant_id` to every query. A single forgotten parameter creates a cross-tenant data leak.
+
+### Caregiver Dashboard Authorization (Sprint 2.5)
+
+`dashboard_view` now uses `_guard_with_caregiver(request)` (already-established, unchanged
+helper — `resolve_supplier(request)` + `request.user.caregiver_profile`, never accepted
+from the request) to resolve the caller's own `supplier`/`tenant_id`/`caregiver` before
+calling `CaregiverDashboardPresentationService.build_for_supplier()`. No new permission key,
+no new authorization mechanism: every new selector this sprint added
+(`OrderQueryService.list_for_supplier()`/`count_by_status_for_supplier()`,
+`FinancialDocumentService.list_for_beneficiary_party()`/`count_by_status_for_beneficiary_party()`,
+`ReputationService.list_recent_reviews_with_reviewer_names()`) is filtered by the caller's
+own `supplier`/`party_id`/`tenant_id`, resolved exactly once at the top of the view, never
+accepted as a request parameter. A customer or unrelated-organization-only account (no
+`caregiver_profile`) gets `PermissionDenied` (403) from `_guard_with_caregiver()` before any
+service call is reached — the same pattern every other provider-portal view already uses.
+Verified directly (not just structurally) by `test_customer_cannot_access_dashboard`,
+`test_unrelated_organization_user_cannot_access_dashboard`,
+`test_each_provider_sees_only_their_own_dashboard`, and
+`test_cross_tenant_provider_sees_only_their_own_tenant` in
+`apps.provider_portal.tests.test_professional_dashboard`.
 
 ### Unscoped Queries (Known)
 

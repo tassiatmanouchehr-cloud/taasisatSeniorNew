@@ -83,6 +83,40 @@ class FinancialDocumentService:
         )
 
     @classmethod
+    def list_for_beneficiary_party(cls, *, tenant_id, party_id, limit=None):
+        """Read-only: every FinancialDocument owed to one FinancialParty
+        (a caregiver/supplier's own party, resolved via
+        FinancialPartyService.resolve_party_for_supplier) — Sprint 2.5
+        (Caregiver Professional Dashboard), the provider-portal dashboard's
+        invoice summary. Mirrors list_for_payer_party()'s exact shape
+        (that method is the customer side of the same FinancialDocument
+        row — beneficiary_party is who the document pays out to, set by
+        FinancialDocumentService._create_document() at issue time). Never
+        mutates anything."""
+        queryset = (
+            FinancialDocument.objects.filter(
+                tenant_id=tenant_id,
+                beneficiary_party_id=party_id,
+            )
+            .select_related("order")
+            .order_by("-created_at")
+        )
+        return queryset[:limit] if limit else queryset
+
+    @classmethod
+    def count_by_status_for_beneficiary_party(cls, *, tenant_id, party_id) -> dict:
+        """Single aggregate query — invoice-count-by-status for the
+        dashboard summary, without loading full row sets."""
+        from django.db.models import Count
+
+        counts = (
+            FinancialDocument.objects.filter(tenant_id=tenant_id, beneficiary_party_id=party_id)
+            .values("status")
+            .annotate(count=Count("id"))
+        )
+        return {row["status"]: row["count"] for row in counts}
+
+    @classmethod
     @transaction.atomic
     def create_invoice_from_execution(cls, *, execution_session_id, items, issued_by=None) -> FinancialDocument:
         execution_session = ExecutionSession.objects.select_related("order").get(id=execution_session_id)

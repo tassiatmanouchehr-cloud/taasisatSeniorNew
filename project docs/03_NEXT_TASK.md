@@ -353,50 +353,96 @@ real, separately-committed transactions, each asserting final database
 state. Zero new migration. Remediation kept inside PR #9 (same branch,
 same PR, description updated) — see
 `traceability/IMPLEMENTATION_JOURNAL.md` and
-`ARCHITECTURE_DECISION_LOG.md` ADM-020's remediation note. **Not
-merged — awaiting review.**
+`ARCHITECTURE_DECISION_LOG.md` ADM-020's remediation note.
+
+### PR #9 — MERGED (2026-07-15)
+
+Final verification confirmed branch HEAD unchanged (`74752d9`), diff
+scope unchanged (33 files, both commits), the supplier row is locked
+before overlap validation on every path that can introduce or activate
+an interval, enabling a conflicting disabled window is refused,
+concurrent overlapping creates cannot both commit, different suppliers
+are not globally serialized, no Sprint 2.5 code existed in the diff, and
+documentation was synchronized. Merged via `merge_pull_request` (merge
+commit `125dd3b2916877230684b187e847fb1c07292d05`). Local `main`
+fast-forwarded to match `origin/main`; `manage.py check` exits 0.
+**Sprint 2.4 (including the PR #9 concurrency remediation) is now
+CLOSED and on `main`.**
+
+### Sprint 2.5 — Caregiver Professional Dashboard — IMPLEMENTED (2026-07-15)
+
+Branched fresh from merged `main` (`phase2-caregiver-professional-dashboard`,
+from `125dd3b`) per governance. Completes the caregiver's own
+professional dashboard — closes new backlog item BG-026:
+
+- Work summary: `Order.status`-derived current/upcoming/completed/
+  cancelled counts and bounded recent lists, via two new methods on the
+  existing `apps.orders.services.queries.OrderQueryService` (mirrors
+  `list_for_customer()`'s exact shape — no new statuses invented).
+- Financial overview and wallet movements: reuse the existing
+  `WalletService`/`WalletTransactionService` unchanged — no new
+  financial calculation.
+- Bonus/penalty: confirmed, by repository-wide inspection, that no
+  canonical representation exists anywhere — documented as a gap
+  (`FinancialOverviewViewModel.bonus_penalty_note`), not invented.
+- Invoice summary: two new methods on `apps.finance.services
+  .document_service.FinancialDocumentService`
+  (`list_for_beneficiary_party()`/`count_by_status_for_beneficiary_party()`),
+  mirroring the existing customer-side `list_for_payer_party()`.
+- Reviews/reputation: reuses `ReputationService.get_reputation_summary()`
+  and a new `list_recent_reviews_with_reviewer_names()`.
+- Professional statistics: reuses `ProviderReportService` and Sprint
+  2.3's existing skill/credential/gallery-count definitions, each
+  documented per-field with its exact source.
+
+44 new tests, zero new migration, full regression 2077/2077 green.
+Branch `phase2-caregiver-professional-dashboard`, PR created — see
+`traceability/IMPLEMENTATION_JOURNAL.md` and
+`ARCHITECTURE_DECISION_LOG.md` ADM-021. **Not merged — awaiting review.**
 
 ---
 
 ## IMMEDIATE NEXT TASK
 
-### Await review of the Sprint 2.4 PR (including the concurrency remediation); do not start Sprint 2.5 automatically
+### Await review of the Sprint 2.5 PR; do not start Sprint 2.6 automatically
 
 Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active implementation
 order).
 
-Phase 1, Phase 2.1 (+ BG-022), Sprint 2.2 (+ PR #7 remediation), and
-Sprint 2.3 are fully closed and merged to `main`. Sprint 2.4 (this
-session's work) delivers the availability slice of roadmap Phase 2 —
-remaining roadmap Phase 2 scope, explicitly NOT started by this task:
+Phase 1, Phase 2.1 (+ BG-022), Sprint 2.2 (+ PR #7 remediation), Sprint
+2.3, and Sprint 2.4 (+ PR #9 concurrency remediation) are fully closed
+and merged to `main`. Sprint 2.5 (this session's work) delivers the
+professional-dashboard slice of roadmap Phase 2 — remaining roadmap
+Phase 2 scope, explicitly NOT started by this task:
 
-1. Sprint 2.5 — Professional Dashboard, Orders Summary, Financial Summary,
-   Review Summary, Statistics, Performance Overview — not started (closes
-   the rest of BG-021: extended financial overview, orders + history).
-2. Sprint 2.6 — Public Profile Finalization (SEO, caching, search, public
+1. Sprint 2.6 — Public Profile Finalization (SEO, caching, search, public
    APIs, accessibility, performance, privacy review, architecture cleanup,
    final acceptance) — not started.
-3. Known, recorded during BG-022's remediation: a pre-existing, unrelated
+2. Known, recorded during BG-022's remediation: a pre-existing, unrelated
    per-candidate query cost in directory ranking/card-building
    (`DiscoveryRankingService.rank()`, `CaregiverDirectoryService
    ._build_card()`) — see `quality/DEFECT_AND_RISK_REGISTER.md` KL-012,
    not fixed (separate performance task, out of scope).
-4. Known, recorded during Sprint 2.3: `CaregiverSkill.name` remains
+3. Known, recorded during Sprint 2.3: `CaregiverSkill.name` remains
    free-text with no catalog/normalization — see
    `quality/DEFECT_AND_RISK_REGISTER.md` KL-016, deferred (a future
    modeling decision, not a UI-completion task).
-5. Known, recorded during Sprint 2.2/PR #7: gallery orphan-file cleanup/
+4. Known, recorded during Sprint 2.2/PR #7: gallery orphan-file cleanup/
    retry is not automated (KL-014) and decoded-image dimension/pixel
    limits are fixed, not tenant-configurable (KL-015) — both deliberate,
    not defects.
-6. Known, pre-existing, unchanged by Sprint 2.2: production media storage
+5. Known, pre-existing, unchanged by Sprint 2.2: production media storage
    strategy (currently local `FileField`/`FileSystemStorage`, no S3/CDN) —
    BG-021's original dependency note; gallery images inherit this exactly
    as avatar/cover already do.
-7. Known, recorded during Sprint 2.4: per-caregiver time zone is not
+6. Known, recorded during Sprint 2.4: per-caregiver time zone is not
    modeled — see `quality/DEFECT_AND_RISK_REGISTER.md` KL-018 /
    `quality/COMPLETION_BACKLOG.md` BG-024, deferred (no evidence of
    multi-time-zone demand).
+7. Known, recorded during Sprint 2.5: no canonical bonus/penalty
+   representation exists — see `quality/DEFECT_AND_RISK_REGISTER.md`
+   KL-020 / `quality/COMPLETION_BACKLOG.md` BG-026's "not in scope" note,
+   deferred (no evidence to invent one against).
 
 Note: the previously listed follow-up "Phase 2: OrderOfferService" is now
 scheduled as roadmap Phase 5 (Marketplace Order Workflow) and must not be
