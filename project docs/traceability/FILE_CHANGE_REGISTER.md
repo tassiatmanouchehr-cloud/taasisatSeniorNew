@@ -433,3 +433,21 @@ The following files would be created or modified if the Offer Marketplace implem
 | `src/apps/provider_portal/tests/test_professional_dashboard.py` | Added | 24 new tests | git rm |
 | `src/templates/provider_portal/dashboard.html` | Modified | +work summary/financial overview/wallet movements/invoice summary/reviews/statistics sections | git checkout |
 | `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |
+
+---
+
+## 2026-07-15 — Sprint 2.6: Public Profile Finalization and Phase 2 Acceptance (CL-031)
+
+| Path | Change | Purpose | Rollback |
+|------|--------|---------|----------|
+| `src/apps/public_site/tests/test_phase2_acceptance.py` | Added | 5 new cross-app Phase 2 end-to-end acceptance tests | git rm |
+| `src/templates/public_site/caregiver_profile.html` | Modified | SEO page_url/canonical_url now the profile's own URL; gallery alt-text fallback; removed redundant always-true generic verification badge | git checkout |
+| `src/templates/provider_portal/profile_gallery.html` | Modified | Gallery alt-text fallback; label `for=` association | git checkout |
+| `src/templates/provider_portal/profile_gallery_item_edit.html` | Modified | Gallery alt-text fallback; label `for=` association | git checkout |
+| `src/templates/provider_portal/availability.html` | Modified | 2x label `for=` association | git checkout |
+| `src/templates/provider_portal/profile_skills.html` | Modified | Label `for=` association | git checkout |
+| `src/apps/accounts/tests/test_caregiver_professional_profile.py` | Modified | Pre-existing environment-clock-dependent test fixed (`timezone.now().date()` instead of `datetime.date.today()`) | git checkout |
+| `project docs/quality/DEFECT_AND_RISK_REGISTER.md` | Modified | +KL-021 (deferred organization-profile SEO bug) | git checkout |
+| `project docs/quality/COMPLETION_BACKLOG.md` | Modified | +BG-027 (organization-profile SEO bug backlog item) | git checkout |
+| `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |
+| `project docs/PHASE_2_COMPLETION_REPORT.md` | Added | Phase 2 completion report | git rm |

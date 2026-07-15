@@ -32,7 +32,7 @@
 | **organization_portal** | 0 | 1 (presentation) | 18 | 51 (+2 Phase 1.3) | COMPLETE |
 | **admin_portal** | 0 | 0 | 20 (+4 document verification Phase 1.1, +4 activation Phase 1.3) | 56 (+16 Phase 1.1, +9 Phase 1.3, +2 Phase 1.3 remediation) | COMPLETE |
 | **api** | 0 | 0 | 12 | 97 | COMPLETE |
-| **public_site** | 0 | 4 | 18 | 134 (+2 Phase 2.1 eligibility, +11 Phase 2.1 skills/experience/credentials, +13 BG-022 canonical visibility, +11 Sprint 2.2 gallery, +11 Sprint 2.3 highlights/badges, +6 Sprint 2.4 schedule summary) | COMPLETE |
+| **public_site** | 0 | 4 | 18 | 139 (+2 Phase 2.1 eligibility, +11 Phase 2.1 skills/experience/credentials, +13 BG-022 canonical visibility, +11 Sprint 2.2 gallery, +11 Sprint 2.3 highlights/badges, +6 Sprint 2.4 schedule summary, +5 Sprint 2.6 Phase 2 acceptance) | COMPLETE (Sprint 2.6 — public profile finalization: SEO/accessibility fixes, redundant-badge removal, query-count measurement, Phase 2 E2E acceptance tests; Phase 2 acceptance criteria satisfied) |
 | **showcase** | 0 | 0 | 15 | 0 | COMPLETE (no tests) |
 
 ## Offer Marketplace Current State
@@ -57,8 +57,8 @@ profiles, and portal completion phases.
 | Total Django apps | 25 + 1 config |
 | Total concrete models | ~73 (+CaregiverSkill, CaregiverExperience — Phase 2.1; +CaregiverGalleryItem — Sprint 2.2) |
 | Total migrations | ~47 |
-| Total test files | 212 (+1 `apps.availability.tests.test_concurrency` — PR #9 remediation; +3 `apps.orders.tests.test_supplier_queries`/`apps.finance.tests.test_beneficiary_queries`/`apps.provider_portal.tests.test_professional_dashboard` — Sprint 2.5) |
-| Total test methods | 2,077 (full regression 2077/2077 green on phase2-caregiver-professional-dashboard) |
+| Total test files | 213 (+1 `apps.availability.tests.test_concurrency` — PR #9 remediation; +3 `apps.orders.tests.test_supplier_queries`/`apps.finance.tests.test_beneficiary_queries`/`apps.provider_portal.tests.test_professional_dashboard` — Sprint 2.5; +1 `apps.public_site.tests.test_phase2_acceptance` — Sprint 2.6) |
+| Total test methods | 2,082 (full regression 2082/2082 green on phase2-caregiver-public-profile-finalization) |
 | Total admin registrations | 20 |
 | Total management commands | 15 |
 | Total URL patterns | ~157 |

@@ -121,7 +121,7 @@ Pre-phase (P0 hygiene, small): ~~fix seed test race (G12)~~ — **DONE, merged i
 - Fix: registration (`RegistrationService.create_caregiver()`/`create_company_admin()`, `ensure_caregiver_profile()`) now creates profiles as `ProfileStatus.DRAFT` (the existing enum value, no new status, no migration); `ActivationEligibilityService` no longer requires `status == ACTIVE` (removes the circularity); `ProfileActivationService` performs a real `DRAFT -> ACTIVE` transition and judges idempotency from `profile.status`, never `AuditLog`.
 - 16 new/renamed tests, zero new migrations, full regression 1824/1824 green. See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-016's remediation note.
 
-### PHASE 2 — Caregiver Profile (Phase 2.1 + Sprint 2.2 gallery + Sprint 2.3 credibility layer + Sprint 2.4 availability + Sprint 2.5 dashboard complete; extended financial overview/orders history remain)
+### PHASE 2 — Caregiver Profile (Phase 2.1 + Sprint 2.2 gallery + Sprint 2.3 credibility layer + Sprint 2.4 availability + Sprint 2.5 dashboard + Sprint 2.6 public-profile finalization — Phase 2 ACCEPTANCE CRITERIA SATISFIED, except the accepted bonus/penalty external-domain dependency, KL-020; see `project docs/PHASE_2_COMPLETION_REPORT.md`)
 
 **Scope:** Instagram-like public profile: gallery (new model + upload service + moderation flag), certificates (surface VERIFIED `VerificationDocument`s of certificate/license types), structured skills, experience, reviews (exists), availability display (COMPLETE — Sprint 2.4), financial overview (dashboard-level summary COMPLETE — Sprint 2.5; extended reporting/exports remain), orders + history (dashboard-level summary COMPLETE — Sprint 2.5; full history pages remain).
 
@@ -187,6 +187,16 @@ Pre-phase (P0 hygiene, small): ~~fix seed test race (G12)~~ — **DONE, merged i
 - Bonus/penalty: confirmed, by repository-wide inspection, that no canonical representation exists anywhere — documented as a gap (`FinancialOverviewViewModel.bonus_penalty_note`), not invented.
 - New `CaregiverDashboardPresentationService` (`apps/provider_portal/services/dashboard_service.py`) assembles all five new sections, keeping `apps/provider_portal/views.py` free of any direct model/ORM access.
 - 44 new tests, zero new migration, full regression 2077/2077 green. **BG-026 is RESOLVED.** Bonus/penalty (KL-020), skill catalog/normalization (KL-016), certificates-as-visual-gallery presentation, extended financial overview beyond wallet/invoices, and orders + history remain open — Phase 2 as a whole is still NOT complete. See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-021.
+- **MERGED to main via PR #10 (merge commit `9a26024`, 2026-07-15).**
+
+**Sprint 2.6 (2026-07-15, branch `phase2-caregiver-public-profile-finalization`, from merged main @ `9a26024`) — Public Profile Finalization and Phase 2 Acceptance:**
+- Integration/quality/privacy/accessibility/performance closeout sprint — no new models, views, or routes; domain engines not redesigned.
+- Confirmed clean: canonical directory/search/home visibility (BG-022, re-verified); provider-preview consistency (the owner's "public preview" link is the exact same public URL/selector, no separate render path); privacy/security boundaries (every public ViewModel structurally excludes private-contact/identity/document/wallet/order-customer fields); existing cache infra reviewed and left unused for page/read-model caching (no proven blocker); existing permission-gated internal discovery API confirmed unrelated to the public profile (no new public API).
+- Fixed: SEO `page_url`/canonical-URL bug (caregiver profile page pointed at the directory URL instead of its own); empty-`alt` gap on gallery images (3 templates); unassociated form labels (4 `provider_portal` templates); a redundant, always-true generic verification badge duplicating the precise Sprint 2.3 badges; one unrelated, pre-existing, environment-clock-dependent flaky test.
+- Measured and documented query counts for all 7 required pages (Section G) — public profile 15 (bounded), directory 28/43/57 at 5/10/20 candidates (grows with candidate count, KL-012, a shared ranking-engine limitation, not fixed), home featured 27/32/42 (same cause), provider dashboard 30/31 (bounded), provider profile-management 15 (bounded).
+- New `apps.public_site.tests.test_phase2_acceptance` (5 tests): a full DRAFT-to-published caregiver lifecycle proving Phase 2's 15 governance-listed acceptance points compose correctly across apps.
+- Deferred, recorded (out of caregiver-only scope): identical SEO bug on `organization_profile.html` (KL-021/BG-027); the same unassociated-label pattern in other portals' templates; KL-012's ranking N+1 (quantified, not fixed).
+- 5 new tests, zero new migration, full regression 2082/2082 green. **Phase 2 acceptance criteria satisfied**, except the accepted bonus/penalty dependency (KL-020, unchanged). See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-022 and `project docs/PHASE_2_COMPLETION_REPORT.md`.
 
 ### PHASE 3 — Company Portal (inherits caregiver capability)
 

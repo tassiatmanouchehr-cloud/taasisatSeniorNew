@@ -2,8 +2,11 @@
 
 **Last verified HEAD:** a5dbaf28703142edaa1d770ea8f3c2a45a12640f (full audit) / partial
 update 2026-07-15 (phase2-caregiver-professional-dashboard, PR #9 merged) — only the new
-"Caregiver-Facing Read Paths" section added; no change to any existing section above
-**Last verified date:** 2026-07-14 / 2026-07-15 (partial, Sprint 2.5)
+"Caregiver-Facing Read Paths" section added; no change to any existing section above /
+re-confirmed unchanged 2026-07-15 (phase2-caregiver-public-profile-finalization, Sprint 2.6
+— no financial logic touched; bonus/penalty gap re-confirmed still unresolved, KL-020)
+**Last verified date:** 2026-07-14 / 2026-07-15 (partial, Sprint 2.5) / 2026-07-15
+(re-confirmed, Sprint 2.6)
 
 ---
 

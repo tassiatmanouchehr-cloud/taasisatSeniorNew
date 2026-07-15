@@ -1,6 +1,6 @@
 # RUNTIME WORKFLOWS
 
-**Last verified HEAD:** phase2-caregiver-professional-dashboard (from main @ 125dd3b, PR #9 merged)
+**Last verified HEAD:** phase2-caregiver-public-profile-finalization (from main @ 9a26024, PR #10 merged)
 **Last verified date:** 2026-07-15
 
 ---
@@ -38,6 +38,7 @@
 | 27 | Professional Credibility Layer (badges, highlights, expiring-soon) | IMPLEMENTED (Sprint 2.3) | `public_site/services/profile_service.py:CaregiverPublicProfileService._highlights()/_verification_badges()` |
 | 28 | Caregiver Availability and Working Schedule | IMPLEMENTED (Module 10 foundation; overlap validation, edit/toggle UI, canonical evaluator, public summary completed Sprint 2.4; concurrency-proven PR #9 review) | `availability/services/query_service.py:AvailabilityQueryService.evaluate()` |
 | 29 | Caregiver Professional Dashboard | IMPLEMENTED (Sprint 2.5) | `provider_portal/services/dashboard_service.py:CaregiverDashboardPresentationService` |
+| 30 | Public Profile Finalization and Phase 2 Acceptance | IMPLEMENTED (Sprint 2.6 — Phase 2 acceptance criteria satisfied except the accepted bonus/penalty dependency) | `public_site/services/profile_service.py:CaregiverPublicProfileService` (SEO/accessibility/redundant-badge fixes); `apps.public_site.tests.test_phase2_acceptance` (Phase 2 E2E acceptance) |
 
 ---
 
@@ -310,6 +311,30 @@ reuse the exact definitions Sprint 2.3's public highlights already established.
 Zero new models, zero new migrations. `apps.provider_portal/views.py` gains zero new direct
 model/ORM references — all new data-gathering lives in
 `CaregiverDashboardPresentationService.build_for_supplier()`.
+
+## Public Profile Finalization and Phase 2 Acceptance (Sprint 2.6)
+
+No new workflow — this sprint finalizes the existing public caregiver-profile workflow
+(items 21-29 above) as one coherent, accepted capability, fixing integration/quality/
+accessibility/SEO defects found while proving each Phase 2 acceptance criterion end to end.
+See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-022 and `project docs
+/PHASE_2_COMPLETION_REPORT.md` for the full record. In summary:
+
+- The caregiver public profile page (`public_site/services/profile_service.py
+  :CaregiverPublicProfileService`) now passes its own URL (not the directory's) to the
+  shared SEO component, and no longer renders a second, always-true generic verification
+  badge alongside the precise Sprint 2.3 badges.
+- Four `provider_portal` templates gained proper `<label for=...>` association and a
+  non-empty `alt` fallback on gallery images.
+- The directory/search/home/detail-page canonical visibility policy (workflow #25, BG-022)
+  and the provider "public preview" link (a direct link to the real public URL, not a
+  separate render path) were both re-verified, not changed.
+- New end-to-end acceptance coverage
+  (`apps.public_site.tests.test_phase2_acceptance.Phase2FullLifecycleAcceptanceTest`) drives
+  a caregiver from DRAFT through activation, editable-field changes, mixed-visibility
+  skills/experience/gallery, weekly availability, and credential approval, then verifies the
+  public profile page, directory, search, and home all compose the result correctly, and
+  that a second, ineligible caregiver appears nowhere.
 
 ## Order Lifecycle (Status Machine)
 

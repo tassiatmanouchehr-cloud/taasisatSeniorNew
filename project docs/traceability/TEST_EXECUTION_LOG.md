@@ -699,3 +699,60 @@ pre-sprint baseline (only the pre-existing, unrelated `kernel.ServiceSupplier`/
 `UserAccount` field drift). Dashboard query count newly locked at 31 (empty)/30 (populated,
 proven not to grow with row count up to 20 wallet transactions) — no prior baseline existed
 for this expanded page.
+
+## Run 021b — PR #10 Final Verify and Merge (Sprint 2.5 -> main)
+
+```
+Branch under review: phase2-caregiver-professional-dashboard @ 0682da9 (PR #10)
+Merge target: main
+Date/time: 2026-07-15
+```
+
+| Check | Result |
+|-------|--------|
+| `git diff --check origin/main...HEAD` | Clean — no whitespace conflicts |
+| `git status --short` | Clean tree |
+| `python manage.py check` | 0 — System check identified no issues |
+| 12-point pre-merge review (selectors read-only, no direct financial/order calculations in views/templates, wallet balance from canonical service, wallet metadata never rendered, invoice queries beneficiary-scoped, order summaries supplier-scoped, reviews belong to current caregiver, no customer-private/platform-internal accounting info exposed, query counts bounded, no Sprint 2.6 code present, documentation synchronized, diff contains no unrelated code) | All 12 confirmed via direct code inspection (`dashboard_service.py` docstring/imports re-read; `available_balance_label` traced to `wallet.balance`; `metadata` confirmed unreferenced) |
+
+**Result:** Merged to `main` — merge commit `9a260241cfd82ef3be997eec152d1aa2a510542b`
+(`9a26024`). New `main` HEAD confirmed to equal the merge commit; local `main` fast-forwarded
+to match `origin/main`; working tree clean; `python manage.py check` exit 0 post-merge. No
+re-run of the full suite performed for the merge itself, per this task's own instruction
+("do not rerun the full suite if the branch is unchanged from its last verified state") —
+the pre-merge state was already verified at 2077/2077 in Run 021.
+
+## Run 022 — Sprint 2.6: Public Profile Finalization and Phase 2 Acceptance
+
+```
+Branch: phase2-caregiver-public-profile-finalization (from main @ 9a26024, PR #10 merged)
+Settings module: config.settings.testing
+Python: 3.11.15  |  Django: 5.2.16  |  PostgreSQL: 16.13
+Date/time: 2026-07-15
+```
+
+| Command | Exit code | Result |
+|---------|-----------|--------|
+| `python manage.py check` | 0 | System check identified no issues |
+| `apps.public_site.tests.test_phase2_acceptance` (new, focused) | 0 | 5/5 |
+| `apps.public_site apps.provider_portal` (Level 2 — directly affected apps) | 0 | 270/270 |
+| Full regression (1st run, before diagnosis) | 1 | Ran 2082 tests — 1 failure: `apps.accounts.tests.test_caregiver_professional_profile.PublicCredentialSelectorExpiryTest.test_expired_document_does_not_appear` — a pre-existing, environment-clock-dependent test bug (`datetime.date.today()` vs. `timezone.now().date()`), unrelated to this sprint's own template/test changes; diagnosed and fixed (one line, test-only) |
+| `apps.accounts.tests.test_caregiver_professional_profile` (fix verification) | 0 | 32/32 |
+| `apps.accounts` (directly affected by the fix) | 0 | 368/368 |
+| **Full regression (2nd run, after the fix)** | **0** | **Ran 2082 tests — OK** (2077 baseline + 5 new) |
+
+**Test level used:** Full regression, run twice — once surfacing a genuinely pre-existing,
+unrelated flaky failure (diagnosed per this sprint's own "if diagnosing a failure" exception
+to the "run once" policy), once green after the one-line fix. `apps.public_site` and
+`apps.provider_portal` (every template touched) and `apps.accounts` (the file with the fixed
+test) were all run directly in addition to the full suite.
+
+**Classification:** GREEN — 2082/2082, zero regressions attributable to this sprint's own
+changes. Zero new migration. See `ARCHITECTURE_DECISION_LOG.md` ADM-022 Decision 5 for the
+test-fix rationale and Decisions 1-4 for the SEO/accessibility/badge/cache/API/ranking
+findings. Directory/home query counts measured (not asserted as a fixed O(1) bound, since
+they legitimately are not — see ADM-022 Decision 4 and KL-012): directory 28/43/57 queries
+at 5/10/20 matching candidates; home featured 27/32/42 queries at the same candidate counts.
+Public profile detail page: 15 queries (bounded, does not grow — pre-existing test,
+re-confirmed). Provider dashboard: 30/31 queries (pre-existing, Sprint 2.5). Provider
+profile-management page: 15 queries (pre-existing, bounded).

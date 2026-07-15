@@ -1163,3 +1163,60 @@ Rollback method: git revert of the branch's commit(s); no data migration to reve
 Status: Complete — branch phase2-caregiver-professional-dashboard (from main @ 125dd3b, PR
   #9 merged), PR to be created, NOT merged
 ```
+
+## Entry 031
+
+```
+Change ID: CL-031
+Date/time: 2026-07-15 (Sprint 2.6 — Public Profile Finalization and Phase 2 Acceptance;
+  branch phase2-caregiver-public-profile-finalization, from main @ 9a26024, PR #10 merged)
+Task: Finalize the caregiver public-profile experience as one coherent, secure,
+  discoverable, accessible, performant, documented capability — integration matrix,
+  public-profile/directory/search consistency, SEO, accessibility, privacy/security
+  acceptance, query/performance measurement, cache/API/provider-preview review, Phase 2
+  end-to-end acceptance tests, and documentation closure. No new models, views, or routes.
+Reason: Final scheduled sprint of roadmap Phase 2 (IMPLEMENTATION_ROADMAP.md); closes
+  BG-021's remaining Phase 2 profile-integration scope
+Files added:
+  src/apps/public_site/tests/test_phase2_acceptance.py (5 new cross-app acceptance tests)
+Files modified:
+  src/templates/public_site/caregiver_profile.html (SEO page_url/canonical_url now the
+    profile's own URL, not the directory URL; gallery-image alt-text fallback; removed
+    redundant always-true generic verification badge — see ARCHITECTURE_DECISION_LOG
+    ADM-022 Decision 1)
+  src/templates/provider_portal/profile_gallery.html (alt-text fallback; label for=
+    association)
+  src/templates/provider_portal/profile_gallery_item_edit.html (alt-text fallback; label
+    for= association)
+  src/templates/provider_portal/availability.html (2x label for= association)
+  src/templates/provider_portal/profile_skills.html (label for= association)
+  src/apps/accounts/tests/test_caregiver_professional_profile.py (one pre-existing,
+    environment-clock-dependent test fixed to use timezone.now().date() instead of
+    datetime.date.today() — see ARCHITECTURE_DECISION_LOG ADM-022 Decision 5)
+  project docs/quality/DEFECT_AND_RISK_REGISTER.md (+KL-021)
+  project docs/quality/COMPLETION_BACKLOG.md (+BG-027)
+  project docs/* (multiple) — doc sync, see IMPLEMENTATION_JOURNAL
+Files deleted: None
+Database impact: None.
+Migration impact: None — template, test, and documentation changes only; no model/field
+  touched. makemigrations --check confirmed only pre-existing, unrelated drift.
+Security/privacy impact: No new attack surface. Public ViewModels structurally carry no
+  phone/email/address/national-identifier/document-path/document-number/reviewer-identity/
+  rejection-reason/wallet/order-customer field (confirmed by direct inspection of every
+  ViewModel dataclass in apps.public_site.services.viewmodels and
+  apps.accounts.services.public_credential_selector). Removed badge was informational-only
+  (no data exposure change). Provider "public preview" link confirmed to route to the exact
+  same public URL/selector as the real public page — no separate, divergent preview render
+  path exists to audit.
+Financial impact: None.
+Tests executed: check (0), focused new file (5/5), directly affected apps.public_site +
+  apps.provider_portal (270/270), apps.accounts (368/368, after the test-clock fix), full
+  regression 2082/2082 (exit 0, run twice: once surfacing the pre-existing flaky failure,
+  once green after the fix)
+Result: Success — Phase 2 (Caregiver Professional Profile) acceptance criteria satisfied
+  except the explicitly accepted external-domain dependency (no canonical bonus/penalty
+  representation, KL-020, unchanged); zero regressions; zero new migration
+Rollback method: git revert of the branch's commit(s); no data migration to reverse
+Status: Complete — branch phase2-caregiver-public-profile-finalization (from main @ 9a26024,
+  PR #10 merged), PR to be created, NOT merged
+```

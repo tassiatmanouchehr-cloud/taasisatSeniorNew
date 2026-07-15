@@ -21,7 +21,7 @@
     {% url 'provider_portal:profile-gallery-item-edit' item_id=item.id as edit_url %}
     {% url 'provider_portal:profile-gallery-item-remove' item_id=item.id as remove_url %}
     <div class="overflow-hidden rounded-2xl border border-border bg-surface">
-      <img src="{{ item.image_url }}" alt="{{ item.alt_text|default:item.caption }}" class="h-32 w-full object-cover">
+      <img src="{{ item.image_url }}" alt="{{ item.alt_text|default:item.caption|default:"تصویر گالری" }}" class="h-32 w-full object-cover">
       <div class="space-y-2 p-3">
         {% if item.caption %}<p class="truncate text-xs text-text">{{ item.caption }}</p>{% endif %}
         {% include "ui/components/feedback/badge.html" with label=item.is_visible|yesno:"عمومی,پنهان" variant=item.is_visible|yesno:"success,neutral" %}
@@ -62,7 +62,7 @@
       {% endif %}
       {% for field in form %}
       <div>
-        <label class="block text-sm font-bold text-text">{{ field.label }}</label>
+        <label for="{{ field.id_for_label }}" class="block text-sm font-bold text-text">{{ field.label }}</label>
         {{ field }}
         {% if field.errors %}<p class="mt-1 text-xs text-danger">{{ field.errors.0 }}</p>{% endif %}
       </div>

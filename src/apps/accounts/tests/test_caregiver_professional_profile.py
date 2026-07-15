@@ -239,7 +239,13 @@ class PublicCredentialSelectorTest(_FixtureMixin, TestCase):
         doc = self._upload(DocumentType.IDENTITY)
         VerificationReviewService.approve(document_id=doc.id, tenant_id=self.tenant.id, reviewer=self.reviewer)
         doc.refresh_from_db()
-        doc.expiry_date = datetime.date.today() - datetime.timedelta(days=1)
+        # is_effectively_expired() compares against timezone.now().date()
+        # (UTC-based) — using that same clock here, not the OS-local
+        # datetime.date.today(), avoids a real day-boundary race between
+        # the two when the OS local timezone runs ahead of UTC.
+        from django.utils import timezone
+
+        doc.expiry_date = timezone.now().date() - datetime.timedelta(days=1)
         doc.save(update_fields=["expiry_date"])
         self.assertEqual(PublicCredentialSelector.for_caregiver(self.caregiver), ())
 

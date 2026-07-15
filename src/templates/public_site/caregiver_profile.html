@@ -2,7 +2,8 @@
 {% block public_title %}{{ profile.display_name }}{% endblock %}
 
 {% block page_meta %}
-{% include "ui/components/public/seo_meta.html" with page_title=profile.display_name|add:" — سالمندیار" page_description=profile.bio|default:"پروفایل عمومی مراقب در سالمندیار" page_url="/find-a-caregiver/" %}
+{% url 'public_site:caregiver-profile' supplier_id=profile.supplier_id as profile_url %}
+{% include "ui/components/public/seo_meta.html" with page_title=profile.display_name|add:" — سالمندیار" page_description=profile.bio|default:"پروفایل عمومی مراقب در سالمندیار" page_url=profile_url canonical_url=profile_url %}
 {% endblock %}
 
 {% block content %}
@@ -32,7 +33,6 @@
     <div class="mt-6 flex flex-wrap items-center gap-3">
       {% include "ui/components/feedback/badge.html" with label=profile.availability_label variant="success" %}
       {% include "ui/components/feedback/badge.html" with label=profile.is_organization_affiliated|yesno:"وابسته به سازمان,مستقل" variant="neutral" %}
-      {% include "ui/components/feedback/badge.html" with label=profile.verification_label variant=profile.is_verified|yesno:"info,warning" %}
     </div>
 
     <div class="mt-8 grid gap-8 lg:grid-cols-3">
@@ -51,7 +51,7 @@
           <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
             {% for item in profile.gallery %}
             <figure class="overflow-hidden rounded-2xl border border-border bg-surface">
-              <img src="{{ item.image_url }}" alt="{{ item.alt_text|default:item.caption }}" loading="lazy" class="h-32 w-full object-cover sm:h-40">
+              <img src="{{ item.image_url }}" alt="{{ item.alt_text|default:item.caption|default:"تصویر گالری" }}" loading="lazy" class="h-32 w-full object-cover sm:h-40">
               {% if item.caption %}
               <figcaption class="truncate p-2 text-xs text-text-muted">{{ item.caption }}</figcaption>
               {% endif %}

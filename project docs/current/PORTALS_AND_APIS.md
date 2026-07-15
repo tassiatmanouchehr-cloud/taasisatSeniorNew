@@ -1,6 +1,6 @@
 # PORTALS, APIS, AND ENTRY POINTS
 
-**Last verified HEAD:** phase2-caregiver-professional-dashboard (from main @ 125dd3b, PR #9 merged)
+**Last verified HEAD:** phase2-caregiver-public-profile-finalization (from main @ 9a26024, PR #10 merged)
 **Last verified date:** 2026-07-15
 
 ---
@@ -52,7 +52,7 @@ Entry: `require_admin_permission()` → `require_authenticated()` → RBAC check
 | `/api/v1/health/` | GET | Health check |
 | `/api/v1/sample/order-counts/` | GET | Sample order counts |
 | `/api/v1/sample/providers/` | GET | Sample provider reports |
-| `/api/v1/discovery/suppliers/` | GET | Supplier discovery (permission-gated `DISCOVERY_SUPPLIERS_READ`, granted to no role in `DEFAULT_TENANT_ROLES` — internal/operator tooling, not a public/anonymous surface; confirmed out of scope for the BG-022 public-visibility remediation, see `traceability/IMPLEMENTATION_JOURNAL.md`) |
+| `/api/v1/discovery/suppliers/` | GET | Supplier discovery (permission-gated `DISCOVERY_SUPPLIERS_READ`, granted to no role in `DEFAULT_TENANT_ROLES` — internal/operator tooling, not a public/anonymous surface; confirmed out of scope for the BG-022 public-visibility remediation, see `traceability/IMPLEMENTATION_JOURNAL.md`; re-confirmed Sprint 2.6 Section I — calls `apps.discovery.services.DiscoveryService.search()` directly, unrelated to the public `CaregiverPublicProfileService`; no new public caregiver-profile API created, existing public HTML surfaces already serve that need, see `ARCHITECTURE_DECISION_LOG.md` ADM-022 Decision 3) |
 | `/api/v1/pricing/quotes/` | POST | Quote creation |
 | `/api/v1/reviews/` | POST | Review submission |
 | `/api/v1/suppliers/<id>/reputation/` | GET | Supplier reputation |
@@ -64,7 +64,16 @@ Entry: `require_admin_permission()` → `require_authenticated()` → RBAC check
 
 ## Public Site (18 views)
 
-Home, about, services, how-it-work, contact, pricing, trust-safety, caregivers, organizations, find-a-caregiver, caregiver profile (now includes a Sprint 2.4 privacy-safe weekly-availability summary — day labels only, never exact times), organization profile, FAQ, privacy, terms, accessibility, support, service-areas.
+Home, about, services, how-it-work, contact, pricing, trust-safety, caregivers, organizations, find-a-caregiver, caregiver profile (now includes a Sprint 2.4 privacy-safe weekly-availability summary — day labels only, never exact times; Sprint 2.6 — SEO `page_url`/`canonical_url` now the profile's own URL, gallery alt-text fallback, redundant generic verification badge removed), organization profile, FAQ, privacy, terms, accessibility, support, service-areas.
+
+Sprint 2.6 (Public Profile Finalization): the caregiver profile page (`caregiver-profile`),
+directory (`find-a-caregiver`), and home page were all re-verified — not changed — to
+confirm they compose skills/experience/gallery/credentials/availability/reviews/highlights
+consistently and resolve through the one canonical visibility policy
+(`common.is_publicly_visible_attrs()`, workflow #25). `organization_profile.html` was found
+to carry the identical SEO `page_url` bug the caregiver page had — deliberately left
+unfixed, out of this sprint's caregiver-only scope (`quality/DEFECT_AND_RISK_REGISTER.md`
+KL-021 / `quality/COMPLETION_BACKLOG.md` BG-027).
 
 ## Presentation Services
 
