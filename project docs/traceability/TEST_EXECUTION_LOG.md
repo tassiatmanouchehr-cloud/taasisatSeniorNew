@@ -303,3 +303,35 @@ Date/time: 2026-07-15
 | **Full regression** | **0** | **Ran 1721 tests — OK** (1680 baseline + 41 new) |
 
 **Classification:** GREEN — all 41 new tests pass, zero regressions in 1680 pre-existing tests, migration drift unchanged from pre-task baseline.
+
+---
+
+## Run 011 — Phase 1.2 Verification Completion and Activation Rules
+
+```
+Branch: phase1-verification-activation-rules (from main @ 278098b)
+Settings module: config.settings.testing
+Python: 3.11.15  |  Django: 5.2.16  |  PostgreSQL: 16.13
+Date/time: 2026-07-15
+```
+
+| Command | Exit code | Result |
+|---------|-----------|--------|
+| `python manage.py check` | 0 | System check identified no issues |
+| `python manage.py makemigrations --check --dry-run` | 1 | Pre-existing cosmetic drift only (accounts/kernel field alters, unchanged from before this task) |
+| `apps.accounts.tests.test_verification_policy` | 0 | 13/13 |
+| `apps.accounts.tests.test_verification_rollup` | 0 | 13/13 (incl. `RollupConcurrencyTest`, `TransactionTestCase`) |
+| `apps.accounts.tests.test_document_resubmission` | 0 | 10/10 (incl. `ResubmissionConcurrencyTest`, `TransactionTestCase`) |
+| `apps.accounts.tests.test_activation_eligibility` | 0 | 11/11 |
+| `apps.accounts.tests.test_verification_review` (existing, Phase 1.1) | 0 | 25/25 — no regression from roll-up sync wiring |
+| `apps.accounts` (full app suite — Level 2) | 0 | 252/252 (205 baseline + 47 new) |
+| `apps.provider_portal apps.organization_portal` (Level 2 — resubmit() call-site change) | 0 | 102/102 |
+| **Full regression (Level 3 — transaction/concurrency behavior changed + shared-service, multi-app workflow)** | **0** | **Ran 1768 tests — OK** (1721 baseline + 47 new) |
+
+**Test level used:** Level 3 (full regression), justified by: `resubmit()`/`sync_*()`
+introduce new `select_for_update()` locking (concurrency behavior change); the workflow
+change spans `accounts` + `provider_portal` + `organization_portal` (3 apps) through one
+shared-service change (`DocumentService`, `VerificationReviewService`).
+
+**Classification:** GREEN — all 47 new tests pass, zero regressions in 1721 pre-existing
+tests, migration drift unchanged from pre-task baseline (no new migration).

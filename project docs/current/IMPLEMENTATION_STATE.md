@@ -1,6 +1,6 @@
 # CURRENT IMPLEMENTATION STATE
 
-**Last verified HEAD:** phase1-registration-manual-verification (from main @ 55b1cb0)
+**Last verified HEAD:** phase1-verification-activation-rules (from main @ 278098b)
 **Last verified date:** 2026-07-15
 
 ---
@@ -10,7 +10,7 @@
 | App | Models | Services | Views | Tests | Status |
 |-----|--------|----------|-------|-------|--------|
 | **kernel** | 14 (Tenant, Person, UserAccount, Role, Permission, RoleAssignment, EventOutbox, AuditLog, ConfigurationKey, ConfigurationValue, FeatureFlag, PolicyDefinition, PolicyVersion, ServiceSupplier) | 11 | API: 1 | 232 | COMPLETE |
-| **accounts** | 10 (OTPChallenge, CustomerProfile, ElderProfile, TrustedContact, CaregiverProfile, OrganizationProfile, OrganizationMembership, CompanyAffiliationRequest, PlatformTeamMember, VerificationDocument) | 17 (+VerificationReviewService, Phase 1.1) | 9 | 205 (+25 Phase 1.1) | COMPLETE (manual document verification added, Phase 1.1) |
+| **accounts** | 10 (OTPChallenge, CustomerProfile, ElderProfile, TrustedContact, CaregiverProfile, OrganizationProfile, OrganizationMembership, CompanyAffiliationRequest, PlatformTeamMember, VerificationDocument) | 22 (+VerificationReviewService, RequiredDocumentPolicy, ProfileVerificationRollupService, ActivationEligibilityService, document_ownership helpers — Phase 1.1/1.2) | 9 | 252 (+25 Phase 1.1, +47 Phase 1.2) | COMPLETE (manual document verification + roll-up/activation rules added) |
 | **orders** | 7 (ServiceCategory, ServiceType, Order, OrderStatusHistory, OrderShareLink, OrderOffer, OrderOrganizationEligibility) | 7 | 0 | 167 (incl. 40 OrderOffer + 8 BG-002) | COMPLETE (Offer Phase 1 committed in ce3b30e; BG-002 fix merged in eb51018) |
 | **booking** | 1 (SupplierAssignment) | 5 | 0 | 67 | COMPLETE |
 | **execution** | 1 (ExecutionSession) | 3 | 0 | 58 | COMPLETE |
@@ -58,7 +58,7 @@ profiles, and portal completion phases.
 | Total concrete models | ~70 |
 | Total migrations | ~45 |
 | Total test files | 196 |
-| Total test methods | 1,721 (full regression 1721/1721 green on phase1-registration-manual-verification) |
+| Total test methods | 1,768 (full regression 1768/1768 green on phase1-verification-activation-rules) |
 | Total admin registrations | 20 |
 | Total management commands | 15 |
 | Total URL patterns | ~150 |

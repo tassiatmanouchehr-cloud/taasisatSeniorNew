@@ -451,3 +451,50 @@ Rollback method: git revert of the branch's commits; migration 0005 reverses cle
   need manual reclassification only if any existed at rollback time
 Status: Complete — branch phase1-registration-manual-verification, PR to be created, NOT merged
 ```
+
+## Entry 020
+
+```
+Change ID: CL-020
+Date/time: 2026-07-15 (Phase 1.2 — Verification Completion and Activation Rules)
+Task: Implement required-document policy, profile verification roll-up, correction/
+      resubmission lifecycle, and read-only activation eligibility
+Reason: Closes the two items Phase 1.1 explicitly deferred (BG-016 remains deferred;
+        BG-017 required-document policy + roll-up now implemented) per the roadmap's
+        Phase 1 acceptance criterion 3
+Files added:
+  src/apps/accounts/services/document_ownership.py
+  src/apps/accounts/services/verification_policy.py
+  src/apps/accounts/services/verification_rollup_service.py
+  src/apps/accounts/services/activation_eligibility_service.py
+  src/apps/accounts/tests/test_verification_policy.py
+  src/apps/accounts/tests/test_verification_rollup.py
+  src/apps/accounts/tests/test_document_resubmission.py
+  src/apps/accounts/tests/test_activation_eligibility.py
+Files modified:
+  src/apps/accounts/services/document_service.py (resubmit() added; class/module docstrings updated)
+  src/apps/accounts/services/profiles.py (calculate_organization_profile_completion() added)
+  src/apps/accounts/services/verification_review_service.py (delegates tenant/owner
+    resolution to document_ownership.py; calls ProfileVerificationRollupService.sync_*
+    at the end of _apply_review, same transaction)
+  src/apps/provider_portal/views.py (document_manage_view calls DocumentService.resubmit()
+    instead of replace_document() directly)
+  src/apps/organization_portal/views.py (same)
+Files deleted: None
+Database impact: None
+Migration impact: None — pure service-layer addition; verified via makemigrations --check
+  showing identical pre-existing drift only (no new accounts/kernel entries)
+Security impact: No new permission key (resubmission is an ownership check, mirrors
+  get_owned_document()'s existing shape, not RBAC-gated); cross-tenant/cross-owner
+  resubmission denied via shared document_ownership helpers; VERIFIED documents can no
+  longer be silently replaced by their owner (see ARCHITECTURE_DECISION_LOG ADM-015)
+Financial impact: None
+Tests executed: check (0), makemigrations --check (1, pre-existing unrelated drift only),
+  47 new tests across 4 files (all 0), existing test_verification_review.py 25/25 (no
+  regression from rollup-sync wiring), accounts suite 252/252, provider_portal +
+  organization_portal suite 102/102, full regression 1768/1768 (exit 0)
+Result: Success — required-document policy, profile roll-up, resubmission lifecycle, and
+  activation eligibility all implemented; zero regressions; zero migrations
+Rollback method: git revert of the branch's commit(s); no data migration to reverse
+Status: Complete — branch phase1-verification-activation-rules, PR to be created, NOT merged
+```

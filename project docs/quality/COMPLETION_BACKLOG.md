@@ -1,6 +1,6 @@
 # CURRENT GAPS AND COMPLETION BACKLOG
 
-**Last verified HEAD:** phase1-registration-manual-verification (from main @ 55b1cb0)
+**Last verified HEAD:** phase1-verification-activation-rules (from main @ 278098b)
 **Last verified date:** 2026-07-15
 
 ---
@@ -36,10 +36,11 @@ row-locked, tenant-scoped, self-review refused, idempotent same-outcome
 no-op, audited via `AuditLog`), `accounts.document.review` permission,
 `DocumentStatus.CORRECTION_REQUIRED`, admin_portal review queue/detail/
 file/review views, owner-facing reason display. 41 tests (25 service +
-16 view). Branch `phase1-registration-manual-verification`, PR pending merge.
+16 view). **MERGED to main** via PR #3, merge commit `278098b` (2026-07-15),
+full regression 1721/1721 green at merge.
 See traceability/IMPLEMENTATION_JOURNAL.md and ARCHITECTURE_DECISION_LOG ADM-014.
 **Not included:** customer document verification (see BG-016), profile
-verification_status roll-up (see BG-017).
+verification_status roll-up (see BG-017 — now COMPLETE, see below).
 
 ---
 
@@ -61,20 +62,43 @@ owner CHECK constraint (a real architectural change, not a bug fix).
 **Risk:** Low-medium — additive to an existing, deliberately-designed constraint
 **Not in scope:** Profile roll-up (BG-017)
 
-### BG-017: Profile Verification Status Roll-Up
+### BG-017: Profile Verification Status Roll-Up — **COMPLETE**
 
-**Current evidence:** No required-document-type policy exists anywhere in the
-repository (confirmed by repository-wide search during Phase 1.1). `CaregiverProfile
-.verification_status`/`OrganizationProfile.verification_status` are never
-transitioned by document review outcomes.
-**Why needed:** Document-level review (BG-015) is complete but has no downstream
-effect on the profile-level verification summary fields the rest of the
-platform (public profiles, portal presentation services) already reads.
-**Dependencies:** BG-015 (done); an explicit required-document-type policy decision.
+**Resolution (2026-07-15, Phase 1.2):** `RequiredDocumentPolicy` (Part A —
+the previously-missing policy: caregiver = IDENTITY + BACKGROUND_CHECK
+required, organization = REGISTRATION + OPERATING_LICENSE required,
+tenant-overridable via `ConfigResolver`, no migration) +
+`ProfileVerificationRollupService` (Part B — derives the existing 4-value
+`VerificationStatus` enum from required-document state; wired into
+`VerificationReviewService`/`DocumentService.resubmit()`, never a view/
+signal). Also delivered in the same slice: `DocumentService.resubmit()`
+(Part C — owner-authorized correction/resubmission, blocks silent
+replacement of a VERIFIED document) and `ActivationEligibilityService`
+(Part D — read-only, structured eligibility for caregiver/organization).
+47 new tests, zero new migrations. Branch
+`phase1-verification-activation-rules`, PR pending merge. See
+traceability/IMPLEMENTATION_JOURNAL.md and ARCHITECTURE_DECISION_LOG ADM-015.
+**Not included:** wiring `ActivationEligibilityService` into an actual
+activation/publishing action (currently read-only — see BG-018);
+`profile_completion_percent` auto-recompute on every mutation (see BG-018).
+
+### BG-018: Activation Wiring and Profile Completion Auto-Recompute
+
+**Current evidence:** `ActivationEligibilityService.evaluate()` (BG-017) is
+a pure read-only query; nothing calls it to actually activate/publish a
+profile. `calculate_caregiver_profile_completion()`/
+`calculate_organization_profile_completion()` exist and are read by
+`ActivationEligibilityService`, but `profile_completion_percent` is not
+automatically recomputed/persisted on every profile mutation.
+**Why needed:** Roadmap Phase 1's acceptance criterion 5 ("Profile
+completion percent recomputed on every profile mutation") remains open;
+`ActivationEligibilityService` has no consumer yet.
+**Dependencies:** BG-017 (done)
 **Affected modules:** accounts
-**Suggested implementation size:** Small once the policy is defined
+**Suggested implementation size:** Small-medium
 **Risk:** Low
-**Not in scope:** Public profile rendering of credential types
+**Not in scope:** Marketplace visibility wiring (`is_publicly_visible()` is
+a separate, existing, unrelated concern — see `traceability/IMPLEMENTATION_JOURNAL.md`)
 
 ### BG-003: OrderOfferService (Phase 2)
 

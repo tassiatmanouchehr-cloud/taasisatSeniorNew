@@ -1,6 +1,6 @@
 # PERMISSION AND TENANT MODEL
 
-**Last verified HEAD:** phase1-registration-manual-verification (from main @ 55b1cb0)
+**Last verified HEAD:** phase1-verification-activation-rules (from main @ 278098b)
 **Last verified date:** 2026-07-15
 
 ---
@@ -45,6 +45,10 @@ All permission keys are defined in `apps/kernel/permissions/registry.py` with re
 `accounts.document.review` (platform-scoped) guards `VerificationReviewService.approve()/reject()/request_correction()` and the 4 admin_portal document-verification views. Granted to `platform_owner`, `platform_admin`, `platform_support` in `apps/kernel/role_catalog.py:DEFAULT_TENANT_ROLES` — the same additive per-role-tuple pattern as `ORGANIZATION_PROFILE_UPDATE`. Note: `platform_owner`/`platform_admin`/`platform_support` in the real ("salmandyar") tenant previously carried **no permissions at all** in `DEFAULT_TENANT_ROLES` (only the separate `DEV_BOOTSTRAP_ROLES` catalog, used by `seed_tenant` for a dev-bootstrap tenant, granted `ADMIN_PORTAL_ACCESS` to a differently-slugged "platform-owner" role) — this is the first permission grant added to the real-tenant platform roles since Epic 05's `platform_accounting` addition.
 
 Self-review is refused as defense-in-depth inside `VerificationReviewService` itself (reviewer's `UserAccount.id` compared against the document owner's), independent of whatever RBAC grants exist — mirrors the FR-003 "ownership_authorized_by trusts the caller" finding by not repeating that pattern here (this is a normal RBAC actor check, no ownership fallback).
+
+### Owner Resubmission Authorization (Phase 1.2)
+
+`DocumentService.resubmit(document, *, actor, file)` — no new permission key (resubmission is an ownership check, not an RBAC-gated action, matching `get_owned_document()`'s existing shape). Refuses unless `actor.id` equals the document's owner user (`caregiver.user_id`/`organization.admin_user_id`, resolved via the shared `apps.accounts.services.document_ownership` helpers also used by `VerificationReviewService`) — cross-tenant and cross-owner resubmission attempts get the same `AccountsError`, and a platform reviewer cannot resubmit on an owner's behalf. Refuses to touch an already-`VERIFIED` document regardless of who calls it. Row-locked (`select_for_update()`) so concurrent resubmission attempts on the same document serialize rather than racing.
 
 ### Critical Finding: No Middleware Enforcement
 

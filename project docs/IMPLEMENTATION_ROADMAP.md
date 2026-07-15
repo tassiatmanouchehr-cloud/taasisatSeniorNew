@@ -3,7 +3,8 @@
 **Created:** 2026-07-14
 **Verified against HEAD:** ce3b30e0f3c06d7b058587f3e75c357bfe588415 ("Repository documentation reorganization")
 **Post-merge update:** 2026-07-14 — PR #1 merged to main (`eb51018`): documentation sync + BG-002 fix are on main; P0 hygiene complete; **Phase 1 is the active phase**
-**Phase 1.1 update:** 2026-07-15 — manual document verification workflow implemented on branch `phase1-registration-manual-verification` (from main @ `55b1cb0`); full regression 1721/1721 green; PR not yet merged
+**Phase 1.1 update:** 2026-07-15 — manual document verification workflow merged to main via PR #3 (merge commit `278098b`); full regression 1721/1721 green at merge
+**Phase 1.2 update:** 2026-07-15 — verification completion and activation rules implemented on branch `phase1-verification-activation-rules` (from main @ `278098b`); no migration; PR not yet merged
 **Branch verified:** main (via claude/taasisat-senior-state-verify-9dzzlm)
 **Authority:** This roadmap replaces every previous implementation order (including
 `project docs/03_NEXT_TASK.md` sequencing and the archived Offer Marketplace phase plans).
@@ -79,13 +80,20 @@ Pre-phase (P0 hygiene, small): ~~fix seed test race (G12)~~ — **DONE, merged i
   4. Verification strategy interface exists with `ManualVerification` as the only registered implementation; AI slot documented, not implemented.
   5. Profile completion percent recomputed on every profile mutation.
 
-**Phase 1.1 (2026-07-15, branch `phase1-registration-manual-verification`) — PARTIALLY COMPLETE:**
+**Phase 1.1 (2026-07-15, MERGED via PR #3) — PARTIALLY COMPLETE:**
 - ✅ Criterion 1 (all three registration flows verified, 8/8 pre-existing tests re-run green — no defect found).
 - ✅ Criterion 2 (`VerificationReviewService` + admin_portal queue/detail/file/review views — caregiver and organization documents only; see scope decision below).
 - ✅ Criterion 4 (`DocumentVerificationEvaluator` Protocol added, no implementation).
-- ⏳ Criterion 3 (profile `verification_status` roll-up) — **deferred**: no required-document-type policy exists anywhere in the repository to derive it from (verified by repository-wide search); implementing it now would be guessing, which the task governing this slice explicitly forbade. Next slice.
-- ⏳ Criterion 5 (profile completion recompute) — untouched, out of this slice's scope.
+- ✅ Criterion 3 (profile `verification_status` roll-up) — **now complete, see Phase 1.2 below**.
+- ⏳ Criterion 5 (profile completion recompute) — untouched, out of scope.
 - **Scope note:** `VerificationDocument` has no customer-owner FK and `CustomerProfile` has no `verification_status` field anywhere in the repository — customer document verification does not exist as a domain concept yet. This slice covers caregiver + organization documents only (the supply-side "identity verification"/"professional license" concerns the roadmap phase actually names). Adding a customer owner is new domain-model work, not a defect in this slice.
+
+**Phase 1.2 (2026-07-15, branch `phase1-verification-activation-rules`) — verification completion and activation rules:**
+- `RequiredDocumentPolicy` — the required-document policy Phase 1.1 explicitly deferred (Criterion 3's prerequisite). Smallest defensible mandatory set: caregiver = IDENTITY + BACKGROUND_CHECK; organization = REGISTRATION + OPERATING_LICENSE. Tenant-overridable via the existing `ConfigResolver` (no new configuration mechanism, no migration). Customer document verification remains out of scope (no domain-model support — see BG-016); phone/OTP verification is the current-phase mechanism for customers.
+- `ProfileVerificationRollupService` — completes Criterion 3. Reuses the existing 4-value `VerificationStatus` enum as-is; `needs_correction` is a separate flag on the result, not a 5th enum value. Wired into `VerificationReviewService` and `DocumentService.resubmit()`, not left to a view/signal.
+- `DocumentService.resubmit()` — owner-authorized correction/resubmission lifecycle; hardens the pre-existing `replace_document()` primitive so an already-VERIFIED document can no longer be silently reset by its owner.
+- `ActivationEligibilityService.evaluate(profile)` — read-only, structured eligibility for caregiver/organization (base profile complete + documents verified + no blocking state + active account). No auto-activation/publishing wired — nothing in the existing workflow clearly requires it yet.
+- 47 new tests, zero new migrations. Criterion 5 (profile completion percent auto-recompute on every mutation) and wiring `ActivationEligibilityService` into an actual activation action remain open — see `03_NEXT_TASK.md`.
 
 ### PHASE 2 — Caregiver Profile (production complete)
 
