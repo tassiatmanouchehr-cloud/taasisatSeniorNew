@@ -938,3 +938,101 @@ derived value). One shared UI component (`verification_badge.html`, also used by
 `organization_portal`) gained one new, purely additive status branch — verified not to
 affect any existing status rendering, and `apps.organization_portal`'s own test suite
 (51/51) re-run to confirm. 36 new tests, full regression 1984/1984 green.
+
+---
+
+## ADM-020: Caregiver Availability and Working Schedule (Sprint 2.4)
+
+Decision ID: ADM-020
+Date: 2026-07-15
+Status: RESOLVED_IN_IMPLEMENTATION
+
+**Context:** Sprint 2.4's governance asked for a caregiver-facing weekly schedule, time-off
+management, one canonical read-only availability evaluator, a public availability summary,
+and a provider-portal preview of that summary — explicitly warning "do not create a
+duplicate scheduling source of truth." Current-state inspection found `apps.availability`
+(Module 10 foundation, predating this sprint) already owns the entire domain:
+`ProviderWorkingWindow` (weekly recurring intervals), `AvailabilityBlockedPeriod` (time-off/
+exceptions), `AvailabilityQueryService`/`AvailabilityMutationService`, and a working
+`apps.provider_portal` add/remove UI — all keyed on `kernel.ServiceSupplier`, never
+`CaregiverProfile`. This sprint's task was substantially completion, not creation.
+
+**Decision 1 — The canonical evaluator stays supplier-keyed; no new caregiver-keyed
+service.** The governance's suggested shape was
+`CaregiverAvailabilityService.evaluate(caregiver, start_at, end_at)`. That shape is not
+adopted literally: `apps.availability` sits below `apps.accounts` in this repository's own
+dependency graph (`kernel -> accounts -> orders -> ... -> availability`), and its own module
+docstring already commits to never importing `CaregiverProfile`/`OrganizationProfile`
+directly (mirroring the same `ServiceSupplierProfileCouplingTest` guardrail
+`apps.public_site`/`apps.provider_portal` already respect). A caregiver-shaped entry point
+living *inside* `apps.availability` would invert that dependency; one living in
+`apps.accounts` would create a new upstream->downstream edge in the wrong direction, since
+`apps.accounts` must not import `apps.availability`. Instead, `AvailabilityQueryService
+.evaluate(*, supplier, start, end) -> AvailabilityEvaluation` is the one canonical,
+structured evaluator (`is_supplier_available()` is now a thin bool-only wrapper around it —
+zero behavior change, all 20 pre-existing tests pass unmodified). `apps.provider_portal` and
+`apps.public_site` — both already resolving their own `ServiceSupplier` before needing an
+evaluation — call it directly. No caregiver-keyed duplicate was created.
+
+**Decision 2 — The evaluator never inspects booking/execution state.** Section E's item 6
+("existing confirmed bookings or execution sessions, only if a canonical conflict selector
+already exists and can be reused without expanding scope") was evaluated and declined:
+`apps.booking.services.assignment_service` already calls
+`AvailabilityQueryService.is_supplier_available()` as one input among several before
+confirming an assignment — booking is a *consumer* of this evaluator, not a peer selector to
+merge into it. Folding booking-conflict awareness into the evaluator itself would invert that
+relationship and risk circular coupling (`apps.availability` sits below `apps.booking`).
+Recorded as explicitly out of scope, not a gap.
+
+**Decision 3 — Weekly intervals refuse overlap/duplicates; blocked periods do not.**
+`AvailabilityMutationService.add_working_window()`/`update_working_window()` now refuse a
+duplicate or overlapping *active* window on the same day for the same supplier (Section C).
+Blocked periods deliberately keep their pre-existing, already-tested behavior of allowing
+overlaps — `apps.availability.tests.test_query_service.AvailabilityQueryServiceTest
+.test_overlapping_blocked_periods_both_apply` already proved this is harmless, established
+repository behavior (redundant unavailability, not a conflict) before this sprint began;
+adding refusal here would be an undocumented behavior change to a passing, intentional test,
+not a bug fix.
+
+**Decision 4 — Public schedule presentation is summarized, never exact.** The public profile
+shows only which weekdays have at least one active working window
+(`AvailabilityScheduleSummaryViewModel.available_day_labels`, Persian day names) — never
+start/end times, and never anything about `AvailabilityBlockedPeriod` (reason, notes, or even
+existence). This satisfies Section F's "expose a summarized form" guidance directly: exact
+hours are a scheduling-coordination detail, not a public marketing fact, and blocked-period
+data is explicitly private (leave reason, sick notes) with no public use case. Proven by
+`apps.public_site.tests.test_professional_profile_public.PublicScheduleSummaryTest
+.test_summary_never_exposes_exact_times`/`test_summary_never_exposes_blocked_period_details`.
+
+**Decision 5 — Time zone stays platform-wide; no per-caregiver field.** No per-tenant or
+per-caregiver time-zone field exists anywhere in this repository (confirmed by inspection).
+`AvailabilityQueryService` already resolved all times via Django's default
+`timezone.localtime()`/`settings.TIME_ZONE` (`Asia/Tehran`) before this sprint;
+`evaluate()`'s new `timezone` field reports `timezone.get_current_timezone_name()` — the same
+single, deterministic source, now surfaced in the structured result rather than left
+implicit. Per Section J's explicit fallback instruction, this is documented as a known
+limitation, not fixed: every caregiver on the platform is scheduled in the same platform
+time zone regardless of their own physical location. A genuine per-caregiver time zone would
+require a new `CaregiverProfile` field and is deferred (`quality/COMPLETION_BACKLOG.md`
+BG-024), not invented here without evidence of demand.
+
+**Decision 6 — Ownership stays view-layer resolve-then-mutate; no service-layer signature
+change.** `apps.availability`'s pre-existing convention (already proven secure by
+`test_cannot_remove_another_providers_window`) resolves a row via
+`get_working_window_for_supplier()`/`get_blocked_period_for_supplier()` at the call site,
+then mutates by verified id — not a `supplier=` filter parameter inside the mutation methods
+themselves (the pattern `apps.accounts`'s Sprint 2.1/2.3 services use instead). This sprint's
+new `working_window_update_view`/`working_window_toggle_view` reuse the exact same
+existing pattern rather than introducing a second, parallel ownership mechanism inside one
+app.
+
+**Consequences:** Zero new models, zero new migrations — both `ProviderWorkingWindow` and
+`AvailabilityBlockedPeriod` already existed with every field this sprint needed.
+`apps.public_site` gains one new, documented cross-app edge to `apps.availability` (a valid
+direction: both sit at the terminal-UI layer alongside `apps.provider_portal`, which already
+had this edge). One shared translation table, `apps.availability.models.PERSIAN_DAY_LABELS`,
+added next to `DayOfWeek` so both consuming apps share one label source instead of two. Public
+profile query count moved 14 -> 15 (one new fixed-cost query,
+`get_distinct_active_days()`), proven O(1) by the pre-existing gallery-item-count scaling
+test. Provider-portal availability page query count newly locked at 9 (no prior baseline
+existed). Full regression run once before PR creation.

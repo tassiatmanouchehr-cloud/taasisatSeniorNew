@@ -39,10 +39,23 @@ credential verified") — never one generic "Verified" badge conflating
 unrelated claims. Self-declared experience is never labeled as platform-
 verified — that distinction is made explicit in the template, not derived
 here (there is no experience-verification record to derive it from).
+
+Sprint 2.4 (Caregiver Availability and Working Schedule): `_schedule_summary()`
+adds exactly one bounded query
+(`AvailabilityQueryService.get_distinct_active_days()`), run only after the
+same canonical visibility gate above has already passed — a
+DRAFT/suspended/unverified/inactive-account caregiver's schedule is never
+even queried. The summary is deliberately day-labels-only: no exact
+start/end time, no blocked-period/time-off entry, and no reason ever
+reaches this page — apps.availability.models.AvailabilityBlockedPeriod
+rows (and their `reason`/`notes`) are never read here at all. See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-020 Decision 4.
 """
 
 from apps.accounts.services.public_credential_selector import PublicCredentialSelector
 from apps.accounts.services.supplier_bridge import resolve_supplier_entity
+from apps.availability.models import PERSIAN_DAY_LABELS
+from apps.availability.services.query_service import AvailabilityQueryService
 from apps.kernel.models.supplier import ServiceSupplier, SupplierStatus
 from apps.kernel.services.tenant_service import TenantService
 from apps.orders.services.queries import CatalogQueryService
@@ -51,6 +64,7 @@ from apps.reviews.models import Review, ReviewModerationStatus
 from . import common
 from .directory_service import CAREGIVER_SUPPLIER_TYPES
 from .viewmodels import (
+    AvailabilityScheduleSummaryViewModel,
     CaregiverProfileViewModel,
     ProfessionalHighlightsViewModel,
     PublicCredentialViewModel,
@@ -128,6 +142,7 @@ class CaregiverPublicProfileService:
                 review_count=rating.review_count,
             ),
             verification_badges=cls._verification_badges(attrs, credentials),
+            schedule_summary=cls._schedule_summary(supplier),
         )
 
     # ------------------------------------------------------------------
@@ -227,6 +242,18 @@ class CaregiverPublicProfileService:
         if credentials:
             badges.append(VerificationBadgeViewModel(label="مدرک حرفه‌ای تأییدشده", variant="success"))
         return tuple(badges)
+
+    @staticmethod
+    def _schedule_summary(supplier) -> AvailabilityScheduleSummaryViewModel:
+        """Sprint 2.4. Day labels only — never exact start/end times, never
+        a blocked-period/time-off entry or its reason. Only ever called
+        after get_profile()'s own common.is_publicly_visible(supplier) gate
+        has already passed."""
+        days = AvailabilityQueryService.get_distinct_active_days(supplier=supplier)
+        return AvailabilityScheduleSummaryViewModel(
+            has_schedule=bool(days),
+            available_day_labels=tuple(PERSIAN_DAY_LABELS[day] for day in days),
+        )
 
     @classmethod
     def _reviews(cls, supplier, *, tenant_id) -> tuple[ReviewViewModel, ...]:

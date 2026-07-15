@@ -1,6 +1,6 @@
 # DATA OWNERSHIP AND RELATIONSHIPS
 
-**Last verified HEAD:** phase2-caregiver-credentials-skills-experience-ui (from main @ f7b7b2b, PR #7 merged)
+**Last verified HEAD:** phase2-caregiver-availability-schedule (from main @ 20c532e, PR #8 merged)
 **Last verified date:** 2026-07-15
 
 ---
@@ -106,6 +106,36 @@ columns existed since Phase 2.1 but had no owner-facing mutation path until this
 `CaregiverSkillService.toggle_visibility()` and `CaregiverExperienceService.create()`/
 `update()`'s new `is_visible` parameter close that gap. No schema change — the same
 columns, now actually reachable.
+
+### ServiceSupplier → Availability Entities (Module 10 foundation; completed Sprint 2.4)
+
+```
+ServiceSupplier
+├── working_windows → availability.ProviderWorkingWindow (CASCADE, reverse FK, related_name="working_windows")
+├── blocked_periods → availability.AvailabilityBlockedPeriod (CASCADE, reverse FK, related_name="blocked_periods")
+└── capacity_rule → availability.CapacityRule (CASCADE, reverse OneToOne, related_name="capacity_rule")
+
+ProviderWorkingWindow (Module 10 foundation; overlap/duplicate refusal added Sprint 2.4)
+├── supplier → kernel.ServiceSupplier (CASCADE)
+└── INDEX(tenant, supplier, day_of_week) — no DB-level uniqueness constraint; overlap/
+    duplicate prevention is enforced at the service layer
+    (AvailabilityMutationService._validate_no_overlap()), not the database, matching this
+    repository's existing convention for CaregiverGalleryItem's own ordering invariant
+
+AvailabilityBlockedPeriod (Module 10 foundation; unchanged by Sprint 2.4)
+├── supplier → kernel.ServiceSupplier (CASCADE)
+└── INDEX(tenant, supplier, start_at, end_at) — overlapping blocked periods are
+    deliberately allowed to coexist (harmless, pre-existing, tested behavior — see
+    traceability/ARCHITECTURE_DECISION_LOG.md ADM-020 Decision 3)
+```
+
+Neither model is keyed on `CaregiverProfile`/`OrganizationProfile` directly — both key on
+the generic `kernel.ServiceSupplier`, the same universal supply-side abstraction every other
+availability/booking/matching concept already uses. This is the canonical, single source of
+truth for a caregiver's schedule; `apps.provider_portal`/`apps.public_site` both resolve
+their own `ServiceSupplier` and read through it rather than maintaining any schedule data of
+their own (see `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-020 for the full ownership
+decision). No new migration — both models and every field this sprint needed already existed.
 
 ## Unique Constraints (Significant)
 

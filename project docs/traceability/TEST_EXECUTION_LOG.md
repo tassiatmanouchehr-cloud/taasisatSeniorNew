@@ -596,3 +596,39 @@ queries the owner-side highlights preview needs — proven fixed-cost, not per-i
 unchanged test structure; the public profile page's own query count stayed at 14,
 confirming the public highlights/badges add zero new queries as designed), migration
 drift unchanged from pre-task baseline (no new migration).
+
+## Run 019 — Sprint 2.4: Caregiver Availability and Working Schedule
+
+```
+Branch: phase2-caregiver-availability-schedule (from main @ 20c532e, PR #8 merged)
+Settings module: config.settings.testing
+Python: 3.11.15  |  Django: 5.2.16  |  PostgreSQL: 16.13
+Date/time: 2026-07-15
+```
+
+| Command | Exit code | Result |
+|---------|-----------|--------|
+| `python manage.py check` | 0 | System check identified no issues |
+| `apps.availability.tests` (mutation + query service, full app suite) | 0 | 56/56 |
+| `apps.provider_portal.tests.test_availability_views` | 0 | 21/21 |
+| `apps.public_site.tests.test_professional_profile_public` (schedule summary class) | 0 | 6/6 |
+| `apps.availability apps.provider_portal apps.public_site` (Level 2 — directly affected) | 0 | 297/297 |
+| `apps.booking` (proactive extra check — existing is_supplier_available() consumer) | 0 | 67/67 |
+| `python manage.py makemigrations --check --dry-run` | 1 | Pre-existing cosmetic drift only (kernel.ServiceSupplier/UserAccount fields); confirmed identical on merged main before this sprint's changes via git stash comparison; no availability-app drift |
+| **Full regression (Level 3 — new cross-app edge apps.public_site -> apps.availability, public/private boundary change via schedule summary, multiple apps affected)** | **0** | **Ran 2024 tests — OK** (1984 baseline + 40 new) |
+
+**Test level used:** Level 3 (full regression), run exactly once before creating the
+Sprint 2.4 PR, justified by: a new documented cross-app dependency edge
+(`apps.public_site` -> `apps.availability`), a public/private presentation boundary change
+(the new schedule summary section), and three apps affected directly
+(`apps.availability`, `apps.provider_portal`, `apps.public_site`) plus one proactive
+consumer check (`apps.booking`) — matching this sprint's own Level-3 trigger set.
+
+**Classification:** GREEN — all 40 new tests pass, zero regressions in 1984 pre-existing
+tests (two intentional, documented query-count bumps: both public-profile locked
+baselines — `PublicProfileQueryCountTest` and `PublicGalleryQueryCountTest` — moved
+14 -> 15 for the one new fixed-cost `get_distinct_active_days()` query the schedule
+summary needs, proven O(1) by the existing gallery-item-count scaling structure; the new
+provider-portal availability-page query count was newly locked at 9, no prior baseline
+existed to compare against), migration drift unchanged from pre-task baseline (no new
+migration, confirmed identical to merged main via git stash comparison).

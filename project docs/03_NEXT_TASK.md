@@ -286,40 +286,83 @@ closes new backlog item BG-023:
 36 new tests, zero new migration, full regression 1984/1984 green. Branch
 `phase2-caregiver-credentials-skills-experience-ui`, PR created — see
 `traceability/IMPLEMENTATION_JOURNAL.md` and
-`ARCHITECTURE_DECISION_LOG.md` ADM-019. **Not merged — awaiting review.**
+`ARCHITECTURE_DECISION_LOG.md` ADM-019.
+
+### PR #8 — MERGED (2026-07-15)
+
+Final verification confirmed branch HEAD unchanged (`0b9b9c7`), diff scope
+unchanged (36 files, Sprint 2.3 only, no Sprint 2.4 code), `git diff
+--check` clean, `manage.py check` exit 0, and the PR description corrected
+to no longer claim a public-listing visibility gap (that claim was a
+REPORTING_ERROR — the gap had already been closed in PR #6; no code
+change was needed). Merged via `merge_pull_request` (merge commit
+`20c532e878780397291bcaaddf287807a7efed92`). Local `main` fast-forwarded
+to match `origin/main`; `manage.py check` exits 0. **Sprint 2.3 is now
+CLOSED and on `main`.**
+
+### Sprint 2.4 — Caregiver Availability and Working Schedule — IMPLEMENTED (2026-07-15)
+
+Branched fresh from merged `main` (`phase2-caregiver-availability-schedule`,
+from `20c532e`) per governance. Completes the caregiver availability layer
+— closes new backlog item BG-025:
+
+- `AvailabilityMutationService.add_working_window()`/`update_working_window()`
+  gained duplicate/overlap refusal for active windows on the same day
+  (closes KL-017); a new `toggle_working_window()` enables/disables an
+  existing window.
+- `AvailabilityQueryService.evaluate()` is now the one canonical,
+  structured availability evaluator (`available`, `reasons`,
+  `matched_window`, `conflicting_blocked_period`, `timezone`) —
+  `is_supplier_available()` is a thin wrapper around it, zero behavior
+  change for the existing `apps.booking` consumer (67/67 green).
+  Deliberately stays supplier-keyed, not caregiver-keyed, to respect
+  `apps.availability`'s position in the dependency graph — see
+  `ARCHITECTURE_DECISION_LOG.md` ADM-020 Decision 1.
+- Provider portal: inline working-window edit and enable/disable UI (new),
+  alongside the existing add/remove; a public-summary preview section.
+- Public caregiver profile: a new privacy-safe schedule-summary sidebar
+  card — weekday labels only (`apps.availability.models.PERSIAN_DAY_LABELS`),
+  never exact times or time-off details, gated by the existing canonical
+  `is_publicly_visible()` policy.
+- No per-caregiver time zone modeled — platform default (`Asia/Tehran`)
+  used throughout, documented as a known limitation (new backlog item
+  BG-024), not invented without evidence of demand.
+
+40 new tests, zero new migration, full regression 2024/2024 green. Branch
+`phase2-caregiver-availability-schedule`, PR created — see
+`traceability/IMPLEMENTATION_JOURNAL.md` and
+`ARCHITECTURE_DECISION_LOG.md` ADM-020. **Not merged — awaiting review.**
 
 ---
 
 ## IMMEDIATE NEXT TASK
 
-### Await review of the Sprint 2.3 PR; do not start Sprint 2.4 automatically
+### Await review of the Sprint 2.4 PR; do not start Sprint 2.5 automatically
 
 Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active implementation
 order).
 
-Phase 1, Phase 2.1 (+ BG-022), and Sprint 2.2 (+ PR #7 remediation) are
-fully closed and merged to `main`. Sprint 2.3 (this session's work)
-delivers the professional-credibility slice of roadmap Phase 2 —
+Phase 1, Phase 2.1 (+ BG-022), Sprint 2.2 (+ PR #7 remediation), and
+Sprint 2.3 are fully closed and merged to `main`. Sprint 2.4 (this
+session's work) delivers the availability slice of roadmap Phase 2 —
 remaining roadmap Phase 2 scope, explicitly NOT started by this task:
 
-1. Sprint 2.4 — Availability, Working Hours, Calendar, Vacation,
-   Availability Rules, Availability Presentation — not started.
-2. Sprint 2.5 — Professional Dashboard, Orders Summary, Financial Summary,
+1. Sprint 2.5 — Professional Dashboard, Orders Summary, Financial Summary,
    Review Summary, Statistics, Performance Overview — not started (closes
    the rest of BG-021: extended financial overview, orders + history).
-3. Sprint 2.6 — Public Profile Finalization (SEO, caching, search, public
+2. Sprint 2.6 — Public Profile Finalization (SEO, caching, search, public
    APIs, accessibility, performance, privacy review, architecture cleanup,
    final acceptance) — not started.
-4. Known, recorded during BG-022's remediation: a pre-existing, unrelated
+3. Known, recorded during BG-022's remediation: a pre-existing, unrelated
    per-candidate query cost in directory ranking/card-building
    (`DiscoveryRankingService.rank()`, `CaregiverDirectoryService
    ._build_card()`) — see `quality/DEFECT_AND_RISK_REGISTER.md` KL-012,
    not fixed (separate performance task, out of scope).
-5. Known, recorded during Sprint 2.3: `CaregiverSkill.name` remains
+4. Known, recorded during Sprint 2.3: `CaregiverSkill.name` remains
    free-text with no catalog/normalization — see
    `quality/DEFECT_AND_RISK_REGISTER.md` KL-016, deferred (a future
    modeling decision, not a UI-completion task).
-6. Known, recorded during Sprint 2.2/PR #7: gallery orphan-file cleanup/
+5. Known, recorded during Sprint 2.2/PR #7: gallery orphan-file cleanup/
    retry is not automated (KL-014) and decoded-image dimension/pixel
    limits are fixed, not tenant-configurable (KL-015) — both deliberate,
    not defects.
@@ -327,6 +370,10 @@ remaining roadmap Phase 2 scope, explicitly NOT started by this task:
    strategy (currently local `FileField`/`FileSystemStorage`, no S3/CDN) —
    BG-021's original dependency note; gallery images inherit this exactly
    as avatar/cover already do.
+7. Known, recorded during Sprint 2.4: per-caregiver time zone is not
+   modeled — see `quality/DEFECT_AND_RISK_REGISTER.md` KL-018 /
+   `quality/COMPLETION_BACKLOG.md` BG-024, deferred (no evidence of
+   multi-time-zone demand).
 
 Note: the previously listed follow-up "Phase 2: OrderOfferService" is now
 scheduled as roadmap Phase 5 (Marketplace Order Workflow) and must not be

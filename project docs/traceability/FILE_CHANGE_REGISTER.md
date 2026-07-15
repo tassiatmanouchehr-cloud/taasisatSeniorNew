@@ -380,3 +380,27 @@ The following files would be created or modified if the Offer Marketplace implem
 | `src/templates/public_site/caregiver_profile.html` | Modified | Precise badges; highlights tiles; self-declared/platform-reviewed disclaimers | git checkout |
 | `src/ui/components/portal/verification_badge.html` | Modified | +expiring_soon status branch (shared, also used by organization_portal) | git checkout |
 | `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |
+
+---
+
+## 2026-07-15 — Sprint 2.4: Caregiver Availability and Working Schedule (CL-028)
+
+| Path | Change | Purpose | Rollback |
+|------|--------|---------|----------|
+| `src/apps/availability/models.py` | Modified | +PERSIAN_DAY_LABELS canonical translation | git checkout |
+| `src/apps/availability/services/query_service.py` | Modified | New AvailabilityEvaluation + evaluate(); get_distinct_active_days() | git checkout |
+| `src/apps/availability/services/mutation_service.py` | Modified | Overlap/duplicate refusal; new toggle_working_window() | git checkout |
+| `src/apps/availability/services/__init__.py` | Modified | +AvailabilityEvaluation export | git checkout |
+| `src/apps/availability/tests/test_mutation_service.py` | Modified | 11 new overlap/duplicate/toggle tests | git checkout |
+| `src/apps/availability/tests/test_query_service.py` | Modified | 8 new evaluate()/distinct-days tests | git checkout |
+| `src/apps/provider_portal/forms.py` | Modified | +WorkingWindowEditForm | git checkout |
+| `src/apps/provider_portal/views.py` | Modified | +2 views (update/toggle); public-summary preview | git checkout |
+| `src/apps/provider_portal/urls.py` | Modified | +2 routes (working-window update/toggle) | git checkout |
+| `src/apps/provider_portal/tests/test_availability_views.py` | Modified | 15 new tests | git checkout |
+| `src/apps/public_site/services/profile_service.py` | Modified | New _schedule_summary() | git checkout |
+| `src/apps/public_site/services/viewmodels.py` | Modified | New AvailabilityScheduleSummaryViewModel | git checkout |
+| `src/apps/public_site/tests/test_professional_profile_public.py` | Modified | 6 new tests; locked query-count baseline 14 -> 15 | git checkout |
+| `src/apps/public_site/tests/test_gallery_public.py` | Modified | Locked query-count baseline 14 -> 15 | git checkout |
+| `src/templates/provider_portal/availability.html` | Modified | Inline edit/toggle per window; public-summary preview | git checkout |
+| `src/templates/public_site/caregiver_profile.html` | Modified | +privacy-safe schedule-summary sidebar card | git checkout |
+| `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |

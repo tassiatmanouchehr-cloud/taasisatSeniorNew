@@ -1,6 +1,6 @@
 # PORTALS, APIS, AND ENTRY POINTS
 
-**Last verified HEAD:** phase2-caregiver-credentials-skills-experience-ui (from main @ f7b7b2b, PR #7 merged)
+**Last verified HEAD:** phase2-caregiver-availability-schedule (from main @ 20c532e, PR #8 merged)
 **Last verified date:** 2026-07-15
 
 ---
@@ -29,7 +29,7 @@ Entry: `_guard()` → `require_authenticated()` → `resolve_tenant_id()` → `r
 
 ## Provider Portal (31 views)
 
-Dashboard, assignments (list/detail/confirm/decline), visits (start/complete), availability (working windows, blocked periods), earnings, profile, documents, skills (list/add/remove/toggle-visibility — Phase 2.1 + Sprint 2.3), experience (list/add/edit/delete, visibility via edit form — Phase 2.1 + Sprint 2.3), gallery (list/upload, edit, remove, move up/down — Sprint 2.2).
+Dashboard, assignments (list/detail/confirm/decline), visits (start/complete), availability (working windows — add/edit/toggle-active/remove; blocked periods — add/remove; public-summary preview — Phase 2.1 foundation, completed Sprint 2.4), earnings, profile, documents, skills (list/add/remove/toggle-visibility — Phase 2.1 + Sprint 2.3), experience (list/add/edit/delete, visibility via edit form — Phase 2.1 + Sprint 2.3), gallery (list/upload, edit, remove, move up/down — Sprint 2.2).
 
 Entry: `_guard()` → `require_authenticated()` → `resolve_tenant_id()` → `resolve_supplier()`. Profile-editing views additionally use `_guard_with_caregiver()`, resolving `request.user.caregiver_profile`.
 
@@ -64,7 +64,7 @@ Entry: `require_admin_permission()` → `require_authenticated()` → RBAC check
 
 ## Public Site (18 views)
 
-Home, about, services, how-it-work, contact, pricing, trust-safety, caregivers, organizations, find-a-caregiver, caregiver profile, organization profile, FAQ, privacy, terms, accessibility, support, service-areas.
+Home, about, services, how-it-work, contact, pricing, trust-safety, caregivers, organizations, find-a-caregiver, caregiver profile (now includes a Sprint 2.4 privacy-safe weekly-availability summary — day labels only, never exact times), organization profile, FAQ, privacy, terms, accessibility, support, service-areas.
 
 ## Presentation Services
 
@@ -76,3 +76,4 @@ Each portal has presentation services that transform domain models into view-rea
 - `CaregiverSkillService`, `CaregiverExperienceService`, `PublicCredentialSelector` (accounts, Phase 2.1 — domain services/selectors, not presentation services; called by provider_portal/public_site)
 - `CaregiverGalleryService` (accounts, Sprint 2.2 — domain service, not a presentation service; called by provider_portal; `CaregiverPublicProfileService._gallery()` is the read-only public-facing counterpart, gated by the existing BG-022 canonical visibility policy, no second rule)
 - `CaregiverPublicProfileService._highlights()`/`_verification_badges()` and `ProviderProfilePresentationService._highlights()` (Sprint 2.3 — pure, read-only aggregations over data each service already resolved elsewhere on the same page; the public versions add zero new queries, the provider-portal preview adds two fixed-cost `.count()` queries). **PR #7 remediation:** physical file deletion is deferred to `transaction.on_commit()` rather than performed inline before the row commits, and `apps.accounts.services.image_validation.validate_image()` (called from every route into this service) now also bounds decoded image width/height/pixel count, not just upload byte size.
+- `AvailabilityQueryService.evaluate()`/`get_distinct_active_days()` (availability, Sprint 2.4 — the one canonical, structured, supplier-keyed availability evaluator; `CaregiverPublicProfileService._schedule_summary()` and `provider_portal/views.py::_public_summary_labels()` both call it directly rather than duplicating day-label logic — see `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-020 Decision 1 for why this is not a caregiver-keyed service)

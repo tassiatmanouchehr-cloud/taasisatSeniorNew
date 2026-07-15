@@ -15,7 +15,27 @@ calendar day. Ranges spanning local midnight (e.g. an overnight shift) are
 rejected with AvailabilityError rather than silently evaluated — that is
 deferred to a follow-up once there's a concrete overnight-shift use case
 to design correctly against.
+
+Sprint 2.4 (Caregiver Availability and Working Schedule): evaluate() is the
+one canonical, structured evaluator — is_supplier_available() is now a thin
+bool-only wrapper around it, so there is exactly one evaluation
+implementation, never two. This service stays supplier-keyed (never
+caregiver-keyed): apps.availability sits below apps.accounts in the
+dependency graph (kernel -> accounts -> orders -> ... -> availability), so
+it must not know about CaregiverProfile, and a caregiver-shaped entry point
+would have to live above this app, not inside it — apps.provider_portal and
+apps.public_site, which already resolve their own ServiceSupplier before
+ever needing an evaluation, call this evaluator directly instead of through
+a duplicate caregiver-facing service. See
+traceability/ARCHITECTURE_DECISION_LOG.md ADM-020 Decision 1.
+
+get_distinct_active_days() is deliberately domain-only (a sorted tuple of
+DayOfWeek ints) — the Persian display labels for those ints live in
+apps.availability.models.PERSIAN_DAY_LABELS, one canonical translation
+shared by every caller, not a UI concept duplicated inside this service.
 """
+
+from dataclasses import dataclass
 
 from django.utils import timezone
 
@@ -23,17 +43,62 @@ from ..models import AvailabilityBlockedPeriod, ProviderWorkingWindow
 from .errors import AvailabilityError
 
 
+@dataclass(frozen=True)
+class AvailabilityEvaluation:
+    """Structured result of AvailabilityQueryService.evaluate() — read-only,
+    never persisted. `reasons` is always populated when available is False,
+    empty when True."""
+
+    available: bool
+    reasons: tuple[str, ...]
+    matched_window: ProviderWorkingWindow | None
+    conflicting_blocked_period: AvailabilityBlockedPeriod | None
+    timezone: str
+
+
 class AvailabilityQueryService:
     """Evaluates supplier availability for an explicit time range."""
 
     @classmethod
-    def is_supplier_available(cls, *, supplier, start, end) -> bool:
+    def evaluate(cls, *, supplier, start, end) -> AvailabilityEvaluation:
+        """The one canonical, structured availability evaluator. Read-only —
+        never creates, mutates, or deletes any row, and never inspects
+        booking/execution state (Section E's item 6 is explicitly deferred;
+        see ADM-020 Decision 2)."""
         cls._validate_range(start, end)
+        tz_name = timezone.get_current_timezone_name()
 
-        if cls._has_blocking_overlap(supplier=supplier, start=start, end=end):
-            return False
+        conflicting = cls._first_blocking_overlap(supplier=supplier, start=start, end=end)
+        if conflicting is not None:
+            return AvailabilityEvaluation(
+                available=False,
+                reasons=("blocked_period",),
+                matched_window=None,
+                conflicting_blocked_period=conflicting,
+                timezone=tz_name,
+            )
 
-        return cls._covered_by_working_window(supplier=supplier, start=start, end=end)
+        matched = cls._matching_working_window(supplier=supplier, start=start, end=end)
+        if matched is None:
+            return AvailabilityEvaluation(
+                available=False,
+                reasons=("no_matching_working_window",),
+                matched_window=None,
+                conflicting_blocked_period=None,
+                timezone=tz_name,
+            )
+
+        return AvailabilityEvaluation(
+            available=True,
+            reasons=(),
+            matched_window=matched,
+            conflicting_blocked_period=None,
+            timezone=tz_name,
+        )
+
+    @classmethod
+    def is_supplier_available(cls, *, supplier, start, end) -> bool:
+        return cls.evaluate(supplier=supplier, start=start, end=end).available
 
     @classmethod
     def get_working_windows(cls, *, supplier, day_of_week=None):
@@ -41,6 +106,21 @@ class AvailabilityQueryService:
         if day_of_week is not None:
             qs = qs.filter(day_of_week=day_of_week)
         return qs
+
+    @classmethod
+    def get_distinct_active_days(cls, *, supplier) -> tuple[int, ...]:
+        """Sorted, deduplicated DayOfWeek values with at least one active
+        working window — the safe, summarized shape the public profile and
+        the provider-portal public-summary preview both need (never exact
+        start/end times). One query, independent of how many windows exist.
+        Deduplicated in Python, not via queryset .distinct() — the model's
+        own Meta.ordering (day_of_week, start_time) would otherwise force
+        start_time into the implicit ORDER BY and silently defeat
+        .distinct() on the single day_of_week column."""
+        days = ProviderWorkingWindow.objects.filter(
+            supplier=supplier, is_active=True,
+        ).values_list("day_of_week", flat=True)
+        return tuple(sorted(set(days)))
 
     @classmethod
     def get_blocked_periods(cls, *, supplier, start=None, end=None):
@@ -81,13 +161,13 @@ class AvailabilityQueryService:
             )
 
     @staticmethod
-    def _has_blocking_overlap(*, supplier, start, end) -> bool:
+    def _first_blocking_overlap(*, supplier, start, end) -> AvailabilityBlockedPeriod | None:
         return AvailabilityBlockedPeriod.objects.filter(
             supplier=supplier, start_at__lt=end, end_at__gt=start,
-        ).exists()
+        ).order_by("start_at").first()
 
     @staticmethod
-    def _covered_by_working_window(*, supplier, start, end) -> bool:
+    def _matching_working_window(*, supplier, start, end) -> ProviderWorkingWindow | None:
         local_start = timezone.localtime(start)
         local_end = timezone.localtime(end)
         day_of_week = local_start.weekday()
@@ -95,7 +175,7 @@ class AvailabilityQueryService:
         windows = ProviderWorkingWindow.objects.filter(
             supplier=supplier, day_of_week=day_of_week, is_active=True,
         )
-        return any(
-            window.start_time <= local_start.time() and local_end.time() <= window.end_time
-            for window in windows
-        )
+        for window in windows:
+            if window.start_time <= local_start.time() and local_end.time() <= window.end_time:
+                return window
+        return None

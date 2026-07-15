@@ -19,6 +19,12 @@ urlpatterns = [
     path(
         "availability/windows/<uuid:window_id>/remove/", views.working_window_remove_view, name="working-window-remove"
     ),
+    path(
+        "availability/windows/<uuid:window_id>/update/", views.working_window_update_view, name="working-window-update"
+    ),
+    path(
+        "availability/windows/<uuid:window_id>/toggle/", views.working_window_toggle_view, name="working-window-toggle"
+    ),
     path("availability/blocked-periods/add/", views.blocked_period_create_view, name="blocked-period-create"),
     path(
         "availability/blocked-periods/<uuid:blocked_period_id>/remove/",

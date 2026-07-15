@@ -990,3 +990,77 @@ Rollback method: git revert of the branch's commit(s); no data migration to reve
 Status: Complete — branch phase2-caregiver-credentials-skills-experience-ui (from main @
   f7b7b2b, PR #7 merged), PR to be created, NOT merged
 ```
+
+## Entry 028
+
+```
+Change ID: CL-028
+Date/time: 2026-07-15 (Sprint 2.4 — Caregiver Availability and Working Schedule; first
+  sprint on a fresh branch after PR #8 merged to main @ 20c532e)
+Task: Complete the caregiver availability layer — weekly working-hour intervals with
+  overlap/duplicate refusal, time-off management, one canonical structured availability
+  evaluator, a privacy-safe public availability summary, and a provider-portal preview of
+  that summary
+Reason: Roadmap Phase 2's next scheduled sprint (IMPLEMENTATION_ROADMAP.md)
+Files added: None — apps.availability (Module 10 foundation) already owned the entire
+  domain model (ProviderWorkingWindow, AvailabilityBlockedPeriod) and a basic add/remove
+  UI before this sprint; this sprint completed it, adding zero new models/files
+Files modified:
+  src/apps/availability/models.py (+PERSIAN_DAY_LABELS, the one canonical Persian
+    weekday-name translation shared by provider_portal and public_site)
+  src/apps/availability/services/query_service.py (new AvailabilityEvaluation dataclass;
+    new evaluate() — the one canonical structured evaluator; is_supplier_available() is
+    now a thin wrapper around it; new get_distinct_active_days())
+  src/apps/availability/services/mutation_service.py (add_working_window()/
+    update_working_window() gained overlap/duplicate refusal via new
+    _validate_no_overlap(); new toggle_working_window())
+  src/apps/availability/services/__init__.py (+AvailabilityEvaluation export)
+  src/apps/availability/tests/test_mutation_service.py (11 new tests)
+  src/apps/availability/tests/test_query_service.py (8 new tests)
+  src/apps/provider_portal/forms.py (+WorkingWindowEditForm)
+  src/apps/provider_portal/views.py (availability_view gained public_summary_days
+    context + window_edit_form; +2 views: working_window_update_view,
+    working_window_toggle_view; new _public_summary_labels() helper)
+  src/apps/provider_portal/urls.py (+2 routes: working-window-update,
+    working-window-toggle)
+  src/apps/provider_portal/tests/test_availability_views.py (15 new tests)
+  src/apps/public_site/services/profile_service.py (new _schedule_summary(); get_profile()
+    gained schedule_summary)
+  src/apps/public_site/services/viewmodels.py (new AvailabilityScheduleSummaryViewModel;
+    CaregiverProfileViewModel gained schedule_summary)
+  src/apps/public_site/tests/test_professional_profile_public.py (6 new tests; locked
+    query-count baseline 14 -> 15)
+  src/apps/public_site/tests/test_gallery_public.py (locked query-count baseline 14 -> 15)
+  src/templates/provider_portal/availability.html (+inline edit form and enable/disable
+    toggle per window; +public-summary preview section)
+  src/templates/public_site/caregiver_profile.html (+privacy-safe schedule-summary
+    sidebar card — day labels only, never exact times)
+Files deleted: None
+Database impact: None.
+Migration impact: None — ProviderWorkingWindow and AvailabilityBlockedPeriod already
+  existed with every field this sprint needed; makemigrations --check --dry-run confirmed
+  only pre-existing, unrelated drift (kernel.ServiceSupplier/UserAccount fields), no new
+  availability-app drift.
+Security impact: No new attack surface. Ownership enforcement reuses apps.availability's
+  own pre-existing resolve-then-mutate-by-id convention (verified directly, not just
+  structurally, by new cross-caregiver/cross-tenant/customer/unrelated-organization-user
+  tests) — no new authorization mechanism introduced. Public schedule summary is
+  deliberately day-labels-only: no exact time, no blocked-period reason/notes ever reaches
+  a public response (proven by dedicated tests). Weekly-interval overlap/duplicate refusal
+  closes a genuine pre-existing gap (no validation existed before this sprint).
+Financial impact: None — no Marketplace, Invoice, Financial, Payment, Settlement, or
+  booking-conflict-logic code touched; apps.booking's existing
+  is_supplier_available() call site is unaffected (same signature, same behavior,
+  confirmed by apps.booking's own suite, 67/67 green).
+Tests executed: check (0), 40 new focused tests (all green), affected-app Level 2 suite
+  (apps.availability + apps.provider_portal + apps.public_site combined) 216/216,
+  proactive extra check apps.booking (existing is_supplier_available() consumer) 67/67,
+  makemigrations --check --dry-run (pre-existing unrelated drift only, no new drift),
+  full regression 2024/2024 (exit 0)
+Result: Success — caregiver availability layer complete; zero regressions; zero new
+  migration; zero new/duplicate scheduling source of truth (single canonical, supplier-
+  keyed AvailabilityQueryService.evaluate())
+Rollback method: git revert of the branch's commit(s); no data migration to reverse
+Status: Complete — branch phase2-caregiver-availability-schedule (from main @ 20c532e, PR
+  #8 merged), PR to be created, NOT merged
+```

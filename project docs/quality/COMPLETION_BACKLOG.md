@@ -256,7 +256,57 @@ the last gap. 36 new tests, zero new migration, full regression 1984/1984 green.
 normalization layer (`CaregiverSkill.name` stays free-text — see
 `quality/DEFECT_AND_RISK_REGISTER.md` KL-016); certificates-as-visual-gallery presentation
 (distinct from this sprint's precise-badge/label treatment — remains open under BG-021);
-availability/calendar (Sprint 2.4); financial overview and orders + history (Sprint 2.5).
+availability/calendar (Sprint 2.4 — now RESOLVED, see BG-025); financial overview and
+orders + history (Sprint 2.5).
+
+### BG-024: Per-Caregiver Time Zone Not Modeled
+
+**Evidence (2026-07-15, Sprint 2.4):** No per-tenant or per-caregiver time-zone field
+exists anywhere in this repository (confirmed by grep before implementation). Every
+availability evaluation (`AvailabilityQueryService.evaluate()`) resolves through Django's
+default `timezone.localtime()`/`settings.TIME_ZONE` (`Asia/Tehran`) — the same single,
+platform-wide source used everywhere else in the codebase. A caregiver physically located
+in a different time zone would have their working windows interpreted against the platform
+default, not their own local time.
+**Why deferred:** Sprint 2.4's own governance explicitly instructed: "If caregiver-specific
+time-zone is not modeled, use the existing tenant/platform time-zone and document the
+limitation... Do not invent a second time-zone source." No evidence of demand for
+multi-time-zone caregivers exists in this repository today (the product is Persian-first,
+single-market).
+**Resolution path (future):** Add an explicit `CaregiverProfile.time_zone` field (or a
+tenant-level override) and thread it through `AvailabilityQueryService.evaluate()`'s
+`timezone.localtime()` calls — a genuine, scoped follow-up once real multi-time-zone demand
+exists.
+**Affected modules:** availability, accounts (future).
+
+### BG-025: Caregiver Availability and Working Schedule — **RESOLVED**
+
+**Original evidence:** `apps.availability` (Module 10 foundation) already modeled weekly
+working windows and time-off, and a basic provider-portal add/remove UI existed, but:
+`add_working_window()` had no overlap/duplicate validation; there was no edit or
+enable/disable UI for an existing window; `is_supplier_available()` returned a bare bool
+with no explanation; and the public caregiver profile showed nothing about availability at
+all.
+**Resolution (2026-07-15, Sprint 2.4):** `AvailabilityMutationService` gained
+duplicate/overlap refusal for active weekly windows and a `toggle_working_window()`
+convenience method; the provider portal gained inline edit and enable/disable UI.
+`AvailabilityQueryService.evaluate()` is now the one canonical, structured evaluator
+(`available`, `reasons`, `matched_window`, `conflicting_blocked_period`, `timezone`) —
+`is_supplier_available()` is a thin wrapper around it, zero behavior change for the
+existing `apps.booking` consumer. The public caregiver profile gained a privacy-safe
+schedule summary (weekday labels only, never exact times or time-off details), gated by
+the same canonical `is_publicly_visible()` policy as every other public section; the
+provider portal shows the identical computation as an owner-facing preview. 40 new tests,
+zero new migration, full regression 2024/2024 green. See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-020 and
+`traceability/IMPLEMENTATION_JOURNAL.md`.
+**Affected modules:** availability, provider_portal, public_site.
+**Not in scope (explicitly deferred, not this sprint's mandate):** per-caregiver time zone
+(BG-024); overnight/midnight-spanning working windows (unchanged, pre-existing deferral);
+booking/execution-session conflict awareness inside the evaluator (declined — see ADM-020
+Decision 2); order matching/booking reservation/calendar sync/shift bidding/pricing/
+invoices/payments/company workforce scheduling/customer scheduling UI (all explicitly out
+of scope per this sprint's own governance).
 
 ### BG-003: OrderOfferService (Phase 2)
 

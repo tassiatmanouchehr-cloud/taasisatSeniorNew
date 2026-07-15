@@ -1363,3 +1363,200 @@ component blast-radius check): 51/51. Architecture guardrails: 13/13. Full regre
 **RESOLVED.** Professional credibility layer (badges, visibility management, highlights,
 expiring-soon state, self-declared/verified distinction) delivered. See
 `quality/COMPLETION_BACKLOG.md` BG-023.
+
+## PR #8 Merge (2026-07-15)
+
+`main` fast-forwarded from `f7b7b2b` to merge commit `20c532e` (PR #8, "Complete caregiver
+credentials, skills, and experience presentation"). Final pre-merge verification confirmed
+branch HEAD unchanged at `0b9b9c7`, diff scope unchanged (36 files), `git diff --check`
+clean, `manage.py check` exit 0, PR description accurately reflecting the repository (the
+prior turn's stray "public listing surfaces' looser eligibility rule" deferred-item claim
+was a REPORTING_ERROR — that gap was already closed in PR #6, corrected in the PR #8
+description, no code change needed). Local `main` verified identical to `origin/main`
+(`20c532e878780397291bcaaddf287807a7efed92`) after the merge.
+
+## Sprint 2.4 — Caregiver Availability and Working Schedule (2026-07-15)
+
+First sprint on a fresh branch (`phase2-caregiver-availability-schedule`, from `main` @
+`20c532e`) after PR #8 merged. Completes the caregiver availability layer — weekly working
+intervals, time-off, one canonical availability evaluator, and a privacy-safe public
+availability summary — so a caregiver can define when they are generally available and
+what a future marketplace workflow may read. Not a booking/matching/calendar-sync feature.
+
+### Current-State Inspection
+
+| Capability | Existing | Reusable | Missing |
+|---|---|---|---|
+| Weekly working-hours model | `ProviderWorkingWindow` (Module 10 foundation) — day_of_week/start_time/end_time/is_active, keyed on `kernel.ServiceSupplier` | Yes, unchanged schema | Overlap/duplicate validation; owner-facing edit + enable/disable UI |
+| Time-off model | `AvailabilityBlockedPeriod` (Module 10 foundation) — start_at/end_at/reason/notes | Yes, unchanged schema | Nothing structural — add/remove UI already existed |
+| Availability evaluator | `AvailabilityQueryService.is_supplier_available()` — bool-only, fail-closed, timezone-aware, single-local-day scope | Yes, extended (kept as a thin wrapper) | Structured output (reasons, matched window, conflicting period, timezone) |
+| Provider portal UI | `availability_view` — add window, list, remove window; add/remove blocked period; capacity display | Yes, extended | Edit window, enable/disable toggle, public-summary preview |
+| Public schedule presentation | None | N/A | New, privacy-safe, day-labels-only summary |
+| Caregiver-specific time zone | None anywhere in the repository (confirmed by grep) | N/A | Out of scope — platform default (`Asia/Tehran`) used, per Section J's explicit fallback instruction |
+| Booking conflict awareness in the evaluator | `apps.booking.services.assignment_service` already *consumes* `is_supplier_available()` as one input | Reused as-is (unchanged call site) | Out of scope — folding booking state into the evaluator would invert the dependency direction |
+| Caregiver-keyed availability service | None | N/A | Deliberately not created — would violate `apps.accounts` -> `apps.availability` dependency direction; see ADM-020 Decision 1 |
+
+No genuine architectural blocker was found — proceeded directly to implementation.
+
+### Canonical Availability Ownership
+
+`apps.availability` (predates this sprint) already owns weekly schedule, time off, and (as
+of this sprint) the public summary and canonical evaluator — all keyed on
+`kernel.ServiceSupplier`, never `CaregiverProfile`/`OrganizationProfile` directly, matching
+this app's own pre-existing docstring commitment. `apps.provider_portal` and
+`apps.public_site` both resolve their own `ServiceSupplier` and read through this one
+source; neither maintains schedule data of its own. See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-020 for the full reasoning, including why
+the governance's suggested `CaregiverAvailabilityService.evaluate(caregiver, ...)` shape was
+not adopted literally.
+
+### Weekly Schedule Behavior
+
+`AvailabilityMutationService.add_working_window()`/`update_working_window()` now call a new
+`_validate_no_overlap()` before create/save — refuses an exact duplicate or any partially
+overlapping *active* window on the same day for the same supplier (covers both cases in one
+range-intersection check). A disabled window is excluded from the check on both sides:
+disabling one frees its slot for a new window, and re-enabling one re-validates against
+whatever is active at that moment. `toggle_working_window()` is a thin convenience wrapper
+(mirrors Sprint 2.3's `toggle_visibility()` pattern) for the new enable/disable button.
+Provider portal gained inline start/end edit (`working_window_update_view`,
+`WorkingWindowEditForm`) alongside the existing add/remove — ownership enforced by this
+app's own pre-existing resolve-then-mutate-by-id pattern, not a new mechanism.
+
+### Time-Off Behavior
+
+Unchanged from the Module 10 foundation: add/remove only, no cancelled/active state (hard
+delete remains the convention — nothing in the repository suggested otherwise). Overlapping
+blocked periods are deliberately still allowed to coexist — `test_overlapping_blocked_periods
+_both_apply` already proved this is harmless, pre-existing, tested behavior; adding refusal
+here would silently change a passing, intentional test rather than fix a defect (ADM-020
+Decision 3). Time-off continues to override weekly availability exactly as before (`evaluate()`
+checks blocked periods first, unconditionally).
+
+### Availability Evaluation Behavior
+
+`AvailabilityQueryService.evaluate(*, supplier, start, end) -> AvailabilityEvaluation` — a
+frozen dataclass (`available`, `reasons`, `matched_window`, `conflicting_blocked_period`,
+`timezone`). Read-only: never creates/mutates/deletes a row (proven by a dedicated test
+comparing row counts before/after). `is_supplier_available()` is now a one-line wrapper
+around `evaluate(...).available` — the existing 20 tests for it pass completely unmodified,
+and `apps.booking`'s existing consumer is unaffected (67/67 green). Booking/execution
+conflict state is explicitly not consulted (Section E item 6, declined — see ADM-020
+Decision 2); the evaluator only ever answers "is this a configured, unblocked working
+window," the same question it always answered, now with a structured, explainable answer
+instead of a bare bool.
+
+### Time-Zone Policy
+
+No per-tenant or per-caregiver time-zone field exists anywhere in this repository
+(confirmed by grep before implementation). Every evaluation already resolved through
+Django's default `timezone.localtime()`/`settings.TIME_ZONE` (`Asia/Tehran`, `USE_TZ=True`)
+before this sprint; `evaluate()`'s new `timezone` field surfaces
+`timezone.get_current_timezone_name()` — the same single, deterministic source, not a
+second one. DST/ambiguous-local-time handling is whatever Django/`pytz`-equivalent already
+provides for `Asia/Tehran` — unchanged, not specially handled. Documented as a known
+platform-wide-only limitation (`quality/COMPLETION_BACKLOG.md` BG-024), not fixed —
+inventing a per-caregiver time zone without evidence of demand would be guessing a business
+requirement.
+
+### Public Summary/Privacy Behavior
+
+`CaregiverPublicProfileService._schedule_summary()` returns
+`AvailabilityScheduleSummaryViewModel(has_schedule, available_day_labels)` — Persian
+weekday names only (`apps.availability.models.PERSIAN_DAY_LABELS`, the one canonical
+translation both `provider_portal` and `public_site` share), never exact start/end times,
+never any `AvailabilityBlockedPeriod` field (reason, notes, or even its existence). Gated
+by the same canonical `common.is_publicly_visible()` policy as every other section — a
+hidden/DRAFT/suspended/unverified caregiver's schedule is never even queried, proven by
+`test_hidden_caregiver_has_no_schedule_summary`. Two dedicated tests
+(`test_summary_never_exposes_exact_times`, `test_summary_never_exposes_blocked_period_details`)
+render the actual public page and assert the exact time strings and blocked-period
+reason/notes text never appear in the response body. The provider-portal availability page
+shows the identical computation as an owner-facing preview of exactly what the public sees.
+
+### Files Added
+
+None — `apps.availability` already contained every model this sprint needed.
+
+### Files Modified
+
+16 source files (2 model/service/init files in `apps.availability`, 2 test files there;
+3 files in `apps.provider_portal` — forms/views/urls — plus 1 test file; 2 service files
+in `apps.public_site` plus 2 test files; 2 templates) + 16 documentation files. Full list in
+`traceability/FILE_CHANGE_REGISTER.md` (2026-07-15, CL-028) and
+`traceability/CHANGE_LEDGER.md` Entry 028.
+
+### Migration Impact
+
+None. `ProviderWorkingWindow` and `AvailabilityBlockedPeriod` already carried every field
+this sprint needed. `makemigrations --check --dry-run` shows only pre-existing,
+unrelated drift (`kernel.ServiceSupplier`/`UserAccount` field alterations) — confirmed via
+`git stash` comparison against the merged-main baseline to be byte-identical to the
+pre-Sprint-2.4 drift, not new.
+
+### UI/Routes
+
+Provider portal: `availability/windows/<uuid:window_id>/update/`
+(`working-window-update`), `availability/windows/<uuid:window_id>/toggle/`
+(`working-window-toggle`) — both new, POST-only. Existing add/remove routes unchanged.
+`availability.html` gained inline edit fields and an enable/disable button per window, plus
+a "پیش‌نمایش نمایه عمومی" (public profile preview) section. Public site: no new route — the
+existing caregiver-profile page gained one new sidebar card.
+
+### Security/Privacy
+
+All 15 of Section I's required proofs verified directly by tests: ownership (owner-only
+mutation, cross-caregiver/cross-tenant/customer/unrelated-organization-user denial — 2
+existing + 8 new tests across `test_availability_views.py`), invalid/duplicate/overlapping
+interval rejection (11 new tests in `test_mutation_service.py`), time-off override of
+weekly availability (pre-existing, re-confirmed unchanged), hidden-caregiver no public
+schedule (new), no private reason/booking detail in public output (2 new tests asserting
+exact absence), evaluator read-only (new), timezone deterministic (new, plus pre-existing
+UTC-conversion test), concurrency (the pre-existing `select_for_update()` inside
+`update_working_window()`'s `@transaction.atomic` block, exercised by the overlap-
+validation tests — no dedicated multi-threaded race test was written, consistent with this
+repository's existing testing conventions elsewhere in `apps.availability`/`apps.booking`).
+
+### Query/Performance Impact
+
+`evaluate()` issues the same query shape `is_supplier_available()` always did (at most one
+blocked-period query, one working-window query) — no change. `get_distinct_active_days()`
+is one new query, added to both the public profile (`_schedule_summary()`) and the
+provider-portal availability page (`_public_summary_labels()`). Public profile page's
+locked baseline moved 14 -> 15 (both `PublicProfileQueryCountTest` and
+`PublicGalleryQueryCountTest`, proven O(1) against gallery-item count). Provider-portal
+availability page gained a newly-locked baseline of 9 queries (no prior test existed).
+
+### Test Level Decision
+
+Level 3 (full regression), run exactly once before creating the Sprint 2.4 PR, justified
+by: a new documented cross-app dependency edge (`apps.public_site` -> `apps.availability`),
+a public/private presentation boundary change (the new schedule summary), and three apps
+affected directly plus one proactive consumer check — matching this sprint's own Level-3
+trigger set. 40 new tests (11 availability-mutation + 8 availability-query + 15
+provider_portal + 6 public_site). Level 2 (`apps.availability` + `apps.provider_portal` +
+`apps.public_site` combined): 297/297. `apps.booking` (proactive extra check — existing
+`is_supplier_available()` consumer): 67/67. Full regression: 2024/2024 green (1984 baseline
++ 40 new).
+
+### Deferred (explicitly, recorded)
+
+1. Per-caregiver time zone — no field exists; platform-wide `Asia/Tehran` default used
+   throughout, documented as a known limitation (`quality/COMPLETION_BACKLOG.md` BG-024),
+   not invented without evidence of demand.
+2. Overnight/midnight-spanning working windows — `AvailabilityQueryService._validate_range()`
+   already rejected these before this sprint (unchanged); still deferred to a future
+   sprint with a concrete overnight-shift use case to design against.
+3. Booking/execution-session conflict awareness inside the evaluator — declined this
+   sprint (ADM-020 Decision 2); `apps.booking` remains the sole consumer of availability
+   state for that purpose, not the other way around.
+4. Multi-threaded concurrency race testing for the overlap-validation
+   `select_for_update()` path — not written, consistent with this repository's existing
+   testing conventions for concurrent-mutation scenarios elsewhere in this app.
+5. Extended financial overview, orders + history (Sprint 2.5) — unchanged, not started.
+
+### BG-024 Status (new)
+
+**RECORDED.** Per-caregiver time zone is not modeled; every caregiver is scheduled in the
+platform's single default time zone regardless of their own physical location. See
+`quality/COMPLETION_BACKLOG.md` BG-024.

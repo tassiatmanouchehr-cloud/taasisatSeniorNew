@@ -123,6 +123,22 @@ class VerificationBadgeViewModel:
 
 
 @dataclass(frozen=True)
+class AvailabilityScheduleSummaryViewModel:
+    """Sprint 2.4 (Caregiver Availability and Working Schedule) — the safe,
+    summarized public presentation of a caregiver's weekly schedule. Named
+    distinctly from this module's own `availability_status`/
+    `availability_label` fields (real-time online/busy/offline presence,
+    unrelated and pre-existing) to avoid confusing the two concepts.
+    Deliberately carries day labels only, never exact start/end times, and
+    never anything about time-off/blocked periods — see
+    CaregiverPublicProfileService._schedule_summary()'s own docstring for
+    the privacy reasoning."""
+
+    has_schedule: bool
+    available_day_labels: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class CaregiverProfileViewModel:
     """The full Public Caregiver Profile page."""
 
@@ -151,6 +167,7 @@ class CaregiverProfileViewModel:
     gallery: tuple[PublicGalleryItemViewModel, ...] = field(default_factory=tuple)
     highlights: ProfessionalHighlightsViewModel | None = None
     verification_badges: tuple[VerificationBadgeViewModel, ...] = field(default_factory=tuple)
+    schedule_summary: AvailabilityScheduleSummaryViewModel | None = None
 
 
 @dataclass(frozen=True)
