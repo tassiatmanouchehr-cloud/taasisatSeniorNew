@@ -498,3 +498,79 @@ Result: Success — required-document policy, profile roll-up, resubmission life
 Rollback method: git revert of the branch's commit(s); no data migration to reverse
 Status: Complete — branch phase1-verification-activation-rules, PR to be created, NOT merged
 ```
+
+## Entry 021
+
+```
+Change ID: CL-021
+Date/time: 2026-07-15 (Phase 1.3 — Complete Phase 1 Activation and Profile Completion)
+Task: Deterministic profile completion (Part A), controlled caregiver/organization
+      activation wired to ActivationEligibilityService (Part B/C), minimum usable
+      platform-operator and owner-facing activation UI (Part D)
+Reason: Closes the two remaining Phase 1 items: wiring ActivationEligibilityService into
+        a real controlled activation action, and making profile completion deterministic
+        and single-source-of-truth (BG-018) — completing roadmap Phase 1 acceptance
+        criteria per project docs/IMPLEMENTATION_ROADMAP.md
+Files added:
+  src/apps/accounts/services/profile_completion_service.py
+  src/apps/accounts/services/profile_activation_service.py
+  src/apps/accounts/tests/test_profile_completion.py
+  src/apps/accounts/tests/test_profile_activation.py
+  src/apps/admin_portal/tests/test_profile_activation.py
+  src/apps/provider_portal/tests/test_activation_presentation.py
+  src/apps/organization_portal/tests/test_activation_presentation.py
+  src/templates/admin_portal/caregiver_activation_detail.html
+  src/templates/admin_portal/organization_activation_detail.html
+  src/ui/components/portal/activation_status.html
+Files modified:
+  src/apps/accounts/services/profiles.py (completion percentage delegated to
+    ProfileCompletionService; bare-int signatures unchanged)
+  src/apps/kernel/permissions/keys.py (ACCOUNTS_PROFILE_ACTIVATE registered)
+  src/apps/accounts/permission_keys.py (re-export)
+  src/apps/admin_portal/permission_keys.py (re-export as PROFILE_ACTIVATE)
+  src/apps/kernel/role_catalog.py (DOCUMENT_REVIEW_PERMISSIONS renamed
+    PLATFORM_VERIFICATION_PERMISSIONS, now includes ACCOUNTS_PROFILE_ACTIVATE, granted to
+    platform_owner/platform_admin/platform_support)
+  src/apps/admin_portal/views.py (4 new views: caregiver/organization activation
+    detail + activate action)
+  src/apps/admin_portal/urls.py (4 new routes)
+  src/templates/admin_portal/document_verification_queue.html (owner name links to new
+    activation detail page)
+  src/templates/admin_portal/document_verification_detail.html (same, on the owner row)
+  src/apps/provider_portal/services/viewmodels.py (is_activated/activation_eligible/
+    activation_blocking_reasons fields added)
+  src/apps/provider_portal/services/profile_service.py (_activation_status() helper)
+  src/apps/organization_portal/services/viewmodels.py (same 3 fields)
+  src/apps/organization_portal/services/profile_service.py (same helper)
+  src/templates/provider_portal/profile.html (activation_status.html include)
+  src/templates/organization_portal/profile.html (same)
+  src/apps/provider_portal/tests/test_profile.py (locked query-count baseline updated
+    7 -> 10: 3 new fixed-cost queries from the activation-status lookup, not per-item)
+  src/apps/organization_portal/tests/test_profile.py (locked query-count baseline
+    updated 7 -> 11, same reason)
+Files deleted: None
+Database impact: None
+Migration impact: None — pure service/permission/view-layer addition; verified via
+  makemigrations --check showing identical pre-existing drift only (no new accounts/
+  kernel entries; no new model field, no new ProfileStatus value)
+Security impact: New platform-scoped permission ACCOUNTS_PROFILE_ACTIVATE, granted only
+  to platform_owner/platform_admin/platform_support; self-activation refused as
+  defense-in-depth inside the service (mirrors ADM-014's self-review refusal); cross-
+  tenant activation refused (profile resolved and tenant-checked before permission
+  enforcement, returns not-found); activation refused while ineligible (unverified,
+  expired document, suspended profile); concurrent activation attempts serialize via
+  select_for_update() and produce exactly one AuditLog record (see ARCHITECTURE_DECISION_LOG
+  ADM-016)
+Financial impact: None
+Tests executed: check (0), makemigrations --check (1, pre-existing unrelated drift only),
+  40 new tests across 5 files (all 0) — 11 completion + 16 accounts activation (incl.
+  concurrency) + 9 admin_portal view tests + 2 provider_portal + 2 organization_portal
+  presentation tests, affected-app Level 2 suite (accounts + provider_portal +
+  organization_portal + admin_portal combined) 439/439, full regression 1808/1808 (exit 0)
+Result: Success — profile completion is deterministic and single-source-of-truth,
+  activation is controlled/audited/authorized/idempotent/concurrency-safe, minimum usable
+  platform and owner UI delivered; zero regressions; zero migrations; Phase 1 acceptance
+  criteria now fully met (see IMPLEMENTATION_ROADMAP.md)
+Rollback method: git revert of the branch's commit(s); no data migration to reverse
+Status: Complete — branch phase1-activation-completion-final, PR to be created, NOT merged
+```

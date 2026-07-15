@@ -377,3 +377,127 @@ triggers in the governing test-execution policy.
    BG-018 (roadmap Phase 1 acceptance criterion 5).
 4. Per-service document requirement variation — explicitly not implemented, no evidence
    to ground it (Part A).
+
+---
+
+## Phase 1.3 — Complete Phase 1 Activation and Profile Completion
+
+**Date:** July 15, 2026
+**Branch:** `phase1-activation-completion-final` (from main @ `860640e`)
+**Status:** IMPLEMENTED, PR pending merge
+
+### What This Phase Closes
+
+The two remaining Phase 1 items left open by Phase 1.2 (BG-018): (1)
+`ActivationEligibilityService.evaluate()` had no caller that actually activated anything;
+(2) profile completion percentage was computed by two independent, duplicated field lists
+(`calculate_caregiver_profile_completion()`/`calculate_organization_profile_completion()`
+in `profiles.py`) rather than one canonical source.
+
+### Part A — Deterministic Profile Completion
+
+`ProfileCompletionService` (new) owns the labeled base-field checklist per profile type —
+`CAREGIVER_COMPLETION_FIELDS` (7 fields: display_name, phone, city, specialty, bio,
+years_experience, service_radius_km) and `ORGANIZATION_COMPLETION_FIELDS` (6 fields: name,
+city, phone, address, description, company_type), each a `(field_name, Persian label)`
+pair. `evaluate_caregiver()`/`evaluate_organization()` return a frozen
+`ProfileCompletionResult(percent, completed, missing)`. Field-filled semantics preserved
+exactly from the pre-refactor per-field checks: `value not in (None, "")` — `0` counts as
+filled (a caregiver with 0 years' experience has answered the question, not skipped it),
+blank string counts as missing. `calculate_caregiver_profile_completion()`/
+`calculate_organization_profile_completion()` in `profiles.py` now delegate their
+percentage to this service instead of duplicating the field list; their existing bare-int
+signature is unchanged, so `ActivationEligibilityService` and
+`apps.portal.services.profile_service` needed no changes. Deliberately did NOT touch or
+unify with `provider_portal`/`organization_portal`'s own pre-existing `_completion()`
+methods, which blend in "at least one verified document approved" for portal-specific UI
+purposes predating this task — see ARCHITECTURE_DECISION_LOG ADM-016 for the full
+reasoning. 11 new tests.
+
+### Part B/C — Controlled Activation
+
+`ProfileActivationService.activate_caregiver()/activate_organization()` — see
+ARCHITECTURE_DECISION_LOG ADM-016 for the full design decision (activation as an audited
+approval record over the existing default-ACTIVE status and existing AuditLog, not a new
+lifecycle state). In summary: `transaction.atomic` + `select_for_update()` row lock,
+resolves and tenant-checks the profile before enforcing `ACCOUNTS_PROFILE_ACTIVATE`
+(cross-tenant returns not-found), refuses owner self-activation as defense-in-depth,
+calls `ActivationEligibilityService.evaluate()` unchanged and raises a structured
+`ProfileActivationError` with the service's own reasons if ineligible, is an idempotent
+no-op if an `accounts.profile.activated` AuditLog entry already exists for that resource,
+otherwise sets `status = ACTIVE` (no-op if already ACTIVE) and writes the AuditLog entry.
+16 new tests, including a `TransactionTestCase` + `threading.Barrier` concurrency test
+proving exactly one AuditLog record is created under a 2-thread race, and a source-
+inspection regression test proving `ProfileStatus.SUSPENDED`/`ARCHIVED` are never
+referenced (no auto-deactivation was introduced).
+
+### Part C — Activation Authority
+
+New platform-scoped permission `ACCOUNTS_PROFILE_ACTIVATE`, registered in
+`apps/kernel/permissions/keys.py`, re-exported through the existing
+`apps/accounts/permission_keys.py` and `apps/admin_portal/permission_keys.py` facades.
+Granted to `platform_owner`/`platform_admin`/`platform_support` in
+`apps/kernel/role_catalog.py:DEFAULT_TENANT_ROLES`, alongside the Phase 1.1
+`ACCOUNTS_DOCUMENT_REVIEW` grant — the tuple carrying both was renamed
+`DOCUMENT_REVIEW_PERMISSIONS` -> `PLATFORM_VERIFICATION_PERMISSIONS` (grep-verified no
+other references existed before renaming). Caregivers/organization admins cannot self-
+activate (defense-in-depth check inside the service, independent of RBAC) and cannot
+activate across tenants (profile resolution is tenant-scoped before permission
+enforcement). No automatic/self-service activation path exists anywhere in the codebase.
+
+### Part D — Minimum Usable UI
+
+Platform/operator side: 4 new `admin_portal` views/routes mirroring the existing
+`document_verification_*` view shape exactly (thin controllers, `PermissionService.require`
++ `AccountsError`→404 pattern) — caregiver/organization activation detail pages (status,
+key facts, blocking reasons if ineligible) and a POST activate action. The existing
+document-verification queue and detail pages now link the owner's name to the new
+activation detail page. Owner side: `is_activated`/`activation_eligible`/
+`activation_blocking_reasons` added to `ProviderProfileViewModel`/
+`OrganizationProfileViewModel` (new fields, existing `completion_percent`/
+`completion_missing_labels` untouched), rendered by a new reusable
+`ui/components/portal/activation_status.html` component included on both portals' profile
+pages, following the existing badge-component convention — no shell/theme redesign. 9 new
+admin_portal view tests + 4 new owner-facing presentation tests (2 per portal).
+
+### Query-Count Baseline Update (expected, not a regression)
+
+The new owner-facing activation-status lookup adds a small, fixed number of queries to
+every profile-page load (an AuditLog existence check + the `ActivationEligibilityService`
+call's own document-list/config-lookup queries) — flat per page load, not per item, so no
+N+1 was introduced. The two pre-existing "locked baseline" query-count regression tests
+(`ProviderProfileQueryCountTest`, `OrganizationProfileQueryCountTest`) had their hardcoded
+expected counts updated (7→10, 7→11 respectively) with their docstrings explaining the
+new fixed cost, exactly as their own stated purpose requires ("a regression that turns any
+of these into a per-item loop would raise this count").
+
+### Test Level Decision
+
+Level 3 (full regression) was run, once, before PR creation, justified by: activation
+behavior is shared across 4 apps through one new service; a new platform-scoped RBAC
+permission was added to the canonical registry and role catalog; `ProfileActivationService`
+introduces new `select_for_update()` concurrency locking; and this change closes Phase 1
+(medium/high-risk merge-prep trigger). 40 new tests, full regression 1808/1808 green
+(1768 baseline + 40 new).
+
+### Deferred (explicitly, per task instruction)
+
+1. Automatic deactivation of an already-active profile when verification later becomes
+   invalid/expired — no suspension/revalidation workflow exists in this repository to
+   hook it into; recorded as BG-019, not implemented as a guess.
+2. Customer document verification — still no domain-model support (BG-016, unchanged).
+3. Public Instagram-style caregiver profile, galleries, credential presentation, company
+   staff-management expansion, customer portal expansion, marketplace/invoice/financial
+   workflow — all explicitly out of scope for this task, untouched.
+
+### Phase 1 Acceptance Criteria — Now Complete
+
+All roadmap Phase 1 acceptance criteria (see `IMPLEMENTATION_ROADMAP.md`) are met:
+customer/caregiver/organization registration works (verified, no defect); document upload
+works; manual review works (approve/reject/correction, Phase 1.1); resubmission works
+(Phase 1.2); required-document policy exists (Phase 1.2); verification roll-up works
+(Phase 1.2); profile completion is deterministic (Phase 1.3 Part A); activation
+eligibility is enforced (Phase 1.2, unchanged); authorized activation works (Phase 1.3
+Part B/C); private documents remain protected (unchanged); tests are green (1808/1808);
+active documentation is synchronized (this update). Phase 1 — Registration and
+Verification Workflows is COMPLETE.

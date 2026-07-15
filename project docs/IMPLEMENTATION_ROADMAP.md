@@ -5,6 +5,7 @@
 **Post-merge update:** 2026-07-14 — PR #1 merged to main (`eb51018`): documentation sync + BG-002 fix are on main; P0 hygiene complete; **Phase 1 is the active phase**
 **Phase 1.1 update:** 2026-07-15 — manual document verification workflow merged to main via PR #3 (merge commit `278098b`); full regression 1721/1721 green at merge
 **Phase 1.2 update:** 2026-07-15 — verification completion and activation rules implemented on branch `phase1-verification-activation-rules` (from main @ `278098b`); no migration; PR not yet merged
+**Phase 1.3 update:** 2026-07-15 — deterministic profile completion + controlled activation implemented on branch `phase1-activation-completion-final` (from main @ `860640e`, the merged Phase 1.2 PR #4); no migration; PR not yet merged; **Phase 1 acceptance criteria now fully met**
 **Branch verified:** main (via claude/taasisat-senior-state-verify-9dzzlm)
 **Authority:** This roadmap replaces every previous implementation order (including
 `project docs/03_NEXT_TASK.md` sequencing and the archived Offer Marketplace phase plans).
@@ -66,19 +67,20 @@ The repository code remains the ultimate source of truth.
 
 Pre-phase (P0 hygiene, small): ~~fix seed test race (G12)~~ — **DONE, merged in PR #1** (`eb51018`); full regression 1680/1680 green.
 
-### PHASE 1 — Registration & Verification Workflows
+### PHASE 1 — Registration & Verification Workflows — **COMPLETE (2026-07-15, pending PR merge)**
 
 **Scope:** Complete customer/caregiver/company registration; profile completion; identity + professional-license verification; **manual verification by platform owner** (admin portal review queue: approve/reject `VerificationDocument`, roll up to profile `verification_status`); future-AI-verification placeholder (strategy interface with manual implementation only).
 
 - **Depends on:** nothing (foundation exists: `RegistrationService`, `DocumentService`, `VerificationDocument`, `VerificationStatus`)
 - **Complexity:** MEDIUM. Registration flows ~80% done; the new work is the admin review workflow (G1) + status roll-up rules + notifications on decision + tests.
 - **Blocking items:** none.
-- **Acceptance criteria:**
-  1. All three registration flows produce correct profiles, roles, and (for caregivers with company code) affiliation requests — regression green.
-  2. Platform admin can list pending documents, view file, approve or reject with internal reason; `reviewed_by`/`reviewed_at` recorded.
-  3. Profile `verification_status` transitions UNVERIFIED→PENDING→VERIFIED/REJECTED are derived by one service only, with tests for every transition.
-  4. Verification strategy interface exists with `ManualVerification` as the only registered implementation; AI slot documented, not implemented.
-  5. Profile completion percent recomputed on every profile mutation.
+- **Acceptance criteria (ALL MET as of Phase 1.3, 2026-07-15):**
+  1. ✅ All three registration flows produce correct profiles, roles, and (for caregivers with company code) affiliation requests — regression green.
+  2. ✅ Platform admin can list pending documents, view file, approve or reject with internal reason; `reviewed_by`/`reviewed_at` recorded.
+  3. ✅ Profile `verification_status` transitions UNVERIFIED→PENDING→VERIFIED/REJECTED are derived by one service only, with tests for every transition.
+  4. ✅ Verification strategy interface exists with `ManualVerification` as the only registered implementation; AI slot documented, not implemented.
+  5. ✅ Profile completion percent is deterministic, computed by one service (`ProfileCompletionService`, Phase 1.3), recomputed live on every read (no persisted staleness to auto-recompute).
+  6. ✅ (Added by Phase 1.3) Activation eligibility is enforced by a real, controlled, authorized, audited activation action (`ProfileActivationService`) — not merely read-only.
 
 **Phase 1.1 (2026-07-15, MERGED via PR #3) — PARTIALLY COMPLETE:**
 - ✅ Criterion 1 (all three registration flows verified, 8/8 pre-existing tests re-run green — no defect found).
@@ -94,6 +96,12 @@ Pre-phase (P0 hygiene, small): ~~fix seed test race (G12)~~ — **DONE, merged i
 - `DocumentService.resubmit()` — owner-authorized correction/resubmission lifecycle; hardens the pre-existing `replace_document()` primitive so an already-VERIFIED document can no longer be silently reset by its owner.
 - `ActivationEligibilityService.evaluate(profile)` — read-only, structured eligibility for caregiver/organization (base profile complete + documents verified + no blocking state + active account). No auto-activation/publishing wired — nothing in the existing workflow clearly requires it yet.
 - 47 new tests, zero new migrations. Criterion 5 (profile completion percent auto-recompute on every mutation) and wiring `ActivationEligibilityService` into an actual activation action remain open — see `03_NEXT_TASK.md`.
+
+**Phase 1.3 (2026-07-15, branch `phase1-activation-completion-final`) — activation and profile completion, closes Phase 1:**
+- `ProfileCompletionService` — single deterministic source of truth for the base-profile-field checklist (Criterion 5). `calculate_caregiver_profile_completion()`/`calculate_organization_profile_completion()` delegate to it; bare-int signature unchanged for existing callers.
+- `ProfileActivationService.activate_caregiver()/activate_organization()` — wires `ActivationEligibilityService` (unchanged) into a real, controlled action: `transaction.atomic` + row lock, permission-gated (`ACCOUNTS_PROFILE_ACTIVATE`, platform staff only), refuses owner self-activation and cross-tenant activation, refuses when ineligible with structured reasons, idempotent (AuditLog-existence based, no new field), audited. Activation is an audited approval record over the existing default-ACTIVE status, not a new lifecycle state — see `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-016.
+- Minimum usable platform-operator UI (activation detail + activate action, `admin_portal`) and owner-facing UI (activation status + blocking reasons on the provider/organization profile page).
+- 40 new tests, zero new migrations, full regression 1808/1808 green. **All Phase 1 acceptance criteria are now met — Phase 1 (Registration and Verification Workflows) is COMPLETE.** Deferred (explicitly, recorded as BG-019, not a defect): automatic deactivation of an already-active profile when verification later becomes invalid — no suspension/revalidation workflow exists yet to hook it into.
 
 ### PHASE 2 — Caregiver Profile (production complete)
 

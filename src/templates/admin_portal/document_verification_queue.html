@@ -20,7 +20,11 @@
       {% for document in documents %}
       <tr>
         <td class="px-5 py-3 text-text">
-          {% if document.caregiver_id %}{{ document.caregiver.display_name }}{% else %}{{ document.organization.name }}{% endif %}
+          {% if document.caregiver_id %}
+          <a href="{% url 'admin_portal:caregiver-activation-detail' caregiver_id=document.caregiver_id %}" class="text-primary hover:underline">{{ document.caregiver.display_name }}</a>
+          {% else %}
+          <a href="{% url 'admin_portal:organization-activation-detail' organization_id=document.organization_id %}" class="text-primary hover:underline">{{ document.organization.name }}</a>
+          {% endif %}
         </td>
         <td class="px-5 py-3 text-text">{{ document.get_document_type_display }}</td>
         <td class="px-5 py-3 text-text ltr-value">{{ document.created_at }}</td>

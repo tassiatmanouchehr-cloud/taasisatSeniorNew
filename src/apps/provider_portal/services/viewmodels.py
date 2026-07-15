@@ -73,6 +73,9 @@ class ProviderProfileViewModel:
     completion_percent: int = 0
     completion_missing_labels: tuple[str, ...] = field(default_factory=tuple)
     public_preview_url: str = ""
+    is_activated: bool = False
+    activation_eligible: bool = False
+    activation_blocking_reasons: tuple[str, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True)

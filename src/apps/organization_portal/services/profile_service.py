@@ -64,6 +64,7 @@ class OrganizationProfilePresentationService:
         documents = cls._document_rows(organization)
         active_provider_count = OrganizationStaffService.list_active_caregivers(organization).count()
         completion_percent, missing = cls._completion(organization, documents)
+        is_activated, eligibility = cls._activation_status(organization, tenant_id=tenant_id)
 
         return OrganizationProfileViewModel(
             organization_id=str(organization.id),
@@ -90,7 +91,25 @@ class OrganizationProfilePresentationService:
             completion_percent=completion_percent,
             completion_missing_labels=missing,
             public_preview_url=f"/find-an-organization/{supplier.id}/",
+            is_activated=is_activated,
+            activation_eligible=eligibility.eligible,
+            activation_blocking_reasons=eligibility.reasons,
         )
+
+    @staticmethod
+    def _activation_status(organization, *, tenant_id):
+        """Phase 1.3 (Profile Activation and Completion): owner-facing
+        activation state + blockers, reusing
+        `ActivationEligibilityService`/`ProfileActivationService`'s own
+        read-only queries — never recomputed here."""
+        from apps.accounts.services.activation_eligibility_service import ActivationEligibilityService
+        from apps.accounts.services.profile_activation_service import ProfileActivationService
+
+        is_activated = ProfileActivationService.is_activated(
+            resource_type="OrganizationProfile", resource_id=organization.id, tenant_id=tenant_id,
+        )
+        eligibility = ActivationEligibilityService.evaluate_organization(organization)
+        return is_activated, eligibility
 
     @classmethod
     def get_profile_form(cls, organization) -> OrganizationProfileFormViewModel:

@@ -335,3 +335,38 @@ shared-service change (`DocumentService`, `VerificationReviewService`).
 
 **Classification:** GREEN — all 47 new tests pass, zero regressions in 1721 pre-existing
 tests, migration drift unchanged from pre-task baseline (no new migration).
+
+---
+
+## Run 012 — Phase 1.3 Complete Phase 1 Activation and Profile Completion
+
+```
+Branch: phase1-activation-completion-final (from main @ 860640e)
+Settings module: config.settings.testing
+Python: 3.11.15  |  Django: 5.2.16  |  PostgreSQL: 16.13
+Date/time: 2026-07-15
+```
+
+| Command | Exit code | Result |
+|---------|-----------|--------|
+| `python manage.py check` | 0 | System check identified no issues |
+| `apps.accounts.tests.test_profile_completion` | 0 | 11/11 |
+| `apps.accounts.tests.test_profile_activation` | 0 | 16/16 (incl. `ConcurrentActivationTest`, `TransactionTestCase`) |
+| `apps.admin_portal.tests.test_profile_activation` | 0 | 9/9 |
+| `apps.provider_portal.tests.test_activation_presentation` | 0 | 2/2 |
+| `apps.organization_portal.tests.test_activation_presentation` | 0 | 2/2 |
+| `apps.accounts apps.provider_portal apps.organization_portal apps.admin_portal` (Level 2 — all directly affected apps) | 0 | 439/439 (incl. two locked query-count baselines updated: provider_portal 7->10, organization_portal 7->11, both fixed-cost, not per-item — see ARCHITECTURE_DECISION_LOG ADM-016) |
+| `python manage.py makemigrations --check --dry-run` | 1 | Pre-existing cosmetic drift only, unchanged from before this task (no new accounts/kernel entries) |
+| **Full regression (Level 3 — shared activation behavior across 3 apps, new platform-scoped RBAC permission, new select_for_update() concurrency locking, medium-risk Phase-1-closing merge prep)** | **0** | **Ran 1808 tests — OK** (1768 baseline + 40 new) |
+
+**Test level used:** Level 3 (full regression), run exactly once before PR creation, justified
+by: activation behavior is shared across `accounts`/`provider_portal`/`organization_portal`/
+`admin_portal` (4 apps); a new permission/RBAC key (`ACCOUNTS_PROFILE_ACTIVATE`) was added to
+the canonical registry and role catalog; `ProfileActivationService` introduces new
+`select_for_update()` row-locking (transaction/concurrency behavior change); this PR closes
+Phase 1 — a medium/high-risk merge-prep trigger in its own right.
+
+**Classification:** GREEN — all 40 new tests pass, zero regressions in 1768 pre-existing
+tests (two intentional, documented query-count baseline updates in pre-existing tests, not
+failures — the new fixed-cost activation-status lookup on the profile page), migration
+drift unchanged from pre-task baseline (no new migration).

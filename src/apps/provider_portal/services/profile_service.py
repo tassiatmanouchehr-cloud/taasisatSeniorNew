@@ -90,6 +90,7 @@ class ProviderProfilePresentationService:
         badges = cls._badges(caregiver, is_org_affiliated=cls._is_org_affiliated(supplier))
         documents = cls._document_rows(caregiver)
         completion_percent, missing = cls._completion(caregiver, documents)
+        is_activated, eligibility = cls._activation_status(caregiver, tenant_id=tenant_id)
 
         return ProviderProfileViewModel(
             supplier_id=str(supplier.id),
@@ -116,7 +117,25 @@ class ProviderProfilePresentationService:
             completion_percent=completion_percent,
             completion_missing_labels=missing,
             public_preview_url=f"/find-a-caregiver/{supplier.id}/",
+            is_activated=is_activated,
+            activation_eligible=eligibility.eligible,
+            activation_blocking_reasons=eligibility.reasons,
         )
+
+    @staticmethod
+    def _activation_status(caregiver, *, tenant_id):
+        """Phase 1.3 (Profile Activation and Completion): owner-facing
+        activation state + blockers, reusing
+        `ActivationEligibilityService`/`ProfileActivationService`'s own
+        read-only queries — never recomputed here."""
+        from apps.accounts.services.activation_eligibility_service import ActivationEligibilityService
+        from apps.accounts.services.profile_activation_service import ProfileActivationService
+
+        is_activated = ProfileActivationService.is_activated(
+            resource_type="CaregiverProfile", resource_id=caregiver.id, tenant_id=tenant_id,
+        )
+        eligibility = ActivationEligibilityService.evaluate_caregiver(caregiver)
+        return is_activated, eligibility
 
     @classmethod
     def get_basic_info_form(cls, caregiver) -> ProviderBasicInfoFormViewModel:

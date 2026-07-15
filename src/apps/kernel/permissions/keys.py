@@ -189,6 +189,18 @@ ACCOUNTS_DOCUMENT_REVIEW = register(
     platform_scope=True,
 )
 
+ACCOUNTS_PROFILE_ACTIVATE = register(
+    "accounts.profile.activate",
+    domain="accounts",
+    resource="profile",
+    action="activate",
+    description=(
+        "Formally activate an eligible caregiver's/organization's profile. Guards "
+        "ProfileActivationService.activate_caregiver()/activate_organization()."
+    ),
+    platform_scope=True,
+)
+
 ORGANIZATION_MEMBERSHIP_APPROVE = register(
     "organization.membership.approve",
     domain="organization",

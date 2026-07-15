@@ -282,12 +282,15 @@ class ProviderProfileQueryCountTest(ProviderPortalTestCase):
 
     def test_profile_page_query_count_bounded(self):
         """Locked baseline: session+user+caregiver+supplier resolution (4),
-        rating summary (1), document list (1), completed-jobs count (1) —
-        7 queries for this fixture (no org affiliation, no service names).
-        A regression that turns any of these into a per-item loop would
-        raise this count; this test exists specifically to catch that."""
+        rating summary (1), document list (1), completed-jobs count (1),
+        plus Phase 1.3's fixed-cost activation-status lookup (audit-log
+        existence check, required-document-policy config lookup, document
+        list for eligibility) (3) — 10 queries for this fixture (no org
+        affiliation, no service names). A regression that turns any of
+        these into a per-item loop would raise this count; this test
+        exists specifically to catch that."""
         self.login_as_provider()
-        with self.assertNumQueries(7):
+        with self.assertNumQueries(10):
             self.client.get(reverse("provider_portal:profile"))
 
     def test_query_count_does_not_grow_with_document_or_order_count(self):
