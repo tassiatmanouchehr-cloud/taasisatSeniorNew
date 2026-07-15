@@ -1,7 +1,7 @@
 # DATA OWNERSHIP AND RELATIONSHIPS
 
-**Last verified HEAD:** a5dbaf28703142edaa1d770ea8f3c2a45a12640f
-**Last verified date:** 2026-07-14
+**Last verified HEAD:** phase2-caregiver-professional-profile-foundation (from main @ 0c9d70c)
+**Last verified date:** 2026-07-15
 
 ---
 
@@ -72,6 +72,27 @@ EscrowRecord
 EscrowMovement → EscrowRecord (PROTECT) — immutable audit trail
 ```
 
+### CaregiverProfile → Related Entities (Phase 2.1 additions in bold)
+```
+CaregiverProfile
+├── user → AUTH_USER_MODEL (CASCADE, OneToOne)
+├── person → kernel.Person (CASCADE, OneToOne)
+├── documents → accounts.VerificationDocument (CASCADE, reverse FK, related_name="documents")
+├── **skills → accounts.CaregiverSkill (CASCADE, reverse FK, related_name="skills")**
+└── **experiences → accounts.CaregiverExperience (CASCADE, reverse FK, related_name="experiences")**
+
+CaregiverSkill (Phase 2.1, new)
+├── caregiver → accounts.CaregiverProfile (CASCADE)
+└── UNIQUE(caregiver, name)
+
+CaregiverExperience (Phase 2.1, new)
+├── caregiver → accounts.CaregiverProfile (CASCADE)
+└── CHECK(end_date IS NULL OR end_date >= start_date)
+```
+Neither new model carries its own `tenant_id` — tenant is derived transitively via
+`caregiver.user.tenant`, the same pattern `VerificationDocument` already uses for its own
+caregiver/organization FKs (no `TenantAwareModel` base for any of the three).
+
 ## Unique Constraints (Significant)
 
 | Model | Constraint | Purpose |
@@ -87,6 +108,8 @@ EscrowMovement → EscrowRecord (PROTECT) — immutable audit trail
 | EscrowRecord | `(tenant, idempotency_key) WHERE != ''` | Idempotent escrow operations |
 | Dispute | `(tenant, idempotency_key) WHERE != ''` | Idempotent dispute opening |
 | RoleAssignment | `(tenant, user, role, scope_type, scope_id) WHERE is_active=True` | One active assignment per scope |
+| CaregiverSkill | `(caregiver, name)` | No duplicate skill name per caregiver (DB backstop; service layer also checks case-insensitively) |
+| CaregiverExperience | `CHECK(end_date IS NULL OR end_date >= start_date)` | End date cannot precede start date |
 
 ## Append-Only Immutability
 

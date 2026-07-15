@@ -57,6 +57,32 @@ class ProfessionalInfoForm(StyledForm):
         self.fields["service_category_ids"].choices = service_category_choices
 
 
+class SkillForm(StyledForm):
+    name = forms.CharField(
+        max_length=100, label="مهارت", error_messages={"required": "نام مهارت الزامی است."},
+    )
+
+
+class ExperienceForm(StyledForm):
+    title = forms.CharField(
+        max_length=150, label="عنوان شغلی", error_messages={"required": "عنوان شغلی الزامی است."},
+    )
+    organization_name = forms.CharField(max_length=255, label="نام سازمان/کارفرما", required=False)
+    description = forms.CharField(widget=forms.Textarea, label="توضیحات", required=False, max_length=2000)
+    start_date = forms.DateField(label="تاریخ شروع", error_messages={"required": "تاریخ شروع الزامی است."})
+    end_date = forms.DateField(label="تاریخ پایان", required=False)
+    is_current = forms.BooleanField(label="در حال حاضر مشغول هستم", required=False)
+
+    def clean(self):
+        cleaned = super().clean()
+        start_date = cleaned.get("start_date")
+        end_date = cleaned.get("end_date")
+        is_current = cleaned.get("is_current")
+        if not is_current and start_date and end_date and end_date < start_date:
+            self.add_error("end_date", "تاریخ پایان نمی‌تواند قبل از تاریخ شروع باشد.")
+        return cleaned
+
+
 class ImageUploadForm(StyledForm):
     image = forms.ImageField(label="تصویر", error_messages={"required": "لطفاً یک تصویر انتخاب کنید."})
 

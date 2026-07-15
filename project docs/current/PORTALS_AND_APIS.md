@@ -1,7 +1,7 @@
 # PORTALS, APIS, AND ENTRY POINTS
 
-**Last verified HEAD:** a5dbaf28703142edaa1d770ea8f3c2a45a12640f
-**Last verified date:** 2026-07-14
+**Last verified HEAD:** phase2-caregiver-professional-profile-foundation (from main @ 0c9d70c)
+**Last verified date:** 2026-07-15
 
 ---
 
@@ -27,11 +27,11 @@ Dashboard, profile, care recipients (CRUD), requests (list/detail/financial), sh
 
 Entry: `_guard()` → `require_authenticated()` → `resolve_tenant_id()` → `resolve_customer_profile()`
 
-## Provider Portal (21 views)
+## Provider Portal (26 views)
 
-Dashboard, assignments (list/detail/confirm/decline), visits (start/complete), availability (working windows, blocked periods), earnings, profile, documents.
+Dashboard, assignments (list/detail/confirm/decline), visits (start/complete), availability (working windows, blocked periods), earnings, profile, documents, skills (list/add/remove — Phase 2.1), experience (list/add/edit/delete — Phase 2.1).
 
-Entry: `_guard()` → `require_authenticated()` → `resolve_tenant_id()` → `resolve_supplier()`
+Entry: `_guard()` → `require_authenticated()` → `resolve_tenant_id()` → `resolve_supplier()`. Profile-editing views additionally use `_guard_with_caregiver()`, resolving `request.user.caregiver_profile`.
 
 ## Organization Portal (18 views)
 
@@ -72,4 +72,5 @@ Each portal has presentation services that transform domain models into view-rea
 - `CustomerDashboardPresentationService`, `CustomerProfilePresentationService`, etc. (portal)
 - `ProviderProfilePresentationService` (provider_portal)
 - `OrganizationProfilePresentationService` (organization_portal)
-- `HomePageService`, `CaregiverDirectoryService`, etc. (public_site)
+- `HomePageService`, `CaregiverDirectoryService`, `CaregiverPublicProfileService` (public_site)
+- `CaregiverSkillService`, `CaregiverExperienceService`, `PublicCredentialSelector` (accounts, Phase 2.1 — domain services/selectors, not presentation services; called by provider_portal/public_site)

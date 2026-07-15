@@ -27,12 +27,14 @@ from apps.reviews.services.reputation_service import ReputationService
 from .viewmodels import (
     BadgeViewModel,
     DocumentRowViewModel,
+    ExperienceRowViewModel,
     NavItemViewModel,
     ProviderBasicInfoFormViewModel,
     ProviderProfessionalInfoFormViewModel,
     ProviderProfileViewModel,
     RatingSummaryViewModel,
     ServiceCategoryOptionViewModel,
+    SkillRowViewModel,
     SummaryItemViewModel,
 )
 
@@ -91,6 +93,7 @@ class ProviderProfilePresentationService:
         documents = cls._document_rows(caregiver)
         completion_percent, missing = cls._completion(caregiver, documents)
         is_activated, eligibility = cls._activation_status(caregiver)
+        public_credential_labels = cls._public_credential_labels(caregiver)
 
         return ProviderProfileViewModel(
             supplier_id=str(supplier.id),
@@ -121,7 +124,16 @@ class ProviderProfilePresentationService:
             activation_eligible=eligibility.eligible,
             activation_blocking_reasons=eligibility.reasons,
             activation_profile_status=caregiver.status,
+            skills_count=caregiver.skills.count(),
+            experience_count=caregiver.experiences.count(),
+            public_credential_labels=public_credential_labels,
         )
+
+    @staticmethod
+    def _public_credential_labels(caregiver) -> tuple[str, ...]:
+        from apps.accounts.services.public_credential_selector import PublicCredentialSelector
+
+        return tuple(summary.label for summary in PublicCredentialSelector.for_caregiver(caregiver))
 
     @staticmethod
     def _activation_status(caregiver):
@@ -156,6 +168,32 @@ class ProviderProfilePresentationService:
             years_experience=caregiver.years_experience,
             service_radius_km=caregiver.service_radius_km,
             service_category_options=options,
+        )
+
+    @classmethod
+    def get_skills_view(cls, caregiver) -> tuple[SkillRowViewModel, ...]:
+        return tuple(
+            SkillRowViewModel(id=str(skill.id), name=skill.name)
+            for skill in caregiver.skills.all()
+        )
+
+    @classmethod
+    def get_experience_view(cls, caregiver) -> tuple[ExperienceRowViewModel, ...]:
+        return tuple(cls._experience_row(entry) for entry in caregiver.experiences.all())
+
+    @staticmethod
+    def _experience_row(entry) -> ExperienceRowViewModel:
+        start = entry.start_date.strftime("%Y/%m")
+        end = "اکنون" if entry.is_current or not entry.end_date else entry.end_date.strftime("%Y/%m")
+        return ExperienceRowViewModel(
+            id=str(entry.id),
+            title=entry.title,
+            organization_name=entry.organization_name,
+            description=entry.description,
+            start_date=entry.start_date,
+            end_date=entry.end_date,
+            is_current=entry.is_current,
+            period_label=f"{start} - {end}",
         )
 
     @classmethod

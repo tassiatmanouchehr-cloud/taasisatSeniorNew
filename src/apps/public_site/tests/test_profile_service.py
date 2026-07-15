@@ -63,14 +63,14 @@ class ProfileServiceTest(PublicSiteTestCase):
         self.assertEqual(profile.verification_status, "verified")
 
     def test_service_names_resolved_from_supplier_service_categories(self):
-        supplier, _ = self._create_caregiver_supplier()
+        supplier, _ = self._create_caregiver_supplier(verification_status="verified")
 
         profile = CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id)
 
         self.assertIn(self.category.name, profile.service_names)
 
     def test_completed_jobs_counted(self):
-        supplier, _ = self._create_caregiver_supplier()
+        supplier, _ = self._create_caregiver_supplier(verification_status="verified")
         self._create_completed_order(supplier=supplier)
 
         profile = CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id)
@@ -78,7 +78,7 @@ class ProfileServiceTest(PublicSiteTestCase):
         self.assertEqual(profile.completed_jobs, 1)
 
     def test_only_approved_reviews_are_shown(self):
-        supplier, _ = self._create_caregiver_supplier()
+        supplier, _ = self._create_caregiver_supplier(verification_status="verified")
         self._add_approved_review(supplier=supplier, text="نظر تأییدشده")
         self._add_pending_review(supplier=supplier, text="نظر در انتظار")
 
@@ -87,6 +87,20 @@ class ProfileServiceTest(PublicSiteTestCase):
         review_texts = [review.written_text for review in profile.reviews]
         self.assertIn("نظر تأییدشده", review_texts)
         self.assertNotIn("نظر در انتظار", review_texts)
+
+    def test_returns_none_for_unverified_caregiver(self):
+        """Phase 2.1 Part H: verification roll-up must be VERIFIED for the
+        public profile page, even when the profile itself is ACTIVE."""
+        supplier, _ = self._create_caregiver_supplier(verification_status="unverified")
+        self.assertIsNone(CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id))
+
+    def test_returns_none_for_inactive_account(self):
+        """Phase 2.1 Part H: the owning account's own is_active flag must
+        also gate the public profile page."""
+        supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
+        caregiver.user.is_active = False
+        caregiver.user.save(update_fields=["is_active"])
+        self.assertIsNone(CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id))
 
     def test_no_private_document_fields_leak_into_the_viewmodel(self):
         """The Epic's explicit requirement: only a verification *status*

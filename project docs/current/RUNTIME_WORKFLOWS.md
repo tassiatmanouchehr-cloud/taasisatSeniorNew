@@ -1,6 +1,6 @@
 # RUNTIME WORKFLOWS
 
-**Last verified HEAD:** phase1-activation-completion-final (from main @ 860640e, PR #5 remediation applied)
+**Last verified HEAD:** phase2-caregiver-professional-profile-foundation (from main @ 0c9d70c, PR #5 merged)
 **Last verified date:** 2026-07-15
 
 ---
@@ -29,6 +29,10 @@
 | 18 | Activation Eligibility (read-only) | IMPLEMENTED (Phase 1.2) | `accounts/services/activation_eligibility_service.py:ActivationEligibilityService` |
 | 19 | Profile Completion (deterministic) | IMPLEMENTED (Phase 1.3) | `accounts/services/profile_completion_service.py:ProfileCompletionService` |
 | 20 | Controlled Profile Activation | IMPLEMENTED (Phase 1.3) | `accounts/services/profile_activation_service.py:ProfileActivationService` |
+| 21 | Caregiver Skills Management | IMPLEMENTED (Phase 2.1) | `accounts/services/caregiver_professional_profile_service.py:CaregiverSkillService` |
+| 22 | Caregiver Experience Management | IMPLEMENTED (Phase 2.1) | `accounts/services/caregiver_professional_profile_service.py:CaregiverExperienceService` |
+| 23 | Public Credential Summary | IMPLEMENTED (Phase 2.1) | `accounts/services/public_credential_selector.py:PublicCredentialSelector` |
+| 24 | Public Caregiver Profile Page | IMPLEMENTED (Epic 06; eligibility corrected Phase 2.1) | `public_site/services/profile_service.py:CaregiverPublicProfileService` |
 
 ---
 
@@ -78,6 +82,18 @@
 8. No automatic deactivation of an already-active profile is performed when verification later becomes invalid — recorded as a deferred item (`quality/COMPLETION_BACKLOG.md` BG-019); an already-`ACTIVE` profile stays activatable/idempotent even if a fresh eligibility check would now fail.
 
 Platform side: `/admin-portal/verification/caregivers/<id>/` and `/admin-portal/verification/organizations/<id>/` (detail + blocking reasons) with a POST `/activate/` action, both permission-gated identically to the Phase 1.1 document-review views. The detail page shows a distinct "معلق" (Suspended) badge for a `SUSPENDED` profile rather than folding it into the generic ineligible case. Owner side: the provider/organization portal profile page shows one of four states — "فعال‌شده توسط پلتفرم" (activated, `profile.status == ACTIVE`), "پروفایل معلق شده است" (suspended), "آماده فعال‌سازی — در انتظار بررسی پلتفرم" (eligible DRAFT, awaiting platform action), or "هنوز آماده فعال‌سازی نیست" (ineligible DRAFT, with the blocking reasons listed) — via a reusable `ui/components/portal/activation_status.html` component, driven by `is_activated`/`eligible`/`profile_status` values the ViewModel derives from `profile.status` directly. See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-016 (including its remediation note) for the full design rationale.
+
+## Caregiver Professional Profile — Skills, Experience, Public Credential Summary (Phase 2.1)
+
+`CaregiverSkillService.add_skill(caregiver, name=…)/remove_skill(caregiver, skill_id=…)/list_skills(caregiver)` — owner-authorized only (no RBAC permission key; ownership via `request.user.caregiver_profile` is the boundary). Duplicate names refused case-insensitively at the service layer, with a DB `UniqueConstraint` on `(caregiver, name)` as the concurrency backstop (a race between two identical concurrent submissions is caught as an `IntegrityError` and re-raised as the same controlled `AccountsError`).
+
+`CaregiverExperienceService.create()/update()/delete()/list_experiences(caregiver)` — same ownership shape. `end_date` may be blank even when not current (no evidence to require it); `is_current=True` forces `end_date=None` server-side. A DB `CheckConstraint` (`end_date IS NULL OR end_date >= start_date`) backs the service-level date validation.
+
+`PublicCredentialSelector.for_caregiver(caregiver)` — read-only. A `VerificationDocument` contributes to the public summary only if it is APPROVED (`DocumentStatus.VERIFIED`), not effectively expired (`RequiredDocumentPolicy.is_effectively_expired()`, reused from Phase 1.2), one of the caregiver-applicable document types (`CAREGIVER_APPLICABLE_DOCUMENT_TYPES`, reused from Phase 1.2), and owned by the queried caregiver. Returns a 3-field `PublicCredentialSummary` (document_type, label, expiry_date) — never file, document number, reviewer identity, or rejection/correction reason.
+
+Public-profile eligibility (`CaregiverPublicProfileService.get_profile()`, `apps.public_site`) now also requires `verification_status == "verified"` and the owning account's `user.is_active`, added as a check local to the single-profile page — on top of, never replacing, the existing `common.is_publicly_visible()` (profile status ACTIVE + organization-membership-active, unchanged, still shared with the caregiver directory/home-page listings). See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-017 for why this was added locally rather than in the shared function, and the resulting known gap (directory/home-page listings do not yet apply the same stricter rule).
+
+Caregiver-side management: `/provider/profile/skills/` (add/remove), `/provider/profile/experience/` (list), `/provider/profile/experience/add/`, `/provider/profile/experience/<id>/edit/`, `/provider/profile/experience/<id>/delete/` — all behind `_guard_with_caregiver()` plus a service-level `caregiver=caregiver` filter on every mutation (cross-caregiver/cross-tenant access returns 404, never a silent no-op). The provider profile page also shows a "which verified credential types will appear publicly" panel.
 
 ## Order Lifecycle (Status Machine)
 

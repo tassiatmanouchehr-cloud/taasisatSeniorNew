@@ -34,5 +34,19 @@ urlpatterns = [
     path("profile/avatar/remove/", views.avatar_remove_view, name="profile-avatar-remove"),
     path("profile/cover/", views.cover_upload_view, name="profile-cover-upload"),
     path("profile/cover/remove/", views.cover_remove_view, name="profile-cover-remove"),
+    path("profile/skills/", views.profile_skills_view, name="profile-skills"),
+    path("profile/skills/<uuid:skill_id>/remove/", views.profile_skill_remove_view, name="profile-skill-remove"),
+    path("profile/experience/", views.profile_experience_view, name="profile-experience"),
+    path("profile/experience/add/", views.profile_experience_add_view, name="profile-experience-add"),
+    path(
+        "profile/experience/<uuid:experience_id>/edit/",
+        views.profile_experience_edit_view,
+        name="profile-experience-edit",
+    ),
+    path(
+        "profile/experience/<uuid:experience_id>/delete/",
+        views.profile_experience_delete_view,
+        name="profile-experience-delete",
+    ),
     path("documents/<str:document_type>/", views.document_manage_view, name="document-manage"),
 ]

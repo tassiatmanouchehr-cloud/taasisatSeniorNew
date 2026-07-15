@@ -108,35 +108,75 @@ Fixed in place on the same branch/PR:
   from `profile.status` — never from `AuditLog`.
 - Owner/platform UI now distinguishes SUSPENDED explicitly.
 
-16 new/renamed tests, full regression 1824/1824 green. See
+16 new/renamed tests, full regression 1824/1824 green. **MERGED to main**
+via PR #5, merge commit `0c9d70c` (2026-07-15). **Phase 1 — Registration
+and Verification Workflows is CLOSED.** See
 `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-016's remediation note and
 `traceability/IMPLEMENTATION_JOURNAL.md` for the full record.
+
+### Phase 2.1 — Caregiver Professional Profile Foundation — IMPLEMENTED, PR PENDING (2026-07-15)
+
+The first coherent, production-usable slice of roadmap Phase 2. Current-
+state inspection found most of "public biography and professional
+introduction," "services offered," "public caregiver profile page," and
+"caregiver-side profile editing UI" already implemented (Epic 06 Sprint 2)
+— reused as-is, not rebuilt (see `traceability/IMPLEMENTATION_JOURNAL.md`'s
+implementation matrix). New work:
+
+- `CaregiverSkill`/`CaregiverExperience` (Parts D/E): new, minimal FK
+  child models of `CaregiverProfile` (mirrors `VerificationDocument`'s
+  existing shape). `CaregiverSkillService`/`CaregiverExperienceService`:
+  owner-authorized CRUD, case-insensitive duplicate-skill prevention
+  (DB `UniqueConstraint` backstop), experience date validation
+  (`CheckConstraint` backstop).
+- `PublicCredentialSelector.for_caregiver()` (Part G): derives a safe,
+  3-field public credential summary (type, label, expiry) from APPROVED,
+  unexpired, caregiver-owned `VerificationDocument` rows only — never
+  file/document-number/reviewer/rejection-reason.
+- Corrected public-profile eligibility (Part H): `CaregiverPublicProfileService
+  .get_profile()` now also requires `verification_status == VERIFIED` and
+  the owning account's `is_active`, on top of (never replacing) the
+  existing `common.is_publicly_visible()` check — added locally, not in
+  the function shared with the caregiver directory/home-page listings
+  (see `ARCHITECTURE_DECISION_LOG.md` ADM-017 Decision 2).
+- Provider-portal skill/experience management pages; public profile page
+  extended with skills/experience/credentials sections.
+
+50 new tests, one new migration (2 new, empty tables only), full
+regression 1874/1874 green. Branch
+`phase2-caregiver-professional-profile-foundation`, PR pending, not yet
+merged. Deferred (explicitly, recorded in
+`quality/COMPLETION_BACKLOG.md`): gallery/posts/social features,
+caregiver financial/order dashboards, directory/home-page listing
+eligibility left unchanged (a known, documented inconsistency with the
+now-stricter profile-page eligibility).
 
 ---
 
 ## IMMEDIATE NEXT TASK
 
-### Merge the Phase 1.3 PR — Phase 1 (Registration and Verification Workflows) is then fully closed
+### Merge the Phase 2.1 PR
 
 Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active implementation
 order).
 
-Phase 1 scope — all items now complete:
+Phase 1 is fully closed (merged via PR #5). Phase 2.1 (this session's work)
+delivers the foundation slice of roadmap Phase 2 — remaining roadmap Phase
+2 scope, explicitly NOT started by this task:
 
-1. ~~P0 hygiene: BG-002~~ — DONE
-2. ~~Customer / caregiver / company registration workflows~~ — VERIFIED, no defect found (Phase 1.1 Part A)
-3. ~~Platform-admin manual verification workflow~~ — IMPLEMENTED (Phase 1.1)
-4. ~~Profile `verification_status` roll-up~~ — IMPLEMENTED (Phase 1.2 Part B)
-5. ~~Profile completion recomputation~~ — IMPLEMENTED (Phase 1.3 Part A, `ProfileCompletionService`)
-6. ~~Verification strategy interface~~ — `DocumentVerificationEvaluator` Protocol added, no implementation (by design)
-7. ~~Wiring `ActivationEligibilityService` into an actual activation/publishing action~~ — IMPLEMENTED (Phase 1.3 Part B/C, `ProfileActivationService`)
-8. Deferred, not part of Phase 1's own acceptance criteria: customer document verification (BG-016, no domain-model support), automatic deactivation on verification becoming invalid (BG-019, no suspension/revalidation workflow exists)
-
-Once the Phase 1.3 PR merges, the next roadmap phase is **PHASE 2 —
-Caregiver Professional Profile** (`IMPLEMENTATION_ROADMAP.md`) — explicitly
-NOT started by this task (public Instagram-style profile, gallery,
-credential presentation, structured skills — all out of scope until
-Phase 1's PR is reviewed and merged).
+1. Gallery (new model + upload service + moderation flag) — out of scope,
+   deferred per explicit governance.
+2. Certificates-as-gallery presentation (surfacing verified documents as a
+   visual gallery, distinct from this slice's plain-badge credential
+   summary) — deferred.
+3. Extended financial overview / earnings detail — deferred (caregiver
+   financial dashboard explicitly excluded from Phase 2.1).
+4. Orders + history pages — deferred (caregiver order dashboard explicitly
+   excluded from Phase 2.1).
+5. Directory/home-page listing eligibility does not yet match the single
+   profile page's stricter rule (verification + account-active) — a known,
+   documented gap (ADM-017 Decision 2), not silently fixed to avoid
+   widening this slice's blast radius.
 
 Note: the previously listed follow-up "Phase 2: OrderOfferService" is now
 scheduled as roadmap Phase 5 (Marketplace Order Workflow) and must not be

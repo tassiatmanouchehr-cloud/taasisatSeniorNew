@@ -649,3 +649,81 @@ Result: Success — profile.status is now the sole activation-state source of tr
 Rollback method: git revert of the branch's commit(s); no data migration to reverse
 Status: Complete — branch phase1-activation-completion-final, PR #5 updated in place, NOT merged
 ```
+
+## Entry 023
+
+```
+Change ID: CL-023
+Date/time: 2026-07-15 (Phase 2.1 — Caregiver Professional Profile Foundation)
+Task: Implement the first coherent, production-usable slice of the caregiver
+      professional profile — biography reuse, skills, experience, services-offered
+      confirmation, verified-credential public summary, and a corrected public/private
+      eligibility boundary on the single caregiver public profile page
+Reason: Roadmap Phase 2 (Caregiver Profile) opened after Phase 1's close; this slice
+        delivers the smallest coherent foundation per explicit task governance, deferring
+        gallery/social/financial/order work to later slices
+Files added:
+  src/apps/accounts/models/professional_profile.py (CaregiverSkill, CaregiverExperience)
+  src/apps/accounts/migrations/0006_caregiver_skill_experience.py
+  src/apps/accounts/services/caregiver_professional_profile_service.py
+    (CaregiverSkillService, CaregiverExperienceService)
+  src/apps/accounts/services/public_credential_selector.py (PublicCredentialSelector)
+  src/apps/accounts/tests/test_caregiver_professional_profile.py (24 tests)
+  src/apps/provider_portal/tests/test_professional_profile.py (13 tests)
+  src/apps/public_site/tests/test_professional_profile_public.py (11 tests)
+  src/templates/provider_portal/profile_skills.html
+  src/templates/provider_portal/profile_experience.html
+  src/templates/provider_portal/profile_experience_form.html
+Files modified:
+  src/apps/accounts/models/__init__.py (export new models)
+  src/apps/provider_portal/{views.py,forms.py,urls.py} (skill/experience management views)
+  src/apps/provider_portal/services/{profile_service.py,viewmodels.py} (skills/experience
+    counts, public_credential_labels)
+  src/templates/provider_portal/profile.html (skills/experience sections, credential
+    preview panel)
+  src/apps/public_site/services/profile_service.py (local, additional public-profile
+    eligibility check; skills/experience/credentials assembly)
+  src/apps/public_site/services/viewmodels.py (PublicSkillViewModel,
+    PublicExperienceViewModel, PublicCredentialViewModel; new fields on
+    CaregiverProfileViewModel)
+  src/templates/public_site/caregiver_profile.html (skills/experience/credentials
+    sections)
+  src/apps/provider_portal/tests/test_profile.py (locked query-count baseline 9 -> 12)
+  src/apps/public_site/tests/test_profile_service.py (3 fixtures corrected to
+    verification_status="verified"; 2 new eligibility tests)
+  src/apps/public_site/tests/test_views.py (2 fixtures corrected to
+    verification_status="verified")
+Files deleted: None
+Database impact: Two new tables (accounts_caregiver_skill, accounts_caregiver_experience),
+  both FK-child of accounts_caregiver_profile, both empty at migration time (new tables,
+  no backfill). No existing table altered.
+Migration impact: One new migration (0006_caregiver_skill_experience.py), hand-curated to
+  exclude the same pre-existing, unrelated field-alter drift every prior phase's
+  makemigrations --check --dry-run has reported (see file header comment for the excluded
+  operations). CaregiverProfile.status/OrganizationProfile.status field defaults untouched
+  — see ARCHITECTURE_DECISION_LOG ADM-017 Decision 1 for why no model-default change was
+  needed for skills/experience/public-profile-metadata.
+Security impact: New local eligibility check on the single caregiver public profile page
+  (verification_status == VERIFIED, account.is_active) — see ADM-017 Decision 2.
+  Owner-only skill/experience editing enforced by _guard_with_caregiver() (account-scoped
+  resolution) plus a service-level caregiver=caregiver filter on every mutation. No new
+  permission key — ownership, not RBAC, is the boundary, matching
+  CaregiverProfileUpdateService's existing shape. Credential summary never exposes file
+  path, document number, reviewer identity, or rejection/correction reason (selector
+  returns a 3-field dataclass only).
+Financial impact: None — orders/booking/commission/finance/payments untouched.
+Tests executed: check (0), 50 new focused tests (48 across 3 new files + 2 new eligibility
+  tests added to the pre-existing test_profile_service.py) (all 0), affected-app Level 2
+  suite (accounts + provider_portal + public_site + orders + organization_portal +
+  admin_portal combined) 712/712, makemigrations --check --dry-run (1, pre-existing
+  unrelated drift only, confirmed no CaregiverSkill/CaregiverExperience/status-field
+  entries present), full regression 1874/1874 (exit 0)
+Result: Success — caregiver can manage skills/experience/services-offered (services-
+  offered via existing infrastructure); public profile shows skills/experience/verified-
+  credential summaries only for genuinely eligible caregivers; private data never
+  exposed; zero regressions
+Rollback method: git revert of the branch's commit(s); migration 0006 has a clean reverse
+  (DROP the two new, empty tables — no data loss, nothing else references them yet)
+Status: Complete — branch phase2-caregiver-professional-profile-foundation, PR to be
+  created, NOT merged
+```

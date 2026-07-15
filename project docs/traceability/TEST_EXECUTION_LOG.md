@@ -409,3 +409,39 @@ marketplace/financial-core eligibility reads, which the full suite exercises.
 **Classification:** GREEN — all new/renamed tests pass, zero regressions in 1808 pre-existing
 tests (two intentional, documented query-count baseline reductions), migration drift
 unchanged from pre-task baseline (no new migration).
+
+---
+
+## Run 014 — Phase 2.1 Caregiver Professional Profile Foundation
+
+```
+Branch: phase2-caregiver-professional-profile-foundation (from main @ 0c9d70c)
+Settings module: config.settings.testing
+Python: 3.11.15  |  Django: 5.2.16  |  PostgreSQL: 16.13
+Date/time: 2026-07-15
+```
+
+| Command | Exit code | Result |
+|---------|-----------|--------|
+| `python manage.py check` | 0 | System check identified no issues |
+| `apps.accounts.tests.test_caregiver_professional_profile` | 0 | 24/24 |
+| `apps.provider_portal.tests.test_professional_profile` | 0 | 13/13 |
+| `apps.public_site.tests.test_professional_profile_public` | 0 | 11/11 |
+| `apps.accounts apps.provider_portal apps.public_site apps.orders apps.organization_portal apps.admin_portal` (Level 2 — directly affected apps) | 0 | 712/712 (incl. 1 locked query-count baseline update: provider_portal 9->12 — skills/experience counts + public-credential lookup, fixed-cost, not per-item) |
+| `apps.kernel.tests.test_architecture_guardrails` (ServiceSupplierProfileCouplingTest) | 0 | 13/13 — confirms no new CaregiverProfile/OrganizationProfile import outside the documented allowlist |
+| `python manage.py makemigrations --check --dry-run` | 1 | Pre-existing cosmetic drift only, unchanged; confirmed no CaregiverSkill/CaregiverExperience/status-field entries present |
+| **Full regression (Level 3 — model/migration changes, public/private security-boundary change on the caregiver public profile page, workflow spans accounts/provider_portal/public_site)** | **0** | **Ran 1874 tests — OK** (1824 baseline + 50 new) |
+
+**Test level used:** Level 3 (full regression), run exactly once before PR creation,
+justified by: two new models with a real migration (`CaregiverSkill`, `CaregiverExperience`);
+a public/private security-boundary change on the caregiver public profile page (new local
+eligibility check requiring `verification_status == VERIFIED` and account `is_active`); and
+the workflow spans three apps (`accounts`, `provider_portal`, `public_site`) through shared
+selectors (`PublicCredentialSelector`, `CaregiverPublicProfileService`).
+
+**Classification:** GREEN — all 50 new/corrected tests pass, zero regressions in 1824
+pre-existing tests (one intentional, documented query-count baseline increase; five
+pre-existing public_site fixture calls corrected to `verification_status="verified"` — a
+legitimate fix to fixtures that were unintentionally relying on lax eligibility, not a
+workaround), migration drift unchanged from pre-task baseline beyond the two new,
+intentional tables.

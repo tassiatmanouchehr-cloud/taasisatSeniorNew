@@ -611,3 +611,158 @@ Automatic deactivation of an already-active profile when verification later beco
 invalid/expired remains deferred (BG-019) — this remediation did not add or remove that
 gap, only made the *current* activation state (DRAFT/ACTIVE/SUSPENDED) accurately
 reflected by `profile.status` at all times.
+
+---
+
+## Phase 2.1 — Caregiver Professional Profile Foundation
+
+**Date:** July 15, 2026
+**Branch:** `phase2-caregiver-professional-profile-foundation` (from main @ `0c9d70c`)
+**Status:** IMPLEMENTED, PR pending
+
+### Current-State Implementation Matrix (Part A)
+
+| Capability | Existing implementation | Reusable | Missing |
+|---|---|---|---|
+| Public biography / bio text | `CaregiverProfile.bio`, edited via `CaregiverProfileUpdateService.update_professional_info()`, read by `CaregiverPublicProfileService` | Yes — reused as-is | — |
+| Professional headline/title | `CaregiverProfile.specialty` (free-text, already rendered as the public profile subtitle) | Yes — reused as-is, no new field | — |
+| Years of experience | `CaregiverProfile.years_experience` | Yes | — |
+| Service area/location summary | `CaregiverProfile.city` (already public) | Yes | — |
+| Languages | No field/model anywhere | — | Not added — no evidence to model it (per governance) |
+| Avatar/cover image | `CaregiverProfile.avatar/cover_image`; public_site deliberately shows only `avatar_initial`, never the image URL (pre-existing, consistent across directory/organization/profile) | Yes — left unchanged (existing, deliberate convention; "media storage strategy for production" is an acknowledged, separate roadmap blocker) | — |
+| Activation/verification badge | `ActivationEligibilityService`, `ProfileActivationService`, `verification_status` — already surfaced on the public profile as `verification_label`/`is_verified` | Yes | — |
+| Skills | No model anywhere | — | `CaregiverSkill` (new) |
+| Structured experience | No model anywhere | — | `CaregiverExperience` (new) |
+| Services offered (caregiver-editable) | `ServiceSupplier.service_categories` + `SupplierRegistry.set_service_categories()` + `CaregiverProfileUpdateService.update_professional_info(service_category_ids=…)` — full CRUD already implemented (Epic 06 Sprint 2) | Yes — fully reused, zero new code | — |
+| Services offered (public display) | `CaregiverProfileViewModel.service_names`, already resolved from active `ServiceCategory` rows | Yes | — |
+| Verified credential summary (public) | Only a single coarse `verification_status`/`is_verified` flag; no per-credential-type public summary | Partially | `PublicCredentialSelector` (new) |
+| Public profile page/route | `public_site:caregiver-profile`, `CaregiverPublicProfileService.get_profile()`, safe-404 on ineligible/unknown | Yes | Skills/experience/credentials sections; stricter eligibility (see below) |
+| Public-profile eligibility | `common.is_publicly_visible()` — checked `profile.status == ACTIVE` + org-membership-active only | Partially | `verification_status == VERIFIED` + account `is_active` (added locally, see ADM-017) |
+| Caregiver-side profile editing UI | `provider_portal` basic/professional-info edit pages, avatar/cover upload, document upload/status, activation status, public-preview link | Yes | Skills/experience management pages |
+| Reviews/reputation summary | `ReputationService`, already surfaced on both authenticated and public profile pages | Yes | — |
+| Private document protection | `VerificationDocument.file` stored under `private/` — never publicly URL-servable, by storage location | Yes | — |
+
+### Canonical Ownership (Part B)
+
+See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-017, Decision 1. In short:
+`CaregiverProfile` remains the sole caregiver aggregate. `CaregiverSkill`/
+`CaregiverExperience` are new, minimal FK child tables (mirroring `VerificationDocument`'s
+existing shape). No new "professional profile" table, no second identity, no duplicated
+biography/headline/services-offered field.
+
+### Public/Private Data Boundary (Part F/G/H)
+
+Never publicly exposed: `national_id` (not modeled at all), phone, private email, private
+address, `VerificationDocument.file` (private storage path), document number (not
+modeled), reviewer identity, rejection/correction reason, internal audit data. Verified by
+`test_no_private_document_fields_leak_into_the_viewmodel` (pre-existing, still green) and
+new tests (`test_public_context_excludes_private_fields`,
+`test_credential_summary_never_includes_file_url_or_reviewer`,
+`test_selector_never_exposes_file_field`).
+
+Public-profile eligibility (Part H) — see ADM-017 Decision 2 for the full reasoning. Final
+rule, enforced by `CaregiverPublicProfileService.get_profile()`:
+`common.is_publicly_visible(supplier)` (profile status ACTIVE + org-membership-active,
+unchanged) AND `verification_status == "verified"` (new) AND the owning account's
+`user.is_active` (new). Deliberately NOT changed in the shared `common.py` function the
+caregiver directory/home-page listings also use — see Deferred below.
+
+### Credential-Summary Derivation (Part G)
+
+`PublicCredentialSelector.for_caregiver(caregiver)` — see ADM-017 Decision 3. APPROVED +
+not-expired + applicable-type-for-caregiver + owned-by-this-caregiver only. Returns
+document_type, a public label, and expiry_date — nothing else.
+
+### Skills (Part D)
+
+`CaregiverSkillService.add_skill()/remove_skill()/list_skills()`. `unique_together`
+(DB `UniqueConstraint`) on (caregiver, name) is the backstop; the service pre-checks
+case-insensitively (`name__iexact`) and translates a race-condition `IntegrityError` into
+the same controlled `AccountsError`. No skill catalog/taxonomy — no evidence to justify
+one. `is_visible` flag (default `True`) lets a caregiver hide a skill without deleting it;
+the public selector only reads `is_visible=True` rows.
+
+### Experience (Part E)
+
+`CaregiverExperienceService.create()/update()/delete()/list_experiences()`. `end_date`
+optional even when not current (no evidence to require it); `is_current=True` forces
+`end_date=None` server-side regardless of what was submitted. A `CheckConstraint`
+(`end_date IS NULL OR end_date >= start_date`) is the DB-level backstop for the same rule
+the service already validates. No employment-verification workflow.
+
+### Services Offered (Part F)
+
+No new code — see the ownership matrix above. `CaregiverProfileUpdateService
+.update_professional_info(service_category_ids=…)` already lets a caregiver replace their
+offered-services set (bulk-set semantics; a `MultipleChoiceField` structurally prevents
+duplicate submissions). The only genuinely new work was the public-facing display, which
+already existed too (`service_names` on `CaregiverProfileViewModel`) — confirmed, not
+re-implemented.
+
+### UI/Routes (Part J)
+
+Provider portal (new): `/provider/profile/skills/` (list + add + remove),
+`/provider/profile/experience/` (list), `/provider/profile/experience/add/`,
+`/provider/profile/experience/<id>/edit/`, `/provider/profile/experience/<id>/delete/`.
+Provider portal (extended): profile page now shows skill/experience counts with links to
+the management pages, and a "which verified credential types will appear publicly" panel
+(`public_credential_labels`). "Preview public profile" was already implemented
+(`profile_header.html`'s `public_preview_url` prop) — confirmed, not re-implemented.
+Public site (extended): `caregiver_profile.html` gained skills/experience/credentials
+sections, following the existing bio/services/reviews section pattern exactly (no new
+visual language, no theme changes).
+
+### Security and Privacy (Part K)
+
+Owner-only editing is enforced structurally by `_guard_with_caregiver()` (resolves
+`request.user.caregiver_profile`, an account-scoped attribute — a customer or
+organization-only user has none, `PermissionDenied` -> 403) plus a second,
+service-level check on every mutation (`CaregiverSkillService`/`CaregiverExperienceService`
+filter every query by `caregiver=caregiver`, the caller's own resolved profile — never a
+caller-supplied id trusted as ownership proof). Cross-tenant is a strict subset of
+cross-caregiver here (a cross-tenant user cannot resolve another tenant's
+`caregiver_profile` at all). Verified directly by
+`test_another_caregiver_cannot_remove_skill`, `test_cannot_update_another_caregivers_experience`,
+`test_cross_tenant_cannot_edit_experience` (404, not a silent no-op).
+
+### Test Level Decision
+
+Level 3 (full regression), run once before PR creation, justified by: two new models with
+a real migration; a public/private security-boundary change on the caregiver public
+profile page; and the workflow spans `accounts`, `provider_portal`, and `public_site`.
+
+### Deferred (explicitly, recorded as new backlog items — see `quality/COMPLETION_BACKLOG.md`)
+
+1. Gallery, posts, feed, follows, likes, comments, stories, messaging — explicitly out of
+   this task's scope, untouched.
+2. Caregiver financial dashboard, caregiver order dashboard, Company Portal expansion,
+   Customer Portal expansion, Marketplace offer workflow, invoice workflow, financial
+   engine changes, payment/settlement changes — explicitly out of scope, untouched.
+3. AI verification implementation, service-specific credential enforcement, public
+   document-file access — explicitly out of scope, untouched (and the last one remains
+   structurally impossible — private storage path, never surfaced).
+4. Directory/home-page listing eligibility does not yet require `verification_status ==
+   VERIFIED` or account `is_active` the way the single profile page now does (ADM-017
+   Decision 2) — an inconsistency ("found in the directory, but its own page 404s") this
+   phase deliberately did not fix, since correcting discovery/listing eligibility is a
+   separate, out-of-scope decision with its own blast radius (~80 pre-existing tests
+   depend on the current, looser rule).
+5. Languages field — not modeled, no evidence to justify adding it.
+6. Skill catalog/taxonomy, skill endorsements/rankings, employment verification — not
+   built, per explicit governance ("do not build endorsements, likes, rankings, or
+   skill-verification workflows in this slice").
+
+### Phase 2.1 Acceptance Criteria — Status
+
+Caregiver can edit public professional information (existing, reused) — met. Caregiver can
+manage skills — met (new). Caregiver can manage experience — met (new). Caregiver can
+manage services offered — met (existing, reused). Public caregiver page exists — met
+(existing route, extended). Only activated and verified caregivers are public — met (new
+local eligibility rule). Safe verified credential summaries are shown — met (new
+selector). Original credential files remain private — met (storage location, never
+surfaced). Private identity/contact/review data is absent — met (verified by tests).
+Authorization and tenant isolation are enforced — met (verified by tests). Tests pass — met
+(50 new, full regression 1874/1874). Active documentation is synchronized — met (this
+update). **Phase 2.1 is complete; the remainder of roadmap Phase 2 (gallery, certificates-
+as-gallery, orders/history, extended financial overview) remains a separate, future
+slice — not claimed complete here.**

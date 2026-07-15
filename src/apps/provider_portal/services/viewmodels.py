@@ -80,6 +80,30 @@ class ProviderProfileViewModel:
     """Raw `ProfileStatus` value (draft/active/suspended/archived) — Phase
     1.3 remediation, so the template can display DRAFT/ACTIVE/SUSPENDED
     accurately instead of only a derived eligible/ineligible badge."""
+    skills_count: int = 0
+    experience_count: int = 0
+    public_credential_labels: tuple[str, ...] = field(default_factory=tuple)
+    """Which verified credential types will appear on the public profile
+    right now — Phase 2.1 Part J ("see which verified credential types
+    will appear publicly")."""
+
+
+@dataclass(frozen=True)
+class SkillRowViewModel:
+    id: str
+    name: str
+
+
+@dataclass(frozen=True)
+class ExperienceRowViewModel:
+    id: str
+    title: str
+    organization_name: str
+    description: str
+    start_date: object  # date
+    end_date: object  # date | None
+    is_current: bool
+    period_label: str
 
 
 @dataclass(frozen=True)

@@ -24,6 +24,10 @@ from django.http import Http404
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 
+from apps.accounts.services.caregiver_professional_profile_service import (
+    CaregiverExperienceService,
+    CaregiverSkillService,
+)
 from apps.accounts.services.caregiver_profile_service import CaregiverProfileUpdateService
 from apps.accounts.services.document_service import DocumentService
 from apps.accounts.services.errors import AccountsError
@@ -50,8 +54,10 @@ from .forms import (
     BlockedPeriodForm,
     DeclineAssignmentForm,
     DocumentUploadForm,
+    ExperienceForm,
     ImageUploadForm,
     ProfessionalInfoForm,
+    SkillForm,
     WorkingWindowForm,
 )
 from .permissions import require_authenticated, resolve_supplier, resolve_tenant_id
@@ -503,6 +509,145 @@ def profile_edit_professional_view(request):
             "nav_items": ProviderProfilePresentationService.build_nav_items(active="profile"),
         },
     )
+
+
+# ============================================================
+# Skills — Phase 2.1 (Caregiver Professional Profile Foundation)
+# ============================================================
+
+
+@require_http_methods(["GET", "POST"])
+def profile_skills_view(request):
+    supplier, tenant_id, caregiver = _guard_with_caregiver(request)
+    form = SkillForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            CaregiverSkillService.add_skill(caregiver, name=form.cleaned_data["name"])
+        except AccountsError as exc:
+            form.add_error("name", str(exc))
+        else:
+            return redirect("provider_portal:profile-skills")
+    return render(
+        request,
+        "provider_portal/profile_skills.html",
+        {
+            "form": form,
+            "skills": ProviderProfilePresentationService.get_skills_view(caregiver),
+            "nav_items": ProviderProfilePresentationService.build_nav_items(active="profile"),
+        },
+    )
+
+
+@require_http_methods(["POST"])
+def profile_skill_remove_view(request, skill_id):
+    supplier, tenant_id, caregiver = _guard_with_caregiver(request)
+    try:
+        CaregiverSkillService.remove_skill(caregiver, skill_id=skill_id)
+    except AccountsError:
+        pass  # already removed / not owned — page still shows current state.
+    return redirect("provider_portal:profile-skills")
+
+
+# ============================================================
+# Experience — Phase 2.1 (Caregiver Professional Profile Foundation)
+# ============================================================
+
+
+@require_http_methods(["GET"])
+def profile_experience_view(request):
+    supplier, tenant_id, caregiver = _guard_with_caregiver(request)
+    return render(
+        request,
+        "provider_portal/profile_experience.html",
+        {
+            "experience": ProviderProfilePresentationService.get_experience_view(caregiver),
+            "nav_items": ProviderProfilePresentationService.build_nav_items(active="profile"),
+        },
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def profile_experience_add_view(request):
+    supplier, tenant_id, caregiver = _guard_with_caregiver(request)
+    form = ExperienceForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            CaregiverExperienceService.create(
+                caregiver,
+                title=form.cleaned_data["title"],
+                organization_name=form.cleaned_data["organization_name"],
+                description=form.cleaned_data["description"],
+                start_date=form.cleaned_data["start_date"],
+                end_date=form.cleaned_data["end_date"],
+                is_current=form.cleaned_data["is_current"],
+            )
+        except AccountsError as exc:
+            form.add_error(None, str(exc))
+        else:
+            return redirect("provider_portal:profile-experience")
+    return render(
+        request,
+        "provider_portal/profile_experience_form.html",
+        {
+            "form": form,
+            "nav_items": ProviderProfilePresentationService.build_nav_items(active="profile"),
+        },
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def profile_experience_edit_view(request, experience_id):
+    supplier, tenant_id, caregiver = _guard_with_caregiver(request)
+    try:
+        entry = caregiver.experiences.get(id=experience_id)
+    except caregiver.experiences.model.DoesNotExist:
+        raise Http404("Experience entry not found.") from None
+
+    form = ExperienceForm(
+        request.POST or None,
+        initial={
+            "title": entry.title,
+            "organization_name": entry.organization_name,
+            "description": entry.description,
+            "start_date": entry.start_date,
+            "end_date": entry.end_date,
+            "is_current": entry.is_current,
+        },
+    )
+    if request.method == "POST" and form.is_valid():
+        try:
+            CaregiverExperienceService.update(
+                caregiver,
+                experience_id=experience_id,
+                title=form.cleaned_data["title"],
+                organization_name=form.cleaned_data["organization_name"],
+                description=form.cleaned_data["description"],
+                start_date=form.cleaned_data["start_date"],
+                end_date=form.cleaned_data["end_date"],
+                is_current=form.cleaned_data["is_current"],
+            )
+        except AccountsError as exc:
+            form.add_error(None, str(exc))
+        else:
+            return redirect("provider_portal:profile-experience")
+    return render(
+        request,
+        "provider_portal/profile_experience_form.html",
+        {
+            "form": form,
+            "nav_items": ProviderProfilePresentationService.build_nav_items(active="profile"),
+        },
+    )
+
+
+@require_http_methods(["POST"])
+def profile_experience_delete_view(request, experience_id):
+    supplier, tenant_id, caregiver = _guard_with_caregiver(request)
+    try:
+        CaregiverExperienceService.delete(caregiver, experience_id=experience_id)
+    except AccountsError:
+        pass  # already removed / not owned — page still shows current state.
+    return redirect("provider_portal:profile-experience")
 
 
 @require_http_methods(["GET", "POST"])

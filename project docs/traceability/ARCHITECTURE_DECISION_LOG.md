@@ -529,3 +529,133 @@ untouched code, against "do not modify unrelated code." The new activation-statu
 fields (`is_activated`, `activation_eligible`, `activation_blocking_reasons`) were added
 alongside the existing `completion_percent`/`completion_missing_labels` fields instead.
 ```
+
+## ADM-017: Caregiver Professional Profile Foundation — Ownership, Public/Private Boundary, and Credential-Summary Derivation
+
+```
+Decision ID: ADM-017
+Context: Phase 2.1 (Caregiver Professional Profile Foundation) required deciding (1)
+         which aggregate owns new professional-profile data (skills, experience), (2)
+         where the public/private eligibility boundary for the single caregiver public
+         profile page lives, and (3) how a "verified credential summary" is derived
+         without ever exposing VerificationDocument's private fields.
+
+Decision 1 — canonical ownership: no second caregiver identity or parallel profile was
+         created. `CaregiverSkill`/`CaregiverExperience` (new) are plain FKs to the
+         existing `CaregiverProfile`, following the exact shape `VerificationDocument`
+         already established for caregiver-owned child records in `apps.accounts`
+         (plain `models.Model`, UUID PK, FK + `related_name`, no `TenantAwareModel`
+         base — tenant is derived transitively via `caregiver.user.tenant`). No new
+         "professional profile" aggregate, no gallery/social table. Public biography,
+         headline, city, and avatar/cover are NOT new fields — `CaregiverProfile.bio`,
+         `.specialty` (already the free-text field rendered as the public profile's
+         subtitle — reused as-is as the "professional headline/title," not duplicated
+         under a new name), `.city`, `.avatar`, `.cover_image` already existed and were
+         already read by `apps.public_site.services.profile_service
+         .CaregiverPublicProfileService` and edited by `apps.accounts.services
+         .caregiver_profile_service.CaregiverProfileUpdateService`. "Services offered"
+         needed no new model or service either — `ServiceSupplier.service_categories`
+         (a kernel-owned JSON list of `ServiceCategory` ids) plus
+         `SupplierRegistry.set_service_categories()` and
+         `CaregiverProfileUpdateService.update_professional_info(service_category_ids=…)`
+         already implemented full caregiver-editable services-offered management (Epic 06
+         Sprint 2) — this phase only added the missing *public-facing* read path
+         (`service_names`, already present in `CaregiverProfileViewModel`, confirmed
+         reused not reinvented). "Languages" and "issuing organization" metadata were
+         explicitly NOT added — no existing field or model supports either, and this
+         phase's own governance forbids inventing a presentational field with no
+         product evidence behind it.
+Alternatives considered:
+  A. A new `CaregiverProfessionalProfile` 1:1 table holding headline/bio/etc.
+     (rejected — `CaregiverProfile` already owns every one of those fields; a second
+     table would either duplicate them or split one concept across two rows for no
+     reason)
+  B. Reuse CaregiverProfile/CaregiverSkill/CaregiverExperience directly, no new
+     aggregate (accepted)
+
+Decision 2 — public/private eligibility boundary lives in
+         `CaregiverPublicProfileService.get_profile()` only, not in the shared
+         `apps.public_site.services.common.is_publicly_visible()` function the
+         caregiver directory and home-page featured-caregiver listings also call.
+         This phase's own governance is explicit that eligibility applies to "a
+         caregiver public profile" (the single-profile page), and requires: profile
+         status ACTIVE, account active, activation approval complete, verification
+         roll-up VERIFIED, no suspension/archive, valid tenant/supplier relationships.
+         `common.is_publicly_visible()` already covered profile-status-ACTIVE and
+         organization-membership-active (existing, Architecture Review M1/M2) — since
+         the Phase 1.3 remediation, `profile.status == ACTIVE` is genuinely the
+         "activation approval complete" signal (never inferred from AuditLog — ADM-016),
+         so that existing check already satisfied two of the six criteria correctly.
+         It never checked the rolled-up `verification_status` or the owning account's
+         own `is_active` — both added, but as a *local, additional* check inside
+         `get_profile()` (`_is_profile_page_eligible()`), composed with (never
+         replacing) the shared function.
+Alternatives considered:
+  A. Add `verification_status == VERIFIED` and `account.is_active` directly into the
+     shared `common.is_publicly_visible_attrs()` (tried first; reverted). This is the
+     single-source-of-truth-looking option, but it silently tightened the caregiver
+     directory and home-page listings too — surfaces this phase never inspected or was
+     asked to change — and broke ~80 pre-existing directory/home-page tests whose
+     fixtures default to `verification_status="unverified"` (a lax default those
+     features apparently relied on intentionally, or at least never had reason to
+     tighten). Changing discovery/listing eligibility is a real product decision this
+     phase has no evidence for, and "do not silently expand scope" / "do not redesign
+     stable architecture" both weigh directly against it.
+  B. A second, parallel eligibility function private to `apps.public_site.services
+     .profile_service` (rejected — would duplicate the profile/membership-active logic
+     `common.is_publicly_visible()` already implements correctly, recreating exactly the
+     "two sources of truth" problem this phase's own governance repeatedly warns
+     against)
+  C. Keep `common.is_publicly_visible()` unchanged; add the two new checks as a local,
+     composed addition inside the single-profile page's own service only (accepted) —
+     narrowest correct scope, zero behavior change to directory/home-page listings,
+     zero pre-existing test breakage outside the two profile-page tests whose fixtures
+     genuinely needed `verification_status="verified"` added (which is the correct fix,
+     not a workaround — those tests were asserting "a normal caregiver's profile page
+     is visible," and a caregiver with no verification is not a realistic "normal"
+     case).
+Risks: Directory/home-page listings can now show a caregiver whose own profile *page*
+        is hidden (unverified or inactive-account) — an inconsistency between "found in
+        the directory" and "profile page loads." Recorded as a deferred, out-of-scope
+        gap (see `quality/COMPLETION_BACKLOG.md`) rather than silently fixed by widening
+        this phase's blast radius; closing it is a discovery/listing-surface decision
+        for whoever owns that feature next.
+
+Decision 3 — `PublicCredentialSelector.for_caregiver(caregiver)` (new, `apps.accounts
+         .services.public_credential_selector`) derives the public credential summary
+         from `VerificationDocument` directly, filtered to APPROVED
+         (`DocumentStatus.VERIFIED`), not effectively expired
+         (`RequiredDocumentPolicy.is_effectively_expired()`, Phase 1.2 — reused, not
+         reimplemented), one of `CAREGIVER_APPLICABLE_DOCUMENT_TYPES` (Phase 1.2 —
+         reused), and owned by the queried caregiver (queryset filter, never a
+         caller-supplied ownership claim). Returns a frozen `PublicCredentialSummary`
+         dataclass with exactly three fields (document_type, label, expiry_date) — no
+         `file`, no document number (never modeled), no reviewer, no rejection/
+         correction reason. "Issuing organization" and a distinct "public credential
+         title" were not added (Decision 1's same reasoning: not modeled, not invented).
+Alternatives considered:
+  A. Let `apps.public_site` query `VerificationDocument` directly (rejected — that
+     model's own docstring is explicit that only the verification *status* label may
+     ever cross into public-facing code, and a selector encapsulates the exact set of
+     safe fields in one place rather than trusting every future caller to filter
+     correctly)
+  B. A read-only selector living in `apps.accounts` (the model's owning app), called by
+     `apps.public_site` with an already-resolved `CaregiverProfile` instance obtained
+     via the existing duck-typed `resolve_supplier_entity()` bridge — never imports
+     `CaregiverProfile`/`OrganizationProfile` by name in `apps.public_site`, so
+     `apps.kernel.tests.test_architecture_guardrails
+     .ServiceSupplierProfileCouplingTest` remains satisfied (accepted)
+Risks: None identified — 24 accounts-level tests plus 11 public_site-level tests cover
+        approved/pending/rejected/correction-required/expired exclusion, ownership
+        isolation, and the absence of file/reviewer/rejection-reason fields directly.
+Affected code: apps/accounts/models/professional_profile.py (new),
+        apps/accounts/services/caregiver_professional_profile_service.py (new),
+        apps/accounts/services/public_credential_selector.py (new),
+        apps/public_site/services/profile_service.py (get_profile() local eligibility
+        + skills/experience/credentials assembly), apps/public_site/services/
+        viewmodels.py, apps/provider_portal/services/{profile_service.py,viewmodels.py},
+        apps/provider_portal/{views.py,forms.py,urls.py}, templates under
+        templates/provider_portal/ and templates/public_site/caregiver_profile.html.
+Status: RESOLVED_IN_IMPLEMENTATION — 50 new tests, full regression 1874/1874 green,
+        zero new migration drift beyond the two new models.
+```

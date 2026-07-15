@@ -1,0 +1,42 @@
+{% extends "provider_portal/base.html" %}
+
+{% block portal_title %}سوابق کاری{% endblock %}
+{% block page_title %}مدیریت سوابق کاری{% endblock %}
+
+{% block portal_content %}
+<div class="mx-auto max-w-2xl">
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-bold text-text">سوابق کاری من</h2>
+      <a href="{% url 'provider_portal:profile-experience-add' %}"
+         class="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-700 no-underline">افزودن سابقه</a>
+    </div>
+    {% if experience %}
+    <ul class="divide-y divide-border">
+      {% for entry in experience %}
+      <li class="py-3">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <p class="text-sm font-bold text-text">{{ entry.title }}{% if entry.organization_name %} — {{ entry.organization_name }}{% endif %}</p>
+            <p class="text-xs text-text-muted ltr-value mt-1">{{ entry.period_label }}</p>
+            {% if entry.description %}<p class="mt-2 text-sm text-text-muted whitespace-pre-line">{{ entry.description }}</p>{% endif %}
+          </div>
+          <div class="flex shrink-0 items-center gap-3">
+            <a href="{% url 'provider_portal:profile-experience-edit' experience_id=entry.id %}" class="text-sm text-primary hover:underline">ویرایش</a>
+            <form method="post" action="{% url 'provider_portal:profile-experience-delete' experience_id=entry.id %}">
+              {% csrf_token %}
+              <button type="submit" class="text-sm text-danger hover:underline">حذف</button>
+            </form>
+          </div>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    {% include "ui/components/data/empty_state.html" with title="سابقه‌ای ثبت نشده" description="سوابق کاری خود را برای نمایش در نمایه عمومی اضافه کنید." size="sm" %}
+    {% endif %}
+  </div>
+
+  <a href="{% url 'provider_portal:profile' %}" class="mt-4 inline-block text-sm text-text-muted hover:underline">بازگشت به نمایه</a>
+</div>
+{% endblock %}

@@ -1,6 +1,6 @@
 # PERMISSION AND TENANT MODEL
 
-**Last verified HEAD:** phase1-activation-completion-final (from main @ 860640e, PR #5 remediation applied)
+**Last verified HEAD:** phase2-caregiver-professional-profile-foundation (from main @ 0c9d70c, PR #5 merged)
 **Last verified date:** 2026-07-15
 
 ---
@@ -70,6 +70,14 @@ the full activation-authority design decision.
 ### Owner Resubmission Authorization (Phase 1.2)
 
 `DocumentService.resubmit(document, *, actor, file)` — no new permission key (resubmission is an ownership check, not an RBAC-gated action, matching `get_owned_document()`'s existing shape). Refuses unless `actor.id` equals the document's owner user (`caregiver.user_id`/`organization.admin_user_id`, resolved via the shared `apps.accounts.services.document_ownership` helpers also used by `VerificationReviewService`) — cross-tenant and cross-owner resubmission attempts get the same `AccountsError`, and a platform reviewer cannot resubmit on an owner's behalf. Refuses to touch an already-`VERIFIED` document regardless of who calls it. Row-locked (`select_for_update()`) so concurrent resubmission attempts on the same document serialize rather than racing.
+
+### Caregiver Skill/Experience Authorization (Phase 2.1)
+
+`CaregiverSkillService`/`CaregiverExperienceService` — no new permission key, same ownership shape as `CaregiverProfileUpdateService`/`DocumentService.resubmit()`. The provider-portal views resolve the caller's own `CaregiverProfile` via `request.user.caregiver_profile` (`_guard_with_caregiver()`) — a customer or organization-only user has no such attribute and gets `PermissionDenied` (403) before any service call. Every service mutation additionally filters by `caregiver=caregiver` (the caller's own resolved profile, never a request-supplied id trusted as ownership proof), so a caregiver cannot edit/delete another caregiver's skill or experience row even by guessing its UUID — verified directly (not just structurally) by `test_another_caregiver_cannot_remove_skill`/`test_cannot_update_another_caregivers_experience`/`test_cross_tenant_cannot_edit_experience`, all asserting a 404/no-op rather than trusting the structural argument alone.
+
+### Public Caregiver Profile Eligibility (Phase 2.1)
+
+`CaregiverPublicProfileService.get_profile()` (`apps.public_site`) — read-only, unauthenticated-safe. Beyond the existing `common.is_publicly_visible()` check (profile status ACTIVE + organization-membership-active), this phase added a local, additional requirement: `verification_status == "verified"` and the owning account's `user.is_active`. Deliberately added only here, not in the shared `common.py` function the caregiver directory and home-page featured-caregiver listings also call — see `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-017 Decision 2 for the full reasoning and the resulting, explicitly recorded gap (those two listing surfaces do not yet apply the same stricter rule).
 
 ### Critical Finding: No Middleware Enforcement
 

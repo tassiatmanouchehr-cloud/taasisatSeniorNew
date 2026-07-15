@@ -9,8 +9,8 @@
 | Repository name | taasisatSeniorNew |
 | URL | https://github.com/tassiatmanouchehr-cloud/taasisatSeniorNew |
 | Default branch | main |
-| main HEAD SHA | 860640e8b9bcabb51d1b777a8d02f17b2ffdc2da (merge of PR #4) |
-| Feature branch HEAD | `phase1-activation-completion-final` (from main @ 860640e) — PR not yet merged |
+| main HEAD SHA | 0c9d70c4fb529dbeb4d5964f278c8c4916e50e48 (merge of PR #5) |
+| Feature branch HEAD | `phase2-caregiver-professional-profile-foundation` (from main @ 0c9d70c) — PR not yet merged |
 | Last verified date | July 15, 2026 |
 | Python version | 3.12 (owner dev); 3.11.15 (cloud verification environment) |
 | Django version | 5.2.16 |
@@ -25,13 +25,11 @@
 | Working tree | Clean at verification time |
 | Offer Marketplace Phase 1 | **COMMITTED** in `ce3b30e`, now on main (OrderOffer model, migration `orders/0008_orderoffer.py`, admin, 40 tests) |
 | BG-002 | **MERGED to main** via PR #1 (merge commit `eb51018`); full regression 1680/1680 green at merge |
-| Current phase | **Phase 1 — Registration and Verification Workflows is COMPLETE** (all acceptance criteria met; PR pending merge — see `IMPLEMENTATION_ROADMAP.md`) |
-| Phase 1.1 | Manual document verification (caregiver + organization) **MERGED to main** via PR #3 (merge commit `278098b`); full regression 1721/1721 green at merge |
-| Phase 1.2 | Verification completion and activation rules (required-document policy, profile roll-up, resubmission lifecycle, activation eligibility) **MERGED to main** via PR #4 (merge commit `860640e`); full regression 1768/1768 green at merge |
-| Phase 1.3 | Deterministic profile completion + controlled, authorized, audited activation (`ProfileCompletionService`, `ProfileActivationService`) IMPLEMENTED on `phase1-activation-completion-final`; 40 new tests, no migration; PR #5 created, then **remediated** (see Phase 1.3 remediation row below) — closes Phase 1 |
-| Phase 1.3 remediation | PR #5 review found AuditLog existence, not `profile.status`, was the activation signal. Fixed: registration now creates DRAFT profiles; `ProfileActivationService` performs a real DRAFT→ACTIVE transition; `is_activated()` reads `profile.status` directly. 16 new/renamed tests, no migration; PR #5 updated in place, not yet merged |
+| Phase 1 | **COMPLETE and MERGED to main** via PR #5 (merge commit `0c9d70c`); all acceptance criteria met; full regression 1824/1824 green at merge (includes Phase 1.1 PR #3 `278098b`, Phase 1.2 PR #4 `860640e`, Phase 1.3 + remediation PR #5 `0c9d70c`) |
+| Current phase | **Phase 2 — Caregiver Professional Profile is ACTIVE**; this session implements **Phase 2.1 — Caregiver Professional Profile Foundation** (see `IMPLEMENTATION_ROADMAP.md`) |
+| Phase 2.1 | Skills (`CaregiverSkill`), experience (`CaregiverExperience`), verified-credential public summary (`PublicCredentialSelector`), corrected public-profile eligibility, and caregiver-side management UI IMPLEMENTED on `phase2-caregiver-professional-profile-foundation`; 50 new tests, 1 new migration (2 new tables only); PR pending, not yet merged. Biography/headline/services-offered/avatar/reviews were already implemented (Epic 06 Sprint 2) and reused, not rebuilt. Gallery/posts/financial/orders remain separate, future slices. |
 | Active blocker | `makemigrations --check` cosmetic drift only (pre-existing, exit 1, accounts/kernel field alters — no schema change intended) |
-| Active work branch | `phase1-activation-completion-final` (from main @ 860640e) |
+| Active work branch | `phase2-caregiver-professional-profile-foundation` (from main @ 0c9d70c) |
 
 ---
 

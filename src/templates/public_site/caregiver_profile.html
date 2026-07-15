@@ -45,6 +45,47 @@
         </div>
         {% endif %}
 
+        {% if profile.skills %}
+        <div>
+          <h2 class="text-lg font-black text-text">مهارت‌ها</h2>
+          <div class="mt-3 flex flex-wrap gap-2">
+            {% for skill in profile.skills %}
+            {% include "ui/components/feedback/chip.html" with label=skill.name %}
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        {% if profile.experience %}
+        <div>
+          <h2 class="text-lg font-black text-text">سوابق کاری</h2>
+          <div class="mt-4 space-y-4">
+            {% for entry in profile.experience %}
+            <article class="rounded-2xl border border-border bg-surface p-5">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <p class="text-sm font-bold text-text">{{ entry.title }}{% if entry.organization_name %} — {{ entry.organization_name }}{% endif %}</p>
+                <span class="text-xs text-text-muted ltr-value">{{ entry.period_label }}</span>
+              </div>
+              {% if entry.description %}
+              <p class="mt-3 text-sm leading-8 text-text-muted whitespace-pre-line">{{ entry.description }}</p>
+              {% endif %}
+            </article>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        {% if profile.credentials %}
+        <div>
+          <h2 class="text-lg font-black text-text">مدارک تأییدشده</h2>
+          <div class="mt-3 flex flex-wrap gap-2">
+            {% for credential in profile.credentials %}
+            {% include "ui/components/feedback/badge.html" with label=credential.label variant="info" %}
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
         {% if profile.service_names %}
         <div>
           <h2 class="text-lg font-black text-text">خدمات قابل ارائه</h2>
