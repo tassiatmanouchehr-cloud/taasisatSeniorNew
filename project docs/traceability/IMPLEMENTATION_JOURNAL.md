@@ -377,3 +377,237 @@ triggers in the governing test-execution policy.
    BG-018 (roadmap Phase 1 acceptance criterion 5).
 4. Per-service document requirement variation — explicitly not implemented, no evidence
    to ground it (Part A).
+
+---
+
+## Phase 1.3 — Complete Phase 1 Activation and Profile Completion
+
+**Date:** July 15, 2026
+**Branch:** `phase1-activation-completion-final` (from main @ `860640e`)
+**Status:** IMPLEMENTED, PR pending merge
+
+### What This Phase Closes
+
+The two remaining Phase 1 items left open by Phase 1.2 (BG-018): (1)
+`ActivationEligibilityService.evaluate()` had no caller that actually activated anything;
+(2) profile completion percentage was computed by two independent, duplicated field lists
+(`calculate_caregiver_profile_completion()`/`calculate_organization_profile_completion()`
+in `profiles.py`) rather than one canonical source.
+
+### Part A — Deterministic Profile Completion
+
+`ProfileCompletionService` (new) owns the labeled base-field checklist per profile type —
+`CAREGIVER_COMPLETION_FIELDS` (7 fields: display_name, phone, city, specialty, bio,
+years_experience, service_radius_km) and `ORGANIZATION_COMPLETION_FIELDS` (6 fields: name,
+city, phone, address, description, company_type), each a `(field_name, Persian label)`
+pair. `evaluate_caregiver()`/`evaluate_organization()` return a frozen
+`ProfileCompletionResult(percent, completed, missing)`. Field-filled semantics preserved
+exactly from the pre-refactor per-field checks: `value not in (None, "")` — `0` counts as
+filled (a caregiver with 0 years' experience has answered the question, not skipped it),
+blank string counts as missing. `calculate_caregiver_profile_completion()`/
+`calculate_organization_profile_completion()` in `profiles.py` now delegate their
+percentage to this service instead of duplicating the field list; their existing bare-int
+signature is unchanged, so `ActivationEligibilityService` and
+`apps.portal.services.profile_service` needed no changes. Deliberately did NOT touch or
+unify with `provider_portal`/`organization_portal`'s own pre-existing `_completion()`
+methods, which blend in "at least one verified document approved" for portal-specific UI
+purposes predating this task — see ARCHITECTURE_DECISION_LOG ADM-016 for the full
+reasoning. 11 new tests.
+
+### Part B/C — Controlled Activation
+
+`ProfileActivationService.activate_caregiver()/activate_organization()` — see
+ARCHITECTURE_DECISION_LOG ADM-016 for the full design decision (activation as an audited
+approval record over the existing default-ACTIVE status and existing AuditLog, not a new
+lifecycle state). In summary: `transaction.atomic` + `select_for_update()` row lock,
+resolves and tenant-checks the profile before enforcing `ACCOUNTS_PROFILE_ACTIVATE`
+(cross-tenant returns not-found), refuses owner self-activation as defense-in-depth,
+calls `ActivationEligibilityService.evaluate()` unchanged and raises a structured
+`ProfileActivationError` with the service's own reasons if ineligible, is an idempotent
+no-op if an `accounts.profile.activated` AuditLog entry already exists for that resource,
+otherwise sets `status = ACTIVE` (no-op if already ACTIVE) and writes the AuditLog entry.
+16 new tests, including a `TransactionTestCase` + `threading.Barrier` concurrency test
+proving exactly one AuditLog record is created under a 2-thread race, and a source-
+inspection regression test proving `ProfileStatus.SUSPENDED`/`ARCHIVED` are never
+referenced (no auto-deactivation was introduced).
+
+### Part C — Activation Authority
+
+New platform-scoped permission `ACCOUNTS_PROFILE_ACTIVATE`, registered in
+`apps/kernel/permissions/keys.py`, re-exported through the existing
+`apps/accounts/permission_keys.py` and `apps/admin_portal/permission_keys.py` facades.
+Granted to `platform_owner`/`platform_admin`/`platform_support` in
+`apps/kernel/role_catalog.py:DEFAULT_TENANT_ROLES`, alongside the Phase 1.1
+`ACCOUNTS_DOCUMENT_REVIEW` grant — the tuple carrying both was renamed
+`DOCUMENT_REVIEW_PERMISSIONS` -> `PLATFORM_VERIFICATION_PERMISSIONS` (grep-verified no
+other references existed before renaming). Caregivers/organization admins cannot self-
+activate (defense-in-depth check inside the service, independent of RBAC) and cannot
+activate across tenants (profile resolution is tenant-scoped before permission
+enforcement). No automatic/self-service activation path exists anywhere in the codebase.
+
+### Part D — Minimum Usable UI
+
+Platform/operator side: 4 new `admin_portal` views/routes mirroring the existing
+`document_verification_*` view shape exactly (thin controllers, `PermissionService.require`
++ `AccountsError`→404 pattern) — caregiver/organization activation detail pages (status,
+key facts, blocking reasons if ineligible) and a POST activate action. The existing
+document-verification queue and detail pages now link the owner's name to the new
+activation detail page. Owner side: `is_activated`/`activation_eligible`/
+`activation_blocking_reasons` added to `ProviderProfileViewModel`/
+`OrganizationProfileViewModel` (new fields, existing `completion_percent`/
+`completion_missing_labels` untouched), rendered by a new reusable
+`ui/components/portal/activation_status.html` component included on both portals' profile
+pages, following the existing badge-component convention — no shell/theme redesign. 9 new
+admin_portal view tests + 4 new owner-facing presentation tests (2 per portal).
+
+### Query-Count Baseline Update (expected, not a regression)
+
+The new owner-facing activation-status lookup adds a small, fixed number of queries to
+every profile-page load (an AuditLog existence check + the `ActivationEligibilityService`
+call's own document-list/config-lookup queries) — flat per page load, not per item, so no
+N+1 was introduced. The two pre-existing "locked baseline" query-count regression tests
+(`ProviderProfileQueryCountTest`, `OrganizationProfileQueryCountTest`) had their hardcoded
+expected counts updated (7→10, 7→11 respectively) with their docstrings explaining the
+new fixed cost, exactly as their own stated purpose requires ("a regression that turns any
+of these into a per-item loop would raise this count").
+
+### Test Level Decision
+
+Level 3 (full regression) was run, once, before PR creation, justified by: activation
+behavior is shared across 4 apps through one new service; a new platform-scoped RBAC
+permission was added to the canonical registry and role catalog; `ProfileActivationService`
+introduces new `select_for_update()` concurrency locking; and this change closes Phase 1
+(medium/high-risk merge-prep trigger). 40 new tests, full regression 1808/1808 green
+(1768 baseline + 40 new).
+
+### Deferred (explicitly, per task instruction)
+
+1. Automatic deactivation of an already-active profile when verification later becomes
+   invalid/expired — no suspension/revalidation workflow exists in this repository to
+   hook it into; recorded as BG-019, not implemented as a guess.
+2. Customer document verification — still no domain-model support (BG-016, unchanged).
+3. Public Instagram-style caregiver profile, galleries, credential presentation, company
+   staff-management expansion, customer portal expansion, marketplace/invoice/financial
+   workflow — all explicitly out of scope for this task, untouched.
+
+### Phase 1 Acceptance Criteria — Now Complete
+
+All roadmap Phase 1 acceptance criteria (see `IMPLEMENTATION_ROADMAP.md`) are met:
+customer/caregiver/organization registration works (verified, no defect); document upload
+works; manual review works (approve/reject/correction, Phase 1.1); resubmission works
+(Phase 1.2); required-document policy exists (Phase 1.2); verification roll-up works
+(Phase 1.2); profile completion is deterministic (Phase 1.3 Part A); activation
+eligibility is enforced (Phase 1.2, corrected below); authorized activation works (Phase
+1.3 Part B/C, corrected below); private documents remain protected (unchanged); tests are
+green; active documentation is synchronized (this update). Phase 1 — Registration and
+Verification Workflows is COMPLETE.
+
+---
+
+## Phase 1.3 Remediation — Fix Activation State Semantics (PR #5)
+
+**Date:** July 15, 2026
+**Branch:** `phase1-activation-completion-final` (same branch, PR #5 updated in place)
+**Status:** IMPLEMENTED, PR #5 updated, not yet merged
+
+### The Root Defect
+
+PR #5 review correctly identified that the Phase 1.3 implementation above had no
+canonical profile-state transition. Because `CaregiverProfile.status`/
+`OrganizationProfile.status` already defaulted to `ProfileStatus.ACTIVE` at registration
+(a fact Phase 1.3 treated as a fixed, unchangeable constraint — see ADM-016's original
+"apparent circularity" reasoning), `ProfileActivationService` never actually needed to
+flip a profile's status in the ordinary case. "Activation" degenerated into "write an
+`AuditLog` entry," and `ProfileActivationService.is_activated()` read that `AuditLog`'s
+existence — not `profile.status` — to answer "is this profile currently active." A
+historical log became a live source of truth, which is exactly backwards, and which a new
+regression test (`AuditLogIsNotSourceOfTruthTest`) now proves was possible: writing an
+`accounts.profile.activated` `AuditLog` entry by hand, with no real transition behind it,
+previously would have made `is_activated()` return `True`.
+
+### The Fix
+
+`profile.status` is now the sole source of truth for current activation state.
+`AuditLog` is written on every real transition as permanent historical evidence of when
+and by whom it happened, and is never read back to answer "is this active right now."
+Concretely, this required breaking the original circularity at its actual root — the
+registration default, not the eligibility check:
+
+1. **Registration bootstrap now creates DRAFT profiles.**
+   `RegistrationService.create_caregiver()`/`create_company_admin()` and
+   `ensure_caregiver_profile()` (the multi-role attach helper) now explicitly pass
+   `status=ProfileStatus.DRAFT` at creation. `DRAFT` already existed in the
+   `ProfileStatus` enum — no new status value was invented, satisfying the remediation
+   task's explicit instruction to reuse an existing pre-activation state rather than add
+   one. Repository-wide grep confirmed these are the *only* three production code paths
+   that create a `CaregiverProfile`/`OrganizationProfile` at all — every other creation
+   site (test fixtures across `accounts`/`provider_portal`/`organization_portal`/
+   `admin_portal`/`orders`/`booking`/`commission`; the `seed_demo_people`/
+   `seed_demo_accounts` dev-only commands) uses `.objects.create()` directly, outside the
+   canonical registration layer.
+2. **No model-field default change, no migration.** `CaregiverProfile.status`/
+   `OrganizationProfile.status`'s own Django field default remains `ProfileStatus.ACTIVE`.
+   Changing it would have silently flipped status for every one of the call sites named
+   above, including test fixtures in apps this task is explicitly forbidden from touching
+   (`orders`, `booking`, `commission` — where `OrderEligibilityService.is_eligible()`/
+   `is_organization_supplier_active()` read `organization.status == ACTIVE` for unrelated
+   marketplace/financial-core purposes). Passing an explicit `status=` override at the
+   three canonical entry points is the smaller, correct-scope fix.
+3. **`ActivationEligibilityService` no longer requires `status == ACTIVE`.** This was the
+   literal circularity: under the old rule, a DRAFT profile could never be "eligible"
+   (since eligibility required already being ACTIVE), so it could never be activated. The
+   corrected rule blocks only `SUSPENDED`/`ARCHIVED` (`BLOCKING_PROFILE_STATUSES`); DRAFT
+   and ACTIVE are both non-blocking, evaluable statuses. The reason code changed from
+   `profile_status_not_active:{status}` to `profile_status_blocked:{status}`.
+4. **`ProfileActivationService._activate()` performs the real transition.** DRAFT +
+   eligible now genuinely sets `status = ACTIVE` and returns a structured
+   `ProfileActivationResult(profile, previous_status, status, transitioned)`. Idempotency
+   is now judged by `profile.status == ACTIVE` directly — a repeated call on an
+   already-ACTIVE profile short-circuits (`transitioned=False`) without re-running
+   eligibility, so an activated profile stays activatable even if some later fact (e.g. an
+   expired document) would fail a *fresh* eligibility check — that is the same, already
+   explicitly deferred deactivation/revalidation gap (BG-019), not a new one.
+   `AuditLog.before_snapshot`/`after_snapshot` now capture the real
+   `{"status": "draft"}` -> `{"status": "active"}` transition.
+5. **`is_activated()` reads `profile.status` directly** — `profile.status ==
+   ProfileStatus.ACTIVE`, no query at all. This also *removed* one query from every
+   provider/organization profile page load (the old `AuditLog.objects.filter(...).exists()`
+   check), which is why the two locked query-count regression tests
+   (`ProviderProfileQueryCountTest`, `OrganizationProfileQueryCountTest`) had their
+   baselines reduced by exactly one (10→9, 11→10) rather than increased.
+6. **UI now distinguishes SUSPENDED explicitly.** A new `activation_profile_status` field
+   was added to both portal ViewModels (the raw `ProfileStatus` value), and
+   `ui/components/portal/activation_status.html` plus the two `admin_portal`
+   activation-detail templates gained an explicit "معلق" / "پروفایل معلق شده است"
+   (Suspended) badge branch, rather than folding SUSPENDED into the generic "not eligible"
+   case.
+
+### Tests
+
+16 new/renamed focused tests across `test_profile_activation.py` (accounts, rewritten:
+DRAFT fixtures, `ProfileActivationResult` field assertions, `AuditLogIsNotSourceOfTruthTest`
+proving a hand-written `AuditLog` entry does *not* imply activation,
+`EligibilitySemanticsTest` proving DRAFT is eligible and ACTIVE remains evaluable,
+organization-SUSPENDED coverage), `test_activation_eligibility.py` (reason-code rename,
+archived/draft-eligible/organization-suspended coverage), `test_registration.py` (DRAFT-
+on-registration assertions for both caregiver and organization), and
+`test_profile_activation.py` (admin_portal, suspended-activation-refused and
+suspended-detail-shows-suspended). Full regression 1824/1824 green (1808 baseline + 16).
+
+### Test Level Decision
+
+Level 3 (full regression), run once before updating PR #5, justified by: this remediation
+changes what status a real user's caregiver/organization profile starts in — a
+foundational, widely-depended-on fact (registration bootstrap); it changes the
+activation-eligibility precondition logic; and it rewrites the same
+`select_for_update()`-guarded service already covered by Level 3 in the original Phase 1.3
+run. The status-default change is upstream of `apps.orders`/`apps.accounts.services
+.supplier_bridge` marketplace/financial-core eligibility reads even though those apps'
+own code was not modified, which the full suite exercises.
+
+### Deferred (unchanged)
+
+Automatic deactivation of an already-active profile when verification later becomes
+invalid/expired remains deferred (BG-019) — this remediation did not add or remove that
+gap, only made the *current* activation state (DRAFT/ACTIVE/SUSPENDED) accurately
+reflected by `profile.status` at all times.

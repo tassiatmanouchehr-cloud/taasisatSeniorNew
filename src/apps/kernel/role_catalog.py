@@ -47,6 +47,7 @@ from dataclasses import dataclass, field
 
 from apps.kernel.permissions.keys import (
     ACCOUNTS_DOCUMENT_REVIEW,
+    ACCOUNTS_PROFILE_ACTIVATE,
     ADMIN_FINANCE_READ,
     ADMIN_ORDERS_READ,
     ADMIN_PORTAL_ACCESS,
@@ -116,14 +117,17 @@ PLATFORM_ACCOUNTING_PERMISSIONS: tuple[str, ...] = (
 # Phase 1.1 (Manual Document Verification): platform_owner/platform_admin
 # match the task's "manual verification by platform owner" language;
 # platform_support is included too since "authorized platform staff" (not
-# only the owner/admin) must be able to work the review queue.
-DOCUMENT_REVIEW_PERMISSIONS: tuple[str, ...] = (ACCOUNTS_DOCUMENT_REVIEW,)
+# only the owner/admin) must be able to work the review queue. Phase 1.3
+# (Profile Activation and Completion) adds ACCOUNTS_PROFILE_ACTIVATE to
+# the same three roles — the same "authorized platform staff" answer
+# Part C's own repository-evidence question about activation authority.
+PLATFORM_VERIFICATION_PERMISSIONS: tuple[str, ...] = (ACCOUNTS_DOCUMENT_REVIEW, ACCOUNTS_PROFILE_ACTIVATE)
 
 DEFAULT_TENANT_ROLES: tuple[RoleDefinition, ...] = (
-    RoleDefinition(slug="platform_owner", name="مالک پلتفرم", permissions=DOCUMENT_REVIEW_PERMISSIONS),
-    RoleDefinition(slug="platform_admin", name="مدیر پلتفرم", permissions=DOCUMENT_REVIEW_PERMISSIONS),
+    RoleDefinition(slug="platform_owner", name="مالک پلتفرم", permissions=PLATFORM_VERIFICATION_PERMISSIONS),
+    RoleDefinition(slug="platform_admin", name="مدیر پلتفرم", permissions=PLATFORM_VERIFICATION_PERMISSIONS),
     RoleDefinition(slug="platform_operator", name="اپراتور پلتفرم"),
-    RoleDefinition(slug="platform_support", name="پشتیبانی پلتفرم", permissions=DOCUMENT_REVIEW_PERMISSIONS),
+    RoleDefinition(slug="platform_support", name="پشتیبانی پلتفرم", permissions=PLATFORM_VERIFICATION_PERMISSIONS),
     RoleDefinition(
         slug="platform_accounting",
         name="حسابداری پلتفرم",

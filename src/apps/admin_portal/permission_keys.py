@@ -31,6 +31,9 @@ from apps.kernel.permissions.keys import (
     ACCOUNTS_DOCUMENT_REVIEW as DOCUMENT_REVIEW,
 )
 from apps.kernel.permissions.keys import (
+    ACCOUNTS_PROFILE_ACTIVATE as PROFILE_ACTIVATE,
+)
+from apps.kernel.permissions.keys import (
     COMMISSION_DISPUTE_RESOLVE,
     COMMISSION_ESCROW_VIEW,
 )
@@ -45,4 +48,5 @@ __all__ = [
     "COMMISSION_ESCROW_VIEW",
     "COMMISSION_DISPUTE_RESOLVE",
     "DOCUMENT_REVIEW",
+    "PROFILE_ACTIVATE",
 ]

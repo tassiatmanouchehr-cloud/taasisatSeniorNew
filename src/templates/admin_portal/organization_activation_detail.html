@@ -1,0 +1,49 @@
+{% extends "admin_portal/base.html" %}
+
+{% block portal_title %}فعال‌سازی سازمان{% endblock %}
+{% block page_title %}فعال‌سازی — {{ organization.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="grid gap-4 grid-cols-1 lg:grid-cols-2">
+
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-bold text-text">وضعیت فعال‌سازی</h2>
+      {% if is_activated %}
+      {% include "ui/components/feedback/badge.html" with label="فعال" variant="success" %}
+      {% elif organization.status == "suspended" %}
+      {% include "ui/components/feedback/badge.html" with label="معلق" variant="danger" %}
+      {% elif eligibility.eligible %}
+      {% include "ui/components/feedback/badge.html" with label="آماده فعال‌سازی" variant="warning" %}
+      {% else %}
+      {% include "ui/components/feedback/badge.html" with label="واجد شرایط نیست" variant="neutral" %}
+      {% endif %}
+    </div>
+    <dl class="space-y-2 text-sm">
+      <div class="flex justify-between"><dt class="text-text-muted">نام سازمان</dt><dd class="text-text">{{ organization.name }}</dd></div>
+      <div class="flex justify-between"><dt class="text-text-muted">وضعیت پروفایل</dt><dd class="text-text">{{ organization.status }}</dd></div>
+      <div class="flex justify-between"><dt class="text-text-muted">وضعیت تأیید مدارک</dt><dd class="text-text">{{ eligibility.verification.verification_status }}</dd></div>
+    </dl>
+    {% if not eligibility.eligible %}
+    <h3 class="text-sm font-bold text-text mt-4 mb-2">دلایل عدم واجد شرایط بودن</h3>
+    <ul class="space-y-1 text-xs text-text-muted">
+      {% for reason in eligibility.reasons %}
+      <li>{{ reason }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+
+  {% if eligibility.eligible and not is_activated %}
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">فعال‌سازی</h2>
+    <p class="text-xs text-text-muted mb-4">این پروفایل تمام شرایط لازم را دارد و آماده فعال‌سازی رسمی است.</p>
+    <form method="post" action="{% url 'admin_portal:organization-activate' organization_id=organization.id %}">
+      {% csrf_token %}
+      <button type="submit" class="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-700">فعال‌سازی</button>
+    </form>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

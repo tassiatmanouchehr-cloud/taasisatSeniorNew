@@ -9,6 +9,7 @@ from apps.accounts.models.profiles import (
     CompanyAffiliationRequest,
     CustomerProfile,
     OrganizationProfile,
+    ProfileStatus,
 )
 from apps.accounts.services.registration import RegistrationService
 from apps.kernel.models import Person, Role, RoleAssignment, Tenant, UserAccount
@@ -73,6 +74,15 @@ class CaregiverRegistrationTest(TestCase):
         self.assertEqual(profile.provider_type, CaregiverProviderType.INDEPENDENT)
         self.assertIsNone(affiliation)
 
+    def test_new_caregiver_registration_creates_a_draft_profile(self):
+        """Phase 1.3 remediation: a freshly registered caregiver must not
+        start ACTIVE — activation is now an explicit, platform-staff-gated
+        action (ProfileActivationService)."""
+        _, profile, _ = RegistrationService.create_caregiver(
+            phone="09129876543", full_name="مریم احمدی",
+        )
+        self.assertEqual(profile.status, ProfileStatus.DRAFT)
+
     def test_assigns_independent_caregiver_role(self):
         user, _, _ = RegistrationService.create_caregiver(
             phone="09129876543", full_name="Test"
@@ -130,6 +140,15 @@ class CompanyAdminRegistrationTest(TestCase):
         self.assertEqual(org.admin_user, user)
         self.assertTrue(org.code)  # Generated code
         self.assertEqual(org.company_type, "care_agency")
+
+    def test_new_organization_registration_creates_a_draft_profile(self):
+        """Phase 1.3 remediation: a freshly registered organization must
+        not start ACTIVE — activation is now an explicit, platform-staff-
+        gated action (ProfileActivationService)."""
+        _, org = RegistrationService.create_company_admin(
+            phone="09131112222", admin_name="محمد کریمی", company_name="شرکت مراقبتی نور",
+        )
+        self.assertEqual(org.status, ProfileStatus.DRAFT)
 
     def test_assigns_organization_admin_role(self):
         user, _ = RegistrationService.create_company_admin(

@@ -1,6 +1,14 @@
 """Profile services — completion, elder, trusted contacts, multi-role identity."""
 
-from ..models.profiles import CustomerProfile, CaregiverProfile, ElderProfile, OrganizationProfile, TrustedContact
+from ..models.profiles import (
+    CustomerProfile,
+    CaregiverProfile,
+    ElderProfile,
+    OrganizationProfile,
+    ProfileStatus,
+    TrustedContact,
+)
+from .profile_completion_service import ProfileCompletionService
 from .registration import assign_role
 
 
@@ -42,18 +50,13 @@ class CustomerProfileUpdateService:
 
 
 def calculate_caregiver_profile_completion(profile: CaregiverProfile) -> int:
-    """Calculate profile completion percentage (0-100)."""
-    fields = [
-        bool(profile.display_name),
-        bool(profile.phone),
-        bool(profile.city),
-        bool(profile.specialty),
-        bool(profile.bio),
-        profile.years_experience is not None,
-        profile.service_radius_km is not None,
-    ]
-    filled = sum(fields)
-    return int((filled / len(fields)) * 100)
+    """Calculate profile completion percentage (0-100). Phase 1.3
+    (Profile Activation and Completion): delegates to
+    `ProfileCompletionService`, the now-single source of truth for the
+    field checklist — this bare-int signature is kept unchanged for its
+    existing callers (`ActivationEligibilityService`,
+    `apps.portal.services.profile_service`, tests)."""
+    return ProfileCompletionService.evaluate_caregiver(profile).percent
 
 
 def calculate_organization_profile_completion(profile: OrganizationProfile) -> int:
@@ -67,17 +70,10 @@ def calculate_organization_profile_completion(profile: OrganizationProfile) -> i
     own UI purposes; this function deliberately does not, so
     `ActivationEligibilityService` can compose "profile complete" and
     "documents verified" as two independent, individually-testable
-    criteria instead of one merged percentage."""
-    fields = [
-        bool(profile.name),
-        bool(profile.city),
-        bool(profile.phone),
-        bool(profile.address),
-        bool(profile.description),
-        bool(profile.company_type),
-    ]
-    filled = sum(fields)
-    return int((filled / len(fields)) * 100)
+    criteria instead of one merged percentage. Phase 1.3: delegates to
+    `ProfileCompletionService`, the now-single source of truth for the
+    field checklist."""
+    return ProfileCompletionService.evaluate_organization(profile).percent
 
 
 def create_primary_elder_profile(*, customer_profile, full_name, **kwargs):
@@ -136,12 +132,19 @@ def ensure_customer_profile(user, *, phone=None, display_name=None, **kwargs) ->
 
 def ensure_caregiver_profile(user, *, phone=None, display_name=None, **kwargs) -> CaregiverProfile:
     """Idempotently attach a CaregiverProfile to an existing UserAccount.
-    Returns the existing profile if one is already attached."""
+    Returns the existing profile if one is already attached. Phase 1.3
+    remediation: this is a real registration/bootstrap entry point (a
+    caregiver identity being attached to an existing account for the
+    first time), so it defaults to `ProfileStatus.DRAFT` exactly like
+    `RegistrationService.create_caregiver()` — callers may still pass an
+    explicit `status=` to override (e.g. a trusted internal caller
+    re-attaching a profile that should start elsewhere)."""
     existing = CaregiverProfile.objects.filter(user=user).first()
     if existing:
         return existing
     if user.person is None:
         raise ValueError("UserAccount must have a Person before a profile can be attached.")
+    kwargs.setdefault("status", ProfileStatus.DRAFT)
     profile = CaregiverProfile.objects.create(
         user=user, person=user.person,
         phone=phone or user.phone,

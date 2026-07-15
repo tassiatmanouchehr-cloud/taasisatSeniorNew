@@ -82,21 +82,55 @@ traceability/IMPLEMENTATION_JOURNAL.md and ARCHITECTURE_DECISION_LOG ADM-015.
 activation/publishing action (currently read-only — see BG-018);
 `profile_completion_percent` auto-recompute on every mutation (see BG-018).
 
-### BG-018: Activation Wiring and Profile Completion Auto-Recompute
+### BG-018: Activation Wiring and Profile Completion Auto-Recompute — **COMPLETE**
 
-**Current evidence:** `ActivationEligibilityService.evaluate()` (BG-017) is
-a pure read-only query; nothing calls it to actually activate/publish a
-profile. `calculate_caregiver_profile_completion()`/
-`calculate_organization_profile_completion()` exist and are read by
-`ActivationEligibilityService`, but `profile_completion_percent` is not
-automatically recomputed/persisted on every profile mutation.
-**Why needed:** Roadmap Phase 1's acceptance criterion 5 ("Profile
-completion percent recomputed on every profile mutation") remains open;
-`ActivationEligibilityService` has no consumer yet.
-**Dependencies:** BG-017 (done)
+**Resolution (2026-07-15, Phase 1.3):** `ProfileCompletionService` (Part A —
+single source of truth for the base-profile-field checklist per profile
+type; `calculate_caregiver_profile_completion()`/
+`calculate_organization_profile_completion()` now delegate to it instead of
+duplicating field lists — deterministic, called live on every read, no
+persisted staleness to auto-recompute) and `ProfileActivationService`
+(Part B/C — `activate_caregiver()`/`activate_organization()`, calls
+`ActivationEligibilityService.evaluate()`, refuses when ineligible with
+structured reasons, permission-gated via new `ACCOUNTS_PROFILE_ACTIVATE`,
+row-locked, idempotent, audited). Minimum usable platform-operator and
+owner-facing UI delivered (Part D). 40 new tests, zero new migrations.
+Branch `phase1-activation-completion-final`, PR pending merge. See
+`traceability/IMPLEMENTATION_JOURNAL.md` and `ARCHITECTURE_DECISION_LOG`
+ADM-016.
+**Not included:** automatic deactivation of an already-active profile when
+verification later becomes invalid/expired (see BG-019 — no
+suspension/revalidation workflow exists to hook it into).
+**Remediated (2026-07-15, PR #5 review):** the initial implementation used
+`AuditLog` existence, not `profile.status`, as the activation signal —
+because registration left profiles `ACTIVE` by default, activation never
+performed a real status transition in the common case. Fixed: caregiver/
+organization registration now creates `ProfileStatus.DRAFT` profiles;
+`ActivationEligibilityService` no longer requires `status == ACTIVE`
+(removed the resulting circularity); `ProfileActivationService` now
+performs a real `DRAFT -> ACTIVE` transition and judges idempotency from
+`profile.status` directly. See `traceability/ARCHITECTURE_DECISION_LOG.md`
+ADM-016's remediation note.
+
+### BG-019: Automatic Deactivation on Verification Becoming Invalid/Expired
+
+**Current evidence:** `ProfileActivationService` (BG-018/Phase 1.3) never
+walks an already-ACTIVE profile's `status` back to a blocked state when its
+verification later becomes invalid (e.g. a required document expires).
+`ActivationEligibilityService.evaluate()` itself correctly reports
+`eligible=False` again in that case (unchanged Phase 1.2 behavior) — only
+the persisted `status` field is not automatically revised.
+**Why needed:** Task governance for Phase 1.3 explicitly named this as an
+acceptable deferral ("do NOT automatically deactivate an already-active
+profile in this slice unless an explicit suspension/revalidation workflow
+already exists") — recorded here rather than silently dropped.
+**Dependencies:** A scoped decision on a suspension/revalidation workflow
+(does not exist anywhere in the repository today).
 **Affected modules:** accounts
-**Suggested implementation size:** Small-medium
-**Risk:** Low
+**Suggested implementation size:** Medium (new workflow, likely a
+scheduled job re-evaluating eligibility for ACTIVE profiles)
+**Risk:** Medium — a real behavior change to already-active, customer-
+facing profiles; needs its own product decision, not a guess
 **Not in scope:** Marketplace visibility wiring (`is_publicly_visible()` is
 a separate, existing, unrelated concern — see `traceability/IMPLEMENTATION_JOURNAL.md`)
 

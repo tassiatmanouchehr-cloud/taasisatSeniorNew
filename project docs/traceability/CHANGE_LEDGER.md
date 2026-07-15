@@ -498,3 +498,154 @@ Result: Success — required-document policy, profile roll-up, resubmission life
 Rollback method: git revert of the branch's commit(s); no data migration to reverse
 Status: Complete — branch phase1-verification-activation-rules, PR to be created, NOT merged
 ```
+
+## Entry 021
+
+```
+Change ID: CL-021
+Date/time: 2026-07-15 (Phase 1.3 — Complete Phase 1 Activation and Profile Completion)
+Task: Deterministic profile completion (Part A), controlled caregiver/organization
+      activation wired to ActivationEligibilityService (Part B/C), minimum usable
+      platform-operator and owner-facing activation UI (Part D)
+Reason: Closes the two remaining Phase 1 items: wiring ActivationEligibilityService into
+        a real controlled activation action, and making profile completion deterministic
+        and single-source-of-truth (BG-018) — completing roadmap Phase 1 acceptance
+        criteria per project docs/IMPLEMENTATION_ROADMAP.md
+Files added:
+  src/apps/accounts/services/profile_completion_service.py
+  src/apps/accounts/services/profile_activation_service.py
+  src/apps/accounts/tests/test_profile_completion.py
+  src/apps/accounts/tests/test_profile_activation.py
+  src/apps/admin_portal/tests/test_profile_activation.py
+  src/apps/provider_portal/tests/test_activation_presentation.py
+  src/apps/organization_portal/tests/test_activation_presentation.py
+  src/templates/admin_portal/caregiver_activation_detail.html
+  src/templates/admin_portal/organization_activation_detail.html
+  src/ui/components/portal/activation_status.html
+Files modified:
+  src/apps/accounts/services/profiles.py (completion percentage delegated to
+    ProfileCompletionService; bare-int signatures unchanged)
+  src/apps/kernel/permissions/keys.py (ACCOUNTS_PROFILE_ACTIVATE registered)
+  src/apps/accounts/permission_keys.py (re-export)
+  src/apps/admin_portal/permission_keys.py (re-export as PROFILE_ACTIVATE)
+  src/apps/kernel/role_catalog.py (DOCUMENT_REVIEW_PERMISSIONS renamed
+    PLATFORM_VERIFICATION_PERMISSIONS, now includes ACCOUNTS_PROFILE_ACTIVATE, granted to
+    platform_owner/platform_admin/platform_support)
+  src/apps/admin_portal/views.py (4 new views: caregiver/organization activation
+    detail + activate action)
+  src/apps/admin_portal/urls.py (4 new routes)
+  src/templates/admin_portal/document_verification_queue.html (owner name links to new
+    activation detail page)
+  src/templates/admin_portal/document_verification_detail.html (same, on the owner row)
+  src/apps/provider_portal/services/viewmodels.py (is_activated/activation_eligible/
+    activation_blocking_reasons fields added)
+  src/apps/provider_portal/services/profile_service.py (_activation_status() helper)
+  src/apps/organization_portal/services/viewmodels.py (same 3 fields)
+  src/apps/organization_portal/services/profile_service.py (same helper)
+  src/templates/provider_portal/profile.html (activation_status.html include)
+  src/templates/organization_portal/profile.html (same)
+  src/apps/provider_portal/tests/test_profile.py (locked query-count baseline updated
+    7 -> 10: 3 new fixed-cost queries from the activation-status lookup, not per-item)
+  src/apps/organization_portal/tests/test_profile.py (locked query-count baseline
+    updated 7 -> 11, same reason)
+Files deleted: None
+Database impact: None
+Migration impact: None — pure service/permission/view-layer addition; verified via
+  makemigrations --check showing identical pre-existing drift only (no new accounts/
+  kernel entries; no new model field, no new ProfileStatus value)
+Security impact: New platform-scoped permission ACCOUNTS_PROFILE_ACTIVATE, granted only
+  to platform_owner/platform_admin/platform_support; self-activation refused as
+  defense-in-depth inside the service (mirrors ADM-014's self-review refusal); cross-
+  tenant activation refused (profile resolved and tenant-checked before permission
+  enforcement, returns not-found); activation refused while ineligible (unverified,
+  expired document, suspended profile); concurrent activation attempts serialize via
+  select_for_update() and produce exactly one AuditLog record (see ARCHITECTURE_DECISION_LOG
+  ADM-016)
+Financial impact: None
+Tests executed: check (0), makemigrations --check (1, pre-existing unrelated drift only),
+  40 new tests across 5 files (all 0) — 11 completion + 16 accounts activation (incl.
+  concurrency) + 9 admin_portal view tests + 2 provider_portal + 2 organization_portal
+  presentation tests, affected-app Level 2 suite (accounts + provider_portal +
+  organization_portal + admin_portal combined) 439/439, full regression 1808/1808 (exit 0)
+Result: Success — profile completion is deterministic and single-source-of-truth,
+  activation is controlled/audited/authorized/idempotent/concurrency-safe, minimum usable
+  platform and owner UI delivered; zero regressions; zero migrations; Phase 1 acceptance
+  criteria now fully met (see IMPLEMENTATION_ROADMAP.md)
+Rollback method: git revert of the branch's commit(s); no data migration to reverse
+Status: Complete — branch phase1-activation-completion-final, PR to be created, NOT merged
+```
+
+## Entry 022
+
+```
+Change ID: CL-022
+Date/time: 2026-07-15 (Phase 1.3 remediation — PR #5 fix activation state semantics)
+Task: Make profile.status the sole source of truth for activation state; AuditLog becomes
+      historical evidence only, never the activation signal
+Reason: PR #5 review found that AuditLog existence, not profile.status, was determining
+        "is this profile activated" — because registration left profiles ACTIVE by
+        default, ProfileActivationService never performed a real status transition in the
+        common case. Root architectural issue corrected before merge.
+Files added: None
+Files modified:
+  src/apps/accounts/services/registration.py (create_caregiver()/create_company_admin()
+    now create profiles with status=ProfileStatus.DRAFT, not the ACTIVE model default)
+  src/apps/accounts/services/profiles.py (ensure_caregiver_profile() defaults to DRAFT too)
+  src/apps/accounts/services/activation_eligibility_service.py (blocking check changed
+    from "status != ACTIVE" to "status in (SUSPENDED, ARCHIVED)" — removes the circular
+    "must already be ACTIVE to become eligible" rule; reason code renamed
+    profile_status_not_active -> profile_status_blocked)
+  src/apps/accounts/services/profile_activation_service.py (rewritten: real DRAFT ->
+    ACTIVE transition, ProfileActivationResult structured return, idempotency judged by
+    profile.status not AuditLog existence, before/after status recorded on AuditLog)
+  src/apps/admin_portal/views.py (is_activated(profile) call-site update)
+  src/apps/provider_portal/services/profile_service.py (same; activation_profile_status
+    passed to the ViewModel)
+  src/apps/organization_portal/services/profile_service.py (same)
+  src/apps/provider_portal/services/viewmodels.py (activation_profile_status field added)
+  src/apps/organization_portal/services/viewmodels.py (same)
+  src/templates/provider_portal/profile.html (passes profile_status to the component)
+  src/templates/organization_portal/profile.html (same)
+  src/ui/components/portal/activation_status.html (explicit SUSPENDED badge branch)
+  src/templates/admin_portal/caregiver_activation_detail.html (same)
+  src/templates/admin_portal/organization_activation_detail.html (same)
+  src/apps/accounts/tests/test_profile_activation.py (rewritten: DRAFT fixtures, new
+    ProfileActivationResult assertions, AuditLogIsNotSourceOfTruthTest,
+    EligibilitySemanticsTest, organization-suspended coverage)
+  src/apps/accounts/tests/test_activation_eligibility.py (renamed reason assertion;
+    added archived/draft-eligible/organization-suspended coverage)
+  src/apps/accounts/tests/test_registration.py (added DRAFT-on-registration assertions)
+  src/apps/admin_portal/tests/test_profile_activation.py (DRAFT fixtures; added
+    suspended-activation-refused, suspended-detail-shows-suspended)
+  src/apps/provider_portal/tests/test_activation_presentation.py (DRAFT fixture fix)
+  src/apps/organization_portal/tests/test_activation_presentation.py (same)
+  src/apps/provider_portal/tests/test_profile.py (locked query-count baseline 10 -> 9 —
+    is_activated() no longer queries AuditLog)
+  src/apps/organization_portal/tests/test_profile.py (locked query-count baseline
+    11 -> 10, same reason)
+Files deleted: None
+Database impact: None
+Migration impact: None — CaregiverProfile.status/OrganizationProfile.status's own Django
+  field default remains ProfileStatus.ACTIVE, unchanged; only the three canonical
+  registration/bootstrap call sites now pass an explicit status=DRAFT override. See
+  ARCHITECTURE_DECISION_LOG ADM-016 remediation note for the full "why no model-default
+  change" reasoning and the confirmed complete inventory of profile-creation call sites.
+Security impact: None new — same ACCOUNTS_PROFILE_ACTIVATE permission, same self-
+  activation/cross-tenant refusals, unchanged.
+Financial impact: Indirect, out of code scope: a freshly registered caregiver/organization
+  is no longer counted ACTIVE by apps.orders.services.eligibility_service
+  .OrderEligibilityService.is_eligible()/apps.accounts.services.supplier_bridge
+  .is_organization_supplier_active() until platform staff formally activate it. No
+  Marketplace/Financial/Booking code was modified — this is the intended consequence of
+  activation being a real, explicit action.
+Tests executed: check (0), makemigrations --check --dry-run (1, pre-existing unrelated
+  drift only, no CaregiverProfile/OrganizationProfile.status field change present), 16 new/
+  renamed focused tests (all 0), affected-app Level 2 suite (accounts + admin_portal +
+  provider_portal + organization_portal) 455/455 (incl. 2 locked query-count baselines
+  updated), full regression 1824/1824 (exit 0)
+Result: Success — profile.status is now the sole activation-state source of truth;
+  AuditLog is historical evidence only; DRAFT is the real pre-activation registration
+  state; zero regressions; zero migrations
+Rollback method: git revert of the branch's commit(s); no data migration to reverse
+Status: Complete — branch phase1-activation-completion-final, PR #5 updated in place, NOT merged
+```

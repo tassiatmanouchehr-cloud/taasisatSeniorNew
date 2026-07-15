@@ -21,6 +21,7 @@ from ..models.profiles import (
     OrgMembershipStatus,
     PlatformTeamArea,
     PlatformTeamMember,
+    ProfileStatus,
 )
 from .organizations import find_organization_by_code_or_name
 
@@ -69,7 +70,7 @@ class RegistrationService:
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         profile = CaregiverProfile.objects.create(
             user=user, person=person, phone=phone, display_name=full_name,
-            specialty=specialty, city=city,
+            specialty=specialty, city=city, status=ProfileStatus.DRAFT,
         )
         assign_role(tenant=tenant, user=user, role_slug="independent_caregiver")
 
@@ -97,7 +98,7 @@ class RegistrationService:
         organization = OrganizationProfile.objects.create(
             name=company_name, code=org_code, admin_user=user,
             company_type=company_type, city=city, phone=phone,
-            team_size=team_size, tenant=tenant,
+            team_size=team_size, tenant=tenant, status=ProfileStatus.DRAFT,
         )
 
         OrganizationMembership.objects.create(

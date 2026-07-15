@@ -14,7 +14,13 @@
     <dl class="space-y-2 text-sm">
       <div class="flex justify-between">
         <dt class="text-text-muted">مالک</dt>
-        <dd class="text-text">{% if document.caregiver_id %}{{ document.caregiver.display_name }} (مراقب){% else %}{{ document.organization.name }} (سازمان){% endif %}</dd>
+        <dd class="text-text">
+          {% if document.caregiver_id %}
+          <a href="{% url 'admin_portal:caregiver-activation-detail' caregiver_id=document.caregiver_id %}" class="text-primary hover:underline">{{ document.caregiver.display_name }} (مراقب)</a>
+          {% else %}
+          <a href="{% url 'admin_portal:organization-activation-detail' organization_id=document.organization_id %}" class="text-primary hover:underline">{{ document.organization.name }} (سازمان)</a>
+          {% endif %}
+        </dd>
       </div>
       <div class="flex justify-between"><dt class="text-text-muted">نوع مدرک</dt><dd class="text-text">{{ document.get_document_type_display }}</dd></div>
       <div class="flex justify-between"><dt class="text-text-muted">تاریخ بارگذاری</dt><dd class="text-text ltr-value">{{ document.created_at }}</dd></div>

@@ -92,7 +92,25 @@ class CaregiverEligibilityTest(_EligibilityFixtureMixin, TestCase):
         self.caregiver.save(update_fields=["status"])
         result = ActivationEligibilityService.evaluate_caregiver(self.caregiver)
         self.assertFalse(result.eligible)
-        self.assertIn("profile_status_not_active:suspended", result.reasons)
+        self.assertIn("profile_status_blocked:suspended", result.reasons)
+
+    def test_not_eligible_when_profile_archived(self):
+        self._approve_required_caregiver_documents()
+        self.caregiver.status = ProfileStatus.ARCHIVED
+        self.caregiver.save(update_fields=["status"])
+        result = ActivationEligibilityService.evaluate_caregiver(self.caregiver)
+        self.assertFalse(result.eligible)
+        self.assertIn("profile_status_blocked:archived", result.reasons)
+
+    def test_draft_profile_is_eligible_when_otherwise_complete(self):
+        """Phase 1.3 remediation: eligibility must not require the profile
+        to already be ACTIVE — a fresh DRAFT registration must be able to
+        become eligible once complete and verified."""
+        self._approve_required_caregiver_documents()
+        self.caregiver.status = ProfileStatus.DRAFT
+        self.caregiver.save(update_fields=["status"])
+        result = ActivationEligibilityService.evaluate_caregiver(self.caregiver)
+        self.assertTrue(result.eligible, result.reasons)
 
     def test_not_eligible_when_user_account_inactive(self):
         self._approve_required_caregiver_documents()
@@ -140,6 +158,21 @@ class OrganizationEligibilityTest(_EligibilityFixtureMixin, TestCase):
         result = ActivationEligibilityService.evaluate_organization(self.organization)
         self.assertFalse(result.eligible)
         self.assertIn("user_account_inactive", result.reasons)
+
+    def test_not_eligible_when_profile_suspended(self):
+        self._approve_required_organization_documents()
+        self.organization.status = ProfileStatus.SUSPENDED
+        self.organization.save(update_fields=["status"])
+        result = ActivationEligibilityService.evaluate_organization(self.organization)
+        self.assertFalse(result.eligible)
+        self.assertIn("profile_status_blocked:suspended", result.reasons)
+
+    def test_draft_profile_is_eligible_when_otherwise_complete(self):
+        self._approve_required_organization_documents()
+        self.organization.status = ProfileStatus.DRAFT
+        self.organization.save(update_fields=["status"])
+        result = ActivationEligibilityService.evaluate_organization(self.organization)
+        self.assertTrue(result.eligible, result.reasons)
 
     def test_evaluate_dispatches_by_profile_type(self):
         self._approve_required_organization_documents()

@@ -35,5 +35,25 @@ urlpatterns = [
         views.document_verification_review_action,
         name="document-verification-review",
     ),
+    path(
+        "verification/caregivers/<uuid:caregiver_id>/",
+        views.caregiver_activation_detail,
+        name="caregiver-activation-detail",
+    ),
+    path(
+        "verification/caregivers/<uuid:caregiver_id>/activate/",
+        views.caregiver_activate_action,
+        name="caregiver-activate",
+    ),
+    path(
+        "verification/organizations/<uuid:organization_id>/",
+        views.organization_activation_detail,
+        name="organization-activation-detail",
+    ),
+    path(
+        "verification/organizations/<uuid:organization_id>/activate/",
+        views.organization_activate_action,
+        name="organization-activate",
+    ),
     path("system/", views.system_status, name="system-status"),
 ]

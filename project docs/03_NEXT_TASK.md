@@ -54,27 +54,89 @@ Closes the two items Phase 1.1 explicitly deferred:
   side effects, no auto-activation/publishing.
 
 47 new tests. Branch `phase1-verification-activation-rules`, PR created
-but **not yet merged** — see `traceability/IMPLEMENTATION_JOURNAL.md`.
+and **MERGED to main** via PR #4, merge commit `860640e` (2026-07-15), full
+regression 1768/1768 green at merge.
+
+### Phase 1.3 — Complete Phase 1 Activation and Profile Completion — IMPLEMENTED, PR PENDING (2026-07-15)
+
+Closes the two items Phase 1.2 explicitly left open (BG-018):
+
+- `ProfileCompletionService` (Part A): single deterministic source of truth
+  for the base-profile-field checklist per profile type (caregiver: 7
+  fields; organization: 6 fields). `calculate_caregiver_profile_completion()`/
+  `calculate_organization_profile_completion()` delegate their percentage to
+  it — no second source of truth, bare-int signature unchanged.
+- `ProfileActivationService.activate_caregiver()/activate_organization()`
+  (Part B/C): the controlled, authorized, audited activation action —
+  calls `ActivationEligibilityService` unchanged, refuses when ineligible
+  with structured reasons, permission-gated (`ACCOUNTS_PROFILE_ACTIVATE`,
+  platform staff only), refuses owner self-activation and cross-tenant
+  activation, row-locked + idempotent (AuditLog-existence based, no new
+  field), audited. Activation is an audited approval record over the
+  existing default-ACTIVE status, not a new lifecycle state (see
+  `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-016).
+- Minimum usable platform-operator UI (`admin_portal` activation detail +
+  activate action) and owner-facing UI (activation status + blocking
+  reasons on the provider/organization profile page).
+
+40 new tests, zero new migrations, full regression 1808/1808 green.
+**All Phase 1 acceptance criteria are now met.** Branch
+`phase1-activation-completion-final`, PR #5 created — see
+`traceability/IMPLEMENTATION_JOURNAL.md` and `ARCHITECTURE_DECISION_LOG`
+ADM-016. Deferred (explicitly, recorded as BG-019, not a defect):
+automatic deactivation of an already-active profile when verification
+later becomes invalid — no suspension/revalidation workflow exists yet to
+hook it into.
+
+### Phase 1.3 Remediation — Fix Activation State Semantics (PR #5) — IMPLEMENTED (2026-07-15)
+
+PR #5 review found the root defect described above under a different name:
+`AuditLog` existence, not `profile.status`, was determining current
+activation state, because registration left profiles `ACTIVE` by default
+and `ProfileActivationService` never performed a real status transition.
+Fixed in place on the same branch/PR:
+
+- `RegistrationService.create_caregiver()`/`create_company_admin()` and
+  `ensure_caregiver_profile()` now create profiles with
+  `status=ProfileStatus.DRAFT` (the existing enum value, reused — no new
+  status invented, no migration).
+- `ActivationEligibilityService` no longer requires `status == ACTIVE`
+  (the exact circularity being fixed); it now blocks only
+  `SUSPENDED`/`ARCHIVED`.
+- `ProfileActivationService` performs a real `DRAFT -> ACTIVE` transition,
+  returns a structured `ProfileActivationResult`, and judges idempotency
+  from `profile.status` — never from `AuditLog`.
+- Owner/platform UI now distinguishes SUSPENDED explicitly.
+
+16 new/renamed tests, full regression 1824/1824 green. See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-016's remediation note and
+`traceability/IMPLEMENTATION_JOURNAL.md` for the full record.
 
 ---
 
 ## IMMEDIATE NEXT TASK
 
-### Merge the Phase 1.2 PR, then continue Phase 1 — Registration and Verification Workflows
+### Merge the Phase 1.3 PR — Phase 1 (Registration and Verification Workflows) is then fully closed
 
 Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active implementation
 order).
 
-Remaining Phase 1 scope after Phase 1.2 merges:
+Phase 1 scope — all items now complete:
 
 1. ~~P0 hygiene: BG-002~~ — DONE
 2. ~~Customer / caregiver / company registration workflows~~ — VERIFIED, no defect found (Phase 1.1 Part A)
 3. ~~Platform-admin manual verification workflow~~ — IMPLEMENTED (Phase 1.1)
 4. ~~Profile `verification_status` roll-up~~ — IMPLEMENTED (Phase 1.2 Part B)
-5. Profile completion recomputation — `calculate_caregiver_profile_completion()`/`calculate_organization_profile_completion()` exist and are read by `ActivationEligibilityService`, but nothing yet recomputes/persists `profile_completion_percent` automatically on every profile mutation
+5. ~~Profile completion recomputation~~ — IMPLEMENTED (Phase 1.3 Part A, `ProfileCompletionService`)
 6. ~~Verification strategy interface~~ — `DocumentVerificationEvaluator` Protocol added, no implementation (by design)
-7. New, not yet scoped: customer document verification (no domain-model support currently exists — requires its own decision before implementation)
-8. New, not yet scoped: wiring `ActivationEligibilityService` into an actual activation/publishing action (currently read-only, no caller mutates anything based on it)
+7. ~~Wiring `ActivationEligibilityService` into an actual activation/publishing action~~ — IMPLEMENTED (Phase 1.3 Part B/C, `ProfileActivationService`)
+8. Deferred, not part of Phase 1's own acceptance criteria: customer document verification (BG-016, no domain-model support), automatic deactivation on verification becoming invalid (BG-019, no suspension/revalidation workflow exists)
+
+Once the Phase 1.3 PR merges, the next roadmap phase is **PHASE 2 —
+Caregiver Professional Profile** (`IMPLEMENTATION_ROADMAP.md`) — explicitly
+NOT started by this task (public Instagram-style profile, gallery,
+credential presentation, structured skills — all out of scope until
+Phase 1's PR is reviewed and merged).
 
 Note: the previously listed follow-up "Phase 2: OrderOfferService" is now
 scheduled as roadmap Phase 5 (Marketplace Order Workflow) and must not be

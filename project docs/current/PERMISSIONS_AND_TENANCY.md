@@ -1,6 +1,6 @@
 # PERMISSION AND TENANT MODEL
 
-**Last verified HEAD:** phase1-verification-activation-rules (from main @ 278098b)
+**Last verified HEAD:** phase1-activation-completion-final (from main @ 860640e, PR #5 remediation applied)
 **Last verified date:** 2026-07-15
 
 ---
@@ -45,6 +45,27 @@ All permission keys are defined in `apps/kernel/permissions/registry.py` with re
 `accounts.document.review` (platform-scoped) guards `VerificationReviewService.approve()/reject()/request_correction()` and the 4 admin_portal document-verification views. Granted to `platform_owner`, `platform_admin`, `platform_support` in `apps/kernel/role_catalog.py:DEFAULT_TENANT_ROLES` — the same additive per-role-tuple pattern as `ORGANIZATION_PROFILE_UPDATE`. Note: `platform_owner`/`platform_admin`/`platform_support` in the real ("salmandyar") tenant previously carried **no permissions at all** in `DEFAULT_TENANT_ROLES` (only the separate `DEV_BOOTSTRAP_ROLES` catalog, used by `seed_tenant` for a dev-bootstrap tenant, granted `ADMIN_PORTAL_ACCESS` to a differently-slugged "platform-owner" role) — this is the first permission grant added to the real-tenant platform roles since Epic 05's `platform_accounting` addition.
 
 Self-review is refused as defense-in-depth inside `VerificationReviewService` itself (reviewer's `UserAccount.id` compared against the document owner's), independent of whatever RBAC grants exist — mirrors the FR-003 "ownership_authorized_by trusts the caller" finding by not repeating that pattern here (this is a normal RBAC actor check, no ownership fallback).
+
+### Profile Activation Permission (Phase 1.3)
+
+`accounts.profile.activate` (platform-scoped, `ACCOUNTS_PROFILE_ACTIVATE`) guards
+`ProfileActivationService.activate_caregiver()/activate_organization()` and the 4
+admin_portal activation views. Granted to `platform_owner`, `platform_admin`,
+`platform_support` in `apps/kernel/role_catalog.py:DEFAULT_TENANT_ROLES` — the tuple
+carrying both this and the Phase 1.1 `accounts.document.review` grant was renamed
+`DOCUMENT_REVIEW_PERMISSIONS` → `PLATFORM_VERIFICATION_PERMISSIONS` (no other references
+existed, verified by grep before renaming). Owner self-activation is refused as
+defense-in-depth inside `ProfileActivationService` itself (actor's `UserAccount.id`
+compared against the profile owner's — `caregiver.user_id`/`organization.admin_user_id`),
+independent of whatever RBAC grants exist, mirroring the same pattern
+`VerificationReviewService` established for self-review refusal. Cross-tenant activation
+is refused by resolving and tenant-checking the locked profile *before* permission
+enforcement and returning "not found" (mirrors the existing cross-tenant 404 convention
+elsewhere in `admin_portal`) rather than "forbidden". Authorization/tenancy behavior is
+unchanged by the PR #5 remediation — only *what a successful activation does* (a real
+`profile.status` transition, not an `AuditLog`-only record) was corrected. See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-016 (including its remediation note) for
+the full activation-authority design decision.
 
 ### Owner Resubmission Authorization (Phase 1.2)
 

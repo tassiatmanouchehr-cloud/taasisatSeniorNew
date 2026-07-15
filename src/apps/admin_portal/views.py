@@ -12,7 +12,12 @@ from django.http import FileResponse, Http404
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_http_methods
 
+from apps.accounts.services.activation_eligibility_service import ActivationEligibilityService
 from apps.accounts.services.errors import AccountsError
+from apps.accounts.services.profile_activation_service import (
+    ProfileActivationError,
+    ProfileActivationService,
+)
 from apps.accounts.services.verification_review_service import (
     VerificationReviewError,
     VerificationReviewService,
@@ -266,3 +271,69 @@ def document_verification_review_action(request, document_id):
         except VerificationReviewError:
             pass  # Illegal transition / missing reason — page still shows current state.
     return redirect("admin_portal:document-verification-detail", document_id=document.id)
+
+
+@require_GET
+def caregiver_activation_detail(request, caregiver_id):
+    """GET /admin-portal/verification/caregivers/<caregiver_id>/ — eligibility,
+    blocking reasons, and the activate action, for a caregiver in the
+    caller's own tenant. Cross-tenant/nonexistent caregivers both 404."""
+    tenant_id = require_admin_permission(request, permission_keys.PROFILE_ACTIVATE)
+    try:
+        caregiver = ProfileActivationService.get_caregiver_for_tenant(caregiver_id=caregiver_id, tenant_id=tenant_id)
+    except AccountsError:
+        raise Http404("Profile not found.") from None
+
+    eligibility = ActivationEligibilityService.evaluate_caregiver(caregiver)
+    is_activated = ProfileActivationService.is_activated(caregiver)
+    return render(
+        request,
+        "admin_portal/caregiver_activation_detail.html",
+        {"caregiver": caregiver, "eligibility": eligibility, "is_activated": is_activated},
+    )
+
+
+@require_http_methods(["POST"])
+def caregiver_activate_action(request, caregiver_id):
+    """POST /admin-portal/verification/caregivers/<caregiver_id>/activate/ —
+    ProfileActivationService itself re-validates permission, tenant scope,
+    self-activation, and eligibility; this view only surfaces a refusal
+    back onto the same detail page rather than raising."""
+    tenant_id = require_admin_permission(request, permission_keys.PROFILE_ACTIVATE)
+    try:
+        ProfileActivationService.activate_caregiver(caregiver_id, tenant_id=tenant_id, actor=request.user)
+    except (ProfileActivationError, AccountsError):
+        pass  # Ineligible / not found / self-activation — page still shows current state.
+    return redirect("admin_portal:caregiver-activation-detail", caregiver_id=caregiver_id)
+
+
+@require_GET
+def organization_activation_detail(request, organization_id):
+    """GET /admin-portal/verification/organizations/<organization_id>/ — same
+    shape as the caregiver detail page, for organizations."""
+    tenant_id = require_admin_permission(request, permission_keys.PROFILE_ACTIVATE)
+    try:
+        organization = ProfileActivationService.get_organization_for_tenant(
+            organization_id=organization_id, tenant_id=tenant_id,
+        )
+    except AccountsError:
+        raise Http404("Profile not found.") from None
+
+    eligibility = ActivationEligibilityService.evaluate_organization(organization)
+    is_activated = ProfileActivationService.is_activated(organization)
+    return render(
+        request,
+        "admin_portal/organization_activation_detail.html",
+        {"organization": organization, "eligibility": eligibility, "is_activated": is_activated},
+    )
+
+
+@require_http_methods(["POST"])
+def organization_activate_action(request, organization_id):
+    """POST /admin-portal/verification/organizations/<organization_id>/activate/"""
+    tenant_id = require_admin_permission(request, permission_keys.PROFILE_ACTIVATE)
+    try:
+        ProfileActivationService.activate_organization(organization_id, tenant_id=tenant_id, actor=request.user)
+    except (ProfileActivationError, AccountsError):
+        pass  # Ineligible / not found / self-activation — page still shows current state.
+    return redirect("admin_portal:organization-activation-detail", organization_id=organization_id)
