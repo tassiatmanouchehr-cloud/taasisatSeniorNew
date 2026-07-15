@@ -1,0 +1,41 @@
+{% extends "provider_portal/base.html" %}
+
+{% block portal_title %}مهارت‌ها{% endblock %}
+{% block page_title %}مدیریت مهارت‌ها{% endblock %}
+
+{% block portal_content %}
+<div class="mx-auto max-w-xl">
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">مهارت‌های من</h2>
+    {% if skills %}
+    <ul class="divide-y divide-border mb-4">
+      {% for skill in skills %}
+      <li class="py-2 flex items-center justify-between">
+        <span class="text-sm text-text">{{ skill.name }}</span>
+        <form method="post" action="{% url 'provider_portal:profile-skill-remove' skill_id=skill.id %}">
+          {% csrf_token %}
+          <button type="submit" class="text-sm text-danger hover:underline">حذف</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-text-muted mb-4">هنوز مهارتی ثبت نکرده‌اید.</p>
+    {% endif %}
+
+    <form method="post" class="space-y-3 border-t border-border pt-4">
+      {% csrf_token %}
+      {% for field in form %}
+      <div>
+        <label class="block text-sm font-bold text-text">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}<p class="mt-1 text-xs text-danger">{{ field.errors.0 }}</p>{% endif %}
+      </div>
+      {% endfor %}
+      <button type="submit" class="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-700">افزودن مهارت</button>
+    </form>
+  </div>
+
+  <a href="{% url 'provider_portal:profile' %}" class="mt-4 inline-block text-sm text-text-muted hover:underline">بازگشت به نمایه</a>
+</div>
+{% endblock %}

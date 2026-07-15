@@ -90,7 +90,7 @@ class CaregiverProfileViewTest(PublicSiteTestCase):
         self.tenant = self.default_tenant
 
     def test_profile_page_returns_200_for_real_caregiver(self):
-        supplier, _ = self._create_caregiver_supplier(display_name="نگار حسینی تست")
+        supplier, _ = self._create_caregiver_supplier(display_name="نگار حسینی تست", verification_status="verified")
 
         response = self.client.get(reverse("public_site:caregiver-profile", args=[supplier.id]))
 
@@ -124,7 +124,9 @@ class CaregiverProfileTenantHintTest(PublicSiteTestCase):
     the default tenant — that is the whole point of this test class."""
 
     def test_correct_tenant_hint_returns_200_with_real_data(self):
-        supplier, _ = self._create_caregiver_supplier(display_name="مراقب چندمستأجری تست")
+        supplier, _ = self._create_caregiver_supplier(
+            display_name="مراقب چندمستأجری تست", verification_status="verified",
+        )
 
         response = self.client.get(
             reverse("public_site:caregiver-profile", args=[supplier.id]),

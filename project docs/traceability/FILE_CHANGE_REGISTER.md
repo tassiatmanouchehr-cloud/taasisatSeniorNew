@@ -266,3 +266,48 @@ The following files would be created or modified if the Offer Marketplace implem
 | `src/apps/provider_portal/tests/test_profile.py` | Modified | Locked query-count baseline 10 -> 9 (AuditLog query removed) | git checkout |
 | `src/apps/organization_portal/tests/test_profile.py` | Modified | Locked query-count baseline 11 -> 10, same reason | git checkout |
 | `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |
+
+---
+
+## 2026-07-15 — Phase 2.1 Caregiver Professional Profile Foundation (CL-023)
+
+| Path | Change | Purpose | Rollback |
+|------|--------|---------|----------|
+| `src/apps/accounts/models/professional_profile.py` | Added | CaregiverSkill, CaregiverExperience models | Delete |
+| `src/apps/accounts/migrations/0006_caregiver_skill_experience.py` | Added | New tables for the two models above | Reverse migration (DROP, empty tables) |
+| `src/apps/accounts/services/caregiver_professional_profile_service.py` | Added | CaregiverSkillService, CaregiverExperienceService | Delete |
+| `src/apps/accounts/services/public_credential_selector.py` | Added | PublicCredentialSelector | Delete |
+| `src/apps/accounts/tests/test_caregiver_professional_profile.py` | Added | 24 service-layer tests | Delete |
+| `src/apps/provider_portal/tests/test_professional_profile.py` | Added | 13 view-layer tests | Delete |
+| `src/apps/public_site/tests/test_professional_profile_public.py` | Added | 11 public-profile tests | Delete |
+| `src/templates/provider_portal/profile_skills.html` | Added | Skill management page | Delete |
+| `src/templates/provider_portal/profile_experience.html` | Added | Experience list page | Delete |
+| `src/templates/provider_portal/profile_experience_form.html` | Added | Experience add/edit form | Delete |
+| `src/apps/accounts/models/__init__.py` | Modified | Export new models | git checkout |
+| `src/apps/provider_portal/views.py` | Modified | Skill/experience management views | git checkout |
+| `src/apps/provider_portal/forms.py` | Modified | SkillForm, ExperienceForm | git checkout |
+| `src/apps/provider_portal/urls.py` | Modified | New skill/experience routes | git checkout |
+| `src/apps/provider_portal/services/profile_service.py` | Modified | skills_count/experience_count/public_credential_labels | git checkout |
+| `src/apps/provider_portal/services/viewmodels.py` | Modified | New fields + SkillRowViewModel/ExperienceRowViewModel | git checkout |
+| `src/templates/provider_portal/profile.html` | Modified | Skills/experience sections, credential preview panel | git checkout |
+| `src/apps/public_site/services/profile_service.py` | Modified | Local eligibility check; skills/experience/credentials assembly | git checkout |
+| `src/apps/public_site/services/viewmodels.py` | Modified | New public ViewModels and fields | git checkout |
+| `src/templates/public_site/caregiver_profile.html` | Modified | Skills/experience/credentials sections | git checkout |
+| `src/apps/provider_portal/tests/test_profile.py` | Modified | Locked query-count baseline 9 -> 12 | git checkout |
+| `src/apps/public_site/tests/test_profile_service.py` | Modified | 3 fixtures corrected to verification_status="verified"; 2 new tests | git checkout |
+| `src/apps/public_site/tests/test_views.py` | Modified | 2 fixtures corrected to verification_status="verified" | git checkout |
+| `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |
+
+---
+
+## 2026-07-15 — Phase 2.1 Remediation: Close Public Caregiver Visibility Gap BG-022 (CL-024)
+
+| Path | Change | Purpose | Rollback |
+|------|--------|---------|----------|
+| `src/apps/public_site/tests/test_public_visibility_policy.py` | Added | 13 tests proving one canonical rule across all public surfaces | Delete |
+| `src/apps/public_site/services/common.py` | Modified | is_publicly_visible_attrs() now the single canonical rule (+ verification + account-active) | git checkout |
+| `src/apps/public_site/services/profile_service.py` | Modified | Removed now-redundant local duplicate eligibility check | git checkout |
+| `src/apps/accounts/services/supplier_bridge.py` | Modified | select_related("user")/("admin_user") added to resolve_supplier_entities_bulk() | git checkout |
+| `src/apps/public_site/tests/helpers.py` | Modified | verification_status fixture default corrected "unverified" -> "verified" | git checkout |
+| `src/apps/public_site/tests/test_professional_profile_public.py` | Modified | Query-count assertion 14 -> 13 | git checkout |
+| `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |

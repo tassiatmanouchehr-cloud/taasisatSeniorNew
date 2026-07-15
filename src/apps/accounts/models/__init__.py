@@ -2,6 +2,7 @@
 
 from .media import DocumentStatus, DocumentType, VerificationDocument
 from .otp import OTPChallenge, OTPPurpose
+from .professional_profile import CaregiverExperience, CaregiverSkill
 from .profiles import (
     AffiliationStatus,
     CaregiverProfile,
@@ -29,6 +30,8 @@ __all__ = [
     "DocumentType",
     "DocumentStatus",
     "VerificationDocument",
+    "CaregiverSkill",
+    "CaregiverExperience",
     "ProfileStatus",
     "CaregiverProviderType",
     "VerificationStatus",

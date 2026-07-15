@@ -1,6 +1,6 @@
 # CURRENT IMPLEMENTATION STATE
 
-**Last verified HEAD:** phase1-activation-completion-final (from main @ 860640e, PR #5 remediation applied)
+**Last verified HEAD:** phase2-caregiver-professional-profile-foundation (from main @ 0c9d70c, PR #5 merged)
 **Last verified date:** 2026-07-15
 
 ---
@@ -10,7 +10,7 @@
 | App | Models | Services | Views | Tests | Status |
 |-----|--------|----------|-------|-------|--------|
 | **kernel** | 14 (Tenant, Person, UserAccount, Role, Permission, RoleAssignment, EventOutbox, AuditLog, ConfigurationKey, ConfigurationValue, FeatureFlag, PolicyDefinition, PolicyVersion, ServiceSupplier) | 11 | API: 1 | 232 | COMPLETE |
-| **accounts** | 10 (OTPChallenge, CustomerProfile, ElderProfile, TrustedContact, CaregiverProfile, OrganizationProfile, OrganizationMembership, CompanyAffiliationRequest, PlatformTeamMember, VerificationDocument) | 24 (+VerificationReviewService, RequiredDocumentPolicy, ProfileVerificationRollupService, ActivationEligibilityService, document_ownership helpers — Phase 1.1/1.2; +ProfileCompletionService, ProfileActivationService — Phase 1.3, activation state semantics corrected in the PR #5 remediation) | 9 | 293 (+25 Phase 1.1, +47 Phase 1.2, +27 Phase 1.3, +14 Phase 1.3 remediation) | COMPLETE (manual document verification + roll-up/activation rules + controlled activation added; profile.status is now the activation-state source of truth) |
+| **accounts** | 12 (OTPChallenge, CustomerProfile, ElderProfile, TrustedContact, CaregiverProfile, OrganizationProfile, OrganizationMembership, CompanyAffiliationRequest, PlatformTeamMember, VerificationDocument, CaregiverSkill, CaregiverExperience — Phase 2.1) | 26 (+VerificationReviewService, RequiredDocumentPolicy, ProfileVerificationRollupService, ActivationEligibilityService, document_ownership helpers — Phase 1.1/1.2; +ProfileCompletionService, ProfileActivationService — Phase 1.3; +CaregiverSkillService, CaregiverExperienceService, PublicCredentialSelector — Phase 2.1) | 9 | 317 (+25 Phase 1.1, +47 Phase 1.2, +27 Phase 1.3, +14 Phase 1.3 remediation, +24 Phase 2.1) | COMPLETE (manual document verification + roll-up/activation rules + controlled activation + skills/experience/credential-summary added; profile.status is now the activation-state source of truth) |
 | **orders** | 7 (ServiceCategory, ServiceType, Order, OrderStatusHistory, OrderShareLink, OrderOffer, OrderOrganizationEligibility) | 7 | 0 | 167 (incl. 40 OrderOffer + 8 BG-002) | COMPLETE (Offer Phase 1 committed in ce3b30e; BG-002 fix merged in eb51018) |
 | **booking** | 1 (SupplierAssignment) | 5 | 0 | 67 | COMPLETE |
 | **execution** | 1 (ExecutionSession) | 3 | 0 | 58 | COMPLETE |
@@ -28,11 +28,11 @@
 | **jobs** | 2 (JobDefinition, JobRun) | 1 | 0 | 35 | COMPLETE |
 | **common** | 3 (abstract: TimestampedModel, TenantAwareModel, SoftDeleteMixin) | 0 | 0 | 0 | COMPLETE (no tests) |
 | **portal** | 0 | 5 (presentation) | 30+ | 74 | COMPLETE |
-| **provider_portal** | 0 | 1 (presentation) | 21 | 55 (+2 Phase 1.3) | COMPLETE |
+| **provider_portal** | 0 | 1 (presentation) | 26 (+5 skills/experience management, Phase 2.1) | 68 (+2 Phase 1.3, +13 Phase 2.1) | COMPLETE |
 | **organization_portal** | 0 | 1 (presentation) | 18 | 51 (+2 Phase 1.3) | COMPLETE |
 | **admin_portal** | 0 | 0 | 20 (+4 document verification Phase 1.1, +4 activation Phase 1.3) | 56 (+16 Phase 1.1, +9 Phase 1.3, +2 Phase 1.3 remediation) | COMPLETE |
 | **api** | 0 | 0 | 12 | 97 | COMPLETE |
-| **public_site** | 0 | 4 | 18 | 80 | COMPLETE |
+| **public_site** | 0 | 4 | 18 | 93 (+2 Phase 2.1 eligibility, +11 Phase 2.1 skills/experience/credentials) | COMPLETE |
 | **showcase** | 0 | 0 | 15 | 0 | COMPLETE (no tests) |
 
 ## Offer Marketplace Current State
@@ -55,10 +55,10 @@ profiles, and portal completion phases.
 | Metric | Value |
 |--------|-------|
 | Total Django apps | 25 + 1 config |
-| Total concrete models | ~70 |
-| Total migrations | ~45 |
-| Total test files | 201 |
-| Total test methods | 1,824 (full regression 1824/1824 green on phase1-activation-completion-final, PR #5 remediation) |
+| Total concrete models | ~72 (+CaregiverSkill, CaregiverExperience — Phase 2.1) |
+| Total migrations | ~46 |
+| Total test files | 204 |
+| Total test methods | 1,874 (full regression 1874/1874 green on phase2-caregiver-professional-profile-foundation) |
 | Total admin registrations | 20 |
 | Total management commands | 15 |
 | Total URL patterns | ~150 |

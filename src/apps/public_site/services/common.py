@@ -19,6 +19,20 @@ supplier. The single-supplier helpers below (supplier_entity_attrs(),
 is_publicly_visible()) are thin wrappers around the same batch function
 for the profile page's one-supplier case, so there is exactly one
 implementation of both the resolution and the eligibility rule.
+
+BG-022 (2026-07-15): `is_publicly_visible_attrs()` is the single canonical
+public-visibility policy for every public entry point that can expose a
+caregiver or organization — the caregiver directory, the home page's
+featured-caregiver cards and city filter, and the single-supplier public
+profile detail page all resolve through this same function (directly or
+via bulk_supplier_attrs()/supplier_entity_attrs()). Before this fix, the
+detail page additionally required `verification_status == VERIFIED` and
+the owning account's `is_active` locally (see ARCHITECTURE_DECISION_LOG
+ADM-017 Decision 2's original reasoning) while the directory/home-page
+listings did not — a caregiver could be discoverable in a listing while
+their own detail page 404'd. Both checks now live here, in the one
+function every public surface already shares, closing that gap without
+introducing a second, parallel eligibility implementation.
 """
 
 from apps.accounts.models.profiles import OrganizationMembership
@@ -89,6 +103,16 @@ def bulk_supplier_attrs(suppliers) -> dict:
         if supplier.supplier_type == SupplierType.ORGANIZATION_PROVIDER:
             user_id = getattr(entity, "user_id", None)
             membership_active = membership_active_by_user_id.get(user_id, False)
+
+        # The owning account is `.user` on CaregiverProfile and
+        # `.admin_user` on OrganizationProfile — read whichever exists.
+        # BG-022: public visibility requires the account itself still be
+        # active, not just the profile row. resolve_supplier_entities_bulk()
+        # select_related()s both relations, so this is a JOIN already in
+        # hand, not an extra query.
+        account = getattr(entity, "user", None) or getattr(entity, "admin_user", None)
+        account_active = getattr(account, "is_active", True)
+
         attrs_by_id[supplier.id] = {
             "city": getattr(entity, "city", "") or "",
             "specialty": getattr(entity, "specialty", "") or "",
@@ -99,6 +123,7 @@ def bulk_supplier_attrs(suppliers) -> dict:
             "verification_status": getattr(entity, "verification_status", "unverified") or "unverified",
             "profile_status": getattr(entity, "status", "active") or "active",
             "membership_active": membership_active,
+            "account_active": account_active,
         }
     return attrs_by_id
 
@@ -134,19 +159,38 @@ def supplier_entity_attrs(supplier):
 
 
 def is_publicly_visible_attrs(attrs) -> bool:
-    """Eligibility rule, applied to an already-resolved attrs dict (from
-    bulk_supplier_attrs()) — never re-fetches anything."""
-    return attrs["profile_status"] == "active" and attrs["membership_active"]
+    """The canonical public-visibility rule (BG-022), applied to an
+    already-resolved attrs dict (from bulk_supplier_attrs()) — never
+    re-fetches anything. Every public entry point that can expose a
+    caregiver or organization (directory, home-page featured cards and
+    city filter, single-supplier detail page) calls this same function,
+    directly or through bulk_supplier_attrs()/supplier_entity_attrs() —
+    there is exactly one implementation of "is this publicly visible."
+
+    Requires: profile status ACTIVE (excludes DRAFT/SUSPENDED/ARCHIVED —
+    a DRAFT profile was never activated; a SUSPENDED/ARCHIVED one no
+    longer is), rolled-up verification_status VERIFIED, the owning
+    account's own is_active, and — for organization-affiliated
+    caregivers only — an active OrganizationMembership."""
+    return (
+        attrs["profile_status"] == "active"
+        and attrs["verification_status"] == "verified"
+        and attrs["account_active"]
+        and attrs["membership_active"]
+    )
 
 
 def is_publicly_visible(supplier) -> bool:
-    """A supplier is safe to show on a public page only when its own
-    ServiceSupplier row's linked CaregiverProfile is active AND — for
-    organization-affiliated suppliers — their OrganizationMembership is
-    still active. These lifecycles are independent fields/models and can
-    diverge (e.g. a suspended caregiver whose ServiceSupplier row was
-    never separately deactivated, or an affiliated caregiver whose
-    membership was suspended after their supplier row was created)."""
+    """Single-supplier convenience wrapper around is_publicly_visible_attrs()
+    — see that function for the canonical rule. A supplier's own
+    ServiceSupplier row being ACTIVE is checked by callers separately
+    (e.g. the ServiceSupplier.objects.get(status=ACTIVE) filter already
+    applied by the detail-page/search queries) — this function covers the
+    linked CaregiverProfile/OrganizationProfile's own eligibility, which
+    is an independent, divergent lifecycle (e.g. a suspended caregiver
+    whose ServiceSupplier row was never separately deactivated, or an
+    affiliated caregiver whose membership was suspended after their
+    supplier row was created)."""
     return is_publicly_visible_attrs(supplier_entity_attrs(supplier))
 
 

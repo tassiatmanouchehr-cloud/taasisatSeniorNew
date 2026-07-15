@@ -64,6 +64,25 @@ class CaregiverCardViewModel:
 
 
 @dataclass(frozen=True)
+class PublicSkillViewModel:
+    name: str
+
+
+@dataclass(frozen=True)
+class PublicExperienceViewModel:
+    title: str
+    organization_name: str
+    description: str
+    period_label: str
+
+
+@dataclass(frozen=True)
+class PublicCredentialViewModel:
+    label: str
+    expiry_label: str
+
+
+@dataclass(frozen=True)
 class CaregiverProfileViewModel:
     """The full Public Caregiver Profile page."""
 
@@ -86,6 +105,9 @@ class CaregiverProfileViewModel:
     rating: RatingSummaryViewModel
     completed_jobs: int
     reviews: tuple[ReviewViewModel, ...]
+    skills: tuple[PublicSkillViewModel, ...] = field(default_factory=tuple)
+    experience: tuple[PublicExperienceViewModel, ...] = field(default_factory=tuple)
+    credentials: tuple[PublicCredentialViewModel, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True)

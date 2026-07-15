@@ -134,6 +134,81 @@ facing profiles; needs its own product decision, not a guess
 **Not in scope:** Marketplace visibility wiring (`is_publicly_visible()` is
 a separate, existing, unrelated concern — see `traceability/IMPLEMENTATION_JOURNAL.md`)
 
+### BG-020: Caregiver Professional Profile — Foundation Complete, Gallery/Financial/Orders Remain
+
+**Resolution (2026-07-15, Phase 2.1):** `CaregiverSkill`/`CaregiverExperience` (new
+models), `CaregiverSkillService`/`CaregiverExperienceService` (owner-authorized CRUD),
+`PublicCredentialSelector` (safe public credential summary derived from approved,
+unexpired `VerificationDocument` rows), corrected public-profile eligibility
+(`verification_status == VERIFIED` + account `is_active`, added locally to
+`CaregiverPublicProfileService.get_profile()`), provider-portal skill/experience
+management pages, and public-profile skills/experience/credentials sections. Biography,
+headline (`specialty`), services-offered (`ServiceSupplier.service_categories`), the
+public profile route, and the provider-portal profile edit pages were already implemented
+(Epic 06 Sprint 2) and reused, not rebuilt. 50 new tests, one new migration (2 new tables
+only), full regression 1874/1874 green. Branch
+`phase2-caregiver-professional-profile-foundation`, PR pending merge. See
+`traceability/IMPLEMENTATION_JOURNAL.md` and `ARCHITECTURE_DECISION_LOG` ADM-017.
+**Not included (roadmap Phase 2 remains open):** gallery (new model + upload service +
+moderation flag), certificates-as-gallery presentation, extended financial overview,
+orders + history pages — see BG-021.
+
+### BG-021: Caregiver Profile — Gallery, Financial Overview, Orders + History
+
+**Current evidence:** Roadmap Phase 2's full scope (`IMPLEMENTATION_ROADMAP.md`) includes
+an Instagram-like gallery, certificates surfaced as a visual gallery (distinct from
+Phase 2.1's plain verified-credential badges), an extended financial/earnings overview,
+and an orders + history page. None of these were implemented in Phase 2.1 — explicitly
+out of that slice's scope per its own governance ("Do not implement: Instagram-style
+gallery... caregiver financial dashboard... caregiver order dashboard...").
+**Why needed:** Roadmap Phase 2 acceptance criteria are not met until these exist.
+**Dependencies:** BG-020 (done — foundation this work builds on). Gallery specifically
+also depends on the still-open media storage strategy for production (currently local
+`FileField` — a pre-existing, acknowledged roadmap blocking item).
+**Affected modules:** accounts, provider_portal, public_site
+**Suggested implementation size:** Medium-High (new GalleryItem model + upload/moderation
+service; financial overview extension; orders/history read views)
+**Risk:** Medium — new public-facing media upload surface; must not weaken the private/
+public document boundary this and prior phases established
+**Not in scope:** Marketplace offer workflow, invoice workflow, payment/settlement
+changes (unrelated to gallery/financial-overview/orders-history display work)
+
+### BG-022: Directory/Home-Page Listing Eligibility Does Not Match the Public Profile Page's Stricter Rule — **RESOLVED**
+
+**Original evidence (Phase 2.1):** Phase 2.1 added `verification_status == VERIFIED` and
+account `is_active` checks to `CaregiverPublicProfileService.get_profile()` (the single
+caregiver profile page) only — deliberately not to the shared `apps.public_site.services
+.common.is_publicly_visible()` function the caregiver directory (`directory_service.py`)
+and home-page featured-caregiver listing (`home_service.py`) also call. A caregiver could
+appear in directory/home-page listings while their own profile page 404'd (unverified or
+inactive account).
+**Original reasoning for deferring (Phase 2.1):** Consistency between "discoverable in a
+listing" and "profile page loads" is a reasonable product expectation, though not one
+Phase 2.1's own governance asked to fix — tightening it was judged out of that slice's
+scope (see `ARCHITECTURE_DECISION_LOG.md` ADM-017 Decision 2 for the full original
+reasoning, including that ~80 pre-existing directory/home-page tests appeared to depend on
+the looser rule).
+**Resolution (2026-07-15, PR #6 review):** governance explicitly overturned the deferral —
+BG-022 was required to close inside PR #6, not be deferred further. Investigation found the
+~80 "affected" pre-existing tests never actually asserted on `verification_status`; only
+the shared test fixture's default needed to change (`verification_status="verified"` in
+`apps/public_site/tests/helpers.py`). `apps.public_site.services.common
+.is_publicly_visible_attrs()` is now the single canonical public-visibility rule (profile
+`status == ACTIVE`, rolled-up `verification_status == "verified"`, account `is_active`,
+active `OrganizationMembership` for org-affiliated caregivers), applied identically by the
+detail page, directory search, and home-page listings. `CaregiverPublicProfileService
+.get_profile()`'s now-redundant local duplicate check was removed.
+`supplier_bridge.resolve_supplier_entities_bulk()` gained `select_related("user")`/
+`select_related("admin_user")` — confirmed a JOIN on the existing batched query, adding
+zero new queries (constant 2 queries regardless of candidate count). 13 new tests, full
+regression 1887/1887 green. See `ARCHITECTURE_DECISION_LOG.md` ADM-017's second remediation
+note and `traceability/IMPLEMENTATION_JOURNAL.md`.
+**Affected modules:** public_site, accounts (supplier_bridge)
+**Not in scope (found during remediation, tracked separately):** a pre-existing, unrelated
+per-candidate N+1 in directory ranking/card-building (`DiscoveryRankingService.rank()`,
+`CaregiverDirectoryService._build_card()`) — see `quality/DEFECT_AND_RISK_REGISTER.md`
+KL-012.
+
 ### BG-003: OrderOfferService (Phase 2)
 
 **Current evidence:** Phase 1 model exists. No service layer.

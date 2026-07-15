@@ -63,12 +63,33 @@
         {% endif %}
       </div>
 
+      {% include "ui/components/portal/profile_section.html" with title="مهارت‌ها" description="مهارت‌های نمایه عمومی شما" action_label="مدیریت" action_href="/provider/profile/skills/" %}
+      <div class="rounded-2xl border border-border bg-surface p-5">
+        <p class="text-sm text-text-muted">{{ profile.skills_count }} مهارت ثبت‌شده</p>
+      </div>
+
+      {% include "ui/components/portal/profile_section.html" with title="سوابق کاری" description="سوابق کاری نمایه عمومی شما" action_label="مدیریت" action_href="/provider/profile/experience/" %}
+      <div class="rounded-2xl border border-border bg-surface p-5">
+        <p class="text-sm text-text-muted">{{ profile.experience_count }} سابقه کاری ثبت‌شده</p>
+      </div>
+
       {% include "ui/components/portal/profile_section.html" with title="مدارک و تأییدیه‌ها" description="وضعیت بررسی هر مدرک توسط پلتفرم" %}
       <div class="space-y-3">
         {% for doc in profile.documents %}
         {% include "ui/components/portal/document_status.html" with label=doc.label status=doc.status expiry_label=doc.expiry_label action_message=doc.action_message replace_url=doc.replace_url %}
         {% endfor %}
       </div>
+
+      {% if profile.public_credential_labels %}
+      <div class="rounded-2xl border border-border bg-surface p-5">
+        <h3 class="text-sm font-bold text-text mb-2">مدارکی که در نمایه عمومی نمایش داده می‌شوند</h3>
+        <div class="flex flex-wrap gap-1.5">
+          {% for label in profile.public_credential_labels %}
+          {% include "ui/components/feedback/badge.html" with label=label variant="info" %}
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
     </div>
 
     <div class="space-y-4">

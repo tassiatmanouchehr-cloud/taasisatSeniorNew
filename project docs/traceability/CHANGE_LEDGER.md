@@ -649,3 +649,133 @@ Result: Success — profile.status is now the sole activation-state source of tr
 Rollback method: git revert of the branch's commit(s); no data migration to reverse
 Status: Complete — branch phase1-activation-completion-final, PR #5 updated in place, NOT merged
 ```
+
+## Entry 023
+
+```
+Change ID: CL-023
+Date/time: 2026-07-15 (Phase 2.1 — Caregiver Professional Profile Foundation)
+Task: Implement the first coherent, production-usable slice of the caregiver
+      professional profile — biography reuse, skills, experience, services-offered
+      confirmation, verified-credential public summary, and a corrected public/private
+      eligibility boundary on the single caregiver public profile page
+Reason: Roadmap Phase 2 (Caregiver Profile) opened after Phase 1's close; this slice
+        delivers the smallest coherent foundation per explicit task governance, deferring
+        gallery/social/financial/order work to later slices
+Files added:
+  src/apps/accounts/models/professional_profile.py (CaregiverSkill, CaregiverExperience)
+  src/apps/accounts/migrations/0006_caregiver_skill_experience.py
+  src/apps/accounts/services/caregiver_professional_profile_service.py
+    (CaregiverSkillService, CaregiverExperienceService)
+  src/apps/accounts/services/public_credential_selector.py (PublicCredentialSelector)
+  src/apps/accounts/tests/test_caregiver_professional_profile.py (24 tests)
+  src/apps/provider_portal/tests/test_professional_profile.py (13 tests)
+  src/apps/public_site/tests/test_professional_profile_public.py (11 tests)
+  src/templates/provider_portal/profile_skills.html
+  src/templates/provider_portal/profile_experience.html
+  src/templates/provider_portal/profile_experience_form.html
+Files modified:
+  src/apps/accounts/models/__init__.py (export new models)
+  src/apps/provider_portal/{views.py,forms.py,urls.py} (skill/experience management views)
+  src/apps/provider_portal/services/{profile_service.py,viewmodels.py} (skills/experience
+    counts, public_credential_labels)
+  src/templates/provider_portal/profile.html (skills/experience sections, credential
+    preview panel)
+  src/apps/public_site/services/profile_service.py (local, additional public-profile
+    eligibility check; skills/experience/credentials assembly)
+  src/apps/public_site/services/viewmodels.py (PublicSkillViewModel,
+    PublicExperienceViewModel, PublicCredentialViewModel; new fields on
+    CaregiverProfileViewModel)
+  src/templates/public_site/caregiver_profile.html (skills/experience/credentials
+    sections)
+  src/apps/provider_portal/tests/test_profile.py (locked query-count baseline 9 -> 12)
+  src/apps/public_site/tests/test_profile_service.py (3 fixtures corrected to
+    verification_status="verified"; 2 new eligibility tests)
+  src/apps/public_site/tests/test_views.py (2 fixtures corrected to
+    verification_status="verified")
+Files deleted: None
+Database impact: Two new tables (accounts_caregiver_skill, accounts_caregiver_experience),
+  both FK-child of accounts_caregiver_profile, both empty at migration time (new tables,
+  no backfill). No existing table altered.
+Migration impact: One new migration (0006_caregiver_skill_experience.py), hand-curated to
+  exclude the same pre-existing, unrelated field-alter drift every prior phase's
+  makemigrations --check --dry-run has reported (see file header comment for the excluded
+  operations). CaregiverProfile.status/OrganizationProfile.status field defaults untouched
+  — see ARCHITECTURE_DECISION_LOG ADM-017 Decision 1 for why no model-default change was
+  needed for skills/experience/public-profile-metadata.
+Security impact: New local eligibility check on the single caregiver public profile page
+  (verification_status == VERIFIED, account.is_active) — see ADM-017 Decision 2.
+  Owner-only skill/experience editing enforced by _guard_with_caregiver() (account-scoped
+  resolution) plus a service-level caregiver=caregiver filter on every mutation. No new
+  permission key — ownership, not RBAC, is the boundary, matching
+  CaregiverProfileUpdateService's existing shape. Credential summary never exposes file
+  path, document number, reviewer identity, or rejection/correction reason (selector
+  returns a 3-field dataclass only).
+Financial impact: None — orders/booking/commission/finance/payments untouched.
+Tests executed: check (0), 50 new focused tests (48 across 3 new files + 2 new eligibility
+  tests added to the pre-existing test_profile_service.py) (all 0), affected-app Level 2
+  suite (accounts + provider_portal + public_site + orders + organization_portal +
+  admin_portal combined) 712/712, makemigrations --check --dry-run (1, pre-existing
+  unrelated drift only, confirmed no CaregiverSkill/CaregiverExperience/status-field
+  entries present), full regression 1874/1874 (exit 0)
+Result: Success — caregiver can manage skills/experience/services-offered (services-
+  offered via existing infrastructure); public profile shows skills/experience/verified-
+  credential summaries only for genuinely eligible caregivers; private data never
+  exposed; zero regressions
+Rollback method: git revert of the branch's commit(s); migration 0006 has a clean reverse
+  (DROP the two new, empty tables — no data loss, nothing else references them yet)
+Status: Complete — branch phase2-caregiver-professional-profile-foundation, PR to be
+  created, NOT merged
+```
+
+## Entry 024
+
+```
+Change ID: CL-024
+Date/time: 2026-07-15 (Phase 2.1 remediation — PR #6 review, close BG-022)
+Task: Unify public caregiver visibility into one canonical policy, applied identically by
+      the caregiver directory, home-page listings, and the single profile detail page
+Reason: PR #6 review found that CL-023's own eligibility fix was added only to the detail
+        page, leaving the directory/home-page listings on a looser, pre-existing rule —
+        a caregiver could appear in a listing while their own detail page 404'd. Recorded
+        as BG-022; this closes it inside PR #6 per explicit remediation governance.
+Files added:
+  src/apps/public_site/tests/test_public_visibility_policy.py (13 tests)
+Files modified:
+  src/apps/public_site/services/common.py (is_publicly_visible_attrs() now requires
+    verification_status == VERIFIED and account.is_active, in addition to the existing
+    profile-status-ACTIVE + membership-active checks — the single canonical rule every
+    public entry point shares)
+  src/apps/public_site/services/profile_service.py (removed the now-redundant local
+    duplicate eligibility check added in CL-023; relies solely on the canonical function)
+  src/apps/accounts/services/supplier_bridge.py (resolve_supplier_entities_bulk() adds
+    select_related("user")/select_related("admin_user") — a JOIN on the existing batched
+    query, not a new query, needed for the canonical rule's account.is_active check)
+  src/apps/public_site/tests/helpers.py (_create_caregiver_supplier()'s verification_status
+    default corrected from "unverified" to "verified" — the ~80 pre-existing directory/
+    home-page tests never asserted anything about verification status and continued
+    passing unmodified)
+  src/apps/public_site/tests/test_professional_profile_public.py (query-count assertion
+    updated 14 -> 13, reflecting the removed duplicate check's one fewer query)
+Files deleted: None
+Database impact: None
+Migration impact: None — no model changes.
+Security impact: Closes a real public-visibility inconsistency: a DRAFT, SUSPENDED,
+  ARCHIVED, unverified, pending-verification, inactive-account, or inactive-membership
+  caregiver is now hidden from every public surface uniformly (directory search,
+  home-page featured cards, home-page city filter, and the detail page), never just some
+  of them. Owner-facing and platform-admin-facing visibility unaffected (neither uses
+  this shared function).
+Financial impact: None.
+Tests executed: check (0), 13 new focused tests (all 0), affected-app Level 2 suite
+  (public_site + provider_portal + accounts + discovery + orders combined) 660/660,
+  makemigrations --check --dry-run (1, pre-existing unrelated drift only), full regression
+  1887/1887 (exit 0)
+Result: Success — one canonical public-visibility policy, applied uniformly across every
+  real public entry point; a pre-existing, unrelated per-candidate ranking/card-building
+  query cost was discovered during verification and recorded (KL-012), not fixed (out of
+  scope); zero regressions; zero migration
+Rollback method: git revert of the branch's commit(s); no data migration to reverse
+Status: Complete — branch phase2-caregiver-professional-profile-foundation, PR #6 updated
+  in place, NOT merged
+```

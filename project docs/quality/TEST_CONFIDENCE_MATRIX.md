@@ -3,8 +3,13 @@
 **Last verified HEAD:** a5dbaf28703142edaa1d770ea8f3c2a45a12640f (per-app table below);
 partial update 2026-07-15 (phase1-registration-manual-verification) — only the
 `accounts`/`admin_portal` rows and grand-total method count were re-verified;
-a full re-audit of every app was not performed for this incremental change.
-**Last verified date:** 2026-07-14 / 2026-07-15 (partial)
+partial update 2026-07-15 (phase2-caregiver-professional-profile-foundation) — only
+`accounts`/`provider_portal`/`public_site` rows and grand-total method count re-verified;
+partial update 2026-07-15 (PR #6 BG-022 remediation) — only the `public_site` row and
+grand-total file/method counts re-verified;
+a full re-audit of every app was not performed for any of the incremental changes.
+**Last verified date:** 2026-07-14 / 2026-07-15 (partial) / 2026-07-15 (partial, Phase 2.1) /
+2026-07-15 (partial, BG-022)
 
 ---
 
@@ -12,21 +17,21 @@ a full re-audit of every app was not performed for this incremental change.
 
 | Metric | Count |
 |--------|-------|
-| Total test files | 198 (196 + 2 new: `test_verification_review.py`, `test_document_verification.py`) |
-| Total test classes | ~430 (not re-audited exactly) |
-| Total test methods | 1,721 (full regression re-run 2026-07-15) |
+| Total test files | 205 (198 + 7 accumulated through Phase 1.2/1.3/2.1/BG-022) |
+| Total test classes | ~442 (not re-audited exactly) |
+| Total test methods | 1,887 (full regression re-run 2026-07-15, PR #6 BG-022 remediation) |
 
 ## Per-App Confidence
 
 | App | Files | Methods | Auth Tests | Concurrency | Financial | Mock | **Confidence** |
 |-----|-------|---------|------------|-------------|-----------|------|----------------|
 | kernel | 19 | 232 | 7 | - | 5 | 2 | **STRONG** |
-| accounts | 17 | 205 | 4 | 1 | - | 1 | **STRONG** |
+| accounts | 24 | 317 | 6 | 2 | - | 1 | **STRONG** |
 | commission | 22 | 132 | 15 | 1 | 20 | 2 | **STRONG** |
 | orders | 7 | 159 | - | - | - | - | **STRONG** |
 | finance | 17 | 75 | 1 | - | 17 | 1 | **STRONG** |
 | api | 14 | 97 | 7 | - | 4 | - | **HIGH** |
-| public_site | 6 | 80 | - | - | - | - | **HIGH** |
+| public_site | 8 | 106 | 1 | - | - | - | **HIGH** |
 | booking | 10 | 67 | 2 | 1 | 1 | 2 | **HIGH** |
 | pricing | 6 | 69 | - | - | - | 1 | **MODERATE-HIGH** |
 | portal | 9 | 74 | 1 | - | 2 | - | **MODERATE-HIGH** |
@@ -34,7 +39,7 @@ a full re-audit of every app was not performed for this incremental change.
 | execution | 9 | 58 | 1 | - | - | 1 | **MODERATE** |
 | notifications | 4 | 53 | - | - | - | - | **MODERATE** |
 | organization_portal | 5 | 49 | 2 | - | - | - | **MODERATE** |
-| provider_portal | 6 | 53 | - | - | 2 | - | **MODERATE** |
+| provider_portal | 8 | 68 | 4 | - | 2 | - | **MODERATE** |
 | jobs | 1 | 35 | - | 1 | - | - | **MODERATE** |
 | discovery | 5 | 42 | - | - | - | - | **MODERATE** |
 | availability | 6 | 37 | - | - | - | - | **MODERATE** |
