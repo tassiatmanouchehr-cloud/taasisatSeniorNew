@@ -72,6 +72,7 @@ class ExperienceForm(StyledForm):
     start_date = forms.DateField(label="تاریخ شروع", error_messages={"required": "تاریخ شروع الزامی است."})
     end_date = forms.DateField(label="تاریخ پایان", required=False)
     is_current = forms.BooleanField(label="در حال حاضر مشغول هستم", required=False)
+    is_visible = forms.BooleanField(label="نمایش در نمایه عمومی", required=False, initial=True)
 
     def clean(self):
         cleaned = super().clean()

@@ -36,6 +36,11 @@ urlpatterns = [
     path("profile/cover/remove/", views.cover_remove_view, name="profile-cover-remove"),
     path("profile/skills/", views.profile_skills_view, name="profile-skills"),
     path("profile/skills/<uuid:skill_id>/remove/", views.profile_skill_remove_view, name="profile-skill-remove"),
+    path(
+        "profile/skills/<uuid:skill_id>/toggle-visibility/",
+        views.profile_skill_visibility_toggle_view,
+        name="profile-skill-visibility-toggle",
+    ),
     path("profile/experience/", views.profile_experience_view, name="profile-experience"),
     path("profile/experience/add/", views.profile_experience_add_view, name="profile-experience-add"),
     path(

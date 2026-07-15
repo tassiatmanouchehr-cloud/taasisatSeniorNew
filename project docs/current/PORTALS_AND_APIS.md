@@ -1,6 +1,6 @@
 # PORTALS, APIS, AND ENTRY POINTS
 
-**Last verified HEAD:** phase2-caregiver-gallery-media (from main @ c5259b3, PR #6 merged; PR #7 file-lifecycle/image-safety remediation in progress)
+**Last verified HEAD:** phase2-caregiver-credentials-skills-experience-ui (from main @ f7b7b2b, PR #7 merged)
 **Last verified date:** 2026-07-15
 
 ---
@@ -27,9 +27,9 @@ Dashboard, profile, care recipients (CRUD), requests (list/detail/financial), sh
 
 Entry: `_guard()` → `require_authenticated()` → `resolve_tenant_id()` → `resolve_customer_profile()`
 
-## Provider Portal (30 views)
+## Provider Portal (31 views)
 
-Dashboard, assignments (list/detail/confirm/decline), visits (start/complete), availability (working windows, blocked periods), earnings, profile, documents, skills (list/add/remove — Phase 2.1), experience (list/add/edit/delete — Phase 2.1), gallery (list/upload, edit, remove, move up/down — Sprint 2.2).
+Dashboard, assignments (list/detail/confirm/decline), visits (start/complete), availability (working windows, blocked periods), earnings, profile, documents, skills (list/add/remove/toggle-visibility — Phase 2.1 + Sprint 2.3), experience (list/add/edit/delete, visibility via edit form — Phase 2.1 + Sprint 2.3), gallery (list/upload, edit, remove, move up/down — Sprint 2.2).
 
 Entry: `_guard()` → `require_authenticated()` → `resolve_tenant_id()` → `resolve_supplier()`. Profile-editing views additionally use `_guard_with_caregiver()`, resolving `request.user.caregiver_profile`.
 
@@ -74,4 +74,5 @@ Each portal has presentation services that transform domain models into view-rea
 - `OrganizationProfilePresentationService` (organization_portal)
 - `HomePageService`, `CaregiverDirectoryService`, `CaregiverPublicProfileService` (public_site) — all three resolve caregiver/organization public visibility through the same canonical function, `apps.public_site.services.common.is_publicly_visible_attrs()` (BG-022 remediation, 2026-07-15); there is exactly one implementation of "is this publicly visible," never a per-surface duplicate
 - `CaregiverSkillService`, `CaregiverExperienceService`, `PublicCredentialSelector` (accounts, Phase 2.1 — domain services/selectors, not presentation services; called by provider_portal/public_site)
-- `CaregiverGalleryService` (accounts, Sprint 2.2 — domain service, not a presentation service; called by provider_portal; `CaregiverPublicProfileService._gallery()` is the read-only public-facing counterpart, gated by the existing BG-022 canonical visibility policy, no second rule). **PR #7 remediation:** physical file deletion is deferred to `transaction.on_commit()` rather than performed inline before the row commits, and `apps.accounts.services.image_validation.validate_image()` (called from every route into this service) now also bounds decoded image width/height/pixel count, not just upload byte size.
+- `CaregiverGalleryService` (accounts, Sprint 2.2 — domain service, not a presentation service; called by provider_portal; `CaregiverPublicProfileService._gallery()` is the read-only public-facing counterpart, gated by the existing BG-022 canonical visibility policy, no second rule)
+- `CaregiverPublicProfileService._highlights()`/`_verification_badges()` and `ProviderProfilePresentationService._highlights()` (Sprint 2.3 — pure, read-only aggregations over data each service already resolved elsewhere on the same page; the public versions add zero new queries, the provider-portal preview adds two fixed-cost `.count()` queries). **PR #7 remediation:** physical file deletion is deferred to `transaction.on_commit()` rather than performed inline before the row commits, and `apps.accounts.services.image_validation.validate_image()` (called from every route into this service) now also bounds decoded image width/height/pixel count, not just upload byte size.

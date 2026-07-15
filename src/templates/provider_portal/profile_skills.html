@@ -10,12 +10,20 @@
     {% if skills %}
     <ul class="divide-y divide-border mb-4">
       {% for skill in skills %}
-      <li class="py-2 flex items-center justify-between">
+      {% url 'provider_portal:profile-skill-visibility-toggle' skill_id=skill.id as toggle_url %}
+      <li class="py-2 flex items-center justify-between gap-2">
         <span class="text-sm text-text">{{ skill.name }}</span>
-        <form method="post" action="{% url 'provider_portal:profile-skill-remove' skill_id=skill.id %}">
-          {% csrf_token %}
-          <button type="submit" class="text-sm text-danger hover:underline">حذف</button>
-        </form>
+        <div class="flex shrink-0 items-center gap-3">
+          {% include "ui/components/feedback/badge.html" with label=skill.is_visible|yesno:"عمومی,پنهان" variant=skill.is_visible|yesno:"success,neutral" %}
+          <form method="post" action="{{ toggle_url }}">
+            {% csrf_token %}
+            <button type="submit" class="text-sm text-primary hover:underline">{{ skill.is_visible|yesno:"پنهان کردن,نمایش" }}</button>
+          </form>
+          <form method="post" action="{% url 'provider_portal:profile-skill-remove' skill_id=skill.id %}">
+            {% csrf_token %}
+            <button type="submit" class="text-sm text-danger hover:underline">حذف</button>
+          </form>
+        </div>
       </li>
       {% endfor %}
     </ul>

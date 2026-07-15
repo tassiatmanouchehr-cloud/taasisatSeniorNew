@@ -60,6 +60,16 @@ Rejection handling: a rejected required document blocks roll-up
 `DocumentService.resubmit()` (Part C), which resets it to PENDING — no
 separate rejection-specific policy is needed beyond what the roll-up
 state machine already expresses.
+
+Expiring-soon (Sprint 2.3, Credentials/Skills/Experience/Highlights):
+`is_expiring_soon()` is a sibling of `is_effectively_expired()` — same
+derived, point-in-time-fact shape, no DB status mutation, no new field.
+Owner-facing only (surfaced on the provider portal's own document status
+row); never consulted by the public `PublicCredentialSelector`, which
+already excludes anything `is_effectively_expired()` and has no
+"expiring soon" concept of its own — a still-valid, still-verified
+credential is shown publicly exactly as before, regardless of how soon
+it expires.
 """
 
 from apps.kernel.services.config_resolver import ConfigResolver
@@ -131,3 +141,20 @@ class RequiredDocumentPolicy:
             and document.expiry_date is not None
             and document.expiry_date < timezone.now().date()
         )
+
+    EXPIRING_SOON_WINDOW_DAYS = 30
+
+    @classmethod
+    def is_expiring_soon(cls, document) -> bool:
+        """True only for a currently-valid VERIFIED document whose expiry
+        falls within the next EXPIRING_SOON_WINDOW_DAYS days — never true
+        for a document that is already expired (that's
+        is_effectively_expired()'s own, mutually exclusive case)."""
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        if document.status != DocumentStatus.VERIFIED or document.expiry_date is None:
+            return False
+        today = timezone.now().date()
+        return today <= document.expiry_date <= today + timedelta(days=cls.EXPIRING_SOON_WINDOW_DAYS)

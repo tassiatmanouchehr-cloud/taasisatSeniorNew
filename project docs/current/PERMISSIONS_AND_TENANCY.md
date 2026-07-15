@@ -1,6 +1,6 @@
 # PERMISSION AND TENANT MODEL
 
-**Last verified HEAD:** phase2-caregiver-gallery-media (from main @ c5259b3, PR #6 merged; PR #7 file-lifecycle/image-safety remediation in progress)
+**Last verified HEAD:** phase2-caregiver-credentials-skills-experience-ui (from main @ f7b7b2b, PR #7 merged)
 **Last verified date:** 2026-07-15
 
 ---
@@ -106,6 +106,24 @@ called) and `test_cross_tenant_removal_schedules_no_deletion`. Public
 gallery visibility is not an RBAC concern at all — it flows entirely through the existing
 BG-022 canonical `common.is_publicly_visible()` policy (profile/account/membership status),
 the same as skills/experience/credentials.
+
+### Skill/Experience Visibility Authorization (Sprint 2.3)
+
+`CaregiverSkillService.toggle_visibility()` and `CaregiverExperienceService.create()`/
+`update()`'s new `is_visible` parameter reuse the exact same ownership boundary these two
+services already established in Phase 2.1 — no new permission key, no new authorization
+code path. `toggle_visibility()` filters by `id=skill_id, caregiver=caregiver` in the same
+`.get()` call that resolves the row (the filter itself is the authorization boundary,
+identical to `remove_skill()`'s existing pattern) — verified directly by
+`test_cannot_toggle_another_caregivers_skill_visibility`,
+`test_another_caregiver_cannot_toggle_skill_visibility`,
+`test_cross_tenant_cannot_toggle_skill_visibility`, and
+`test_unrelated_organization_user_cannot_mutate_skills` (an account with no
+`caregiver_profile` at all, representing an unrelated organization user — `_guard_with_
+caregiver()` denies it 403 before any service call, exactly as it already does for
+customers). Public precise badges and highlights are not an RBAC concern either — both are
+pure, read-only derivations computed only after the existing BG-022 canonical visibility
+gate has already passed.
 
 ### Critical Finding: No Middleware Enforcement
 

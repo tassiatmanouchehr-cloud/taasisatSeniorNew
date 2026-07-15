@@ -13,10 +13,13 @@ re-verified;
 partial update 2026-07-15 (PR #7 file-lifecycle/image-safety remediation) — only the
 `accounts` row (test methods, +2 classes in the existing gallery test file, no new file)
 and grand-total method count re-verified;
+partial update 2026-07-15 (Sprint 2.3 — Credentials, Skills, Experience, Highlights) — only
+`accounts`/`provider_portal`/`public_site` rows and grand-total method count re-verified;
+no new test file this sprint (all additions inside existing files);
 a full re-audit of every app was not performed for any of the incremental changes.
 **Last verified date:** 2026-07-14 / 2026-07-15 (partial) / 2026-07-15 (partial, Phase 2.1) /
 2026-07-15 (partial, BG-022) / 2026-07-15 (partial, Sprint 2.2) / 2026-07-15 (partial,
-PR #7 remediation)
+PR #7 remediation) / 2026-07-15 (partial, Sprint 2.3)
 
 ---
 
@@ -24,21 +27,21 @@ PR #7 remediation)
 
 | Metric | Count |
 |--------|-------|
-| Total test files | 208 (198 + 10 accumulated through Phase 1.2/1.3/2.1/BG-022/Sprint 2.2; PR #7 remediation added no new file) |
-| Total test classes | ~455 (not re-audited exactly; +2 classes added to the existing gallery test file) |
-| Total test methods | 1,948 (full regression re-run 2026-07-15, PR #7 file-lifecycle/image-safety remediation) |
+| Total test files | 208 (198 + 10 accumulated through Phase 1.2/1.3/2.1/BG-022/Sprint 2.2; PR #7 remediation and Sprint 2.3 added no new file) |
+| Total test classes | ~458 (not re-audited exactly; +3 classes added across existing test files this sprint) |
+| Total test methods | 1,984 (full regression re-run 2026-07-15, Sprint 2.3 — Credentials, Skills, Experience, Highlights) |
 
 ## Per-App Confidence
 
 | App | Files | Methods | Auth Tests | Concurrency | Financial | Mock | **Confidence** |
 |-----|-------|---------|------------|-------------|-----------|------|----------------|
 | kernel | 19 | 232 | 7 | - | 5 | 2 | **STRONG** |
-| accounts | 25 | 354 | 6 | 2 | - | 1 | **STRONG** |
+| accounts | 25 | 368 | 6 | 2 | - | 1 | **STRONG** |
 | commission | 22 | 132 | 15 | 1 | 20 | 2 | **STRONG** |
 | orders | 7 | 159 | - | - | - | - | **STRONG** |
 | finance | 17 | 75 | 1 | - | 17 | 1 | **STRONG** |
 | api | 14 | 97 | 7 | - | 4 | - | **HIGH** |
-| public_site | 9 | 117 | 1 | - | - | - | **HIGH** |
+| public_site | 9 | 128 | 1 | - | - | - | **HIGH** |
 | booking | 10 | 67 | 2 | 1 | 1 | 2 | **HIGH** |
 | pricing | 6 | 69 | - | - | - | 1 | **MODERATE-HIGH** |
 | portal | 9 | 74 | 1 | - | 2 | - | **MODERATE-HIGH** |
@@ -46,7 +49,7 @@ PR #7 remediation)
 | execution | 9 | 58 | 1 | - | - | 1 | **MODERATE** |
 | notifications | 4 | 53 | - | - | - | - | **MODERATE** |
 | organization_portal | 5 | 49 | 2 | - | - | - | **MODERATE** |
-| provider_portal | 9 | 81 | 4 | - | 2 | - | **MODERATE** |
+| provider_portal | 9 | 92 | 4 | - | 2 | - | **MODERATE** |
 | jobs | 1 | 35 | - | 1 | - | - | **MODERATE** |
 | discovery | 5 | 42 | - | - | - | - | **MODERATE** |
 | availability | 6 | 37 | - | - | - | - | **MODERATE** |

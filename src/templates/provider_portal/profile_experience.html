@@ -17,7 +17,10 @@
       <li class="py-3">
         <div class="flex items-start justify-between gap-2">
           <div>
-            <p class="text-sm font-bold text-text">{{ entry.title }}{% if entry.organization_name %} — {{ entry.organization_name }}{% endif %}</p>
+            <div class="flex flex-wrap items-center gap-2">
+              <p class="text-sm font-bold text-text">{{ entry.title }}{% if entry.organization_name %} — {{ entry.organization_name }}{% endif %}</p>
+              {% include "ui/components/feedback/badge.html" with label=entry.is_visible|yesno:"عمومی,پنهان" variant=entry.is_visible|yesno:"success,neutral" %}
+            </div>
             <p class="text-xs text-text-muted ltr-value mt-1">{{ entry.period_label }}</p>
             {% if entry.description %}<p class="mt-2 text-sm text-text-muted whitespace-pre-line">{{ entry.description }}</p>{% endif %}
           </div>

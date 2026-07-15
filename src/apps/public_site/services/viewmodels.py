@@ -80,6 +80,11 @@ class PublicExperienceViewModel:
 class PublicCredentialViewModel:
     label: str
     expiry_label: str
+    document_type: str = ""
+    """The credential type code (e.g. "identity") — Sprint 2.3, needed so
+    the presentation layer can derive precise per-type verification
+    badges ("Identity verified") without re-deriving them from a raw
+    VerificationDocument. A type code, not evidence — safe to expose."""
 
 
 @dataclass(frozen=True)
@@ -87,6 +92,34 @@ class PublicGalleryItemViewModel:
     image_url: str
     caption: str
     alt_text: str
+
+
+@dataclass(frozen=True)
+class ProfessionalHighlightsViewModel:
+    """Sprint 2.3 (Credentials, Skills, Experience, Highlights) — small,
+    entirely derived read-only summary. Every field is computed from data
+    CaregiverPublicProfileService.get_profile() already resolved for the
+    rest of the page (skills, experience, credentials, rating,
+    completed-jobs count) — nothing here triggers a new query, and
+    nothing here is a stored/duplicated statistic."""
+
+    years_experience: int | None
+    verified_credential_count: int
+    visible_skill_count: int
+    completed_jobs_count: int
+    review_count: int
+
+
+@dataclass(frozen=True)
+class VerificationBadgeViewModel:
+    """One precise verification claim — Sprint 2.3. Deliberately never a
+    single generic "Verified" badge: each instance names exactly what was
+    verified ("Profile verified", "Identity verified", "Professional
+    credential verified"), never implying broader approval than the
+    underlying evidence supports."""
+
+    label: str
+    variant: str
 
 
 @dataclass(frozen=True)
@@ -116,6 +149,8 @@ class CaregiverProfileViewModel:
     experience: tuple[PublicExperienceViewModel, ...] = field(default_factory=tuple)
     credentials: tuple[PublicCredentialViewModel, ...] = field(default_factory=tuple)
     gallery: tuple[PublicGalleryItemViewModel, ...] = field(default_factory=tuple)
+    highlights: ProfessionalHighlightsViewModel | None = None
+    verification_badges: tuple[VerificationBadgeViewModel, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True)

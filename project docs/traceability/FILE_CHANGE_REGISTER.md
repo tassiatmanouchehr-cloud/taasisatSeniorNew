@@ -352,3 +352,31 @@ The following files would be created or modified if the Offer Marketplace implem
 | `src/apps/accounts/services/image_validation.py` | Modified | Decoded-dimension/pixel-count limits; decompression-bomb handling | git checkout |
 | `src/apps/accounts/tests/test_caregiver_gallery.py` | Modified | 16 new tests (file-lifecycle safety + image-safety limits); existing remove-item tests updated for deferred deletion | git checkout |
 | `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |
+
+---
+
+## 2026-07-15 — Sprint 2.3: Credentials, Skills, Experience, Highlights (CL-027)
+
+| Path | Change | Purpose | Rollback |
+|------|--------|---------|----------|
+| `src/apps/accounts/services/caregiver_professional_profile_service.py` | Modified | CaregiverSkillService.toggle_visibility(); CaregiverExperienceService is_visible param | git checkout |
+| `src/apps/accounts/services/verification_policy.py` | Modified | RequiredDocumentPolicy.is_expiring_soon() | git checkout |
+| `src/apps/accounts/tests/test_caregiver_professional_profile.py` | Modified | 8 new visibility-toggle tests | git checkout |
+| `src/apps/accounts/tests/test_verification_policy.py` | Modified | 6 new expiring-soon tests | git checkout |
+| `src/apps/provider_portal/forms.py` | Modified | ExperienceForm gained is_visible | git checkout |
+| `src/apps/provider_portal/services/profile_service.py` | Modified | is_visible surfaced; expiring_soon status; new _highlights() | git checkout |
+| `src/apps/provider_portal/services/viewmodels.py` | Modified | is_visible fields; new HighlightsViewModel | git checkout |
+| `src/apps/provider_portal/tests/test_professional_profile.py` | Modified | 13 new tests | git checkout |
+| `src/apps/provider_portal/tests/test_profile.py` | Modified | Locked query-count baseline 13 -> 15 | git checkout |
+| `src/apps/provider_portal/urls.py` | Modified | +1 skill-visibility-toggle route | git checkout |
+| `src/apps/provider_portal/views.py` | Modified | +1 view; experience views pass is_visible | git checkout |
+| `src/apps/public_site/services/profile_service.py` | Modified | document_type on credentials; new _highlights()/_verification_badges() | git checkout |
+| `src/apps/public_site/services/viewmodels.py` | Modified | New ProfessionalHighlightsViewModel/VerificationBadgeViewModel | git checkout |
+| `src/apps/public_site/tests/test_professional_profile_public.py` | Modified | 15 new tests | git checkout |
+| `src/templates/provider_portal/profile.html` | Modified | +3 highlights stat tiles | git checkout |
+| `src/templates/provider_portal/profile_experience.html` | Modified | +visibility badge per entry | git checkout |
+| `src/templates/provider_portal/profile_experience_form.html` | Modified | Checkbox rendering for is_current/is_visible | git checkout |
+| `src/templates/provider_portal/profile_skills.html` | Modified | +visibility badge + toggle button per skill | git checkout |
+| `src/templates/public_site/caregiver_profile.html` | Modified | Precise badges; highlights tiles; self-declared/platform-reviewed disclaimers | git checkout |
+| `src/ui/components/portal/verification_badge.html` | Modified | +expiring_soon status branch (shared, also used by organization_portal) | git checkout |
+| `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |

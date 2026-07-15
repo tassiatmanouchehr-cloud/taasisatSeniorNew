@@ -240,38 +240,89 @@ branch/PR (no new branch, no new PR):
 
 16 new tests, zero new migration, full regression 1948/1948 green. See
 `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-018's remediation note.
-PR #7 updated in place. **Not merged — awaiting review.**
+
+### PR #7 — MERGED (2026-07-15)
+
+Final verification confirmed the branch was in-scope only (gallery + PR
+#7 remediation, no Sprint 2.3 code), physical deletion was proven to run
+only through `transaction.on_commit()` with rollback correctly discarding
+it, storage-deletion failure could not recreate or publicly expose the
+deleted row, width/height/pixel-count limits and Pillow decompression-
+bomb handling were confirmed enforced, avatar/cover validation remained
+compatible, and documentation was synchronized. Merged via
+`merge_pull_request` (merge commit
+`f7b7b2be5abd42d85935f522cf1b7b9b27bb6da1`). Local `main` fast-forwarded
+to match `origin/main`; `manage.py check` exits 0. **Sprint 2.2 (including
+the PR #7 remediation) is now CLOSED and on `main`.**
+
+### Sprint 2.3 — Credentials, Skills, Experience, Highlights — IMPLEMENTED (2026-07-15)
+
+Branched fresh from merged `main`
+(`phase2-caregiver-credentials-skills-experience-ui`, from `f7b7b2b`) per
+governance. Completes the professional-credibility presentation layer —
+closes new backlog item BG-023:
+
+- `CaregiverSkillService.toggle_visibility()` and
+  `CaregiverExperienceService.create()`/`update()`'s new `is_visible`
+  parameter — the column existed on both models since Phase 2.1, unused
+  until now; zero migration.
+- Precise `VerificationBadgeViewModel` entries ("Profile verified",
+  "Identity verified", "Professional credential verified") replace the
+  single generic "Verified" pill — each independently evidence-derived,
+  proven via a required-document-policy-override test that the badges
+  are not mere aliases of each other.
+- Fully derived `ProfessionalHighlightsViewModel`/`HighlightsViewModel`
+  (years of experience, verified-credential count, visible-skill count,
+  completed-jobs/review count) — zero new queries on the public page,
+  two fixed-cost `.count()` queries on the provider-portal preview.
+- `RequiredDocumentPolicy.is_expiring_soon()` (30-day window, owner-
+  facing only) and a new `expiring_soon` branch on the shared
+  `verification_badge.html` component (also used by
+  `apps.organization_portal`, re-verified 51/51).
+- Explicit "self-declared, not platform-verified" disclaimer on the
+  public experience section, contrasted with a "platform-reviewed" note
+  on credentials.
+
+36 new tests, zero new migration, full regression 1984/1984 green. Branch
+`phase2-caregiver-credentials-skills-experience-ui`, PR created — see
+`traceability/IMPLEMENTATION_JOURNAL.md` and
+`ARCHITECTURE_DECISION_LOG.md` ADM-019. **Not merged — awaiting review.**
 
 ---
 
 ## IMMEDIATE NEXT TASK
 
-### Await review of the Sprint 2.2 PR (#7); do not start Sprint 2.3 automatically
+### Await review of the Sprint 2.3 PR; do not start Sprint 2.4 automatically
 
 Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active implementation
 order).
 
-Phase 1 and Phase 2.1 (+ BG-022) are fully closed and merged to `main`.
-Sprint 2.2 (this session's work) delivers the gallery/media-portfolio slice
-of roadmap Phase 2 — remaining roadmap Phase 2 scope, explicitly NOT
-started by this task:
+Phase 1, Phase 2.1 (+ BG-022), and Sprint 2.2 (+ PR #7 remediation) are
+fully closed and merged to `main`. Sprint 2.3 (this session's work)
+delivers the professional-credibility slice of roadmap Phase 2 —
+remaining roadmap Phase 2 scope, explicitly NOT started by this task:
 
-1. Sprint 2.3 — Professional Certificates, Credential Presentation,
-   Professional Skills UI, Experience Timeline, Professional Highlights,
-   Verification Badges — not started.
-2. Sprint 2.4 — Availability, Working Hours, Calendar, Vacation,
+1. Sprint 2.4 — Availability, Working Hours, Calendar, Vacation,
    Availability Rules, Availability Presentation — not started.
-3. Sprint 2.5 — Professional Dashboard, Orders Summary, Financial Summary,
+2. Sprint 2.5 — Professional Dashboard, Orders Summary, Financial Summary,
    Review Summary, Statistics, Performance Overview — not started (closes
    the rest of BG-021: extended financial overview, orders + history).
-4. Sprint 2.6 — Public Profile Finalization (SEO, caching, search, public
+3. Sprint 2.6 — Public Profile Finalization (SEO, caching, search, public
    APIs, accessibility, performance, privacy review, architecture cleanup,
    final acceptance) — not started.
-5. Known, recorded during BG-022's remediation: a pre-existing, unrelated
+4. Known, recorded during BG-022's remediation: a pre-existing, unrelated
    per-candidate query cost in directory ranking/card-building
    (`DiscoveryRankingService.rank()`, `CaregiverDirectoryService
    ._build_card()`) — see `quality/DEFECT_AND_RISK_REGISTER.md` KL-012,
    not fixed (separate performance task, out of scope).
+5. Known, recorded during Sprint 2.3: `CaregiverSkill.name` remains
+   free-text with no catalog/normalization — see
+   `quality/DEFECT_AND_RISK_REGISTER.md` KL-016, deferred (a future
+   modeling decision, not a UI-completion task).
+6. Known, recorded during Sprint 2.2/PR #7: gallery orphan-file cleanup/
+   retry is not automated (KL-014) and decoded-image dimension/pixel
+   limits are fixed, not tenant-configurable (KL-015) — both deliberate,
+   not defects.
 6. Known, pre-existing, unchanged by Sprint 2.2: production media storage
    strategy (currently local `FileField`/`FileSystemStorage`, no S3/CDN) —
    BG-021's original dependency note; gallery images inherit this exactly

@@ -851,3 +851,90 @@ restructured; new `_delete_stored_file()`), `apps/accounts/services/image_valida
 added). No model or migration change — these are service-layer behavior corrections only.
 16 new tests, full regression 1948/1948 green.
 Status: RESOLVED_IN_IMPLEMENTATION (remediation).
+
+---
+
+## ADM-019: Precise Verification Badges, Derived Highlights, and Self-Declared vs. Verified Distinction (Sprint 2.3)
+
+**Date:** 2026-07-15
+**Status:** DECIDED
+**Context:** Sprint 2.3 (Credentials, Skills, Experience, Highlights) — first sprint on a
+fresh branch after PR #7 (Sprint 2.2 gallery + remediation) merged to `main`. Completes the
+professional-credibility presentation layer: precise verification badges, an owner-
+completable visibility toggle for skills/experience (the `is_visible` column has existed on
+both models since Phase 2.1, unused until now), a minimal derived highlights summary, and
+an owner-facing "expiring soon" credential state.
+
+**Decision 1 — No new public credential metadata field.** `PublicCredentialSelector`/
+`PublicCredentialSummary` already carry exactly `document_type`, `label`, `expiry_date` —
+the full set of safe metadata `VerificationDocument` actually models. "Issuing
+organization" and a distinct "issue date" were explicitly considered (per this sprint's own
+governance: "only if explicitly public and modeled") and rejected — neither field exists on
+`VerificationDocument`, and inventing either would be presenting a fact the platform never
+actually captured. `PublicCredentialViewModel` gained one new field,`document_type` (a type
+code like `"identity"`, not evidence), so the presentation layer can derive precise
+per-type badges without a new query or a new model field.
+
+**Decision 2 — Precise badges, never one generic "Verified."** The public profile
+previously showed a single `"تأییدشده"` (Verified) pill tied to the coarse
+`verification_status` flag — a compound claim conflating "this profile passed the
+canonical visibility gate" with "this specific credential is authentic." Replaced with
+`VerificationBadgeViewModel` entries, each naming exactly one claim: "نمایه تأییدشده"
+(Profile verified — the profile passed the canonical BG-022 gate), "هویت تأییدشده"
+(Identity verified — an approved, unexpired IDENTITY document exists), "مدرک حرفه‌ای
+تأییدشده" (Professional credential verified — at least one approved credential of any
+type exists). Under the *default* required-document policy, "Profile verified" and
+"Identity verified" always co-occur (IDENTITY is mandatory) — but the badges remain
+independently correct, evidence-derived facts, not aliases of each other, and a tenant that
+narrows its required-document policy (`RequiredDocumentPolicy`, already tenant-overridable
+since Phase 1.2) can genuinely decouple them; a test in
+`apps.public_site.tests.test_professional_profile_public
+.PublicProfileHighlightsAndBadgesTest.test_badges_never_imply_broader_approval_than_evidence`
+proves this using exactly that override mechanism.
+
+**Decision 3 — Highlights are derived, never a new stored statistic.** `years_experience`
+is an existing `CaregiverProfile` attribute; `verified_credential_count` is `len()` of the
+already-resolved credentials tuple; `visible_skill_count` is `len()` of the already-
+resolved skills tuple; `completed_jobs_count`/`review_count` are values `get_profile()`
+already computed for the rating sidebar. Nothing here is written to a new column, and
+nothing here issues a new query on the public page (confirmed unchanged at 14 queries by
+the existing `PublicProfileQueryCountTest`). The provider-portal owner-side highlights
+preview (`HighlightsViewModel`) mirrors the same shape but necessarily issues two new,
+fixed-cost `.count()` queries of its own (`visible_skill_count`/`visible_experience_count`
+require a `WHERE is_visible` filter distinct from the pre-existing unfiltered
+`skills_count`/`experience_count`) — the provider profile page's own locked query-count
+baseline moved 13 -> 15 accordingly, proven fixed-cost (not per-item) by the unchanged test
+structure.
+
+**Decision 4 — Self-declared experience is never presented as platform-verified.** No
+experience-verification record exists anywhere in this repository, and this sprint's own
+governance explicitly forbids implying one. A plain-text disclaimer
+("این سوابق توسط خود مراقب اعلام شده و توسط پلتفرم تأیید نشده است.") was added directly to
+the public experience section — a template-level clarification, not a new derived field,
+since there is nothing to derive: the absence of verification is the fact being stated. The
+adjacent credentials section gained a matching, contrasting disclaimer confirming *those*
+values *are* platform-reviewed — making the distinction legible by direct contrast, not by
+inference.
+
+**Decision 5 — Skill model stays free-text; no catalog migration.** `CaregiverSkill.name`
+remains a free-text `CharField` (Phase 2.1's original decision, ADM-017) — this sprint's own
+governance explicitly warned against "silently redesigning" it. The ambiguity a skill
+catalog would resolve (e.g. spelling variants of the same skill never merging in search/
+filter contexts) is real but out of scope; recorded as a deferred, future catalog-migration
+risk (`quality/DEFECT_AND_RISK_REGISTER.md` KL-016), not addressed here.
+
+**Decision 6 — `is_expiring_soon()` is owner-facing only, never public.** A 30-day window
+constant (`RequiredDocumentPolicy.EXPIRING_SOON_WINDOW_DAYS`), mirroring
+`is_effectively_expired()`'s existing shape (derived, point-in-time, no DB mutation). The
+public `PublicCredentialSelector` was not touched at all for this — a still-valid,
+still-approved credential is shown publicly exactly as before regardless of how soon it
+expires; "expiring soon" is purely an owner-facing action prompt
+(`verification_badge.html`'s new `expiring_soon` status branch, reached only from
+`ProviderProfilePresentationService._document_rows()`).
+
+**Consequences:** Zero new models, zero new migrations (both `is_visible` columns already
+existed; every other change is either a new field on an existing dataclass or a purely
+derived value). One shared UI component (`verification_badge.html`, also used by
+`organization_portal`) gained one new, purely additive status branch — verified not to
+affect any existing status rendering, and `apps.organization_portal`'s own test suite
+(51/51) re-run to confirm. 36 new tests, full regression 1984/1984 green.

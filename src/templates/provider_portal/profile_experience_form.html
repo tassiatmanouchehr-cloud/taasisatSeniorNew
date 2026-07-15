@@ -14,8 +14,14 @@
     {% endif %}
     {% for field in form %}
     <div>
+      {% if field.name == "is_current" or field.name == "is_visible" %}
+      <label class="flex items-center gap-2 text-sm font-bold text-text">
+        {{ field }} {{ field.label }}
+      </label>
+      {% else %}
       <label for="{{ field.id_for_label }}" class="block text-sm font-bold text-text">{{ field.label }}</label>
       {{ field }}
+      {% endif %}
       {% if field.help_text %}<p class="mt-1 text-xs text-text-muted">{{ field.help_text }}</p>{% endif %}
       {% if field.errors %}<p class="mt-1 text-xs text-danger">{{ field.errors.0 }}</p>{% endif %}
     </div>

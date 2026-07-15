@@ -1,6 +1,6 @@
 # DATA OWNERSHIP AND RELATIONSHIPS
 
-**Last verified HEAD:** phase2-caregiver-gallery-media (from main @ c5259b3, PR #6 merged)
+**Last verified HEAD:** phase2-caregiver-credentials-skills-experience-ui (from main @ f7b7b2b, PR #7 merged)
 **Last verified date:** 2026-07-15
 
 ---
@@ -82,11 +82,11 @@ CaregiverProfile
 ├── **experiences → accounts.CaregiverExperience (CASCADE, reverse FK, related_name="experiences")**
 └── *gallery_items → accounts.CaregiverGalleryItem (CASCADE, reverse FK, related_name="gallery_items")*
 
-CaregiverSkill (Phase 2.1, new)
+CaregiverSkill (Phase 2.1, new; is_visible actively managed since Sprint 2.3)
 ├── caregiver → accounts.CaregiverProfile (CASCADE)
 └── UNIQUE(caregiver, name)
 
-CaregiverExperience (Phase 2.1, new)
+CaregiverExperience (Phase 2.1, new; is_visible actively managed since Sprint 2.3)
 ├── caregiver → accounts.CaregiverProfile (CASCADE)
 └── CHECK(end_date IS NULL OR end_date >= start_date)
 
@@ -100,6 +100,12 @@ uses for its own caregiver/organization FKs (no `TenantAwareModel` base for any 
 `CaregiverGalleryItem` has no unique constraint (unlike `CaregiverSkill`) — a caregiver may
 legitimately upload duplicate-looking photos; ordering is enforced at the service layer
 (`CaregiverGalleryService.reorder()`, row-locked), not the database.
+
+`CaregiverSkill.is_visible`/`CaregiverExperience.is_visible` (Sprint 2.3, 2026-07-15): both
+columns existed since Phase 2.1 but had no owner-facing mutation path until this sprint —
+`CaregiverSkillService.toggle_visibility()` and `CaregiverExperienceService.create()`/
+`update()`'s new `is_visible` parameter close that gap. No schema change — the same
+columns, now actually reachable.
 
 ## Unique Constraints (Significant)
 

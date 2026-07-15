@@ -86,6 +86,28 @@ class CaregiverSkillServiceTest(_FixtureMixin, TestCase):
         with self.assertRaises(AccountsError):
             CaregiverSkillService.remove_skill(self.caregiver, skill_id=uuid.uuid4())
 
+    def test_new_skill_defaults_visible(self):
+        skill = CaregiverSkillService.add_skill(self.caregiver, name="Nursing")
+        self.assertTrue(skill.is_visible)
+
+    def test_toggle_visibility_hides_then_shows(self):
+        skill = CaregiverSkillService.add_skill(self.caregiver, name="Nursing")
+        hidden = CaregiverSkillService.toggle_visibility(self.caregiver, skill_id=skill.id)
+        self.assertFalse(hidden.is_visible)
+        shown = CaregiverSkillService.toggle_visibility(self.caregiver, skill_id=skill.id)
+        self.assertTrue(shown.is_visible)
+
+    def test_cannot_toggle_another_caregivers_skill_visibility(self):
+        skill = CaregiverSkillService.add_skill(self.other_caregiver, name="Nursing")
+        with self.assertRaises(AccountsError):
+            CaregiverSkillService.toggle_visibility(self.caregiver, skill_id=skill.id)
+        skill.refresh_from_db()
+        self.assertTrue(skill.is_visible)  # unchanged
+
+    def test_toggle_visibility_nonexistent_skill_refused(self):
+        with self.assertRaises(AccountsError):
+            CaregiverSkillService.toggle_visibility(self.caregiver, skill_id=uuid.uuid4())
+
 
 class CaregiverExperienceServiceTest(_FixtureMixin, TestCase):
     def setUp(self):
@@ -127,6 +149,34 @@ class CaregiverExperienceServiceTest(_FixtureMixin, TestCase):
             self.caregiver, experience_id=entry.id, title="New Title", start_date=datetime.date(2020, 1, 1),
         )
         self.assertEqual(updated.title, "New Title")
+
+    def test_new_experience_defaults_visible(self):
+        entry = CaregiverExperienceService.create(self.caregiver, title="X", start_date=datetime.date(2020, 1, 1))
+        self.assertTrue(entry.is_visible)
+
+    def test_create_with_visibility_false(self):
+        entry = CaregiverExperienceService.create(
+            self.caregiver, title="X", start_date=datetime.date(2020, 1, 1), is_visible=False,
+        )
+        self.assertFalse(entry.is_visible)
+
+    def test_update_can_hide_experience(self):
+        entry = CaregiverExperienceService.create(self.caregiver, title="X", start_date=datetime.date(2020, 1, 1))
+        updated = CaregiverExperienceService.update(
+            self.caregiver, experience_id=entry.id, title="X",
+            start_date=datetime.date(2020, 1, 1), is_visible=False,
+        )
+        self.assertFalse(updated.is_visible)
+
+    def test_update_can_reshow_hidden_experience(self):
+        entry = CaregiverExperienceService.create(
+            self.caregiver, title="X", start_date=datetime.date(2020, 1, 1), is_visible=False,
+        )
+        updated = CaregiverExperienceService.update(
+            self.caregiver, experience_id=entry.id, title="X",
+            start_date=datetime.date(2020, 1, 1), is_visible=True,
+        )
+        self.assertTrue(updated.is_visible)
 
     def test_cannot_update_another_caregivers_experience(self):
         entry = CaregiverExperienceService.create(

@@ -1,6 +1,6 @@
 # RUNTIME WORKFLOWS
 
-**Last verified HEAD:** phase2-caregiver-gallery-media (from main @ c5259b3, PR #6 merged; PR #7 file-lifecycle/image-safety remediation in progress)
+**Last verified HEAD:** phase2-caregiver-credentials-skills-experience-ui (from main @ f7b7b2b, PR #7 merged)
 **Last verified date:** 2026-07-15
 
 ---
@@ -29,12 +29,13 @@
 | 18 | Activation Eligibility (read-only) | IMPLEMENTED (Phase 1.2) | `accounts/services/activation_eligibility_service.py:ActivationEligibilityService` |
 | 19 | Profile Completion (deterministic) | IMPLEMENTED (Phase 1.3) | `accounts/services/profile_completion_service.py:ProfileCompletionService` |
 | 20 | Controlled Profile Activation | IMPLEMENTED (Phase 1.3) | `accounts/services/profile_activation_service.py:ProfileActivationService` |
-| 21 | Caregiver Skills Management | IMPLEMENTED (Phase 2.1) | `accounts/services/caregiver_professional_profile_service.py:CaregiverSkillService` |
-| 22 | Caregiver Experience Management | IMPLEMENTED (Phase 2.1) | `accounts/services/caregiver_professional_profile_service.py:CaregiverExperienceService` |
+| 21 | Caregiver Skills Management | IMPLEMENTED (Phase 2.1; visibility toggle Sprint 2.3) | `accounts/services/caregiver_professional_profile_service.py:CaregiverSkillService` |
+| 22 | Caregiver Experience Management | IMPLEMENTED (Phase 2.1; visibility toggle Sprint 2.3) | `accounts/services/caregiver_professional_profile_service.py:CaregiverExperienceService` |
 | 23 | Public Credential Summary | IMPLEMENTED (Phase 2.1) | `accounts/services/public_credential_selector.py:PublicCredentialSelector` |
-| 24 | Public Caregiver Profile Page | IMPLEMENTED (Epic 06; eligibility corrected Phase 2.1, unified with listings BG-022, gallery section Sprint 2.2) | `public_site/services/profile_service.py:CaregiverPublicProfileService` |
+| 24 | Public Caregiver Profile Page | IMPLEMENTED (Epic 06; eligibility corrected Phase 2.1, unified with listings BG-022, gallery section Sprint 2.2, precise badges/highlights Sprint 2.3) | `public_site/services/profile_service.py:CaregiverPublicProfileService` |
 | 25 | Canonical Public Visibility Policy | IMPLEMENTED (BG-022 remediation) | `public_site/services/common.py:is_publicly_visible_attrs()` |
-| 26 | Caregiver Gallery Management | IMPLEMENTED (Sprint 2.2) | `accounts/services/caregiver_gallery_service.py:CaregiverGalleryService` |
+| 26 | Caregiver Gallery Management | IMPLEMENTED (Sprint 2.2; file-lifecycle/image-safety hardened PR #7) | `accounts/services/caregiver_gallery_service.py:CaregiverGalleryService` |
+| 27 | Professional Credibility Layer (badges, highlights, expiring-soon) | IMPLEMENTED (Sprint 2.3) | `public_site/services/profile_service.py:CaregiverPublicProfileService._highlights()/_verification_badges()` |
 
 ---
 
@@ -166,6 +167,47 @@ Caregiver-side management: `/provider/profile/gallery/` (list + upload),
 filter. The provider profile page shows a gallery summary tile ("N / 12 تصویر ثبت‌شده").
 The public profile page shows a responsive photo grid, only when both the caregiver passes
 the canonical visibility policy and the item itself is `is_visible=True`.
+
+## Professional Credibility Layer — Badges, Highlights, Visibility Management (Sprint 2.3)
+
+Skill/experience visibility: `CaregiverSkillService.toggle_visibility(caregiver, *,
+skill_id)` flips `is_visible` (ownership-filtered, same lookup-as-authorization-boundary
+pattern as every other mutation in this service). `CaregiverExperienceService.create()`/
+`update()` gained an `is_visible: bool = True` keyword parameter, wired to a new checkbox
+on `ExperienceForm`. Both columns existed on their models since Phase 2.1; this sprint is
+the first to expose either through a mutation path. Provider portal: a "نمایش/پنهان کردن"
+toggle button per skill row (`/provider/profile/skills/<id>/toggle-visibility/`, new
+POST-only route), and the existing experience edit form.
+
+Public precise badges: `CaregiverPublicProfileService._verification_badges(attrs,
+credentials)` replaces the old single generic "Verified" pill with independently
+evidence-derived `VerificationBadgeViewModel` entries — "نمایه تأییدشده" (profile passed
+the canonical BG-022 gate), "هویت تأییدشده" (an approved, unexpired IDENTITY document
+exists), "مدرک حرفه‌ای تأییدشده" (at least one approved credential of any applicable type
+exists). Never a single badge implying broader approval than the underlying evidence.
+
+Highlights: `_highlights()` (public) and `ProviderProfilePresentationService._highlights()`
+(owner preview) are both pure aggregations of data already resolved elsewhere on the same
+page (years of experience, verified-credential count, visible-skill count, completed-jobs/
+review count) — the public version adds zero new queries; the owner version adds two
+fixed-cost `.count()` queries (`WHERE is_visible`, distinct from the pre-existing
+unfiltered `skills_count`/`experience_count`).
+
+Expiring-soon (owner-facing only, never public): `RequiredDocumentPolicy
+.is_expiring_soon()` — a VERIFIED document whose `expiry_date` falls within the next 30
+days. Surfaced via a new `expiring_soon` branch on the shared
+`ui/components/portal/verification_badge.html` component (also used by
+`apps.organization_portal` — its own suite re-run to confirm no regression from the
+purely-additive change).
+
+Self-declared vs. platform-verified: the public experience section carries an explicit
+"این سوابق توسط خود مراقب اعلام شده و توسط پلتفرم تأیید نشده است." disclaimer (no
+experience-verification record exists to derive a stronger claim from); the credentials
+section carries a contrasting "این مدارک توسط پلتفرم بررسی و تأیید شده‌اند." note.
+
+No new eligibility/visibility rule was introduced — badges and highlights are only ever
+computed after `get_profile()`'s existing canonical `common.is_publicly_visible()` gate
+(BG-022) has already passed, exactly like every other section on this page.
 
 ## Order Lifecycle (Status Machine)
 

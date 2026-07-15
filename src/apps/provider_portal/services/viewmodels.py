@@ -48,6 +48,19 @@ class SummaryItemViewModel:
 
 
 @dataclass(frozen=True)
+class HighlightsViewModel:
+    """Sprint 2.3 (Credentials, Skills, Experience, Highlights) — owner-
+    side preview of the same derived highlights the public profile shows.
+    Every field is computed from data already fetched elsewhere on this
+    page; nothing here is persisted or queried freshly."""
+
+    years_experience: int | None
+    verified_credential_count: int
+    visible_skill_count: int
+    visible_experience_count: int
+
+
+@dataclass(frozen=True)
 class ProviderProfileViewModel:
     supplier_id: str
     display_name: str
@@ -88,12 +101,14 @@ class ProviderProfileViewModel:
     will appear publicly")."""
     gallery_count: int = 0
     gallery_limit: int = 0
+    highlights: HighlightsViewModel | None = None
 
 
 @dataclass(frozen=True)
 class SkillRowViewModel:
     id: str
     name: str
+    is_visible: bool = True
 
 
 @dataclass(frozen=True)
@@ -106,6 +121,7 @@ class ExperienceRowViewModel:
     end_date: object  # date | None
     is_current: bool
     period_label: str
+    is_visible: bool = True
 
 
 @dataclass(frozen=True)

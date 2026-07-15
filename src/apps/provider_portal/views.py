@@ -551,6 +551,16 @@ def profile_skill_remove_view(request, skill_id):
     return redirect("provider_portal:profile-skills")
 
 
+@require_http_methods(["POST"])
+def profile_skill_visibility_toggle_view(request, skill_id):
+    supplier, tenant_id, caregiver = _guard_with_caregiver(request)
+    try:
+        CaregiverSkillService.toggle_visibility(caregiver, skill_id=skill_id)
+    except AccountsError:
+        pass  # not owned — page still shows current state.
+    return redirect("provider_portal:profile-skills")
+
+
 # ============================================================
 # Experience — Phase 2.1 (Caregiver Professional Profile Foundation)
 # ============================================================
@@ -572,7 +582,7 @@ def profile_experience_view(request):
 @require_http_methods(["GET", "POST"])
 def profile_experience_add_view(request):
     supplier, tenant_id, caregiver = _guard_with_caregiver(request)
-    form = ExperienceForm(request.POST or None)
+    form = ExperienceForm(request.POST or None, initial={"is_visible": True})
     if request.method == "POST" and form.is_valid():
         try:
             CaregiverExperienceService.create(
@@ -583,6 +593,7 @@ def profile_experience_add_view(request):
                 start_date=form.cleaned_data["start_date"],
                 end_date=form.cleaned_data["end_date"],
                 is_current=form.cleaned_data["is_current"],
+                is_visible=form.cleaned_data["is_visible"],
             )
         except AccountsError as exc:
             form.add_error(None, str(exc))
@@ -615,6 +626,7 @@ def profile_experience_edit_view(request, experience_id):
             "start_date": entry.start_date,
             "end_date": entry.end_date,
             "is_current": entry.is_current,
+            "is_visible": entry.is_visible,
         },
     )
     if request.method == "POST" and form.is_valid():
@@ -628,6 +640,7 @@ def profile_experience_edit_view(request, experience_id):
                 start_date=form.cleaned_data["start_date"],
                 end_date=form.cleaned_data["end_date"],
                 is_current=form.cleaned_data["is_current"],
+                is_visible=form.cleaned_data["is_visible"],
             )
         except AccountsError as exc:
             form.add_error(None, str(exc))
