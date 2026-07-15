@@ -33,6 +33,7 @@ from apps.accounts.services.caregiver_profile_service import CaregiverProfileUpd
 from apps.accounts.services.document_service import DocumentService
 from apps.accounts.services.errors import AccountsError
 from apps.accounts.services.profile_media_service import ProfileMediaService
+from apps.availability.models import PERSIAN_DAY_LABELS
 from apps.availability.services.capacity_service import CapacityService
 from apps.availability.services.errors import AvailabilityError
 from apps.availability.services.mutation_service import AvailabilityMutationService
@@ -61,6 +62,7 @@ from .forms import (
     ImageUploadForm,
     ProfessionalInfoForm,
     SkillForm,
+    WorkingWindowEditForm,
     WorkingWindowForm,
 )
 from .permissions import require_authenticated, resolve_supplier, resolve_tenant_id
@@ -316,20 +318,34 @@ def availability_view(request):
     blocked_periods = AvailabilityQueryService.get_blocked_periods(supplier=supplier)
     engagement_count = CapacityService.get_active_engagement_count(supplier=supplier)
     capacity_exceeded = CapacityService.is_capacity_exceeded(supplier=supplier)
+    public_summary_days = _public_summary_labels(supplier)
 
     return render(
         request,
         "provider_portal/availability.html",
         {
             "window_form": window_form,
+            "window_edit_form": WorkingWindowEditForm(),
             "blocked_period_form": BlockedPeriodForm(),
             "working_windows": working_windows,
             "blocked_periods": blocked_periods,
             "engagement_count": engagement_count,
             "capacity_exceeded": capacity_exceeded,
+            "public_summary_days": public_summary_days,
             "nav_items": ProviderProfilePresentationService.build_nav_items(active="availability"),
         },
     )
+
+
+def _public_summary_labels(supplier) -> tuple[str, ...]:
+    """Sprint 2.4: the same safe, summarized (day-labels only, never exact
+    times) preview the public caregiver profile shows — see
+    apps.public_site.services.profile_service.CaregiverPublicProfileService
+    ._availability_summary(), which computes it identically from the same
+    canonical apps.availability.services.query_service.AvailabilityQueryService
+    .get_distinct_active_days()."""
+    days = AvailabilityQueryService.get_distinct_active_days(supplier=supplier)
+    return tuple(PERSIAN_DAY_LABELS[day] for day in days)
 
 
 @require_http_methods(["POST"])
@@ -339,6 +355,39 @@ def working_window_remove_view(request, window_id):
     if window is None:
         raise Http404("Working window not found.")
     AvailabilityMutationService.remove_working_window(window_id=window.id)
+    return redirect("provider_portal:availability")
+
+
+@require_http_methods(["POST"])
+def working_window_update_view(request, window_id):
+    supplier, tenant_id = _guard(request)
+    window = AvailabilityQueryService.get_working_window_for_supplier(supplier=supplier, window_id=window_id)
+    if window is None:
+        raise Http404("Working window not found.")
+
+    form = WorkingWindowEditForm(request.POST)
+    if form.is_valid():
+        try:
+            AvailabilityMutationService.update_working_window(
+                window_id=window.id,
+                start_time=form.cleaned_data["start_time"],
+                end_time=form.cleaned_data["end_time"],
+            )
+        except AvailabilityError as exc:
+            return render(request, "provider_portal/action_error.html", {"error": str(exc)})
+    return redirect("provider_portal:availability")
+
+
+@require_http_methods(["POST"])
+def working_window_toggle_view(request, window_id):
+    supplier, tenant_id = _guard(request)
+    window = AvailabilityQueryService.get_working_window_for_supplier(supplier=supplier, window_id=window_id)
+    if window is None:
+        raise Http404("Working window not found.")
+    try:
+        AvailabilityMutationService.toggle_working_window(window=window)
+    except AvailabilityError as exc:
+        return render(request, "provider_portal/action_error.html", {"error": str(exc)})
     return redirect("provider_portal:availability")
 
 

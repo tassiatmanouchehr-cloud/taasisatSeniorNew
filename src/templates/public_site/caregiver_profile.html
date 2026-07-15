@@ -179,6 +179,20 @@
           </dl>
         </div>
 
+        <div class="rounded-2xl border border-border bg-surface p-6">
+          <h2 class="text-sm font-black text-text">روزهای معمول در دسترس بودن</h2>
+          {% if profile.schedule_summary.has_schedule %}
+          <div class="mt-3 flex flex-wrap gap-2">
+            {% for day_label in profile.schedule_summary.available_day_labels %}
+            {% include "ui/components/feedback/chip.html" with label=day_label %}
+            {% endfor %}
+          </div>
+          <p class="mt-3 text-xs text-text-muted">ساعات دقیق برای هماهنگی نهایی با مراقب یا پشتیبانی مشخص می‌شود.</p>
+          {% else %}
+          <p class="mt-3 text-sm text-text-muted">برنامه کاری این مراقب روی درخواست در دسترس است — برای هماهنگی با ما تماس بگیرید.</p>
+          {% endif %}
+        </div>
+
         {% include "ui/components/public/cta_section.html" with title="نیاز به مشاوره دارید؟" subtitle="برای هماهنگی و دریافت این مراقب، با ما تماس بگیرید." primary_cta_text="شروع گفتگو" primary_cta_url="/contact/" %}
       </aside>
     </div>

@@ -1,6 +1,6 @@
 # CURRENT IMPLEMENTATION STATE
 
-**Last verified HEAD:** phase2-caregiver-credentials-skills-experience-ui (from main @ f7b7b2b, PR #7 merged)
+**Last verified HEAD:** phase2-caregiver-availability-schedule (from main @ 20c532e, PR #8 merged)
 **Last verified date:** 2026-07-15
 
 ---
@@ -15,7 +15,7 @@
 | **booking** | 1 (SupplierAssignment) | 5 | 0 | 67 | COMPLETE |
 | **execution** | 1 (ExecutionSession) | 3 | 0 | 58 | COMPLETE |
 | **matching** | 2 (MatchRound, MatchCandidate) | 4 | 0 | 33 | COMPLETE |
-| **availability** | 3 (ProviderWorkingWindow, AvailabilityBlockedPeriod, CapacityRule) | 3 | 0 | 37 | COMPLETE |
+| **availability** | 3 (ProviderWorkingWindow, AvailabilityBlockedPeriod, CapacityRule) | 3 (+evaluate()/get_distinct_active_days() on AvailabilityQueryService, overlap/duplicate refusal + toggle_working_window() on AvailabilityMutationService — Sprint 2.4) | 0 | 56 (+19 Sprint 2.4) | COMPLETE |
 | **finance** | 11 (FinancialParty, FinancialDocument, FinancialDocumentItem, FinancialObligation, PaymentTransaction, WalletAccount, WalletTransaction, EscrowRecord, EscrowMovement, LedgerEntry, SettlementBatch, SettlementItem) | 9+ | 0 | 75 | COMPLETE |
 | **payments** | 3 (PaymentIntent, PaymentAttempt, PaymentCallback) | 7 | 0 | 54 | PARTIAL (fake PSP only) |
 | **commission** | 11 (CommissionContract, PaymentDeadline, PaymentDeadlineExtension, CommissionSnapshot, ObjectionPeriod, ObjectionPeriodExtension, Dispute, DisputeLine, DisputeResolution, ReleaseInstruction, RefundInstruction) | 22 | 0 | 132 | COMPLETE |
@@ -28,11 +28,11 @@
 | **jobs** | 2 (JobDefinition, JobRun) | 1 | 0 | 35 | COMPLETE |
 | **common** | 3 (abstract: TimestampedModel, TenantAwareModel, SoftDeleteMixin) | 0 | 0 | 0 | COMPLETE (no tests) |
 | **portal** | 0 | 5 (presentation) | 30+ | 74 | COMPLETE |
-| **provider_portal** | 0 | 1 (presentation) | 31 (+5 skills/experience management Phase 2.1, +4 gallery management Sprint 2.2, +1 skill-visibility-toggle Sprint 2.3) | 92 (+2 Phase 1.3, +13 Phase 2.1, +13 Sprint 2.2, +11 Sprint 2.3) | COMPLETE |
+| **provider_portal** | 0 | 1 (presentation) | 33 (+5 skills/experience management Phase 2.1, +4 gallery management Sprint 2.2, +1 skill-visibility-toggle Sprint 2.3, +2 working-window update/toggle Sprint 2.4) | 107 (+2 Phase 1.3, +13 Phase 2.1, +13 Sprint 2.2, +11 Sprint 2.3, +15 Sprint 2.4) | COMPLETE |
 | **organization_portal** | 0 | 1 (presentation) | 18 | 51 (+2 Phase 1.3) | COMPLETE |
 | **admin_portal** | 0 | 0 | 20 (+4 document verification Phase 1.1, +4 activation Phase 1.3) | 56 (+16 Phase 1.1, +9 Phase 1.3, +2 Phase 1.3 remediation) | COMPLETE |
 | **api** | 0 | 0 | 12 | 97 | COMPLETE |
-| **public_site** | 0 | 4 | 18 | 128 (+2 Phase 2.1 eligibility, +11 Phase 2.1 skills/experience/credentials, +13 BG-022 canonical visibility, +11 Sprint 2.2 gallery, +11 Sprint 2.3 highlights/badges) | COMPLETE |
+| **public_site** | 0 | 4 | 18 | 134 (+2 Phase 2.1 eligibility, +11 Phase 2.1 skills/experience/credentials, +13 BG-022 canonical visibility, +11 Sprint 2.2 gallery, +11 Sprint 2.3 highlights/badges, +6 Sprint 2.4 schedule summary) | COMPLETE |
 | **showcase** | 0 | 0 | 15 | 0 | COMPLETE (no tests) |
 
 ## Offer Marketplace Current State
@@ -58,9 +58,9 @@ profiles, and portal completion phases.
 | Total concrete models | ~73 (+CaregiverSkill, CaregiverExperience — Phase 2.1; +CaregiverGalleryItem — Sprint 2.2) |
 | Total migrations | ~47 |
 | Total test files | 208 |
-| Total test methods | 1,984 (full regression 1984/1984 green on phase2-caregiver-credentials-skills-experience-ui) |
+| Total test methods | 2,024 (full regression 2024/2024 green on phase2-caregiver-availability-schedule) |
 | Total admin registrations | 20 |
 | Total management commands | 15 |
-| Total URL patterns | ~155 |
+| Total URL patterns | ~157 |
 | Total Celery tasks | 4 |
 | Total job handlers | 7 |

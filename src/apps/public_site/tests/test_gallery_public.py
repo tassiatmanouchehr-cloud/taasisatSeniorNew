@@ -119,5 +119,9 @@ class PublicGalleryQueryCountTest(PublicSiteTestCase):
         for i in range(5):
             CaregiverGalleryService.add_item(caregiver, image=_image_file(f"photo-{i}.png"))
 
-        with self.assertNumQueries(14):
+        # 15, not 14: Sprint 2.4 added one fixed-cost query
+        # (AvailabilityQueryService.get_distinct_active_days(), via
+        # _schedule_summary()) — independent of gallery item count, so this
+        # remains a single bounded query regardless of how many items exist.
+        with self.assertNumQueries(15):
             CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id)

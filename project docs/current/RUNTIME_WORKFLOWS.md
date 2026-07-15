@@ -1,6 +1,6 @@
 # RUNTIME WORKFLOWS
 
-**Last verified HEAD:** phase2-caregiver-credentials-skills-experience-ui (from main @ f7b7b2b, PR #7 merged)
+**Last verified HEAD:** phase2-caregiver-availability-schedule (from main @ 20c532e, PR #8 merged)
 **Last verified date:** 2026-07-15
 
 ---
@@ -36,6 +36,7 @@
 | 25 | Canonical Public Visibility Policy | IMPLEMENTED (BG-022 remediation) | `public_site/services/common.py:is_publicly_visible_attrs()` |
 | 26 | Caregiver Gallery Management | IMPLEMENTED (Sprint 2.2; file-lifecycle/image-safety hardened PR #7) | `accounts/services/caregiver_gallery_service.py:CaregiverGalleryService` |
 | 27 | Professional Credibility Layer (badges, highlights, expiring-soon) | IMPLEMENTED (Sprint 2.3) | `public_site/services/profile_service.py:CaregiverPublicProfileService._highlights()/_verification_badges()` |
+| 28 | Caregiver Availability and Working Schedule | IMPLEMENTED (Module 10 foundation; overlap validation, edit/toggle UI, canonical evaluator, public summary completed Sprint 2.4) | `availability/services/query_service.py:AvailabilityQueryService.evaluate()` |
 
 ---
 
@@ -208,6 +209,59 @@ section carries a contrasting "این مدارک توسط پلتفرم بررس�
 No new eligibility/visibility rule was introduced — badges and highlights are only ever
 computed after `get_profile()`'s existing canonical `common.is_publicly_visible()` gate
 (BG-022) has already passed, exactly like every other section on this page.
+
+## Caregiver Availability and Working Schedule (Sprint 2.4)
+
+`apps.availability` (Module 10 foundation) already owned the domain model
+(`ProviderWorkingWindow`, `AvailabilityBlockedPeriod`, both keyed on `kernel.ServiceSupplier`)
+and a basic add/remove UI before this sprint; this sprint completed it.
+
+Weekly schedule: `AvailabilityMutationService.add_working_window()`/`update_working_window()`
+now refuse a duplicate or overlapping *active* window on the same day for the same supplier
+(`_validate_no_overlap()`) — a disabled window is excluded from the check on both sides, so
+re-enabling one, or adding a new window over its old slot, still works. Provider portal:
+add (existing), inline edit (new — `working_window_update_view`), enable/disable toggle
+(new — `working_window_toggle_view`, mirrors Sprint 2.3's skill-visibility-toggle pattern),
+remove (existing).
+
+**Concurrency (PR #9 review, 2026-07-15):** the overlap check above is only correct if two
+concurrent mutations against the same supplier's schedule cannot both read "no conflict"
+before either commits. `add_working_window()` and `update_working_window()` both now lock
+the owning `kernel.ServiceSupplier` row (`select_for_update()`) as the first statement inside
+their transaction, before running `_validate_no_overlap()` — so two concurrent creates,
+updates, or enable-toggles against the same supplier always serialize, and the loser sees the
+winner's already-committed state. `toggle_working_window()` inherits this automatically
+(it delegates to `update_working_window()`). Different suppliers never contend for the same
+lock. Proven by 9 `TransactionTestCase` tests in `apps.availability.tests.test_concurrency`.
+See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-020's remediation note.
+
+Time-off: unchanged from Module 10 foundation — `AvailabilityMutationService
+.add_blocked_period()`/`remove_blocked_period()`, no cancelled/active state (hard delete is
+the existing, kept convention). Overlapping blocked periods are deliberately still allowed
+to coexist (pre-existing, tested behavior — harmless redundant unavailability, not a
+conflict; see `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-020 Decision 3).
+
+Canonical evaluator: `AvailabilityQueryService.evaluate(*, supplier, start, end)` returns a
+structured, frozen `AvailabilityEvaluation` (`available`, `reasons`, `matched_window`,
+`conflicting_blocked_period`, `timezone`) — read-only, never mutates. `is_supplier_available()`
+is now a thin bool-only wrapper around it (zero behavior change for the existing booking
+consumer, `apps.booking.services.assignment_service`). Deliberately stays supplier-keyed,
+not caregiver-keyed — see ADM-020 Decision 1 for why a caregiver-shaped entry point was not
+added.
+
+Public availability summary: `CaregiverPublicProfileService._schedule_summary()` shows only
+which weekdays have at least one active working window (`AvailabilityScheduleSummaryViewModel
+.available_day_labels`, Persian day names from the new canonical
+`apps.availability.models.PERSIAN_DAY_LABELS`) — never exact times, never anything about
+time-off. Gated by the same canonical `common.is_publicly_visible()` policy as every other
+section; adds one fixed-cost query (`get_distinct_active_days()`), proven O(1) by the
+existing gallery-item-count-scaling query test. The provider-portal availability page shows
+the identical summary as an owner-facing preview of what the public sees.
+
+Time zone: no per-caregiver or per-tenant time-zone field exists anywhere in this
+repository; every evaluation resolves through Django's default `timezone.localtime()`/
+`settings.TIME_ZONE` (`Asia/Tehran`) — documented as a known platform-wide-only limitation,
+not fixed (see ADM-020 Decision 5).
 
 ## Order Lifecycle (Status Machine)
 

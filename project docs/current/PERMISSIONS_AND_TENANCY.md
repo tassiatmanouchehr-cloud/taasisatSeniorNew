@@ -1,6 +1,6 @@
 # PERMISSION AND TENANT MODEL
 
-**Last verified HEAD:** phase2-caregiver-credentials-skills-experience-ui (from main @ f7b7b2b, PR #7 merged)
+**Last verified HEAD:** phase2-caregiver-availability-schedule (from main @ 20c532e, PR #8 merged)
 **Last verified date:** 2026-07-15
 
 ---
@@ -124,6 +124,32 @@ caregiver()` denies it 403 before any service call, exactly as it already does f
 customers). Public precise badges and highlights are not an RBAC concern either — both are
 pure, read-only derivations computed only after the existing BG-022 canonical visibility
 gate has already passed.
+
+### Caregiver Availability Authorization (Sprint 2.4)
+
+`apps.availability` predates this sprint and already established its own ownership
+convention, distinct from (but equally sound as) the `apps.accounts` filter-in-service
+pattern above: `AvailabilityQueryService.get_working_window_for_supplier()`/
+`get_blocked_period_for_supplier()` resolve a row scoped by `supplier=` at the call site;
+only a row that resolves is ever passed on to a mutation method. `apps.provider_portal`'s
+views call `_guard(request)` first (`resolve_supplier(request)` — the caller's own
+`ServiceSupplier`, never accepted from the request) and then this ownership-scoped lookup
+before every mutation, including the two new Sprint 2.4 views
+(`working_window_update_view`, `working_window_toggle_view`) — a caregiver cannot mutate a
+window/blocked-period they do not own even by guessing its UUID. Verified directly by
+`test_another_provider_cannot_update_working_window`,
+`test_cross_tenant_cannot_update_working_window`,
+`test_another_provider_cannot_toggle_working_window`, and (pre-existing, unchanged)
+`test_cannot_remove_another_providers_window`/`test_cannot_remove_another_providers_blocked_period`.
+A customer or unrelated-organization-only account (no `caregiver_profile`) gets `PermissionDenied`
+(403) from `_guard()` before any service call is reached — `test_customer_cannot_access_availability_page`,
+`test_customer_cannot_toggle_working_window`, `test_customer_cannot_add_blocked_period`,
+`test_unrelated_organization_user_cannot_mutate_availability` — the same pattern Sprint 2.3
+established for skills. `AvailabilityQueryService.evaluate()` and the public schedule
+summary are not RBAC concerns: `evaluate()` is a pure, read-only, supplier-keyed function
+callable by any caller that already holds a `ServiceSupplier` instance, and the public
+summary is gated by the existing BG-022 canonical visibility policy, exactly like
+highlights/badges/gallery.
 
 ### Critical Finding: No Middleware Enforcement
 

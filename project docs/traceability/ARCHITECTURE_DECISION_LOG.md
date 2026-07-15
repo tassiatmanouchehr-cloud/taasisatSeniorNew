@@ -938,3 +938,190 @@ derived value). One shared UI component (`verification_badge.html`, also used by
 `organization_portal`) gained one new, purely additive status branch — verified not to
 affect any existing status rendering, and `apps.organization_portal`'s own test suite
 (51/51) re-run to confirm. 36 new tests, full regression 1984/1984 green.
+
+---
+
+## ADM-020: Caregiver Availability and Working Schedule (Sprint 2.4)
+
+Decision ID: ADM-020
+Date: 2026-07-15
+Status: RESOLVED_IN_IMPLEMENTATION
+
+**Context:** Sprint 2.4's governance asked for a caregiver-facing weekly schedule, time-off
+management, one canonical read-only availability evaluator, a public availability summary,
+and a provider-portal preview of that summary — explicitly warning "do not create a
+duplicate scheduling source of truth." Current-state inspection found `apps.availability`
+(Module 10 foundation, predating this sprint) already owns the entire domain:
+`ProviderWorkingWindow` (weekly recurring intervals), `AvailabilityBlockedPeriod` (time-off/
+exceptions), `AvailabilityQueryService`/`AvailabilityMutationService`, and a working
+`apps.provider_portal` add/remove UI — all keyed on `kernel.ServiceSupplier`, never
+`CaregiverProfile`. This sprint's task was substantially completion, not creation.
+
+**Decision 1 — The canonical evaluator stays supplier-keyed; no new caregiver-keyed
+service.** The governance's suggested shape was
+`CaregiverAvailabilityService.evaluate(caregiver, start_at, end_at)`. That shape is not
+adopted literally: `apps.availability` sits below `apps.accounts` in this repository's own
+dependency graph (`kernel -> accounts -> orders -> ... -> availability`), and its own module
+docstring already commits to never importing `CaregiverProfile`/`OrganizationProfile`
+directly (mirroring the same `ServiceSupplierProfileCouplingTest` guardrail
+`apps.public_site`/`apps.provider_portal` already respect). A caregiver-shaped entry point
+living *inside* `apps.availability` would invert that dependency; one living in
+`apps.accounts` would create a new upstream->downstream edge in the wrong direction, since
+`apps.accounts` must not import `apps.availability`. Instead, `AvailabilityQueryService
+.evaluate(*, supplier, start, end) -> AvailabilityEvaluation` is the one canonical,
+structured evaluator (`is_supplier_available()` is now a thin bool-only wrapper around it —
+zero behavior change, all 20 pre-existing tests pass unmodified). `apps.provider_portal` and
+`apps.public_site` — both already resolving their own `ServiceSupplier` before needing an
+evaluation — call it directly. No caregiver-keyed duplicate was created.
+
+**Decision 2 — The evaluator never inspects booking/execution state.** Section E's item 6
+("existing confirmed bookings or execution sessions, only if a canonical conflict selector
+already exists and can be reused without expanding scope") was evaluated and declined:
+`apps.booking.services.assignment_service` already calls
+`AvailabilityQueryService.is_supplier_available()` as one input among several before
+confirming an assignment — booking is a *consumer* of this evaluator, not a peer selector to
+merge into it. Folding booking-conflict awareness into the evaluator itself would invert that
+relationship and risk circular coupling (`apps.availability` sits below `apps.booking`).
+Recorded as explicitly out of scope, not a gap.
+
+**Decision 3 — Weekly intervals refuse overlap/duplicates; blocked periods do not.**
+`AvailabilityMutationService.add_working_window()`/`update_working_window()` now refuse a
+duplicate or overlapping *active* window on the same day for the same supplier (Section C).
+Blocked periods deliberately keep their pre-existing, already-tested behavior of allowing
+overlaps — `apps.availability.tests.test_query_service.AvailabilityQueryServiceTest
+.test_overlapping_blocked_periods_both_apply` already proved this is harmless, established
+repository behavior (redundant unavailability, not a conflict) before this sprint began;
+adding refusal here would be an undocumented behavior change to a passing, intentional test,
+not a bug fix.
+
+**Decision 4 — Public schedule presentation is summarized, never exact.** The public profile
+shows only which weekdays have at least one active working window
+(`AvailabilityScheduleSummaryViewModel.available_day_labels`, Persian day names) — never
+start/end times, and never anything about `AvailabilityBlockedPeriod` (reason, notes, or even
+existence). This satisfies Section F's "expose a summarized form" guidance directly: exact
+hours are a scheduling-coordination detail, not a public marketing fact, and blocked-period
+data is explicitly private (leave reason, sick notes) with no public use case. Proven by
+`apps.public_site.tests.test_professional_profile_public.PublicScheduleSummaryTest
+.test_summary_never_exposes_exact_times`/`test_summary_never_exposes_blocked_period_details`.
+
+**Decision 5 — Time zone stays platform-wide; no per-caregiver field.** No per-tenant or
+per-caregiver time-zone field exists anywhere in this repository (confirmed by inspection).
+`AvailabilityQueryService` already resolved all times via Django's default
+`timezone.localtime()`/`settings.TIME_ZONE` (`Asia/Tehran`) before this sprint;
+`evaluate()`'s new `timezone` field reports `timezone.get_current_timezone_name()` — the same
+single, deterministic source, now surfaced in the structured result rather than left
+implicit. Per Section J's explicit fallback instruction, this is documented as a known
+limitation, not fixed: every caregiver on the platform is scheduled in the same platform
+time zone regardless of their own physical location. A genuine per-caregiver time zone would
+require a new `CaregiverProfile` field and is deferred (`quality/COMPLETION_BACKLOG.md`
+BG-024), not invented here without evidence of demand.
+
+**Decision 6 — Ownership stays view-layer resolve-then-mutate; no service-layer signature
+change.** `apps.availability`'s pre-existing convention (already proven secure by
+`test_cannot_remove_another_providers_window`) resolves a row via
+`get_working_window_for_supplier()`/`get_blocked_period_for_supplier()` at the call site,
+then mutates by verified id — not a `supplier=` filter parameter inside the mutation methods
+themselves (the pattern `apps.accounts`'s Sprint 2.1/2.3 services use instead). This sprint's
+new `working_window_update_view`/`working_window_toggle_view` reuse the exact same
+existing pattern rather than introducing a second, parallel ownership mechanism inside one
+app.
+
+**Consequences:** Zero new models, zero new migrations — both `ProviderWorkingWindow` and
+`AvailabilityBlockedPeriod` already existed with every field this sprint needed.
+`apps.public_site` gains one new, documented cross-app edge to `apps.availability` (a valid
+direction: both sit at the terminal-UI layer alongside `apps.provider_portal`, which already
+had this edge). One shared translation table, `apps.availability.models.PERSIAN_DAY_LABELS`,
+added next to `DayOfWeek` so both consuming apps share one label source instead of two. Public
+profile query count moved 14 -> 15 (one new fixed-cost query,
+`get_distinct_active_days()`), proven O(1) by the pre-existing gallery-item-count scaling
+test. Provider-portal availability page query count newly locked at 9 (no prior baseline
+existed). Full regression run once before PR creation.
+
+---------------------------------------------------------------------------------------
+REMEDIATION (PR #9 review), 2026-07-15 — proves and enforces the concurrency invariant
+Decision 3 above assumed but never verified
+---------------------------------------------------------------------------------------
+
+**Deferred at initial implementation:** the original Sprint 2.4 report explicitly listed
+"multi-threaded concurrency race testing for the overlap-validation `select_for_update()`
+path" as deferred, "consistent with this repository's existing testing conventions" — but
+inspection during this remediation found there was no `select_for_update()` on the relevant
+path to begin with for the case that mattered most. This was a genuine gap, not a merely
+untested-but-safe design.
+
+**Review finding — the root race:** `_validate_no_overlap()` is a plain, unlocked `SELECT`.
+`add_working_window()` took no lock at all before its check-then-insert — under PostgreSQL's
+default READ COMMITTED isolation, two concurrent transactions creating overlapping windows
+for the same supplier/day could both read "no conflict" before either committed, then both
+insert (`transaction.atomic` guarantees each transaction is all-or-nothing, not that
+concurrent transactions serialize their reads against each other). `update_working_window()`
+already called `select_for_update()`, but only on the window row being updated — this did not
+close the gap: a concurrent `add_working_window()` touches no existing window row at all, and
+two concurrent `update_working_window()` calls against two *different* windows of the same
+supplier/day each lock a different row, so neither blocks the other's overlap check. This is
+exactly the "lock only the candidate row" anti-pattern the review governance named.
+
+**Fix — canonical lock boundary:** both `add_working_window()` and `update_working_window()`
+now lock the owning `kernel.ServiceSupplier` row (`select_for_update()`) as the *first*
+statement inside their `transaction.atomic` block, before any overlap check or window-row
+lock. This mirrors `apps.accounts.services.caregiver_gallery_service
+.CaregiverGalleryService.add_item()`'s existing, pre-dating precedent for the identical shape
+of problem — a cross-row invariant ("no two active windows overlap this day," "count < N")
+with no single-row database constraint to enforce it, resolved by locking the stable parent
+row rather than a not-yet-existing or individually-scoped child row. `update_working_window()`
+resolves the target window's `supplier_id` with a plain (unlocked) read first — a window's
+supplier never changes after creation, so this is safe — then locks the supplier before
+locking the window row itself, in the same supplier-then-window order `add_working_window()`
+uses; the two methods therefore never deadlock against each other by acquiring locks in
+reverse order. `toggle_working_window()` needed no change — it already delegates to
+`update_working_window()` and inherits the fix.
+
+**Alternative considered and rejected:** a PostgreSQL `ExclusionConstraint` (GiST index,
+`&&` range-overlap operator) would enforce the same invariant at the database level,
+independent of application code. Rejected for this remediation because it requires a new
+migration, and the review governance's own preferred solution was explicit
+application-level locking mirroring an existing repository pattern — "if the repository
+already has an equally strong database constraint, prove it instead of adding duplicate
+locking" implies locking is the default when no such constraint already exists, which
+inspection confirmed (no exclusion/check constraint existed on `ProviderWorkingWindow`
+before or after this remediation).
+
+**Toggle-enable safety confirmed:** enabling a disabled window now runs through the exact
+same locked, validated path as creating or updating an active window — no separate code
+path exists for "enable." Disabling a window remains unconditional (no overlap check
+applies to a disabled window, matching the established "disabled intervals do not count as
+available" rule) and idempotent (disabling an already-disabled window is a safe no-op,
+proven by a dedicated test). Two disabled, mutually-conflicting windows may still coexist
+(pre-existing, established policy, ADM-020 Decision 3 above) — only the *transition* to
+active is guarded.
+
+**Concurrency test evidence:** 9 new tests in `apps.availability.tests.test_concurrency`
+(`TransactionTestCase`, real separately-committed transactions on separate threads/
+connections, mirroring `apps.booking.tests.test_concurrency`'s established pattern exactly)
+proving: concurrent overlapping creates yield exactly one success; concurrent exact-duplicate
+creates yield exactly one success; a concurrent create-vs-update pair whose *outcomes* would
+conflict (though their *inputs* individually did not) yields exactly one success and leaves
+zero pairwise overlaps in the final database state; concurrent enabling of two
+mutually-conflicting disabled windows yields exactly one enabled window; enabling a disabled
+window that overlaps an already-active window is refused; a non-overlapping mutation remains
+possible immediately after the first transaction commits; a caller can immediately retry
+after a refused mutation in the same process; two different suppliers never block each other
+and remain tenant-isolated under concurrent load; disabling a window is idempotent. Every
+test asserts final database state (not merely the raised/absent exception).
+
+**Performance impact:** One additional `SELECT ... FOR UPDATE` per mutation (the supplier
+row), held only for the duration of that single transaction. Contention is scoped to
+concurrent availability mutations against the *same* supplier — proven independent across
+different suppliers by `ConcurrentDifferentSuppliersTest`. No other code path in this
+repository locks `ServiceSupplier` via `select_for_update()` (confirmed by grep), so this
+introduces no new contention with bookings, assignments, or any other supplier-touching
+operation.
+
+**Consequences:** Zero new models, zero new migrations — `_validate_no_overlap()` and every
+existing test's expected behavior are unchanged; only the locking boundary around it changed.
+Files changed: `apps/availability/services/mutation_service.py` (locking added),
+`apps/availability/tests/test_concurrency.py` (new, 9 tests). `apps.availability` (65/65) and
+`apps.provider_portal` (107/107) full suites green; full regression run once (production
+locking/mutation code changed), 2033/2033 green (2024 baseline + 9 new). Booking suite not
+re-run — `AvailabilityQueryService`/`is_supplier_available()` (booking's own dependency) were
+not touched by this remediation.

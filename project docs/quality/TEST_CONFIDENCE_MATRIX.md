@@ -16,10 +16,17 @@ and grand-total method count re-verified;
 partial update 2026-07-15 (Sprint 2.3 — Credentials, Skills, Experience, Highlights) — only
 `accounts`/`provider_portal`/`public_site` rows and grand-total method count re-verified;
 no new test file this sprint (all additions inside existing files);
+partial update 2026-07-15 (Sprint 2.4 — Caregiver Availability and Working Schedule) — only
+`availability`/`provider_portal`/`public_site` rows and grand-total method count
+re-verified; no new test file this sprint (all additions inside existing files);
+partial update 2026-07-15 (PR #9 review — availability mutation concurrency remediation) —
+only the `availability` row (test methods, concurrency column, +1 new test file:
+`test_concurrency.py`) and grand-total file/method counts re-verified;
 a full re-audit of every app was not performed for any of the incremental changes.
 **Last verified date:** 2026-07-14 / 2026-07-15 (partial) / 2026-07-15 (partial, Phase 2.1) /
 2026-07-15 (partial, BG-022) / 2026-07-15 (partial, Sprint 2.2) / 2026-07-15 (partial,
-PR #7 remediation) / 2026-07-15 (partial, Sprint 2.3)
+PR #7 remediation) / 2026-07-15 (partial, Sprint 2.3) / 2026-07-15 (partial, Sprint 2.4) /
+2026-07-15 (partial, PR #9 concurrency remediation)
 
 ---
 
@@ -27,9 +34,9 @@ PR #7 remediation) / 2026-07-15 (partial, Sprint 2.3)
 
 | Metric | Count |
 |--------|-------|
-| Total test files | 208 (198 + 10 accumulated through Phase 1.2/1.3/2.1/BG-022/Sprint 2.2; PR #7 remediation and Sprint 2.3 added no new file) |
-| Total test classes | ~458 (not re-audited exactly; +3 classes added across existing test files this sprint) |
-| Total test methods | 1,984 (full regression re-run 2026-07-15, Sprint 2.3 — Credentials, Skills, Experience, Highlights) |
+| Total test files | 209 (198 + 10 accumulated through Phase 1.2/1.3/2.1/BG-022/Sprint 2.2 + 1 new in the PR #9 concurrency remediation, `test_concurrency.py`; PR #7 remediation, Sprint 2.3, and Sprint 2.4 itself added no new file) |
+| Total test classes | ~466 (not re-audited exactly; +3 classes in Sprint 2.4, +5 classes in the PR #9 concurrency remediation) |
+| Total test methods | 2,033 (full regression re-run 2026-07-15, PR #9 review — availability mutation concurrency remediation) |
 
 ## Per-App Confidence
 
@@ -41,7 +48,7 @@ PR #7 remediation) / 2026-07-15 (partial, Sprint 2.3)
 | orders | 7 | 159 | - | - | - | - | **STRONG** |
 | finance | 17 | 75 | 1 | - | 17 | 1 | **STRONG** |
 | api | 14 | 97 | 7 | - | 4 | - | **HIGH** |
-| public_site | 9 | 128 | 1 | - | - | - | **HIGH** |
+| public_site | 9 | 134 | 1 | - | - | - | **HIGH** |
 | booking | 10 | 67 | 2 | 1 | 1 | 2 | **HIGH** |
 | pricing | 6 | 69 | - | - | - | 1 | **MODERATE-HIGH** |
 | portal | 9 | 74 | 1 | - | 2 | - | **MODERATE-HIGH** |
@@ -49,10 +56,10 @@ PR #7 remediation) / 2026-07-15 (partial, Sprint 2.3)
 | execution | 9 | 58 | 1 | - | - | 1 | **MODERATE** |
 | notifications | 4 | 53 | - | - | - | - | **MODERATE** |
 | organization_portal | 5 | 49 | 2 | - | - | - | **MODERATE** |
-| provider_portal | 9 | 92 | 4 | - | 2 | - | **MODERATE** |
+| provider_portal | 9 | 107 | 4 | - | 2 | - | **MODERATE** |
 | jobs | 1 | 35 | - | 1 | - | - | **MODERATE** |
 | discovery | 5 | 42 | - | - | - | - | **MODERATE** |
-| availability | 6 | 37 | - | - | - | - | **MODERATE** |
+| availability | 6 | 56 | - | - | - | - | **MODERATE** |
 | reporting | 6 | 37 | - | - | 2 | - | **MODERATE** |
 | matching | 5 | 33 | - | - | - | - | **LOW-MODERATE** |
 | reviews | 6 | 33 | 1 | - | - | - | **LOW-MODERATE** |

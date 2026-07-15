@@ -27,6 +27,23 @@ class DayOfWeek(models.IntegerChoices):
     SUNDAY = 6, "Sunday"
 
 
+# Sprint 2.4: the single canonical Persian label for each Gregorian weekday
+# (this model's own day_of_week storage convention is unchanged — Python's
+# date.weekday(), not the Persian calendar's Saturday-first week). Kept here,
+# next to DayOfWeek, so apps.provider_portal and apps.public_site share one
+# translation instead of each maintaining its own copy — both already depend
+# on this app for the underlying day-of-week data itself.
+PERSIAN_DAY_LABELS = {
+    DayOfWeek.MONDAY: "دوشنبه",
+    DayOfWeek.TUESDAY: "سه‌شنبه",
+    DayOfWeek.WEDNESDAY: "چهارشنبه",
+    DayOfWeek.THURSDAY: "پنجشنبه",
+    DayOfWeek.FRIDAY: "جمعه",
+    DayOfWeek.SATURDAY: "شنبه",
+    DayOfWeek.SUNDAY: "یکشنبه",
+}
+
+
 class ProviderWorkingWindow(models.Model):
     """One recurring weekly working-hours block for a supplier."""
 

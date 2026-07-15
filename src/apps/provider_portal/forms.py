@@ -27,6 +27,14 @@ class WorkingWindowForm(StyledForm):
     end_time = forms.TimeField(error_messages={"required": "زمان پایان الزامی است."})
 
 
+class WorkingWindowEditForm(StyledForm):
+    """Sprint 2.4: edits an existing window's start/end only — day_of_week
+    is fixed at creation, matching WorkingWindowForm's own add-time fields."""
+
+    start_time = forms.TimeField(error_messages={"required": "زمان شروع الزامی است."})
+    end_time = forms.TimeField(error_messages={"required": "زمان پایان الزامی است."})
+
+
 class BlockedPeriodForm(StyledForm):
     start_at = forms.DateTimeField(error_messages={"required": "زمان شروع الزامی است."})
     end_at = forms.DateTimeField(error_messages={"required": "زمان پایان الزامی است."})

@@ -11,11 +11,36 @@
     {% if working_windows %}
     <ul class="divide-y divide-border mb-4">
       {% for window in working_windows %}
-      <li class="py-2 flex items-center justify-between">
-        <span class="text-sm text-text">{{ window.get_day_of_week_display }} — {{ window.start_time }} تا {{ window.end_time }}</span>
-        <form method="post" action="{% url 'provider_portal:working-window-remove' window_id=window.id %}">
+      <li class="py-3 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-text">
+            {{ window.get_day_of_week_display }} — {{ window.start_time }} تا {{ window.end_time }}
+            {% if not window.is_active %}<span class="text-xs text-text-muted">(غیرفعال)</span>{% endif %}
+          </span>
+          <div class="flex items-center gap-3">
+            <form method="post" action="{% url 'provider_portal:working-window-toggle' window_id=window.id %}">
+              {% csrf_token %}
+              <button type="submit" class="text-sm text-primary hover:underline">
+                {% if window.is_active %}غیرفعال کردن{% else %}فعال کردن{% endif %}
+              </button>
+            </form>
+            <form method="post" action="{% url 'provider_portal:working-window-remove' window_id=window.id %}">
+              {% csrf_token %}
+              <button type="submit" class="text-sm text-danger hover:underline">حذف</button>
+            </form>
+          </div>
+        </div>
+        <form method="post" action="{% url 'provider_portal:working-window-update' window_id=window.id %}" class="flex items-end gap-2">
           {% csrf_token %}
-          <button type="submit" class="text-sm text-danger hover:underline">حذف</button>
+          <div>
+            <label class="block text-xs text-text-muted">شروع</label>
+            <input type="time" name="start_time" value="{{ window.start_time|time:'H:i' }}" class="mt-1 block rounded-lg border border-border bg-background px-2 py-1 text-sm text-text" required>
+          </div>
+          <div>
+            <label class="block text-xs text-text-muted">پایان</label>
+            <input type="time" name="end_time" value="{{ window.end_time|time:'H:i' }}" class="mt-1 block rounded-lg border border-border bg-background px-2 py-1 text-sm text-text" required>
+          </div>
+          <button type="submit" class="text-sm text-primary hover:underline pb-1">ویرایش ساعت</button>
         </form>
       </li>
       {% endfor %}
@@ -43,7 +68,18 @@
   </div>
 
   <div class="bg-surface border border-border rounded-lg p-5">
-    <h2 class="text-base font-bold text-text mb-4">ظرفیت</h2>
+    <h2 class="text-base font-bold text-text mb-4">پیش‌نمایش نمایه عمومی</h2>
+    {% if public_summary_days %}
+    <p class="text-sm text-text-muted mb-4">
+      روزهای معمول در دسترس بودن شما به صورت عمومی:
+      <span class="text-text font-medium">{{ public_summary_days|join:"، " }}</span>
+      — ساعات دقیق به صورت عمومی نمایش داده نمی‌شود.
+    </p>
+    {% else %}
+    <p class="text-sm text-text-muted mb-4">هنوز ساعت کاری فعالی برای نمایش عمومی ثبت نکرده‌اید.</p>
+    {% endif %}
+
+    <h2 class="text-base font-bold text-text mb-4 border-t border-border pt-4">ظرفیت</h2>
     <p class="text-sm text-text-muted mb-4">
       {{ engagement_count }} تخصیص فعال
       {% if capacity_exceeded %}<span class="text-danger font-medium">— ظرفیت تکمیل است</span>{% endif %}

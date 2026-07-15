@@ -313,12 +313,15 @@ class PublicProfileQueryCountTest(PublicSiteTestCase):
             )
             VerificationReviewService.approve(document_id=doc.id, tenant_id=self.tenant.id, reviewer=reviewer)
 
-        # 14, not 13 — Sprint 2.2 (Caregiver Gallery and Media Portfolio)
-        # added one more fixed query for _gallery(); still O(1) regardless
-        # of skill/experience/credential/gallery-item count (see
+        # 15, not 13 — Sprint 2.2 (Caregiver Gallery and Media Portfolio)
+        # added one fixed query for _gallery(), and Sprint 2.4 (Caregiver
+        # Availability and Working Schedule) added one more fixed query for
+        # _schedule_summary() (AvailabilityQueryService
+        # .get_distinct_active_days()). Still O(1) regardless of
+        # skill/experience/credential/gallery-item count (see
         # test_gallery_public.PublicGalleryQueryCountTest for the gallery
         # item count scaling proof).
-        with self.assertNumQueries(14):
+        with self.assertNumQueries(15):
             CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id)
 
     def _reviewer_for_query_test(self):
@@ -329,3 +332,89 @@ class PublicProfileQueryCountTest(PublicSiteTestCase):
         reviewer = UserAccount.objects.create_user(phone="09121230097", person=person, tenant=self.tenant)
         grant_permissions(self.tenant, reviewer, [ACCOUNTS_DOCUMENT_REVIEW])
         return reviewer
+
+
+class PublicScheduleSummaryTest(PublicSiteTestCase):
+    """Sprint 2.4 (Caregiver Availability and Working Schedule) —
+    AvailabilityScheduleSummaryViewModel: safe, summarized (day labels
+    only, never exact times or time-off details), gated by the same
+    canonical is_publicly_visible() eligibility as every other section."""
+
+    def _add_window(self, supplier, *, day_of_week, start="09:00", end="17:00"):
+        import datetime as dt
+
+        from apps.availability.services.mutation_service import AvailabilityMutationService
+
+        AvailabilityMutationService.add_working_window(
+            supplier=supplier,
+            day_of_week=day_of_week,
+            start_time=dt.time.fromisoformat(start),
+            end_time=dt.time.fromisoformat(end),
+        )
+
+    def test_no_schedule_reports_has_schedule_false(self):
+        supplier, _ = self._create_caregiver_supplier(verification_status="verified")
+        profile = CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id)
+        self.assertFalse(profile.schedule_summary.has_schedule)
+        self.assertEqual(profile.schedule_summary.available_day_labels, ())
+
+    def test_active_windows_produce_day_labels(self):
+        supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
+        self._add_window(supplier, day_of_week=0)
+        self._add_window(supplier, day_of_week=2)
+        profile = CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id)
+        self.assertTrue(profile.schedule_summary.has_schedule)
+        self.assertEqual(profile.schedule_summary.available_day_labels, ("دوشنبه", "چهارشنبه"))
+
+    def test_disabled_window_excluded_from_summary(self):
+        import datetime as dt
+
+        from apps.availability.services.mutation_service import AvailabilityMutationService
+
+        supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
+        window = AvailabilityMutationService.add_working_window(
+            supplier=supplier, day_of_week=1, start_time=dt.time(9, 0), end_time=dt.time(17, 0),
+        )
+        AvailabilityMutationService.update_working_window(window_id=window.id, is_active=False)
+        profile = CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id)
+        self.assertFalse(profile.schedule_summary.has_schedule)
+
+    def test_summary_never_exposes_exact_times(self):
+        supplier, _ = self._create_caregiver_supplier(verification_status="verified")
+        self._add_window(supplier, day_of_week=0, start="09:00", end="17:00")
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+        self.assertContains(response, "دوشنبه")
+        self.assertNotContains(response, "09:00")
+        self.assertNotContains(response, "17:00")
+
+    def test_summary_never_exposes_blocked_period_details(self):
+        import datetime as dt
+
+        from django.utils import timezone
+
+        from apps.availability.models import BlockedPeriodReason
+        from apps.availability.services.mutation_service import AvailabilityMutationService
+
+        supplier, _ = self._create_caregiver_supplier(verification_status="verified")
+        self._add_window(supplier, day_of_week=0)
+        start = timezone.now() + dt.timedelta(days=1)
+        AvailabilityMutationService.add_blocked_period(
+            supplier=supplier,
+            start_at=start,
+            end_at=start + dt.timedelta(hours=2),
+            reason=BlockedPeriodReason.SICK,
+            notes="جزئیات محرمانه پزشکی",
+        )
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+        self.assertNotContains(response, "جزئیات محرمانه پزشکی")
+        self.assertNotContains(response, "SICK")
+
+    def test_hidden_caregiver_has_no_schedule_summary(self):
+        supplier, _ = self._create_caregiver_supplier(verification_status="verified", profile_status="draft")
+        self._add_window(supplier, day_of_week=0)
+        profile = CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id)
+        self.assertIsNone(profile)

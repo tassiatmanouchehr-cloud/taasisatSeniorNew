@@ -9,7 +9,11 @@ import datetime as dt
 from django.utils import timezone
 
 from apps.availability.models import BlockedPeriodReason
-from apps.availability.services import AvailabilityError, AvailabilityMutationService, AvailabilityQueryService
+from apps.availability.services import (
+    AvailabilityError,
+    AvailabilityMutationService,
+    AvailabilityQueryService,
+)
 
 from .helpers import AvailabilityTestCase
 
@@ -149,3 +153,103 @@ class AvailabilityQueryServiceTest(AvailabilityTestCase):
                 supplier=self.supplier, start=utc_start + dt.timedelta(hours=3), end=utc_end + dt.timedelta(hours=3),
             ),
         )
+
+
+class AvailabilityEvaluateTest(AvailabilityTestCase):
+    """Structured evaluate() — Sprint 2.4. is_supplier_available() is now a
+    thin wrapper around this; these tests cover the structured fields it
+    adds (reasons, matched_window, conflicting_blocked_period, timezone)."""
+
+    def setUp(self):
+        super().setUp()
+        self.supplier = self._create_supplier()
+        self.monday = _next_weekday(0)
+        self.window = AvailabilityMutationService.add_working_window(
+            supplier=self.supplier, day_of_week=0, start_time=dt.time(9, 0), end_time=dt.time(17, 0),
+        )
+
+    def _aware(self, date_, hour, minute=0):
+        return timezone.make_aware(dt.datetime.combine(date_, dt.time(hour, minute)))
+
+    def test_evaluate_available_reports_matched_window(self):
+        result = AvailabilityQueryService.evaluate(
+            supplier=self.supplier, start=self._aware(self.monday, 10), end=self._aware(self.monday, 11),
+        )
+        self.assertTrue(result.available)
+        self.assertEqual(result.reasons, ())
+        self.assertEqual(result.matched_window.id, self.window.id)
+        self.assertIsNone(result.conflicting_blocked_period)
+        self.assertTrue(result.timezone)
+
+    def test_evaluate_unavailable_no_window_reports_reason(self):
+        tuesday = _next_weekday(1)
+        result = AvailabilityQueryService.evaluate(
+            supplier=self.supplier, start=self._aware(tuesday, 10), end=self._aware(tuesday, 11),
+        )
+        self.assertFalse(result.available)
+        self.assertEqual(result.reasons, ("no_matching_working_window",))
+        self.assertIsNone(result.matched_window)
+        self.assertIsNone(result.conflicting_blocked_period)
+
+    def test_evaluate_blocked_period_reports_conflict(self):
+        blocked = AvailabilityMutationService.add_blocked_period(
+            supplier=self.supplier,
+            start_at=self._aware(self.monday, 10),
+            end_at=self._aware(self.monday, 12),
+        )
+        result = AvailabilityQueryService.evaluate(
+            supplier=self.supplier, start=self._aware(self.monday, 10, 30), end=self._aware(self.monday, 11),
+        )
+        self.assertFalse(result.available)
+        self.assertEqual(result.reasons, ("blocked_period",))
+        self.assertEqual(result.conflicting_blocked_period.id, blocked.id)
+        self.assertIsNone(result.matched_window)
+
+    def test_evaluate_is_read_only(self):
+        """evaluate() must never create, mutate, or delete rows."""
+        from apps.availability.models import AvailabilityBlockedPeriod, ProviderWorkingWindow
+
+        window_count_before = ProviderWorkingWindow.objects.count()
+        blocked_count_before = AvailabilityBlockedPeriod.objects.count()
+        AvailabilityQueryService.evaluate(
+            supplier=self.supplier, start=self._aware(self.monday, 10), end=self._aware(self.monday, 11),
+        )
+        self.assertEqual(ProviderWorkingWindow.objects.count(), window_count_before)
+        self.assertEqual(AvailabilityBlockedPeriod.objects.count(), blocked_count_before)
+
+    def test_evaluate_timezone_is_deterministic(self):
+        result_1 = AvailabilityQueryService.evaluate(
+            supplier=self.supplier, start=self._aware(self.monday, 10), end=self._aware(self.monday, 11),
+        )
+        result_2 = AvailabilityQueryService.evaluate(
+            supplier=self.supplier, start=self._aware(self.monday, 10), end=self._aware(self.monday, 11),
+        )
+        self.assertEqual(result_1.timezone, result_2.timezone)
+
+
+class DistinctActiveDaysTest(AvailabilityTestCase):
+    def setUp(self):
+        super().setUp()
+        self.supplier = self._create_supplier()
+
+    def test_no_windows_returns_empty(self):
+        self.assertEqual(AvailabilityQueryService.get_distinct_active_days(supplier=self.supplier), ())
+
+    def test_returns_sorted_distinct_days(self):
+        AvailabilityMutationService.add_working_window(
+            supplier=self.supplier, day_of_week=3, start_time=dt.time(8, 0), end_time=dt.time(12, 0),
+        )
+        AvailabilityMutationService.add_working_window(
+            supplier=self.supplier, day_of_week=0, start_time=dt.time(8, 0), end_time=dt.time(12, 0),
+        )
+        AvailabilityMutationService.add_working_window(
+            supplier=self.supplier, day_of_week=0, start_time=dt.time(13, 0), end_time=dt.time(17, 0),
+        )
+        self.assertEqual(AvailabilityQueryService.get_distinct_active_days(supplier=self.supplier), (0, 3))
+
+    def test_disabled_window_day_excluded(self):
+        window = AvailabilityMutationService.add_working_window(
+            supplier=self.supplier, day_of_week=1, start_time=dt.time(8, 0), end_time=dt.time(12, 0),
+        )
+        AvailabilityMutationService.update_working_window(window_id=window.id, is_active=False)
+        self.assertEqual(AvailabilityQueryService.get_distinct_active_days(supplier=self.supplier), ())
