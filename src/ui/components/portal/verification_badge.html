@@ -9,12 +9,12 @@
 
    Props:
      label  — what is being verified (e.g. "هویت", "سابقه کیفری", "مدرک تخصصی")
-     status — verified|pending|rejected|expired|unverified
+     status — verified|pending|rejected|correction_required|expired|unverified
 {% endcomment %}
 {% with status=status|default:"unverified" %}
 <div class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold
             {% if status == 'verified' %}border-success/30 bg-success-50 text-success-700 dark:bg-success-50 dark:text-success-600
-            {% elif status == 'pending' %}border-warning/30 bg-warning-50 text-warning-700 dark:bg-warning-50 dark:text-warning-600
+            {% elif status == 'pending' or status == 'correction_required' %}border-warning/30 bg-warning-50 text-warning-700 dark:bg-warning-50 dark:text-warning-600
             {% elif status == 'rejected' %}border-danger/30 bg-danger-50 text-danger-700 dark:bg-danger-50 dark:text-danger-600
             {% elif status == 'expired' %}border-danger/30 bg-danger-50 text-danger-700 dark:bg-danger-50 dark:text-danger-600
             {% else %}border-border bg-background-alt text-text-muted{% endif %}">
@@ -22,7 +22,7 @@
   <svg class="h-3.5 w-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
   </svg>
-  {% elif status == 'pending' %}
+  {% elif status == 'pending' or status == 'correction_required' %}
   <svg class="h-3.5 w-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
   </svg>
@@ -39,6 +39,7 @@
     {{ label }} —
     {% if status == 'verified' %}تأییدشده توسط پلتفرم
     {% elif status == 'pending' %}در انتظار بررسی پلتفرم
+    {% elif status == 'correction_required' %}نیاز به اصلاح — بازبینی و ارسال مجدد
     {% elif status == 'rejected' %}رد شده — نیاز به اقدام
     {% elif status == 'expired' %}منقضی‌شده — نیاز به تمدید
     {% else %}تأییدنشده{% endif %}

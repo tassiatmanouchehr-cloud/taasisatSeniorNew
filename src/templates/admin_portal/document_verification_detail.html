@@ -1,0 +1,53 @@
+{% extends "admin_portal/base.html" %}
+
+{% block portal_title %}جزئیات مدرک{% endblock %}
+{% block page_title %}بررسی مدرک{% endblock %}
+
+{% block admin_content %}
+<div class="grid gap-4 grid-cols-1 lg:grid-cols-2">
+
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-bold text-text">جزئیات</h2>
+      {% include "ui/components/feedback/badge.html" with label=document.get_status_display variant="warning" %}
+    </div>
+    <dl class="space-y-2 text-sm">
+      <div class="flex justify-between">
+        <dt class="text-text-muted">مالک</dt>
+        <dd class="text-text">{% if document.caregiver_id %}{{ document.caregiver.display_name }} (مراقب){% else %}{{ document.organization.name }} (سازمان){% endif %}</dd>
+      </div>
+      <div class="flex justify-between"><dt class="text-text-muted">نوع مدرک</dt><dd class="text-text">{{ document.get_document_type_display }}</dd></div>
+      <div class="flex justify-between"><dt class="text-text-muted">تاریخ بارگذاری</dt><dd class="text-text ltr-value">{{ document.created_at }}</dd></div>
+      {% if document.reviewed_at %}
+      <div class="flex justify-between"><dt class="text-text-muted">آخرین بازبینی</dt><dd class="text-text ltr-value">{{ document.reviewed_at }}</dd></div>
+      {% endif %}
+      {% if document.rejection_reason %}
+      <div><dt class="text-text-muted">دلیل ثبت‌شده</dt><dd class="text-text mt-1">{{ document.rejection_reason }}</dd></div>
+      {% endif %}
+    </dl>
+    <a href="{% url 'admin_portal:document-verification-file' document_id=document.id %}"
+       class="mt-4 inline-flex items-center rounded-lg border border-border px-4 py-2 text-sm font-bold text-text no-underline hover:bg-background-alt">
+      مشاهده فایل مدرک
+    </a>
+  </div>
+
+  {% if document.status == "pending" %}
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">تصمیم بررسی</h2>
+    <form method="post" action="{% url 'admin_portal:document-verification-review' document_id=document.id %}" class="space-y-4">
+      {% csrf_token %}
+      <div>
+        <label for="{{ review_form.action.id_for_label }}" class="block text-sm font-bold text-text">{{ review_form.action.label }}</label>
+        {{ review_form.action }}
+      </div>
+      <div>
+        <label for="{{ review_form.reason.id_for_label }}" class="block text-sm font-bold text-text">دلیل (برای رد یا درخواست اصلاح الزامی است)</label>
+        {{ review_form.reason }}
+      </div>
+      <button type="submit" class="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-700">ثبت تصمیم</button>
+    </form>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

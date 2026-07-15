@@ -227,3 +227,42 @@ Risks: Future "resubmit" logic must update the existing row, not create a new on
        design constraint that must be enforced in OrderOfferService.submit_offer().
 Status: VERIFIED_IN_IMPLEMENTATION — unconditional constraint in place, 40 tests passing
 ```
+
+## ADM-014: VerificationDocument.rejection_reason Becomes Owner-Visible
+
+```
+Decision ID: ADM-014
+Context: Phase 1.1 (Manual Document Verification) implements the platform-admin review
+         workflow apps.accounts.models.media's own module docstring named as future/
+         out-of-scope for Epic 06 Sprint 2. That Sprint declared rejection_reason
+         "Staff-authored, internal-only — never rendered on any provider/organization-facing
+         or public page." The current task's explicit business requirement #6 is the direct
+         opposite: "The document owner can see: current review status; rejection/correction
+         reason; whether resubmission is required."
+Decision: rejection_reason is now rendered on the owning caregiver's/organization's own
+         portal page (document_upload.html, via document_status.html's action_message prop)
+         whenever the document's status is REJECTED or CORRECTION_REQUIRED. It is still never
+         rendered on any PUBLIC page (public_site caregiver/organization profiles are
+         untouched by this task).
+Alternatives considered:
+  A. Keep rejection_reason internal-only; add a second, separate "owner-facing message" field
+     (rejected — a genuine second field the reviewer would have to fill out twice, and the
+     task's own governance says "do not create parallel status/data systems" without cause;
+     no such duplication was needed once the internal-only constraint itself was reconsidered)
+  B. Reverse the internal-only constraint, reuse the existing field for both purposes
+     (accepted — the field's actual content, a reviewer's plain-language reason, was never
+     unsafe to show its own subject; the Sprint 2 restriction predates this task's explicit
+     opposite requirement)
+Reason: A reviewer's reason for rejecting a document is written FOR the person who must act on
+        it. Continuing to hide it would make "request correction" meaningless (the owner would
+        not know what to correct) and directly contradicts this task's explicit spec.
+Affected code: apps/accounts/models/media.py (VerificationDocument.rejection_reason docstring),
+        ui/components/portal/document_status.html (action_message prop docstring),
+        templates/provider_portal/document_upload.html, templates/organization_portal/document_upload.html
+Risks: None — the field's content is authored by platform staff specifically to be actionable
+        by the document owner; no PII/internal-system data was ever stored there by design
+        (DisputeResolveForm-style internal notes live elsewhere, e.g. AuditLog.reason, and
+        remain internal).
+Status: RESOLVED_IN_IMPLEMENTATION — 41 tests passing (25 service + 16 view), including
+        explicit owner-visibility and cross-tenant/self-review denial coverage
+```

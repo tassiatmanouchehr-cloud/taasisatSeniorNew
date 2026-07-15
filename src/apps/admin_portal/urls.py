@@ -19,5 +19,21 @@ urlpatterns = [
     path("financial/disputes/<uuid:dispute_id>/resolve/", views.dispute_resolve_action, name="dispute-resolve"),
     path("financial/instructions/", views.release_refund_overview, name="release-refund-overview"),
     path("financial/feature-gates/", views.feature_gate_overview, name="feature-gate-overview"),
+    path("verification/documents/", views.document_verification_queue, name="document-verification-queue"),
+    path(
+        "verification/documents/<uuid:document_id>/",
+        views.document_verification_detail,
+        name="document-verification-detail",
+    ),
+    path(
+        "verification/documents/<uuid:document_id>/file/",
+        views.document_verification_file,
+        name="document-verification-file",
+    ),
+    path(
+        "verification/documents/<uuid:document_id>/review/",
+        views.document_verification_review_action,
+        name="document-verification-review",
+    ),
     path("system/", views.system_status, name="system-status"),
 ]

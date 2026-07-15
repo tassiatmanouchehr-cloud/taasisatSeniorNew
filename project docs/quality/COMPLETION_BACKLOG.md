@@ -1,7 +1,7 @@
 # CURRENT GAPS AND COMPLETION BACKLOG
 
-**Last verified HEAD:** ce3b30e0f3c06d7b058587f3e75c357bfe588415
-**Last verified date:** 2026-07-14 (documentation sync + executable verification)
+**Last verified HEAD:** phase1-registration-manual-verification (from main @ 55b1cb0)
+**Last verified date:** 2026-07-15
 
 ---
 
@@ -29,9 +29,52 @@ See CHANGE_LEDGER CL-017 and TEST_EXECUTION_LOG Run 009.
 **MERGED to main** via PR #1, merge commit `eb51018` (2026-07-14), full
 regression 1680/1680 green.
 
+### BG-015: Manual Document Verification Workflow (Phase 1.1) — **COMPLETE (caregiver + organization)**
+
+**Resolution (2026-07-15):** `VerificationReviewService` (approve/reject/request_correction,
+row-locked, tenant-scoped, self-review refused, idempotent same-outcome
+no-op, audited via `AuditLog`), `accounts.document.review` permission,
+`DocumentStatus.CORRECTION_REQUIRED`, admin_portal review queue/detail/
+file/review views, owner-facing reason display. 41 tests (25 service +
+16 view). Branch `phase1-registration-manual-verification`, PR pending merge.
+See traceability/IMPLEMENTATION_JOURNAL.md and ARCHITECTURE_DECISION_LOG ADM-014.
+**Not included:** customer document verification (see BG-016), profile
+verification_status roll-up (see BG-017).
+
 ---
 
 ## P1 — Blocks First Complete Internal Product Workflow
+
+### BG-016: Customer Document Verification (Domain Model Gap)
+
+**Current evidence:** `VerificationDocument.caregiver`/`.organization` are the only
+two owner FKs (CHECK-constrained exactly-one-of-two); `CustomerProfile` has no
+`verification_status` field. Confirmed by repository-wide inspection during
+Phase 1.1 (2026-07-15) — customer identity verification does not exist as a
+domain concept anywhere in the repository.
+**Why needed:** Task governance for Registration & Verification names customer
+identity verification as in-scope; current domain model does not support it.
+**Dependencies:** A scoped decision on whether/how to extend `VerificationDocument`'s
+owner CHECK constraint (a real architectural change, not a bug fix).
+**Affected modules:** accounts
+**Suggested implementation size:** Medium (new FK + constraint migration + service/view work)
+**Risk:** Low-medium — additive to an existing, deliberately-designed constraint
+**Not in scope:** Profile roll-up (BG-017)
+
+### BG-017: Profile Verification Status Roll-Up
+
+**Current evidence:** No required-document-type policy exists anywhere in the
+repository (confirmed by repository-wide search during Phase 1.1). `CaregiverProfile
+.verification_status`/`OrganizationProfile.verification_status` are never
+transitioned by document review outcomes.
+**Why needed:** Document-level review (BG-015) is complete but has no downstream
+effect on the profile-level verification summary fields the rest of the
+platform (public profiles, portal presentation services) already reads.
+**Dependencies:** BG-015 (done); an explicit required-document-type policy decision.
+**Affected modules:** accounts
+**Suggested implementation size:** Small once the policy is defined
+**Risk:** Low
+**Not in scope:** Public profile rendering of credential types
 
 ### BG-003: OrderOfferService (Phase 2)
 

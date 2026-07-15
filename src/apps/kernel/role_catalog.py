@@ -46,6 +46,7 @@ Epic does not attempt.
 from dataclasses import dataclass, field
 
 from apps.kernel.permissions.keys import (
+    ACCOUNTS_DOCUMENT_REVIEW,
     ADMIN_FINANCE_READ,
     ADMIN_ORDERS_READ,
     ADMIN_PORTAL_ACCESS,
@@ -112,11 +113,17 @@ PLATFORM_ACCOUNTING_PERMISSIONS: tuple[str, ...] = (
     COMMISSION_ESCROW_VIEW,
 )
 
+# Phase 1.1 (Manual Document Verification): platform_owner/platform_admin
+# match the task's "manual verification by platform owner" language;
+# platform_support is included too since "authorized platform staff" (not
+# only the owner/admin) must be able to work the review queue.
+DOCUMENT_REVIEW_PERMISSIONS: tuple[str, ...] = (ACCOUNTS_DOCUMENT_REVIEW,)
+
 DEFAULT_TENANT_ROLES: tuple[RoleDefinition, ...] = (
-    RoleDefinition(slug="platform_owner", name="مالک پلتفرم"),
-    RoleDefinition(slug="platform_admin", name="مدیر پلتفرم"),
+    RoleDefinition(slug="platform_owner", name="مالک پلتفرم", permissions=DOCUMENT_REVIEW_PERMISSIONS),
+    RoleDefinition(slug="platform_admin", name="مدیر پلتفرم", permissions=DOCUMENT_REVIEW_PERMISSIONS),
     RoleDefinition(slug="platform_operator", name="اپراتور پلتفرم"),
-    RoleDefinition(slug="platform_support", name="پشتیبانی پلتفرم"),
+    RoleDefinition(slug="platform_support", name="پشتیبانی پلتفرم", permissions=DOCUMENT_REVIEW_PERMISSIONS),
     RoleDefinition(
         slug="platform_accounting",
         name="حسابداری پلتفرم",

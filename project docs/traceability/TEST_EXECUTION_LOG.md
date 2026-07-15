@@ -276,3 +276,30 @@ Date/time: 2026-07-14
 **Conclusion:** BG-002 resolved. Full regression exits 0. The
 makemigrations drift remains the only pre-existing exit-1 command and is
 unrelated to this fix.
+
+---
+
+## Run 010 — Phase 1.1 Manual Document Verification
+
+```
+Branch: phase1-registration-manual-verification (from main @ 55b1cb0)
+Settings module: config.settings.testing
+Python: 3.11.15  |  Django: 5.2.16  |  PostgreSQL: 16.13
+Date/time: 2026-07-15
+```
+
+| Command | Exit code | Result |
+|---------|-----------|--------|
+| `python manage.py check` | 0 | System check identified no issues |
+| `python manage.py makemigrations --check --dry-run` | 1 | Pre-existing cosmetic drift only (accounts/kernel field alters, unrelated to this change) — same as before this task |
+| `python manage.py migrate` | 0 | accounts.0005 applies cleanly |
+| `apps.accounts.tests.test_verification_review` | 0 | 25/25 (incl. `VerificationReviewConcurrencyTest`, `TransactionTestCase`) |
+| `apps.admin_portal.tests.test_document_verification` | 0 | 16/16 |
+| `apps.accounts.tests.test_registration` (existing) | 0 | 8/8 — customer/caregiver/organization registration unaffected |
+| `apps.accounts` (full app suite) | 0 | 205/205 (180 pre-existing + 25 new) |
+| `apps.admin_portal` (full app suite) | 0 | 45/45 (29 pre-existing + 16 new) |
+| `apps.kernel` (full app suite) | 0 | 232/232 (permission registry/role catalog change verified safe) |
+| `apps.provider_portal apps.organization_portal apps.public_site` | 0 | 182/182 (touched shared templates verified safe) |
+| **Full regression** | **0** | **Ran 1721 tests — OK** (1680 baseline + 41 new) |
+
+**Classification:** GREEN — all 41 new tests pass, zero regressions in 1680 pre-existing tests, migration drift unchanged from pre-task baseline.

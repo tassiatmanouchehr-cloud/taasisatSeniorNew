@@ -8,10 +8,15 @@ this module follows, just for server-rendered HTML instead of DRF JSON).
 Read-only throughout: nothing here writes to the database.
 """
 
-from django.http import Http404
+from django.http import FileResponse, Http404
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_http_methods
 
+from apps.accounts.services.errors import AccountsError
+from apps.accounts.services.verification_review_service import (
+    VerificationReviewError,
+    VerificationReviewService,
+)
 from apps.commission.services.dispute_resolution_service import DisputeResolutionService
 from apps.commission.services.errors import CommissionError
 from apps.commission.services.queries import FinancialCoreQueryService
@@ -24,7 +29,7 @@ from apps.reporting.services import (
 )
 
 from . import permission_keys
-from .forms import DisputeResolveForm
+from .forms import DisputeResolveForm, DocumentReviewForm
 from .permissions import require_admin_permission
 
 
@@ -183,3 +188,81 @@ def feature_gate_overview(request):
     tenant_id = require_admin_permission(request, permission_keys.COMMISSION_ESCROW_VIEW)
     gates = FinancialCoreQueryService.get_feature_gate_status(tenant_id=tenant_id)
     return render(request, "admin_portal/feature_gate_overview.html", {"gates": gates})
+
+
+@require_GET
+def document_verification_queue(request):
+    """GET /admin-portal/verification/documents/ — every PENDING VerificationDocument for the caller's own tenant."""
+    tenant_id = require_admin_permission(request, permission_keys.DOCUMENT_REVIEW)
+    documents = VerificationReviewService.list_pending_for_tenant(tenant_id=tenant_id)
+    return render(request, "admin_portal/document_verification_queue.html", {"documents": documents})
+
+
+@require_GET
+def document_verification_detail(request, document_id):
+    """GET /admin-portal/verification/documents/<document_id>/ — document detail + review form.
+
+    A document belonging to a different tenant raises AccountsError from
+    the service (tenant-scoped lookup), which this view maps to the same
+    Http404 a genuinely nonexistent document would raise — cross-tenant
+    review attempts cannot distinguish the two."""
+    tenant_id = require_admin_permission(request, permission_keys.DOCUMENT_REVIEW)
+    try:
+        document = VerificationReviewService.get_document_for_tenant(tenant_id=tenant_id, document_id=document_id)
+    except AccountsError:
+        raise Http404("Document not found.") from None
+    return render(
+        request,
+        "admin_portal/document_verification_detail.html",
+        {"document": document, "review_form": DocumentReviewForm()},
+    )
+
+
+@require_GET
+def document_verification_file(request, document_id):
+    """GET /admin-portal/verification/documents/<document_id>/file/ — streams the
+    private uploaded file. Gated by the exact same permission and tenant
+    scope as the detail page — this is the sole authenticated path to the
+    original file; it is never linked from any public page (see
+    `apps.accounts.models.media_paths`'s own docstring on the public/
+    private storage split)."""
+    tenant_id = require_admin_permission(request, permission_keys.DOCUMENT_REVIEW)
+    try:
+        document = VerificationReviewService.get_document_for_tenant(tenant_id=tenant_id, document_id=document_id)
+    except AccountsError:
+        raise Http404("Document not found.") from None
+    return FileResponse(document.file.open("rb"), filename=document.file.name.rsplit("/", 1)[-1])
+
+
+@require_http_methods(["POST"])
+def document_verification_review_action(request, document_id):
+    """POST /admin-portal/verification/documents/<document_id>/review/ — approve,
+    reject, or request correction. VerificationReviewService itself
+    re-validates the accounts.document.review permission, tenant scope,
+    self-review, and legal-transition rules — this view only resolves
+    which service method to call and surfaces a controlled error back onto
+    the same detail page rather than raising."""
+    tenant_id = require_admin_permission(request, permission_keys.DOCUMENT_REVIEW)
+    try:
+        document = VerificationReviewService.get_document_for_tenant(tenant_id=tenant_id, document_id=document_id)
+    except AccountsError:
+        raise Http404("Document not found.") from None
+
+    form = DocumentReviewForm(request.POST)
+    if form.is_valid():
+        action = form.cleaned_data["action"]
+        reason = form.cleaned_data["reason"]
+        try:
+            if action == DocumentReviewForm.APPROVE:
+                VerificationReviewService.approve(document_id=document.id, tenant_id=tenant_id, reviewer=request.user)
+            elif action == DocumentReviewForm.REJECT:
+                VerificationReviewService.reject(
+                    document_id=document.id, tenant_id=tenant_id, reviewer=request.user, reason=reason,
+                )
+            else:
+                VerificationReviewService.request_correction(
+                    document_id=document.id, tenant_id=tenant_id, reviewer=request.user, reason=reason,
+                )
+        except VerificationReviewError:
+            pass  # Illegal transition / missing reason — page still shows current state.
+    return redirect("admin_portal:document-verification-detail", document_id=document.id)

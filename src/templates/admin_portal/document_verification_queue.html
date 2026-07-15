@@ -1,0 +1,41 @@
+{% extends "admin_portal/base.html" %}
+
+{% block portal_title %}صف بررسی مدارک{% endblock %}
+{% block page_title %}بررسی مدارک{% endblock %}
+
+{% block admin_content %}
+{% if documents %}
+<div class="bg-surface border border-border rounded-lg overflow-hidden">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="border-b border-border text-text-muted text-xs">
+        <th class="px-5 py-3 text-start">مالک</th>
+        <th class="px-5 py-3 text-start">نوع مدرک</th>
+        <th class="px-5 py-3 text-start">تاریخ بارگذاری</th>
+        <th class="px-5 py-3 text-start">وضعیت</th>
+        <th class="px-5 py-3 text-start"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-border">
+      {% for document in documents %}
+      <tr>
+        <td class="px-5 py-3 text-text">
+          {% if document.caregiver_id %}{{ document.caregiver.display_name }}{% else %}{{ document.organization.name }}{% endif %}
+        </td>
+        <td class="px-5 py-3 text-text">{{ document.get_document_type_display }}</td>
+        <td class="px-5 py-3 text-text ltr-value">{{ document.created_at }}</td>
+        <td class="px-5 py-3">{% include "ui/components/feedback/badge.html" with label=document.get_status_display variant="warning" %}</td>
+        <td class="px-5 py-3">
+          <a href="{% url 'admin_portal:document-verification-detail' document_id=document.id %}" class="text-primary hover:underline">بررسی</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="bg-surface border border-border rounded-lg p-8 text-center">
+  <p class="text-sm text-text-muted">مدرکی در انتظار بررسی نیست.</p>
+</div>
+{% endif %}
+{% endblock %}

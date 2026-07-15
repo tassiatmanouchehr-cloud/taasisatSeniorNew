@@ -22,10 +22,12 @@ simpler, is validated by the database itself (a polymorphic string-typed
 link cannot be), and creates no cross-domain ownership ambiguity.
 
 Upload only ever creates a PENDING-status row (see
-`apps.accounts.services.document_service.DocumentService`) — nothing in
-this Sprint ever sets VERIFIED/REJECTED; that remains reserved for a
-future platform-admin verification workflow, which does not exist yet
-(see this Sprint's own scope notes) and is explicitly not built here.
+`apps.accounts.services.document_service.DocumentService`) — nothing
+reachable from the caregiver/organization portals ever sets VERIFIED/
+REJECTED/CORRECTION_REQUIRED. That transition now belongs exclusively to
+`apps.accounts.services.verification_review_service.VerificationReviewService`
+(Phase 1.1, Manual Document Verification) — a caregiver or organization
+admin still cannot call their way into self-verifying, by construction.
 """
 
 import uuid
@@ -52,6 +54,12 @@ class DocumentStatus(models.TextChoices):
     PENDING = "pending", "Pending"
     VERIFIED = "verified", "Verified"
     REJECTED = "rejected", "Rejected"
+    CORRECTION_REQUIRED = "correction_required", "Correction Required"
+    """Phase 1.1 (Manual Document Verification): reviewer asked the owner
+    to resubmit rather than a hard rejection. `DocumentService
+    .replace_document()` already resets ANY prior status to PENDING on
+    resubmission, so CORRECTION_REQUIRED -> PENDING needs no new code —
+    only the owner's existing upload/replace flow."""
 
 
 class VerificationDocument(models.Model):
@@ -75,9 +83,16 @@ class VerificationDocument(models.Model):
     status = models.CharField(max_length=20, choices=DocumentStatus.choices, default=DocumentStatus.PENDING)
     expiry_date = models.DateField(null=True, blank=True)
     rejection_reason = models.TextField(blank=True)
-    """Staff-authored, internal-only — never rendered on any provider/
-    organization-facing or public page (see this Sprint's explicit "never
-    expose ... internal rejection reasons intended only for staff")."""
+    """Reviewer-authored reason for the document's current REJECTED or
+    CORRECTION_REQUIRED outcome. Epic 06 Sprint 2 originally declared this
+    field internal/staff-only; Phase 1.1 (Manual Document Verification)
+    reverses that — the task's own business requirement is that the
+    document owner must be able to see why their document was rejected or
+    needs correction, so they can act on it. Still never rendered on any
+    PUBLIC page — only on the owning caregiver's/organization's own portal
+    view of their own document (see `document_status.html`'s
+    `action_message` prop, and see traceability/ARCHITECTURE_DECISION_LOG
+    for the decision record)."""
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

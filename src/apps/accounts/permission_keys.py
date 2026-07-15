@@ -41,6 +41,7 @@ ownership-fallback shape as `ORGANIZATION_MEMBERSHIP_APPROVE`/`_SUSPEND`.
 """
 
 from apps.kernel.permissions.keys import (
+    ACCOUNTS_DOCUMENT_REVIEW,
     BOOKING_ASSIGNMENT_ASSIGN,
     ORGANIZATION_MEMBERSHIP_APPROVE,
     ORGANIZATION_MEMBERSHIP_SUSPEND,
@@ -48,6 +49,7 @@ from apps.kernel.permissions.keys import (
 )
 
 __all__ = [
+    "ACCOUNTS_DOCUMENT_REVIEW",
     "BOOKING_ASSIGNMENT_ASSIGN",
     "ORGANIZATION_MEMBERSHIP_APPROVE",
     "ORGANIZATION_MEMBERSHIP_SUSPEND",
