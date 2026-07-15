@@ -211,3 +211,57 @@ orders suite 127/127, previously flaky test 20/20 isolated.
 **Consequence:** P0 hygiene complete. **Phase 1 — Registration and Verification
 Workflows is now the active implementation phase.** Implementation not started;
 working branch `claude/taasisat-senior-state-verify-9dzzlm` restarted from merged main.
+
+---
+
+## Phase 1.1 — Registration and Manual Verification Foundation
+
+**Date:** 2026-07-15
+**Branch:** phase1-registration-manual-verification (from origin/main @ 55b1cb0)
+
+### Part A — Focused Registration Gap Matrix
+
+| Flow | Existing entry point | Working behavior | Missing behavior |
+|------|----------------------|-------------------|-------------------|
+| Customer registration | `accounts/views.py:register_customer_view` → OTP → `RegistrationService.create_customer()` | Person/UserAccount/CustomerProfile created, `customer` role assigned, phone-uniqueness checked pre-OTP. 8 passing tests (`test_registration.py`). Post-login routes to `portal:dashboard`. | No identity-document verification concept exists for customers at all — `CustomerProfile` has no `verification_status` field, `VerificationDocument` has no customer FK (see decision below). |
+| Caregiver registration | `register_caregiver_view` → `RegistrationService.create_caregiver()` | Person/UserAccount/CaregiverProfile created, `independent_caregiver` role assigned, optional `CompanyAffiliationRequest` created from company_code/name. Post-login routes to `provider_portal:dashboard`. | Document upload existed (`DocumentService`) but **no reviewer path** — `VerificationDocument` could only ever sit at PENDING forever (confirmed by that model's and `DocumentService`'s own docstrings: "future platform-admin verification workflow ... does not exist yet"). |
+| Company/organization registration | `register_company_view` → `RegistrationService.create_company_admin()` | Person/UserAccount/OrganizationProfile/OrganizationMembership(ADMIN) created, `organization_admin` role assigned, unique org code generated. Post-login routes to `organization_portal:dashboard`. | Same missing reviewer path as caregiver. |
+| Profile bootstrap | `RegistrationService` (all three paths) | Verified via existing test suite — no defect found. | — |
+| Identity/professional-license status | `CaregiverProfile.verification_status` / `OrganizationProfile.verification_status` (`VerificationStatus`: UNVERIFIED/PENDING/VERIFIED/REJECTED) | Fields exist and are read by portal/public-profile presentation. | Nothing ever transitions them off UNVERIFIED — no roll-up from document review exists yet (see Deferred). |
+| VerificationDocument model | `apps/accounts/models/media.py` | 9 document types, PENDING/VERIFIED/REJECTED, exactly-one-owner CHECK constraint (caregiver XOR organization), private storage path. | No CORRECTION_REQUIRED state; no customer owner (see decision below); zero test coverage before this task. |
+| Document upload | `DocumentService.upload_caregiver_document/upload_organization_document/replace_document` | Validates size/real content-type, private storage, resets to PENDING on replace. | None — production quality already. |
+| Admin/operator verification capability | none | — | **This was the root missing workflow** — implemented in Part B. |
+| Permissions | `apps/kernel/permissions/keys.py` | Canonical registry pattern well-established (register() + role_catalog grant). | No `accounts.document.*` review key existed. |
+| Portal pages | provider_portal/organization_portal document_upload.html | Upload/replace form + status badge. | Rejection/correction reason was hard-coded blank (`action_message=""`) — never surfaced the reviewer's reason even though the model already had a `rejection_reason` field. |
+| Existing tests | `apps/accounts/tests/` (16 files, 180 methods pre-task) | Strong coverage on registration/RBAC/multirole/tenant-consistency. | **Zero tests existed for `VerificationDocument`/`DocumentService`** (confirmed by directory listing) — a real, pre-existing gap this task also closes. |
+
+**No critical defect found in customer/caregiver/organization registration or profile bootstrap** — all three create accounts/profiles/roles correctly (8/8 pre-existing tests re-run and green). Proceeded directly to Part B per the task's own instruction.
+
+### Scope Decision: Customer Document Verification Deferred
+
+`VerificationDocument.caregiver`/`.organization` are the only two owner FKs, enforced by a database CHECK constraint (exactly one of the two, never both, never neither) — this is `apps/accounts/models/media.py`'s own explicit, documented design. `CustomerProfile` has no `verification_status` field at all. Repository evidence therefore shows **customer identity verification does not exist as a domain concept** in this codebase — it is out of scope for both models involved. Adding a third owner type would mean changing that CHECK constraint (a real architectural change to a deliberately-designed invariant), which the task's own governance says to avoid without approval ("Do not redesign stable architecture"). This task implements manual review for the two owner types the domain model actually supports (caregiver, organization) — matching the task's own Phase 1 bullet list ("Identity verification", "Professional license workflow"), which are supply-side (caregiver/organization) concerns in a senior-care marketplace. Customer document verification, if ever needed, is a new capability requiring its own scoped decision, not a bug in this slice.
+
+### Architecture Decision: `rejection_reason` Is Now Owner-Visible
+
+`VerificationDocument.rejection_reason`'s original docstring (Epic 06 Sprint 2) declared it "Staff-authored, internal-only — never rendered on any provider/organization-facing... page." This task's own explicit business requirement #6 ("The document owner can see: ... rejection/correction reason") is the opposite. Resolved in favor of the current task's explicit requirement: the field is now rendered on the owning caregiver's/organization's own portal page (via `document_status.html`'s `action_message` prop) whenever status is REJECTED or CORRECTION_REQUIRED — still never on any PUBLIC page. Both the model's and the template's docstrings were updated to record this reversal in place; see `traceability/ARCHITECTURE_DECISION_LOG.md` for the formal entry.
+
+### Profile Verification Roll-Up: Deferred
+
+No required-document-type policy exists anywhere in the repository (confirmed by repository-wide search — zero hits for "required_document"/"REQUIRED_DOCUMENT" or any config/rule naming required types per profile). Per the task's own instruction ("If no reliable required-document policy exists, do not guess"), profile-level roll-up (`CaregiverProfile.verification_status` / `OrganizationProfile.verification_status` auto-transitioning from document outcomes) is **not implemented in this slice** and is reported as the next slice.
+
+### Part B — What Was Implemented
+
+- `DocumentStatus.CORRECTION_REQUIRED` added (migration `accounts.0005`, hand-trimmed to exclude unrelated pre-existing cosmetic drift the same `makemigrations` run also detected).
+- `apps.accounts.services.verification_review_service.VerificationReviewService` — `approve()`/`reject()`/`request_correction()`, all `@transaction.atomic` with `select_for_update()`, tenant re-derivation + comparison, `PermissionService.require()`, self-review refusal, PENDING-only legal transition with idempotent same-outcome no-op, `AuditService.log()` audit trail.
+- `accounts.document.review` permission key (`apps/kernel/permissions/keys.py`), re-exported through `apps.accounts.permission_keys` and `apps.admin_portal.permission_keys`, granted to `platform_owner`/`platform_admin`/`platform_support` in `apps.kernel.role_catalog.DEFAULT_TENANT_ROLES` (same additive pattern as `ORGANIZATION_PROFILE_UPDATE`).
+- `apps.accounts.services.verification_evaluator.DocumentVerificationEvaluator` — Protocol-only AI extension point, no implementation, not called anywhere.
+- Admin portal: `document_verification_queue`/`_detail`/`_file`/`_review_action` views (thin-controller, same shape as the existing dispute views), `DocumentReviewForm`, 2 templates, 1 home-page nav card.
+- Owner-facing: `verification_badge.html` gained a `correction_required` branch; both `document_upload.html` templates now pass the real `rejection_reason` as `action_message` instead of a hard-coded empty string.
+- Tests: `apps/accounts/tests/test_verification_review.py` (25 tests, service layer, incl. a `TransactionTestCase` concurrency test mirroring `apps.booking.tests.test_concurrency`) + `apps/admin_portal/tests/test_document_verification.py` (16 tests, view/security layer).
+
+### Deferred (explicitly out of scope for this slice)
+
+1. Profile-level verification roll-up (no required-document policy exists — see above).
+2. Customer document verification (no domain model support — see above).
+3. AI evaluator implementation (Protocol only, per task instruction).
+4. Public profile rendering of verified credential types (explicitly excluded by the task).

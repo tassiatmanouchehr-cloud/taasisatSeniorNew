@@ -1,7 +1,7 @@
 # RUNTIME WORKFLOWS
 
-**Last verified HEAD:** a5dbaf28703142edaa1d770ea8f3c2a45a12640f
-**Last verified date:** 2026-07-14
+**Last verified HEAD:** phase1-registration-manual-verification (from main @ 55b1cb0)
+**Last verified date:** 2026-07-15
 
 ---
 
@@ -23,8 +23,20 @@
 | 12 | Wallet | IMPLEMENTED | `wallet/services/wallet_service.py` + `wallet_transaction_service.py` |
 | 13 | Reviews | IMPLEMENTED | `reviews/services/review_submission_service.py` |
 | 14 | Offer Marketplace | MODEL ONLY (Phase 1) | No service layer yet |
+| 15 | Manual Document Verification (caregiver/organization) | IMPLEMENTED (Phase 1.1) | `accounts/services/verification_review_service.py:VerificationReviewService` |
 
 ---
+
+## Manual Document Verification Workflow (Phase 1.1)
+
+1. Caregiver/organization uploads a document via `DocumentService.upload_*_document()` — enters PENDING.
+2. Platform reviewer (role `platform_owner`/`platform_admin`/`platform_support`, permission `accounts.document.review`) opens `/admin-portal/verification/documents/` (queue) and a document's detail page.
+3. Reviewer approves, rejects (reason required), or requests correction (reason required) via `VerificationReviewService.approve()/reject()/request_correction()`.
+4. Legal transitions: PENDING → {VERIFIED, REJECTED, CORRECTION_REQUIRED} only. Same-outcome repeat calls are idempotent no-ops; any other non-PENDING call raises a controlled `VerificationReviewError`. Row-locked (`select_for_update()`) so concurrent conflicting reviews leave exactly one winner.
+5. CORRECTION_REQUIRED → PENDING happens through the owner's existing `DocumentService.replace_document()` resubmission flow — no new code needed there.
+6. Every review action is recorded in `AuditLog` (actor, before/after status, reason).
+7. Owner sees current status and (for REJECTED/CORRECTION_REQUIRED) the reviewer's reason on their own portal page — never on any public page.
+8. Customer document verification and profile-level roll-up (`CaregiverProfile.verification_status`/`OrganizationProfile.verification_status` auto-transition) are explicitly deferred — see `traceability/IMPLEMENTATION_JOURNAL.md`.
 
 ## Order Lifecycle (Status Machine)
 

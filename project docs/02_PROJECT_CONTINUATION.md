@@ -10,7 +10,8 @@
 | URL | https://github.com/tassiatmanouchehr-cloud/taasisatSeniorNew |
 | Default branch | main |
 | main HEAD SHA | eb51018ffbc9faeebae08adebcc21d6dbfe7b92e (merge of PR #1) |
-| Last verified date | July 14, 2026 (post-merge sync) |
+| Feature branch HEAD | `phase1-registration-manual-verification` (from main @ 55b1cb0) — PR not yet merged |
+| Last verified date | July 15, 2026 |
 | Python version | 3.12 (owner dev); 3.11.15 (cloud verification environment) |
 | Django version | 5.2.16 |
 | PostgreSQL | 16 |
@@ -24,9 +25,10 @@
 | Working tree | Clean at verification time |
 | Offer Marketplace Phase 1 | **COMMITTED** in `ce3b30e`, now on main (OrderOffer model, migration `orders/0008_orderoffer.py`, admin, 40 tests) |
 | BG-002 | **MERGED to main** via PR #1 (merge commit `eb51018`); full regression 1680/1680 green at merge |
-| Current phase | **Phase 1 — Registration and Verification Workflows is the ACTIVE implementation phase** (see `IMPLEMENTATION_ROADMAP.md`); implementation not yet started |
+| Current phase | **Phase 1 — Registration and Verification Workflows is ACTIVE** (see `IMPLEMENTATION_ROADMAP.md`) |
+| Phase 1.1 | Manual document verification (caregiver + organization) IMPLEMENTED on `phase1-registration-manual-verification`; full regression 1721/1721 green; PR pending, not yet merged |
 | Active blocker | `makemigrations --check` cosmetic drift only (pre-existing, exit 1, accounts/kernel field alters — no schema change intended) |
-| Active work branch | `claude/taasisat-senior-state-verify-9dzzlm` (restarted from merged main after PR #1) |
+| Active work branch | `phase1-registration-manual-verification` (from main @ 55b1cb0) |
 
 ---
 

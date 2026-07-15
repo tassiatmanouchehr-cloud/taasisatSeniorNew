@@ -177,6 +177,18 @@ EXECUTION_SESSION_CLOSE = register(
 
 # --- apps.accounts / organization isolation (Epic 04, corrected in Epic 05) --
 
+ACCOUNTS_DOCUMENT_REVIEW = register(
+    "accounts.document.review",
+    domain="accounts",
+    resource="document",
+    action="review",
+    description=(
+        "Approve, reject, or request correction on an uploaded VerificationDocument "
+        "(caregiver or organization). Guards VerificationReviewService's review methods."
+    ),
+    platform_scope=True,
+)
+
 ORGANIZATION_MEMBERSHIP_APPROVE = register(
     "organization.membership.approve",
     domain="organization",

@@ -3,6 +3,7 @@
 **Created:** 2026-07-14
 **Verified against HEAD:** ce3b30e0f3c06d7b058587f3e75c357bfe588415 ("Repository documentation reorganization")
 **Post-merge update:** 2026-07-14 — PR #1 merged to main (`eb51018`): documentation sync + BG-002 fix are on main; P0 hygiene complete; **Phase 1 is the active phase**
+**Phase 1.1 update:** 2026-07-15 — manual document verification workflow implemented on branch `phase1-registration-manual-verification` (from main @ `55b1cb0`); full regression 1721/1721 green; PR not yet merged
 **Branch verified:** main (via claude/taasisat-senior-state-verify-9dzzlm)
 **Authority:** This roadmap replaces every previous implementation order (including
 `project docs/03_NEXT_TASK.md` sequencing and the archived Offer Marketplace phase plans).
@@ -77,6 +78,14 @@ Pre-phase (P0 hygiene, small): ~~fix seed test race (G12)~~ — **DONE, merged i
   3. Profile `verification_status` transitions UNVERIFIED→PENDING→VERIFIED/REJECTED are derived by one service only, with tests for every transition.
   4. Verification strategy interface exists with `ManualVerification` as the only registered implementation; AI slot documented, not implemented.
   5. Profile completion percent recomputed on every profile mutation.
+
+**Phase 1.1 (2026-07-15, branch `phase1-registration-manual-verification`) — PARTIALLY COMPLETE:**
+- ✅ Criterion 1 (all three registration flows verified, 8/8 pre-existing tests re-run green — no defect found).
+- ✅ Criterion 2 (`VerificationReviewService` + admin_portal queue/detail/file/review views — caregiver and organization documents only; see scope decision below).
+- ✅ Criterion 4 (`DocumentVerificationEvaluator` Protocol added, no implementation).
+- ⏳ Criterion 3 (profile `verification_status` roll-up) — **deferred**: no required-document-type policy exists anywhere in the repository to derive it from (verified by repository-wide search); implementing it now would be guessing, which the task governing this slice explicitly forbade. Next slice.
+- ⏳ Criterion 5 (profile completion recompute) — untouched, out of this slice's scope.
+- **Scope note:** `VerificationDocument` has no customer-owner FK and `CustomerProfile` has no `verification_status` field anywhere in the repository — customer document verification does not exist as a domain concept yet. This slice covers caregiver + organization documents only (the supply-side "identity verification"/"professional license" concerns the roadmap phase actually names). Adding a customer owner is new domain-model work, not a defect in this slice.
 
 ### PHASE 2 — Caregiver Profile (production complete)
 

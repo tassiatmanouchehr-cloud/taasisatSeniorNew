@@ -1,19 +1,21 @@
-{% comment %} Document Status Row Component — Epic 06 Sprint 2
+{% comment %} Document Status Row Component — Epic 06 Sprint 2, reason
+   display added Phase 1.1 (Manual Document Verification).
    One row per uploaded verification document. Never renders a raw file
-   URL, filesystem path, or staff-only rejection reason — only the
-   safe, provider-facing summary fields.
+   URL or filesystem path.
 
    Usage:
      {% include "ui/components/portal/document_status.html" with
         label="کارت هویت" status=doc.status expiry_label=doc.expiry_label
-        action_message=doc.action_message replace_url=doc.replace_url %}
+        action_message=doc.rejection_reason replace_url=doc.replace_url %}
 
    Props:
      label           — document type display name
-     status          — pending|verified|rejected|expired
+     status          — pending|verified|rejected|correction_required|expired
      expiry_label    — pre-formatted expiry date string, or empty
-     action_message  — safe, provider-facing action-required text (never
-                        the internal rejection_reason)
+     action_message  — the reviewer's reason, shown only when status is
+                        rejected/correction_required (see this document's
+                        own model docstring — never rendered on any public
+                        page, only the owner's own portal view)
      replace_url     — URL to the upload/replace form for this document type
 {% endcomment %}
 <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4">

@@ -28,6 +28,9 @@ from apps.kernel.permissions.keys import (
     ADMIN_TENANTS_READ as TENANTS_READ,
 )
 from apps.kernel.permissions.keys import (
+    ACCOUNTS_DOCUMENT_REVIEW as DOCUMENT_REVIEW,
+)
+from apps.kernel.permissions.keys import (
     COMMISSION_DISPUTE_RESOLVE,
     COMMISSION_ESCROW_VIEW,
 )
@@ -41,4 +44,5 @@ __all__ = [
     "SYSTEM_READ",
     "COMMISSION_ESCROW_VIEW",
     "COMMISSION_DISPUTE_RESOLVE",
+    "DOCUMENT_REVIEW",
 ]

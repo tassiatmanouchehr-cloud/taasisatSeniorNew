@@ -397,3 +397,57 @@ Result: Active documentation synchronized with merged main; Phase 1 — Registra
 Rollback method: git checkout of the modified documentation files
 Status: Complete
 ```
+
+## Entry 019
+
+```
+Change ID: CL-019
+Date/time: 2026-07-15 (Phase 1.1 — Registration and Manual Verification Foundation)
+Task: Implement manual document verification workflow for caregiver/organization VerificationDocument
+Reason: Registration flows verified defect-free (Part A); root missing workflow was the
+        platform-admin document review path both apps/accounts/models/media.py and
+        apps/accounts/services/document_service.py explicitly named as future/out-of-scope
+Files added:
+  src/apps/accounts/migrations/0005_add_correction_required_document_status.py
+  src/apps/accounts/services/verification_review_service.py
+  src/apps/accounts/services/verification_evaluator.py
+  src/apps/accounts/tests/test_verification_review.py
+  src/apps/admin_portal/tests/test_document_verification.py
+  src/templates/admin_portal/document_verification_queue.html
+  src/templates/admin_portal/document_verification_detail.html
+Files modified:
+  src/apps/accounts/models/media.py (DocumentStatus.CORRECTION_REQUIRED; rejection_reason
+    and module docstrings updated — see ARCHITECTURE_DECISION_LOG ADM-014)
+  src/apps/kernel/permissions/keys.py (ACCOUNTS_DOCUMENT_REVIEW registered)
+  src/apps/accounts/permission_keys.py (re-export)
+  src/apps/admin_portal/permission_keys.py (re-export as DOCUMENT_REVIEW)
+  src/apps/kernel/role_catalog.py (granted to platform_owner/platform_admin/platform_support)
+  src/apps/admin_portal/forms.py (DocumentReviewForm)
+  src/apps/admin_portal/views.py (4 new views: queue, detail, file, review action)
+  src/apps/admin_portal/urls.py (4 new routes under /admin-portal/verification/documents/)
+  src/templates/admin_portal/home.html (nav card)
+  src/ui/components/portal/verification_badge.html (correction_required branch)
+  src/ui/components/portal/document_status.html (docstring: action_message now owner-visible reason)
+  src/templates/provider_portal/document_upload.html (action_message wired to rejection_reason)
+  src/templates/organization_portal/document_upload.html (same)
+Files deleted: None
+Database impact: VerificationDocument.status choices gains CORRECTION_REQUIRED (no schema/constraint change)
+Migration impact: accounts.0005 — AlterField choices only, hand-trimmed to exclude pre-existing
+  unrelated cosmetic drift the same makemigrations run also detected (bio/caregiver_note/
+  organization/reviewer_note/notes/address/code/description — untouched, out of scope)
+Security impact: New accounts.document.review permission key, tenant re-derived from document
+  owner and compared before permission check (cross-tenant lookups indistinguishable from
+  not-found), self-review refused as defense-in-depth independent of RBAC grants
+Financial impact: None
+Tests executed: check (0), makemigrations --check (1, pre-existing unrelated drift only),
+  migrate (0), new service tests 25/25, new view tests 16/16, accounts suite 205/205,
+  admin_portal suite 45/45, kernel suite 232/232, provider_portal+organization_portal+
+  public_site 182/182, existing registration tests 8/8, full regression 1721/1721 (exit 0)
+Result: Success — manual document verification workflow implemented for caregiver and
+  organization documents; customer verification and profile roll-up explicitly deferred
+  (no domain-model support / no required-document policy respectively — see journal)
+Rollback method: git revert of the branch's commits; migration 0005 reverses cleanly
+  (AlterField back to 3 choices) with no data loss since CORRECTION_REQUIRED rows would
+  need manual reclassification only if any existed at rollback time
+Status: Complete — branch phase1-registration-manual-verification, PR to be created, NOT merged
+```

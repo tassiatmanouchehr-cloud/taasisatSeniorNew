@@ -1,7 +1,10 @@
 # TEST CONFIDENCE MATRIX
 
-**Last verified HEAD:** a5dbaf28703142edaa1d770ea8f3c2a45a12640f
-**Last verified date:** 2026-07-14
+**Last verified HEAD:** a5dbaf28703142edaa1d770ea8f3c2a45a12640f (per-app table below);
+partial update 2026-07-15 (phase1-registration-manual-verification) — only the
+`accounts`/`admin_portal` rows and grand-total method count were re-verified;
+a full re-audit of every app was not performed for this incremental change.
+**Last verified date:** 2026-07-14 / 2026-07-15 (partial)
 
 ---
 
@@ -9,16 +12,16 @@
 
 | Metric | Count |
 |--------|-------|
-| Total test files | 196 |
-| Total test classes | 420 |
-| Total test methods | 1,672 |
+| Total test files | 198 (196 + 2 new: `test_verification_review.py`, `test_document_verification.py`) |
+| Total test classes | ~430 (not re-audited exactly) |
+| Total test methods | 1,721 (full regression re-run 2026-07-15) |
 
 ## Per-App Confidence
 
 | App | Files | Methods | Auth Tests | Concurrency | Financial | Mock | **Confidence** |
 |-----|-------|---------|------------|-------------|-----------|------|----------------|
 | kernel | 19 | 232 | 7 | - | 5 | 2 | **STRONG** |
-| accounts | 16 | 180 | 4 | - | - | 1 | **STRONG** |
+| accounts | 17 | 205 | 4 | 1 | - | 1 | **STRONG** |
 | commission | 22 | 132 | 15 | 1 | 20 | 2 | **STRONG** |
 | orders | 7 | 159 | - | - | - | - | **STRONG** |
 | finance | 17 | 75 | 1 | - | 17 | 1 | **STRONG** |
@@ -39,7 +42,7 @@
 | matching | 5 | 33 | - | - | - | - | **LOW-MODERATE** |
 | reviews | 6 | 33 | 1 | - | - | - | **LOW-MODERATE** |
 | wallet | 5 | 34 | - | 1 | 5 | 1 | **MODERATE** |
-| admin_portal | 5 | 29 | 4 | - | 1 | - | **MODERATE** |
+| admin_portal | 6 | 45 | 8 | - | 1 | - | **MODERATE-HIGH** |
 | common | 0 | 0 | - | - | - | - | **ZERO** |
 | showcase | 0 | 0 | - | - | - | - | **ZERO** |
 

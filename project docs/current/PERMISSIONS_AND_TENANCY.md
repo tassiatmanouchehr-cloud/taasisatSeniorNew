@@ -1,7 +1,7 @@
 # PERMISSION AND TENANT MODEL
 
-**Last verified HEAD:** a5dbaf28703142edaa1d770ea8f3c2a45a12640f
-**Last verified date:** 2026-07-14
+**Last verified HEAD:** phase1-registration-manual-verification (from main @ 55b1cb0)
+**Last verified date:** 2026-07-15
 
 ---
 
@@ -39,6 +39,12 @@ All permission keys are defined in `apps/kernel/permissions/registry.py` with re
 | Admin Portal | `admin_portal/views.py:require_admin_permission()` |
 | API | `api/permissions.py:require_permission()` |
 | Services | `PermissionService.require()` called explicitly |
+
+### Document Review Permission (Phase 1.1)
+
+`accounts.document.review` (platform-scoped) guards `VerificationReviewService.approve()/reject()/request_correction()` and the 4 admin_portal document-verification views. Granted to `platform_owner`, `platform_admin`, `platform_support` in `apps/kernel/role_catalog.py:DEFAULT_TENANT_ROLES` — the same additive per-role-tuple pattern as `ORGANIZATION_PROFILE_UPDATE`. Note: `platform_owner`/`platform_admin`/`platform_support` in the real ("salmandyar") tenant previously carried **no permissions at all** in `DEFAULT_TENANT_ROLES` (only the separate `DEV_BOOTSTRAP_ROLES` catalog, used by `seed_tenant` for a dev-bootstrap tenant, granted `ADMIN_PORTAL_ACCESS` to a differently-slugged "platform-owner" role) — this is the first permission grant added to the real-tenant platform roles since Epic 05's `platform_accounting` addition.
+
+Self-review is refused as defense-in-depth inside `VerificationReviewService` itself (reviewer's `UserAccount.id` compared against the document owner's), independent of whatever RBAC grants exist — mirrors the FR-003 "ownership_authorized_by trusts the caller" finding by not repeating that pattern here (this is a normal RBAC actor check, no ownership fallback).
 
 ### Critical Finding: No Middleware Enforcement
 

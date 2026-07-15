@@ -152,3 +152,31 @@ The following files would be created or modified if the Offer Marketplace implem
 | `project docs/current/SYSTEM_OVERVIEW.md` | Modified | HEAD eb51018 | git checkout |
 | `project docs/traceability/CHANGE_LEDGER.md` | Appended | Entry CL-018 | append-only |
 | `project docs/traceability/IMPLEMENTATION_JOURNAL.md` | Appended | PR #1 merge record | append-only |
+
+---
+
+## 2026-07-15 — Phase 1.1 Manual Document Verification (CL-019)
+
+| Path | Change | Purpose | Rollback |
+|------|--------|---------|----------|
+| `src/apps/accounts/migrations/0005_add_correction_required_document_status.py` | Added | CORRECTION_REQUIRED choice, hand-trimmed to exclude unrelated drift | Reverse migration |
+| `src/apps/accounts/services/verification_review_service.py` | Added | Approve/reject/request_correction with locking, tenant scope, audit | Delete |
+| `src/apps/accounts/services/verification_evaluator.py` | Added | AI evaluator Protocol placeholder, no implementation | Delete |
+| `src/apps/accounts/tests/test_verification_review.py` | Added | 25 service-layer tests incl. concurrency | Delete |
+| `src/apps/admin_portal/tests/test_document_verification.py` | Added | 16 view-layer/security tests | Delete |
+| `src/templates/admin_portal/document_verification_queue.html` | Added | Review queue page | Delete |
+| `src/templates/admin_portal/document_verification_detail.html` | Added | Detail + review form page | Delete |
+| `src/apps/accounts/models/media.py` | Modified | CORRECTION_REQUIRED status; docstrings updated (ADM-014) | git checkout |
+| `src/apps/kernel/permissions/keys.py` | Modified | ACCOUNTS_DOCUMENT_REVIEW registered | git checkout |
+| `src/apps/accounts/permission_keys.py` | Modified | Re-export | git checkout |
+| `src/apps/admin_portal/permission_keys.py` | Modified | Re-export as DOCUMENT_REVIEW | git checkout |
+| `src/apps/kernel/role_catalog.py` | Modified | Granted to platform_owner/admin/support | git checkout |
+| `src/apps/admin_portal/forms.py` | Modified | DocumentReviewForm | git checkout |
+| `src/apps/admin_portal/views.py` | Modified | 4 new views | git checkout |
+| `src/apps/admin_portal/urls.py` | Modified | 4 new routes | git checkout |
+| `src/templates/admin_portal/home.html` | Modified | Nav card | git checkout |
+| `src/ui/components/portal/verification_badge.html` | Modified | correction_required branch | git checkout |
+| `src/ui/components/portal/document_status.html` | Modified | Docstring only (action_message semantics) | git checkout |
+| `src/templates/provider_portal/document_upload.html` | Modified | action_message wired to real reason | git checkout |
+| `src/templates/organization_portal/document_upload.html` | Modified | Same | git checkout |
+| `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL for full narrative | git checkout |

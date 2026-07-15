@@ -18,25 +18,36 @@ No migration. 8 new regression tests. Merged to main via PR #1
 This was the P0 hygiene precursor to roadmap Phase 1
 (see BG-002 in `quality/COMPLETION_BACKLOG.md`, CL-017).
 
+### Phase 1.1 — Manual Document Verification (Caregiver + Organization) — IMPLEMENTED, PR PENDING (2026-07-15)
+
+`VerificationReviewService` (approve/reject/request_correction), the
+`accounts.document.review` permission, admin_portal review queue/detail/
+file/review-action views and templates, and owner-facing reason display.
+41 new tests (25 service-layer + 16 view-layer), full regression
+1721/1721 green. Branch `phase1-registration-manual-verification`, PR
+created but **not yet merged** — see `traceability/IMPLEMENTATION_JOURNAL.md`
+and `traceability/ARCHITECTURE_DECISION_LOG.md` (ADM-014) for the full
+record, including two explicit scope decisions (customer verification
+deferred — no domain-model support exists; profile roll-up deferred — no
+required-document policy exists).
+
 ---
 
 ## IMMEDIATE NEXT TASK
 
-### Phase 1 — Registration and Verification Workflows — **ACTIVE**
+### Merge the Phase 1.1 PR, then continue Phase 1 — Registration and Verification Workflows
 
 Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active implementation
-order). This is now the active implementation phase (activated after the
-PR #1 merge, 2026-07-14). Implementation has not started yet.
+order).
 
-Scope summary:
+Remaining Phase 1 scope after Phase 1.1 merges:
 
-1. ~~P0 hygiene: BG-002~~ — DONE (see above)
-2. Complete customer / caregiver / company registration workflows
-3. Platform-admin manual verification workflow for `VerificationDocument`
-   (review queue, approve/reject, profile `verification_status` roll-up)
-4. Profile completion recomputation
-5. Verification strategy interface with manual implementation only
-   (future AI verification remains a documented placeholder)
+1. ~~P0 hygiene: BG-002~~ — DONE
+2. ~~Customer / caregiver / company registration workflows~~ — VERIFIED, no defect found (Phase 1.1 Part A)
+3. ~~Platform-admin manual verification workflow~~ — IMPLEMENTED for caregiver/organization (Phase 1.1); profile `verification_status` roll-up remains — **no required-document-type policy exists yet; do not guess one, define it explicitly first**
+4. Profile completion recomputation — not started
+5. ~~Verification strategy interface~~ — `DocumentVerificationEvaluator` Protocol added, no implementation (by design)
+6. New, not yet scoped: customer document verification (no domain-model support currently exists — requires its own decision before implementation)
 
 Note: the previously listed follow-up "Phase 2: OrderOfferService" is now
 scheduled as roadmap Phase 5 (Marketplace Order Workflow) and must not be
