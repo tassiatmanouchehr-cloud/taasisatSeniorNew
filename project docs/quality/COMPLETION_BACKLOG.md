@@ -307,6 +307,39 @@ booking/execution-session conflict awareness inside the evaluator (declined — 
 Decision 2); order matching/booking reservation/calendar sync/shift bidding/pricing/
 invoices/payments/company workforce scheduling/customer scheduling UI (all explicitly out
 of scope per this sprint's own governance).
+**Concurrency remediation (2026-07-15, PR #9 review):** the overlap validation above was
+found not concurrency-safe (unlocked check-then-insert); fixed by locking the owning
+`ServiceSupplier` row before validation in both `add_working_window()`/
+`update_working_window()`. 9 new `TransactionTestCase` tests. See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-020's remediation note.
+
+### BG-026: Caregiver Professional Dashboard — **RESOLVED**
+
+**Original evidence:** `apps.provider_portal.views.dashboard_view` already showed pending
+assignments, active visits, `ProviderReportService` performance stats, reputation, and
+notifications, but had no work summary broken out by status, no financial overview, no
+wallet-movement visibility, no invoice summary, and no recent-reviews list — a caregiver
+could not see a complete picture of their own current/upcoming/completed/cancelled work,
+earnings, or invoices from one place.
+**Resolution (2026-07-15, Sprint 2.5):** New `CaregiverDashboardPresentationService`
+assembles five additional sections from entirely pre-existing, canonical selectors — work
+summary (`Order.status`-derived current/upcoming/completed/cancelled counts and bounded
+recent lists, via two new `OrderQueryService` methods), financial overview (existing
+`WalletService`/`WalletTransactionService`), invoice summary (two new
+`FinancialDocumentService` methods mirroring the existing customer-side selector), reviews/
+reputation (existing `ReputationService.get_reputation_summary()` plus a new
+`list_recent_reviews_with_reviewer_names()`), and professional statistics (reusing
+`ProviderReportService` and Sprint 2.3's existing skill/credential/gallery-count
+definitions). Bonus/penalty: confirmed no canonical representation exists anywhere in this
+repository; documented as a gap rather than invented. 44 new tests, zero new migration, full
+regression 2077/2077 green. See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-021 and
+`traceability/IMPLEMENTATION_JOURNAL.md`.
+**Affected modules:** provider_portal, orders, finance, reviews.
+**Not in scope (explicitly deferred, not this sprint's mandate):** new order/financial/
+ledger/wallet/invoice/payment/settlement logic (all reused as-is); company dashboard;
+customer dashboard; marketplace bidding; gallery/social changes; booking calendar changes;
+payouts/withdrawals; accounting exports; bonus/penalty (no canonical model — recorded as a
+new backlog item, see the "Deferred" note in `traceability/IMPLEMENTATION_JOURNAL.md`).
 
 ### BG-003: OrderOfferService (Phase 2)
 

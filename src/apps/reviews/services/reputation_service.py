@@ -57,3 +57,24 @@ class ReputationService:
             "review_count": snapshot.review_count,
             "average_score": snapshot.average_score,
         }
+
+    @classmethod
+    def list_recent_reviews_with_reviewer_names(cls, supplier, *, limit=5):
+        """Sprint 2.5 (Caregiver Professional Dashboard) — the same
+        APPROVED-only, reviewer-name-resolved shape
+        apps.public_site.services.common.reviews_to_viewmodels() already
+        uses for the public profile, provided here so
+        apps.provider_portal never queries Review/Person directly (its
+        own ORM-discipline guardrail forbids that in views.py). Returns
+        [(Review, reviewer_display_name), ...], newest first, bounded by
+        `limit` — never the full review history."""
+        from apps.kernel.models import Person
+
+        reviews = list(
+            Review.objects.filter(
+                supplier=supplier, moderation_status=ReviewModerationStatus.APPROVED,
+            ).order_by("-created_at")[:limit],
+        )
+        reviewer_ids = [review.reviewer_person_id for review in reviews]
+        names = dict(Person.objects.filter(id__in=reviewer_ids).values_list("id", "full_name"))
+        return [(review, names.get(review.reviewer_person_id, "کاربر سالمندیار")) for review in reviews]

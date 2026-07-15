@@ -152,3 +152,79 @@ class ReputationServiceTest(ReviewsTestCase):
         ReputationService.recalculate_reputation(self.supplier)
 
         self.assertEqual(ReputationSnapshot.objects.filter(supplier=self.supplier).count(), 1)
+
+
+class ListRecentReviewsWithReviewerNamesTest(ReviewsTestCase):
+    """Sprint 2.5 (Caregiver Professional Dashboard) —
+    ReputationService.list_recent_reviews_with_reviewer_names()."""
+
+    def _submit_and_approve(self, *, order, supplier_assignment, dimension_scores):
+        from apps.reviews.services import ReviewModerationService, ReviewSubmissionService
+
+        order = self._complete_order(order=order, supplier_assignment=supplier_assignment)
+        review = ReviewSubmissionService.submit_review(
+            order=order,
+            reviewer_person_id=self.customer_profile.person_id,
+            dimension_scores=dimension_scores,
+        )
+        return ReviewModerationService.approve_review(review.id)
+
+    def test_no_reviews_returns_empty(self):
+        self.assertEqual(ReputationService.list_recent_reviews_with_reviewer_names(self.supplier), [])
+
+    def test_approved_review_appears_with_reviewer_name(self):
+        approved = self._submit_and_approve(
+            order=self.order, supplier_assignment=self.supplier_assignment,
+            dimension_scores=self._dimension_scores(),
+        )
+
+        rows = ReputationService.list_recent_reviews_with_reviewer_names(self.supplier)
+
+        self.assertEqual(len(rows), 1)
+        review, reviewer_name = rows[0]
+        self.assertEqual(review.id, approved.id)
+        self.assertEqual(reviewer_name, self.customer_profile.person.full_name)
+
+    def test_pending_review_never_appears(self):
+        from apps.reviews.services import ReviewSubmissionService
+
+        self._complete_order()
+        ReviewSubmissionService.submit_review(
+            order=self.order,
+            reviewer_person_id=self.customer_profile.person_id,
+            dimension_scores=self._dimension_scores(),
+        )
+
+        self.assertEqual(ReputationService.list_recent_reviews_with_reviewer_names(self.supplier), [])
+
+    def test_rejected_review_never_appears(self):
+        from apps.reviews.services import ReviewModerationService, ReviewSubmissionService
+
+        self._complete_order()
+        review = ReviewSubmissionService.submit_review(
+            order=self.order,
+            reviewer_person_id=self.customer_profile.person_id,
+            dimension_scores=self._dimension_scores(),
+        )
+        ReviewModerationService.reject_review(review.id, reason="test")
+
+        self.assertEqual(ReputationService.list_recent_reviews_with_reviewer_names(self.supplier), [])
+
+    def test_limit_bounds_result_set(self):
+        from apps.booking.services.assignment_service import AssignmentService
+
+        self._submit_and_approve(
+            order=self.order, supplier_assignment=self.supplier_assignment,
+            dimension_scores=self._dimension_scores(),
+        )
+        for _ in range(2):
+            order = self._create_order(tenant=self.tenant, category=self.category, customer_profile=self.customer_profile)
+            assignment = AssignmentService.assign(order_id=order.id, supplier=self.supplier)
+            self._submit_and_approve(order=order, supplier_assignment=assignment, dimension_scores=self._dimension_scores())
+
+        rows = ReputationService.list_recent_reviews_with_reviewer_names(self.supplier, limit=2)
+        self.assertEqual(len(rows), 2)
+
+    def test_another_suppliers_reviews_never_appear(self):
+        other_supplier = self._create_supplier(display_name="Other Supplier")
+        self.assertEqual(ReputationService.list_recent_reviews_with_reviewer_names(other_supplier), [])

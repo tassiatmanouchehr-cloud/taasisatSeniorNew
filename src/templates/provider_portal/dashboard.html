@@ -82,5 +82,106 @@
     {% endif %}
   </div>
 
+  {# === Sprint 2.5: Work summary === #}
+  <div class="lg:col-span-3 bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">خلاصه کارها</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+      <div><dt class="text-xs text-text-muted">در حال انجام</dt><dd class="text-xl font-bold text-text">{{ dashboard.work_summary.current_count }}</dd></div>
+      <div><dt class="text-xs text-text-muted">آینده</dt><dd class="text-xl font-bold text-text">{{ dashboard.work_summary.upcoming_count }}</dd></div>
+      <div><dt class="text-xs text-text-muted">انجام‌شده</dt><dd class="text-xl font-bold text-text">{{ dashboard.work_summary.completed_count }}</dd></div>
+      <div><dt class="text-xs text-text-muted">لغوشده</dt><dd class="text-xl font-bold text-text">{{ dashboard.work_summary.cancelled_count }}</dd></div>
+    </div>
+    {% if dashboard.work_summary.current_items or dashboard.work_summary.upcoming_items %}
+    <ul class="divide-y divide-border">
+      {% for item in dashboard.work_summary.current_items %}
+      <li class="py-2"><a href="{{ item.detail_url }}" class="flex items-center justify-between text-sm no-underline text-text hover:underline"><span>{{ item.order_number }} — {{ item.service_category_name }}</span><span class="text-text-muted">{{ item.status_label }}</span></a></li>
+      {% endfor %}
+      {% for item in dashboard.work_summary.upcoming_items %}
+      <li class="py-2"><a href="{{ item.detail_url }}" class="flex items-center justify-between text-sm no-underline text-text hover:underline"><span>{{ item.order_number }} — {{ item.service_category_name }}</span><span class="text-text-muted">{{ item.scheduled_for_label|default:item.status_label }}</span></a></li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-text-muted">کار در حال انجام یا آینده‌ای ندارید.</p>
+    {% endif %}
+    <a href="{% url 'provider_portal:assignments' %}" class="mt-3 inline-block text-sm font-medium text-primary hover:underline">مشاهده همه</a>
+  </div>
+
+  {# === Sprint 2.5: Financial overview === #}
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">وضعیت مالی</h2>
+    {% if dashboard.financial_overview.has_wallet %}
+    <p class="text-2xl font-bold text-text ltr-value">{{ dashboard.financial_overview.available_balance_label }} <span class="text-sm text-text-muted">{{ dashboard.financial_overview.currency }}</span></p>
+    {% else %}
+    <p class="text-sm text-text-muted">هنوز کیف پولی برای شما ایجاد نشده است.</p>
+    {% endif %}
+    <a href="{% url 'provider_portal:earnings' %}" class="mt-3 inline-block text-sm font-medium text-primary hover:underline">جزئیات درآمد</a>
+    <p class="mt-3 text-xs text-text-muted">{{ dashboard.financial_overview.bonus_penalty_note }}</p>
+  </div>
+
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">تراکنش‌های اخیر کیف پول</h2>
+    {% if dashboard.financial_overview.recent_movements %}
+    <ul class="divide-y divide-border">
+      {% for m in dashboard.financial_overview.recent_movements %}
+      <li class="py-2 text-sm">
+        <div class="flex items-center justify-between"><span class="text-text">{{ m.transaction_type_label }}</span><span class="text-text font-medium ltr-value">{{ m.amount_label }}</span></div>
+        <p class="text-xs text-text-muted">{{ m.created_at_label }}{% if m.reason %} — {{ m.reason }}{% endif %}</p>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-text-muted">تراکنشی ثبت نشده است.</p>
+    {% endif %}
+  </div>
+
+  {# === Sprint 2.5: Invoice summary === #}
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">فاکتورها</h2>
+    {% if dashboard.invoice_summary.recent_invoices %}
+    <ul class="divide-y divide-border">
+      {% for inv in dashboard.invoice_summary.recent_invoices %}
+      <li class="py-2 text-sm">
+        <div class="flex items-center justify-between"><span class="text-text">{{ inv.document_type_label }}{% if inv.order_number %} — {{ inv.order_number }}{% endif %}</span><span class="text-text-muted">{{ inv.status_label }}</span></div>
+        <p class="text-xs text-text-muted ltr-value">{{ inv.total_amount_label }} — {{ inv.created_at_label }}</p>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-text-muted">فاکتوری ثبت نشده است.</p>
+    {% endif %}
+  </div>
+
+  {# === Sprint 2.5: Reputation / recent reviews === #}
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">نظرات اخیر</h2>
+    {% if dashboard.reputation.recent_reviews %}
+    <ul class="divide-y divide-border">
+      {% for review in dashboard.reputation.recent_reviews %}
+      <li class="py-2 text-sm">
+        <div class="flex items-center justify-between"><span class="text-text font-medium">{{ review.reviewer_name }}</span><span class="text-text-muted ltr-value">{{ review.rating }}/5</span></div>
+        {% if review.written_text %}<p class="mt-1 text-xs text-text-muted">{{ review.written_text }}</p>{% endif %}
+        <p class="mt-1 text-xs text-text-muted">{{ review.created_at_label }}</p>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-text-muted">هنوز نظری دریافت نکرده‌اید.</p>
+    {% endif %}
+  </div>
+
+  {# === Sprint 2.5: Professional statistics === #}
+  <div class="lg:col-span-3 bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-base font-bold text-text mb-4">آمار حرفه‌ای</h2>
+    <dl class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+      <div><dt class="text-text-muted">خدمات انجام‌شده</dt><dd class="text-text font-medium">{{ dashboard.statistics.completed_jobs }}</dd></div>
+      <div><dt class="text-text-muted">تخصیص‌های فعال</dt><dd class="text-text font-medium">{{ dashboard.statistics.active_assignments }}</dd></div>
+      <div><dt class="text-text-muted">لغوشده</dt><dd class="text-text font-medium">{{ dashboard.statistics.cancelled_orders }}</dd></div>
+      <div><dt class="text-text-muted">میانگین امتیاز</dt><dd class="text-text font-medium ltr-value">{{ dashboard.statistics.average_rating|default:"—" }}</dd></div>
+      <div><dt class="text-text-muted">مدارک تأییدشده</dt><dd class="text-text font-medium">{{ dashboard.statistics.verified_credential_count }}</dd></div>
+      <div><dt class="text-text-muted">مهارت‌های قابل‌نمایش</dt><dd class="text-text font-medium">{{ dashboard.statistics.visible_skill_count }}</dd></div>
+      <div><dt class="text-text-muted">تصاویر گالری</dt><dd class="text-text font-medium">{{ dashboard.statistics.visible_gallery_item_count }}</dd></div>
+    </dl>
+  </div>
+
 </div>
 {% endblock %}

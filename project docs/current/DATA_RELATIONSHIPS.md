@@ -1,6 +1,6 @@
 # DATA OWNERSHIP AND RELATIONSHIPS
 
-**Last verified HEAD:** phase2-caregiver-availability-schedule (from main @ 20c532e, PR #8 merged)
+**Last verified HEAD:** phase2-caregiver-professional-dashboard (from main @ 125dd3b, PR #9 merged)
 **Last verified date:** 2026-07-15
 
 ---
@@ -161,6 +161,23 @@ decision). No new migration — both models and every field this sprint needed a
 | RoleAssignment | `(tenant, user, role, scope_type, scope_id) WHERE is_active=True` | One active assignment per scope |
 | CaregiverSkill | `(caregiver, name)` | No duplicate skill name per caregiver (DB backstop; service layer also checks case-insensitively) |
 | CaregiverExperience | `CHECK(end_date IS NULL OR end_date >= start_date)` | End date cannot precede start date |
+
+## Caregiver Dashboard Read Paths (Sprint 2.5 — no schema change)
+
+Sprint 2.5 added zero models and zero migrations — it only added read selectors over
+existing FK relationships that had no supplier-scoped query path before:
+
+- `Order.assigned_supplier` → `apps.orders.services.queries.OrderQueryService
+  .list_for_supplier()`/`count_by_status_for_supplier()` (new; mirrors the existing
+  `list_for_customer()` shape, scoped by `assigned_supplier` instead of `customer_profile`).
+- `FinancialDocument.beneficiary_party` → `apps.finance.services.document_service
+  .FinancialDocumentService.list_for_beneficiary_party()`/`count_by_status_for_beneficiary_party()`
+  (new; mirrors the existing `list_for_payer_party()` shape — the same `FinancialDocument`
+  row, its other existing party column).
+- `Review.supplier` → `apps.reviews.services.reputation_service.ReputationService
+  .list_recent_reviews_with_reviewer_names()` (new; resolves `Review.reviewer_person_id` to
+  `kernel.Person.full_name`, the same resolution `apps.public_site` already does for the
+  public profile).
 
 ## Append-Only Immutability
 

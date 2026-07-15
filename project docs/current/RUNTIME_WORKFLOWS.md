@@ -1,6 +1,6 @@
 # RUNTIME WORKFLOWS
 
-**Last verified HEAD:** phase2-caregiver-availability-schedule (from main @ 20c532e, PR #8 merged)
+**Last verified HEAD:** phase2-caregiver-professional-dashboard (from main @ 125dd3b, PR #9 merged)
 **Last verified date:** 2026-07-15
 
 ---
@@ -36,7 +36,8 @@
 | 25 | Canonical Public Visibility Policy | IMPLEMENTED (BG-022 remediation) | `public_site/services/common.py:is_publicly_visible_attrs()` |
 | 26 | Caregiver Gallery Management | IMPLEMENTED (Sprint 2.2; file-lifecycle/image-safety hardened PR #7) | `accounts/services/caregiver_gallery_service.py:CaregiverGalleryService` |
 | 27 | Professional Credibility Layer (badges, highlights, expiring-soon) | IMPLEMENTED (Sprint 2.3) | `public_site/services/profile_service.py:CaregiverPublicProfileService._highlights()/_verification_badges()` |
-| 28 | Caregiver Availability and Working Schedule | IMPLEMENTED (Module 10 foundation; overlap validation, edit/toggle UI, canonical evaluator, public summary completed Sprint 2.4) | `availability/services/query_service.py:AvailabilityQueryService.evaluate()` |
+| 28 | Caregiver Availability and Working Schedule | IMPLEMENTED (Module 10 foundation; overlap validation, edit/toggle UI, canonical evaluator, public summary completed Sprint 2.4; concurrency-proven PR #9 review) | `availability/services/query_service.py:AvailabilityQueryService.evaluate()` |
+| 29 | Caregiver Professional Dashboard | IMPLEMENTED (Sprint 2.5) | `provider_portal/services/dashboard_service.py:CaregiverDashboardPresentationService` |
 
 ---
 
@@ -262,6 +263,53 @@ Time zone: no per-caregiver or per-tenant time-zone field exists anywhere in thi
 repository; every evaluation resolves through Django's default `timezone.localtime()`/
 `settings.TIME_ZONE` (`Asia/Tehran`) — documented as a known platform-wide-only limitation,
 not fixed (see ADM-020 Decision 5).
+
+## Caregiver Professional Dashboard (Sprint 2.5)
+
+`apps.provider_portal.views.dashboard_view` already showed pending assignments, active
+visits, `ProviderReportService` performance stats, reputation, and notifications before this
+sprint; this sprint completed it with five additional, purely read-only sections, assembled
+by the new `apps.provider_portal.services.dashboard_service
+.CaregiverDashboardPresentationService` into a single `dashboard` context variable (see
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-021 for the full read-model decision).
+
+Work summary: `Order.status`-derived counts (current = IN_PROGRESS, upcoming =
+WAITING_SERVICE, completed = COMPLETED, cancelled = CANCELLED — no new statuses invented),
+via two new methods on the existing `apps.orders.services.queries.OrderQueryService`:
+`list_for_supplier()` (mirrors `list_for_customer()`) and `count_by_status_for_supplier()`
+(one aggregate query). Bounded to 5 recent items per tab.
+
+Financial overview: reuses `apps.wallet.services.wallet_service.WalletService
+.get_wallet_or_none()` and `apps.wallet.services.wallet_transaction_service
+.WalletTransactionService.list_transactions()` (both pre-existing) for the balance and the
+10 most recent movements — no new financial calculation. Bonus/penalty: no canonical
+representation exists anywhere in this repository (confirmed by inspection); rather than
+invent one, `FinancialOverviewViewModel.bonus_penalty_note` documents the gap directly, and
+the recent-movements list already shows every CREDIT/DEBIT/ADJUSTMENT regardless of category
+(see ADM-021 Decision 4).
+
+Invoice summary: new `apps.finance.services.document_service.FinancialDocumentService
+.list_for_beneficiary_party()`/`count_by_status_for_beneficiary_party()`, mirroring the
+existing `list_for_payer_party()` (the customer/payer side of the same `FinancialDocument`
+model, already used by `apps.portal`) — filtered by the document's other existing party
+column, `beneficiary_party`, never a new financial-document query path.
+
+Reviews/reputation: `ReputationService.get_reputation_summary()` (pre-existing, unchanged)
+plus a new `list_recent_reviews_with_reviewer_names()` — APPROVED-only, reviewer-name
+resolved the same way `apps.public_site`'s public profile already does it, kept inside
+`apps.reviews` so `apps.provider_portal/views.py` never queries `Review`/`Person` directly.
+
+Professional statistics: `completed_jobs`/`active_assignments` reuse
+`ProviderReportService.get_report_for_supplier()` unchanged (a CLOSED-`ExecutionSession`
+definition, deliberately kept distinct from the work summary's Order-status-based
+`completed_count` — see ADM-021 Decision 3); `cancelled_orders` reuses the work summary's
+own count; `average_rating` reuses the same `ReputationSnapshot.average_score` every other
+page reads; `verified_credential_count`/`visible_skill_count`/`visible_gallery_item_count`
+reuse the exact definitions Sprint 2.3's public highlights already established.
+
+Zero new models, zero new migrations. `apps.provider_portal/views.py` gains zero new direct
+model/ORM references — all new data-gathering lives in
+`CaregiverDashboardPresentationService.build_for_supplier()`.
 
 ## Order Lifecycle (Status Machine)
 

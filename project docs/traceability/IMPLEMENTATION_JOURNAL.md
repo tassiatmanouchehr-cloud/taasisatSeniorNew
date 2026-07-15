@@ -1698,3 +1698,222 @@ guarantee if ever needed (e.g. if a future code path bypasses `AvailabilityMutat
 entirely) — not pursued here since it requires a migration and the review's own governance
 named locking as the preferred, repository-consistent solution when reached via the
 service layer, which is the only mutation path that exists today.
+
+## PR #9 Merge (2026-07-15)
+
+`main` fast-forwarded from `20c532e` to merge commit `125dd3b2916877230684b187e847fb1c07292d05`
+(PR #9, "Complete caregiver availability and working schedule", including the concurrency
+remediation commit). Final pre-merge verification confirmed branch HEAD unchanged at
+`74752d9`, diff scope unchanged (33 files across both commits), the supplier row is locked
+before overlap validation on every path that can introduce or activate an interval
+(`add_working_window()`, `update_working_window()`, and `toggle_working_window()` via
+delegation), enabling a disabled window that conflicts with an active one is refused,
+concurrent overlapping creates cannot both commit (proven by 9 `TransactionTestCase`
+tests), different suppliers are not globally serialized (per-row lock, not a global lock),
+no Sprint 2.5 code existed in the diff, and documentation was synchronized. Local `main`
+verified identical to `origin/main` after the merge.
+
+## Sprint 2.5 — Caregiver Professional Dashboard (2026-07-15)
+
+First sprint on a fresh branch (`phase2-caregiver-professional-dashboard`, from `main` @
+`125dd3b`) after PR #9 merged. Completes the caregiver's own professional dashboard — a
+read-oriented summary layer, not a redesign of the order/financial/invoice/wallet/payment/
+settlement engines.
+
+### Current-State Inspection
+
+| Capability | Existing | Reusable | Missing |
+|---|---|---|---|
+| Dashboard shell | `apps.provider_portal.views.dashboard_view` — pending assignments, active visits, `ProviderReportService` performance stats, reputation, notifications | Yes, extended (not replaced) | Work summary broken out by status, financial overview, wallet movements, invoice summary, recent reviews |
+| Order/work summary selector | `ProviderAssignmentQueryService`/`ProviderExecutionQueryService` (assignment/session-status-scoped, not Order-status-scoped) | Partially — no existing supplier-scoped `Order.status` grouping (current/upcoming/completed/cancelled) | New `OrderQueryService.list_for_supplier()`/`count_by_status_for_supplier()`, mirroring `list_for_customer()`'s exact shape |
+| Financial/wallet | `WalletService.get_wallet_or_none()`, `WalletTransactionService.list_transactions()` (already used by `earnings_view`) | Yes, unchanged | Nothing structural — just wiring into the dashboard |
+| Bonus/penalty | None anywhere in the repository (confirmed by inspection — no dedicated model, no semantic `WalletTransactionType` value) | N/A | Genuinely absent — not built, documented as a gap (see Deferred) |
+| Invoice summary | `FinancialDocumentService.list_for_payer_party()` (customer/payer side only) | Partially — no beneficiary-side equivalent | New `list_for_beneficiary_party()`/`count_by_status_for_beneficiary_party()`, mirroring the payer-side method |
+| Reviews/reputation | `ReputationService.get_reputation_summary()` (aggregate only, no recent-review list) | Partially | New `list_recent_reviews_with_reviewer_names()` |
+| Professional statistics | `ProviderReportService.get_report_for_supplier()` (completed_services, active_assignments, reputation) | Yes, reused as-is | Cancelled-order count, verified-credential/visible-skill/visible-gallery counts (Sprint 2.3's existing definitions, not re-derived) |
+| Read model architecture | `apps.portal.services.dashboard_service.CustomerDashboardPresentationService` (the customer-side precedent — build() from already-fetched objects) | Yes, mirrored exactly | A caregiver-side equivalent didn't exist |
+
+No genuine architectural blocker was found — proceeded directly to implementation.
+
+### Dashboard Read-Model Architecture
+
+`CaregiverDashboardPresentationService` (new, `apps/provider_portal/services/dashboard_service.py`)
+mirrors `CustomerDashboardPresentationService`'s shape exactly: `build()` assembles a frozen
+`CaregiverDashboardViewModel` from already-fetched domain objects, performing no query of
+its own. `build_for_supplier()` is the one entry point `dashboard_view` calls — it gathers
+every section's data via its own canonical, already-existing (or newly, minimally extended)
+selector, then calls `build()`. Kept in the service layer, not `views.py`, so that file
+stays entirely free of direct model/ORM access — see `ARCHITECTURE_DECISION_LOG.md` ADM-021
+Decision 1 for why this matters even though the automated `ProviderPortalOrmDisciplineTest`
+guardrail would not have caught a related-manager `.filter()` call in `views.py`.
+`CaregiverDashboardViewModel` deliberately carries only this sprint's five new sections —
+it does not re-wrap the dashboard's pre-existing, already-tested context keys.
+
+### Work/Order Summary Behavior
+
+`OrderQueryService.list_for_supplier(*, supplier, tenant_id, only=None, limit=None)` and
+`count_by_status_for_supplier(*, supplier, tenant_id)` — both new, both mirroring
+`list_for_customer()`'s exact shape. Four groupings, no new statuses invented: current =
+`OrderStatus.IN_PROGRESS`, upcoming = `WAITING_SERVICE`, completed = `COMPLETED`, cancelled
+= `CANCELLED`. Counts come from one aggregate query (`Count(..., filter=Q(...))` per
+status); recent-item lists are bounded to 5 per tab at the query level (`limit=` passed
+through to the queryset slice, not sliced in Python after an unbounded fetch). Scoped by
+`assigned_supplier=supplier` and `tenant_id` — verified directly (not just structurally) by
+`test_another_suppliers_orders_never_counted_or_listed` and
+`test_cross_tenant_orders_never_leak`.
+
+### Financial Source-of-Truth Behavior
+
+Every financial value is read through an existing, unmodified canonical service —
+`WalletService.get_wallet_or_none()` for the balance, `WalletTransactionService
+.list_transactions()` (sliced to the 10 most recent) for movements. No new financial
+calculation, no new money representation. `available_balance_label` is the wallet's own
+cached, deterministic `balance` field (kept in sync by the existing
+`WalletService.recalculate_balance()`, never recomputed here).
+
+### Wallet Movement Behavior
+
+`WalletMovementRowViewModel` presents `transaction_type`/`amount`/`reason`/`created_at` —
+the same fields the append-only `WalletTransaction` model already exposes, no filtering
+beyond "this wallet's own transactions, newest first, bounded to 10." `metadata` (a JSON
+field that could carry internal-only keys) is deliberately never rendered.
+
+### Bonus/Penalty Behavior
+
+Confirmed, by repository-wide inspection, that no canonical bonus/penalty representation
+exists anywhere — `apps.wallet.models.WalletTransactionType` has CREDIT/DEBIT/REFUND/
+PROMOTION/ADJUSTMENT/MANUAL, none of them a bonus/penalty semantic; the only other
+repository hits for "bonus"/"penalty" are an unrelated matching/discovery ranking-score
+concept and a comment referencing a never-built, reserved-for-a-future-PR
+cancellation-penalty engine. Per this sprint's own explicit governance, no bonus/penalty
+section was built. `FinancialOverviewViewModel.bonus_penalty_note` documents this directly
+in the UI — the recent-movements list above already shows every CREDIT/DEBIT/ADJUSTMENT
+regardless of category, so nothing is hidden, only not specially classified.
+
+### Invoice Summary Behavior
+
+New `FinancialDocumentService.list_for_beneficiary_party()`/
+`count_by_status_for_beneficiary_party()`, mirroring the existing `list_for_payer_party()`
+(the customer/payer side of the exact same `FinancialDocument` model, already used by
+`apps.portal`'s payments page) — filtered by the document's other existing party column,
+`beneficiary_party` (who a document pays out to, set at issue time by
+`FinancialDocumentService._create_document()`, unchanged). Never a new document type or
+status. Verified directly that the customer's own `payer_party` never appears as a
+beneficiary (`test_customer_payer_party_never_appears_as_beneficiary`) and that another
+supplier's documents never leak (`test_another_suppliers_document_never_appears`).
+
+### Reviews/Reputation Behavior
+
+`ReputationService.get_reputation_summary()` (pre-existing, unchanged) for the aggregate;
+new `list_recent_reviews_with_reviewer_names()` for the recent-reviews list — APPROVED-only
+(same filter `ReputationService.recalculate_reputation()` already applies), reviewer name
+resolved via `kernel.Person`, the same resolution `apps.public_site`'s public profile
+already performs. Kept inside `apps.reviews` (not queried directly from
+`apps.provider_portal/views.py`) per ADM-021 Decision 6.
+
+### Statistics Definitions
+
+Every `ProfessionalStatisticsViewModel` field is documented, per-field, with its exact
+source (see that dataclass's own docstrings in `viewmodels.py`):
+
+- `completed_jobs` — `ProviderReportService.get_report_for_supplier().completed_services`:
+  count of CLOSED `ExecutionSession` rows for this supplier (Module 16, pre-existing,
+  unchanged).
+- `active_assignments` — same source: count of ASSIGNED/CONFIRMED `SupplierAssignment` rows.
+- `cancelled_orders` — this sprint's own `WorkSummaryViewModel.cancelled_count`: count of
+  `Order.status == CANCELLED` rows for this supplier (deliberately distinct from
+  `completed_jobs`'s ExecutionSession-based definition — see ADM-021 Decision 3 for why the
+  two "completed" concepts are not forced to agree).
+- `average_rating` — `ReputationSnapshot.average_score`, the same value every other page
+  (including the public profile) already reads.
+- `verified_credential_count` — `PublicCredentialSelector.for_caregiver()`, the same
+  APPROVED/unexpired/applicable-type count Sprint 2.3's public highlights already derive.
+- `visible_skill_count` — `CaregiverSkill` rows with `is_visible=True`, the same definition
+  Sprint 2.3's highlights already use.
+- `visible_gallery_item_count` — `CaregiverGalleryItem` rows with `is_visible=True`, the
+  same definition the public gallery section already uses.
+
+No new stored/duplicated counter was introduced anywhere — every field is a read-only
+derivation over data another canonical service already resolved.
+
+### Files Added
+
+`apps/orders/tests/test_supplier_queries.py`, `apps/finance/tests/test_beneficiary_queries.py`,
+`apps/provider_portal/services/dashboard_service.py`,
+`apps/provider_portal/tests/test_professional_dashboard.py`.
+
+### Files Modified
+
+`apps/orders/services/queries.py`, `apps/finance/services/document_service.py`,
+`apps/reviews/services/reputation_service.py`, `apps/reviews/tests/test_reputation_service.py`,
+`apps/provider_portal/services/viewmodels.py`, `apps/provider_portal/views.py`,
+`templates/provider_portal/dashboard.html` + 16 documentation files. Full list in
+`traceability/FILE_CHANGE_REGISTER.md` (2026-07-15, CL-030) and
+`traceability/CHANGE_LEDGER.md` Entry 030.
+
+### Migration Impact
+
+None. Every new selector reads existing tables/columns (`Order.status`/`assigned_supplier`,
+`FinancialDocument.beneficiary_party`, `Review.supplier`, `WalletTransaction`) — no new
+model, no new field. `makemigrations --check --dry-run` shows only pre-existing, unrelated
+drift.
+
+### UI/Routes
+
+No new routes — `dashboard_view` (`/provider/`) was extended, not duplicated. Template
+gained six new sections (work summary, financial overview, recent wallet movements, invoice
+summary, recent reviews, professional statistics) inside the existing dashboard grid, with
+explicit empty states for each ("کار در حال انجام یا آینده‌ای ندارید", "هنوز کیف پولی...",
+"تراکنشی ثبت نشده است", "فاکتوری ثبت نشده است", "هنوز نظری دریافت نکرده‌اید").
+
+### Security/Privacy
+
+All required proofs verified directly by tests: caregiver sees only their own dashboard
+(`test_each_provider_sees_only_their_own_dashboard`), customer/unrelated-organization-user
+denied 403 (`test_customer_cannot_access_dashboard`,
+`test_unrelated_organization_user_cannot_access_dashboard`), cross-tenant denied
+(`test_cross_tenant_provider_sees_only_their_own_tenant`), financial values scoped to the
+current supplier's own `FinancialParty` (`test_another_providers_wallet_never_appears`,
+`test_another_providers_invoice_never_appears`), other caregivers' orders/invoices/reviews
+never appear (`test_another_providers_orders_never_appear_in_work_summary`,
+`test_another_providers_review_never_appears`), no customer-private fields rendered (only
+order number/service category/status — no elder-profile/customer-phone/address fields
+exist anywhere in the new ViewModels or template), no internal accounting `metadata` field
+rendered, selectors are read-only (`test_dashboard_get_mutates_nothing`, comparing row
+counts before/after a GET), and query counts remain bounded regardless of row count
+(`test_many_wallet_movements_do_not_grow_query_count`).
+
+### Query/Performance Impact
+
+Dashboard query count newly locked at 31 (empty) / 30 (populated with 1 order + up to 20
+wallet transactions — proven not to grow per-row, since every list is bounded/sliced at the
+query level, never fetched unbounded then sliced in Python). No prior baseline existed for
+this expanded page.
+
+### Test Level Decision
+
+Full regression, run exactly once before creating the Sprint 2.5 PR, per this sprint's own
+explicit policy ("multiple domain apps are touched") — `apps.orders`, `apps.finance`,
+`apps.reviews`, and `apps.provider_portal` were all modified. 44 new tests (8
+`apps.orders` + 6 `apps.finance` + 6 `apps.reviews` + 24 `apps.provider_portal`). Level 2
+(`apps.provider_portal` + `apps.orders` + `apps.finance` + `apps.reviews` + `apps.wallet`
+combined): 420/420. Proactive extra check (`apps.booking` + `apps.execution`): 125/125.
+Full regression: 2077/2077 green (2033 baseline + 44 new).
+
+### Deferred (explicitly, recorded)
+
+1. Bonus/penalty — no canonical representation exists; recorded as
+   `quality/DEFECT_AND_RISK_REGISTER.md` KL-020 / `quality/COMPLETION_BACKLOG.md` BG-026's
+   own "not in scope" note, not invented without evidence.
+2. Payouts/withdrawals, accounting exports — explicitly out of this sprint's mandate, no
+   repository infrastructure exists for either.
+3. Company dashboard, customer dashboard expansion — separate, future work (customer
+   dashboard already exists via `apps.portal`, unchanged by this sprint).
+4. Multi-threaded concurrency testing for the dashboard's own read paths — not applicable;
+   `build_for_supplier()` and every selector it calls are read-only, no mutation to race.
+
+### BG-026 Status
+
+**RESOLVED.** Caregiver professional dashboard (work summary, financial overview, wallet
+movements, invoice summary, reviews/reputation, professional statistics) delivered. See
+`quality/COMPLETION_BACKLOG.md` BG-026.

@@ -66,6 +66,7 @@ from .forms import (
     WorkingWindowForm,
 )
 from .permissions import require_authenticated, resolve_supplier, resolve_tenant_id
+from .services.dashboard_service import CaregiverDashboardPresentationService
 from .services.profile_service import (
     DOCUMENT_TYPE_LABELS,
     PROVIDER_DOCUMENT_TYPES,
@@ -101,7 +102,7 @@ def _guard_with_caregiver(request):
 
 @require_http_methods(["GET"])
 def dashboard_view(request):
-    supplier, tenant_id = _guard(request)
+    supplier, tenant_id, caregiver = _guard_with_caregiver(request)
 
     pending_assignments = ProviderAssignmentQueryService.list_for_supplier(
         supplier=supplier,
@@ -128,6 +129,10 @@ def dashboard_view(request):
         recipient_id=request.user.person_id,
     )
 
+    dashboard = CaregiverDashboardPresentationService.build_for_supplier(
+        supplier=supplier, tenant_id=tenant_id, caregiver=caregiver, reputation=reputation, performance=performance,
+    )
+
     context = {
         "supplier": supplier,
         "pending_assignments": pending_assignments,
@@ -138,6 +143,7 @@ def dashboard_view(request):
         "performance": performance,
         "recent_notifications": recent_notifications,
         "unread_notification_count": unread_notification_count,
+        "dashboard": dashboard,
         "nav_items": ProviderProfilePresentationService.build_nav_items(active="dashboard"),
     }
     return render(request, "provider_portal/dashboard.html", context)

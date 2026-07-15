@@ -1125,3 +1125,105 @@ Files changed: `apps/availability/services/mutation_service.py` (locking added),
 locking/mutation code changed), 2033/2033 green (2024 baseline + 9 new). Booking suite not
 re-run — `AvailabilityQueryService`/`is_supplier_available()` (booking's own dependency) were
 not touched by this remediation.
+
+---
+
+## ADM-021: Caregiver Professional Dashboard — Read-Model Architecture and Financial Source Selection (Sprint 2.5)
+
+Decision ID: ADM-021
+Date: 2026-07-15
+Status: RESOLVED_IN_IMPLEMENTATION
+
+**Context:** Sprint 2.5 asked for a caregiver-facing dashboard summarizing current/upcoming/
+completed/cancelled work, a financial overview, wallet movements, bonus/penalty, invoices,
+reviews/reputation, and professional statistics — all read-only, all sourced from canonical
+selectors, none newly invented. Current-state inspection found `apps.provider_portal
+.views.dashboard_view` already existed with a partial version of this (pending assignments,
+active visits, `ProviderReportService` performance stats, reputation, notifications) — this
+sprint completes it rather than replacing it.
+
+**Decision 1 — One canonical, additive read-model ViewModel, not a wrapper around the whole
+page.** `CaregiverDashboardViewModel` (assembled by the new
+`apps.provider_portal.services.dashboard_service.CaregiverDashboardPresentationService`)
+carries only this sprint's five new sections (`work_summary`, `financial_overview`,
+`invoice_summary`, `reputation`, `statistics`) as a single `dashboard` context variable.
+It deliberately does **not** re-wrap `dashboard_view`'s pre-existing, already-tested context
+keys (`pending_assignments`, `active_visits`, `completed_visits`, `recent_notifications`) —
+doing so would have risked silently changing already-passing behavior for no benefit. The
+shape mirrors `apps.portal.services.dashboard_service
+.CustomerDashboardPresentationService` (the customer-side equivalent) exactly: a `build()`
+classmethod that performs no query of its own, fed by a `build_for_supplier()` classmethod
+that does the actual data-gathering — kept in the service layer, not
+`provider_portal/views.py`, so that file stays entirely free of direct model/ORM access
+(its own module docstring's "no ORM access of any kind" rule, which the automated
+`ProviderPortalOrmDisciplineTest` guardrail only partially enforces — it matches `.objects.`
+calls, not related-manager calls like `caregiver.skills.filter(...)`, so this decision holds
+even where the guardrail itself would not have caught a violation).
+
+**Decision 2 — Work summary keys off `Order.status`, not `SupplierAssignment`/
+`ExecutionSession` state.** Two new methods were added to the existing, canonical
+`apps.orders.services.queries.OrderQueryService` (never a new query service):
+`list_for_supplier()` (mirrors `list_for_customer()`'s exact shape) and
+`count_by_status_for_supplier()` (one aggregate query). `Order.status` was chosen as the
+single source of truth for "current/upcoming/completed/cancelled" because it is the same
+field `apps.portal`'s customer dashboard already uses for the identical grouping (parity
+across both portals), and because it is what `apps.execution.services.session_service`
+itself transitions via `apps.orders.services.status_machine.start_order()`/
+`complete_order()` — not a second, independently-derived status. No new status values were
+invented; the four groupings map directly onto `OrderStatus.IN_PROGRESS`/`WAITING_SERVICE`/
+`COMPLETED`/`CANCELLED`.
+
+**Decision 3 — Professional statistics deliberately reuse two different, already-canonical
+"completed" definitions without forcing them to agree.** `ProfessionalStatisticsViewModel
+.completed_jobs` reuses `apps.reporting.services.provider_report_service
+.ProviderReportService.get_report_for_supplier()` (CLOSED `ExecutionSession` count — a
+pre-existing, Module 16 definition, unchanged) rather than the new Order-status-based
+`WorkSummaryViewModel.completed_count`. Both are legitimate, independently-canonical counts
+of two related-but-distinct things (an Order reaching status COMPLETED vs. an
+ExecutionSession reaching status CLOSED); forcing them to share one number would have meant
+silently redefining one of the two pre-existing, tested contracts. Documented explicitly per
+field (see `ProfessionalStatisticsViewModel`'s own field-level docstrings) rather than left
+ambiguous.
+
+**Decision 4 — Bonus/penalty: no canonical representation exists, so none was built.**
+Confirmed by inspection (grep across the entire repository) that no dedicated bonus/penalty
+model, field, or `WalletTransactionType` value exists — `apps.wallet.models
+.WalletTransactionType` has CREDIT/DEBIT/REFUND/PROMOTION/ADJUSTMENT/MANUAL, none carrying a
+bonus/penalty semantic, and the only other repository-wide hits for "bonus"/"penalty" are an
+unrelated matching/discovery ranking-score concept and a comment referencing a
+never-built, reserved-for-a-future-PR cancellation-penalty engine. Per this sprint's own
+explicit governance ("if no canonical representation exists, do not invent one"), no
+bonus/penalty section was built. `FinancialOverviewViewModel.bonus_penalty_note` documents
+this gap directly in the UI rather than presenting an invented CREDIT/DEBIT-based
+classification as fact — the existing, unfiltered recent-wallet-movements list already shows
+every CREDIT/DEBIT/ADJUSTMENT regardless of category.
+
+**Decision 5 — Invoice summary reuses `FinancialDocument`'s existing `beneficiary_party`
+side via a new, mirrored selector.** `apps.finance.services.document_service
+.FinancialDocumentService` already had `list_for_payer_party()` (the customer/payer side,
+used by `apps.portal`'s own payments page) but no equivalent for the beneficiary side (who a
+document pays out to — a caregiver's own `FinancialParty`, resolved the same way
+`apps.provider_portal.views.earnings_view` already resolves it for the wallet). Added
+`list_for_beneficiary_party()` and `count_by_status_for_beneficiary_party()`, mirroring the
+payer-side method's exact shape — not a new financial calculation, the identical
+`FinancialDocument` rows every other invoice view already reads, filtered by the other of
+its two existing party columns.
+
+**Decision 6 — Recent reviews resolved inside `apps.reviews`, not queried directly from
+`apps.provider_portal`.** `apps.public_site.services.profile_service
+.CaregiverPublicProfileService._reviews()` already queries `Review`/`Person` directly (both
+are unrestricted by `ServiceSupplierProfileCouplingTest`, unlike `CaregiverProfile`/
+`OrganizationProfile`) — but `apps.provider_portal/views.py` holds itself to a stricter,
+self-declared "no ORM access of any kind" standard than the automated guardrail technically
+enforces (see Decision 1). `ReputationService.list_recent_reviews_with_reviewer_names()` was
+added to keep that promise literal, not just guardrail-compliant.
+
+**Consequences:** Zero new models, zero new migrations — every new method is a read-only
+extension of an already-existing, canonical query service
+(`OrderQueryService`/`FinancialDocumentService`/`ReputationService`), never a new query
+service or a new business calculation. `apps.provider_portal/views.py` gains zero new direct
+model/ORM references. Dashboard query count newly locked at 31 (empty) / 30 (populated with
+1 order + up to 20 wallet transactions, proven not to grow with row count) — no prior
+baseline existed for this expanded page. 44 new tests across `apps.orders` (8),
+`apps.finance` (6), `apps.reviews` (6), and `apps.provider_portal` (24). Full regression run
+once (multiple domain apps touched), 2077/2077 green (2033 baseline + 44 new).

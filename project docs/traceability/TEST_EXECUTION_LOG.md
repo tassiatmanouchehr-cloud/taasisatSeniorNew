@@ -666,3 +666,36 @@ database state rather than only the raised/absent exception. Zero regressions in
 pre-existing tests. Zero new migration — `makemigrations --check --dry-run` drift
 unchanged from the pre-remediation baseline (only the pre-existing, unrelated
 `kernel.ServiceSupplier`/`UserAccount` field drift).
+
+## Run 021 — Sprint 2.5: Caregiver Professional Dashboard
+
+```
+Branch: phase2-caregiver-professional-dashboard (from main @ 125dd3b, PR #9 merged)
+Settings module: config.settings.testing
+Python: 3.11.15  |  Django: 5.2.16  |  PostgreSQL: 16.13
+Date/time: 2026-07-15
+```
+
+| Command | Exit code | Result |
+|---------|-----------|--------|
+| `python manage.py check` | 0 | System check identified no issues |
+| `apps.orders.tests.test_supplier_queries` | 0 | 8/8 |
+| `apps.finance.tests.test_beneficiary_queries` | 0 | 6/6 |
+| `apps.reviews.tests.test_reputation_service.ListRecentReviewsWithReviewerNamesTest` | 0 | 6/6 |
+| `apps.provider_portal.tests.test_professional_dashboard` | 0 | 24/24 |
+| `apps.provider_portal apps.orders apps.finance apps.reviews apps.wallet` (Level 2 — directly affected) | 0 | 420/420 |
+| `apps.booking apps.execution` (proactive extra check) | 0 | 125/125 |
+| `python manage.py makemigrations --check --dry-run` | 1 | Pre-existing cosmetic drift only, unchanged; no schema change this sprint |
+| **Full regression (multiple domain apps touched: orders, finance, reviews, provider_portal)** | **0** | **Ran 2077 tests — OK** (2033 baseline + 44 new) |
+
+**Test level used:** Full regression, run exactly once before creating the Sprint 2.5 PR,
+per this sprint's own explicit policy ("run full regression exactly once before PR creation
+if... multiple domain apps are touched") — `apps.orders`, `apps.finance`, `apps.reviews`,
+and `apps.provider_portal` were all modified.
+
+**Classification:** GREEN — all 44 new tests pass, zero regressions in 2033 pre-existing
+tests. Zero new migration — `makemigrations --check --dry-run` drift unchanged from the
+pre-sprint baseline (only the pre-existing, unrelated `kernel.ServiceSupplier`/
+`UserAccount` field drift). Dashboard query count newly locked at 31 (empty)/30 (populated,
+proven not to grow with row count up to 20 wallet transactions) — no prior baseline existed
+for this expanded page.
