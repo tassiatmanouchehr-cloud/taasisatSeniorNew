@@ -1220,3 +1220,59 @@ Rollback method: git revert of the branch's commit(s); no data migration to reve
 Status: Complete — branch phase2-caregiver-public-profile-finalization (from main @ 9a26024,
   PR #10 merged), PR to be created, NOT merged
 ```
+
+## Entry 032
+
+```
+Change ID: CL-032
+Date/time: 2026-07-15 (Sprint 2.6 — PR #11 architecture review remediation; same branch,
+  same PR, no new branch/PR per governance)
+Task: Resolve the KL-012 query-performance blocker — PR #11 review found the directory/home
+  query-count measurement (CL-031/Run 022) inconsistent with the "query behavior is bounded"
+  and "no unresolved Phase 2 blocker" acceptance criteria it was reported under
+Reason: Phase 2 acceptance requires genuinely bounded query behavior, not merely measured
+  and documented growth; architecture review determined the growth was fixable without
+  redesigning ranking semantics
+Files added: None
+Files modified:
+  src/apps/availability/services/capacity_service.py (+bulk_is_capacity_exceeded())
+  src/apps/discovery/services/ranking_service.py (rank()/_score()/_capacity_bonus() now use
+    the precomputed capacity map instead of one is_capacity_exceeded() call per candidate)
+  src/apps/discovery/services/search_service.py (_matches_city() replaced by
+    _filter_by_city(), which uses resolve_supplier_entities_bulk() instead of one
+    resolve_supplier_entity() call per candidate)
+  src/apps/reviews/services/reputation_service.py (+get_reputation_summaries_bulk())
+  src/apps/public_site/services/common.py (+completed_jobs_counts_bulk(),
+    +rating_summaries_bulk())
+  src/apps/public_site/services/directory_service.py (_build_card() now takes a
+    precomputed card_data map; new _bulk_card_data() computes it once per search()/
+    featured() call instead of per built card)
+  src/apps/public_site/tests/test_phase2_acceptance.py (Phase2QueryBudgetAcceptanceTest
+    expanded from 3 to 15 methods — flat-query-count proofs for directory/text-search/
+    category-filter/city-filter/home-featured, plus pagination/hidden-exclusion/rating/
+    service-category/ranking-order/no-private-data/detail-page correctness proofs)
+  project docs/quality/DEFECT_AND_RISK_REGISTER.md (KL-012 marked RESOLVED)
+  project docs/quality/COMPLETION_BACKLOG.md (BG-022 entry's KL-012 note updated)
+  project docs/* (multiple) — doc sync, see IMPLEMENTATION_JOURNAL
+Files deleted: None
+Database impact: None.
+Migration impact: None — new query-batching code only; no model/field touched.
+  makemigrations --check confirmed only pre-existing, unrelated drift.
+Security/privacy impact: None. No change to eligibility rules, ranking weights, filter
+  semantics, or public-visibility policy — proven by the full pre-existing
+  apps.discovery/apps.availability/apps.reviews suites passing unmodified, plus a new
+  explicit ranking-order test.
+Financial impact: None.
+Tests executed: check (0), makemigrations --check (pre-existing drift only), focused
+  expanded query-budget suite (15/15), complete apps.public_site (151/151), other affected
+  suites (apps.discovery + apps.availability + apps.reviews + apps.booking +
+  apps.organization_portal + apps.provider_portal + apps.accounts, 763/763 combined), full
+  regression 2094/2094 (exit 0, run once)
+Result: Success — directory/search/home query counts now fully flat (16/17/17) from 1
+  through 100+ matching candidates (previously 28-57/29-58/27-42 depending on surface and
+  candidate count); KL-012 RESOLVED; zero regressions; zero new migration; Phase 2 query
+  bounded-behavior acceptance criterion now genuinely satisfied, not merely documented
+Rollback method: git revert of the remediation commit; no data migration to reverse
+Status: Complete — branch phase2-caregiver-public-profile-finalization, PR #11 updated,
+  NOT merged
+```

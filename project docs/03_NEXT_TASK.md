@@ -445,10 +445,10 @@ routes; domain engines explicitly not redesigned:
   (`apps.accounts.tests.test_caregiver_professional_profile`).
 - Measured and documented (Section G): query counts for all 7 required
   pages — public profile (15, bounded), directory (28/43/57 at 5/10/20
-  candidates — grows with total candidates, KL-012, not fixed, a shared
-  ranking-engine limitation out of scope), home featured (27/32/42, same
-  cause), provider dashboard (30/31, pre-existing, bounded), provider
-  profile-management (15, pre-existing, bounded).
+  candidates — grows with total candidates, KL-012, initially left
+  unfixed), home featured (27/32/42, same cause), provider dashboard
+  (30/31, pre-existing, bounded), provider profile-management (15,
+  pre-existing, bounded).
 - New `apps.public_site.tests.test_phase2_acceptance` (5 tests): a full
   DRAFT-to-published caregiver lifecycle proving activation, bio edit,
   skill/experience/gallery visibility, availability, credential approval,
@@ -457,44 +457,61 @@ routes; domain engines explicitly not redesigned:
 - Deferred, recorded, not fixed (out of this sprint's caregiver-only
   scope): identical SEO bug on `organization_profile.html` (KL-021/
   BG-027); the same unassociated-label pattern in `organization_portal`/
-  `admin_portal`/`portal` templates; the KL-012 ranking N+1 (quantified,
-  not fixed — a shared `apps.discovery` engine change).
+  `admin_portal`/`portal` templates.
 
 Zero new migration, full regression 2082/2082 green (run twice: once
 surfacing the unrelated flaky test, once green after the fix). Branch
-`phase2-caregiver-public-profile-finalization`, PR created — see
-`traceability/IMPLEMENTATION_JOURNAL.md`, `ARCHITECTURE_DECISION_LOG.md`
-ADM-022, and `project docs/PHASE_2_COMPLETION_REPORT.md`. **Phase 2
-(Caregiver Professional Profile) acceptance criteria satisfied**, except
-the one explicitly accepted external-domain dependency (no canonical
-bonus/penalty representation, KL-020). **Not merged — awaiting review.**
+`phase2-caregiver-public-profile-finalization`, PR #11 created.
+
+**PR #11 review remediation (KL-012, 2026-07-15):** review found the
+directory/home query-count growth reported above inconsistent with the
+"query behavior is bounded" and "no unresolved Phase 2 blocker" acceptance
+criteria it was cited to satisfy. Root cause: three independent
+per-candidate query calls — `DiscoveryRankingService`'s per-candidate
+`CapacityService.is_capacity_exceeded()` inside ranking,
+`SupplierSearchService`'s per-candidate `resolve_supplier_entity()` inside
+its city filter, and `CaregiverDirectoryService._build_card()`'s
+per-card rating/completed-jobs lookups. Fixed by batching all three at
+their own selector boundary (`CapacityService.bulk_is_capacity_exceeded()`,
+the pre-existing `resolve_supplier_entities_bulk()`, and two new bulk
+rating/completed-jobs methods) — zero change to ranking formula, sort
+order, filter semantics, or public-visibility policy. Directory/search/
+home query counts are now fully flat (16/17/17) from 1 through 100+
+matching candidates. 12 new tests, zero new migration, full regression
+2094/2094 green. See `traceability/IMPLEMENTATION_JOURNAL.md`,
+`ARCHITECTURE_DECISION_LOG.md` ADM-022's remediation note, and
+`project docs/PHASE_2_COMPLETION_REPORT.md`. **Phase 2 (Caregiver
+Professional Profile) acceptance criteria satisfied**, except the one
+explicitly accepted external-domain dependency (no canonical
+bonus/penalty representation, KL-020). **PR #11 not merged — awaiting
+review.**
 
 ---
 
 ## IMMEDIATE NEXT TASK
 
-### Await review of the Sprint 2.6 PR; do not start Phase 3 automatically
+### Await review of PR #11; do not start Phase 3 automatically
 
 Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active implementation
 order).
 
 Phase 1, Phase 2.1 (+ BG-022), Sprint 2.2 (+ PR #7 remediation), Sprint
 2.3, Sprint 2.4 (+ PR #9 concurrency remediation), and Sprint 2.5 (+ PR
-#10) are fully closed and merged to `main`. Sprint 2.6 (this session's
-work) completes roadmap Phase 2 — remaining, explicitly NOT started by
-this task:
+#10) are fully closed and merged to `main`. Sprint 2.6 + its PR #11
+KL-012 remediation (this session's work) completes roadmap Phase 2 —
+remaining, explicitly NOT started by this task:
 
 1. Phase 3 — Company Portal (staff management, caregiver management,
    invitation system, approval/removal, company financial overview,
    company public profile parity) — not started.
-2. Known, recorded during BG-022's remediation, re-measured and quantified
-   during Sprint 2.6 (still not fixed): a pre-existing per-candidate
-   query cost in directory ranking/card-building
-   (`DiscoveryRankingService.rank()`, `CaregiverDirectoryService
-   ._build_card()`) — see `quality/DEFECT_AND_RISK_REGISTER.md` KL-012
-   and `ARCHITECTURE_DECISION_LOG.md` ADM-022 Decision 4 (a shared
-   `apps.discovery` domain-engine change, out of scope for a
-   profile-integration sprint).
+2. ~~Known, recorded during BG-022's remediation~~ — **RESOLVED (PR #11
+   remediation, 2026-07-15):** the pre-existing per-candidate query cost
+   in directory ranking/card-building (`DiscoveryRankingService.rank()`,
+   `SupplierSearchService.filter_suppliers()`'s city filter,
+   `CaregiverDirectoryService._build_card()`) is fixed via bulk selector
+   methods — see `quality/DEFECT_AND_RISK_REGISTER.md` KL-012 (now
+   RESOLVED) and `ARCHITECTURE_DECISION_LOG.md` ADM-022's remediation
+   note.
 3. Known, recorded during Sprint 2.3: `CaregiverSkill.name` remains
    free-text with no catalog/normalization — see
    `quality/DEFECT_AND_RISK_REGISTER.md` KL-016, deferred (a future

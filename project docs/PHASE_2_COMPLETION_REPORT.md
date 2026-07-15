@@ -26,7 +26,15 @@ Sprint 2.6 closes Phase 2 as an integration/quality/privacy/accessibility/perfor
 sprint: it did not add new capability, it proved the existing capability composes correctly,
 fixed the accessibility/SEO/redundant-claim defects found while proving it, measured query
 behavior across every caregiver-related page, and confirmed the existing cache and API
-surfaces need no change for Phase 2 to be considered complete.
+surfaces need no change for Phase 2 to be considered complete. A PR #11 architecture review
+found the initial query-count measurement inconsistent with the "bounded" and "no unresolved
+blocker" acceptance criteria it was cited to satisfy — the directory/home pages' query counts
+genuinely scaled with total matching-candidate count (KL-012), not just page size. That
+review's remediation, folded into this same PR, batched the three per-candidate query
+sources at their canonical selector boundaries (ranking's capacity check, search's city
+filter, and card-building's rating/completed-jobs lookups) without changing ranking
+semantics, filter behavior, or public-visibility policy — collapsing directory/search/home
+query counts to a fully flat count regardless of candidate count. KL-012 is now RESOLVED.
 
 **Phase 2 acceptance criteria are satisfied**, with one explicitly accepted external-domain
 dependency: no canonical bonus/penalty representation exists anywhere in this repository
@@ -92,10 +100,18 @@ schema-touching code at all (Sprint 2.6: templates, tests, documentation only).
   .list_recent_reviews_with_reviewer_names()` (Sprint 2.5)
 - `common.is_publicly_visible_attrs()` (BG-022 remediation, Phase 2.1) — the single
   canonical public-visibility function every public surface routes through
+- `CapacityService.bulk_is_capacity_exceeded()` (`apps.availability`),
+  `SupplierSearchService._filter_by_city()` (`apps.discovery`, replacing an inline
+  per-candidate check), `ReputationService.get_reputation_summaries_bulk()`
+  (`apps.reviews`), `common.completed_jobs_counts_bulk()`/`common.rating_summaries_bulk()`
+  (`apps.public_site`) — all Sprint 2.6 PR #11 remediation, batching the three per-candidate
+  query sources KL-012 identified, at their canonical selector boundaries, with zero change
+  to ranking/filter semantics or public-visibility policy
 
-No new services/selectors added in Sprint 2.6 — it fixed template-level defects
-(`caregiver_profile.html` and 4 `provider_portal` templates) in existing presentation logic
-and added one new cross-app test file.
+Sprint 2.6's initial pass fixed only template-level defects. Its PR #11 remediation pass
+added the four bulk selector methods above (in `apps.availability`, `apps.discovery`,
+`apps.reviews`, and `apps.public_site`) to resolve the KL-012 query-performance blocker —
+see Section 11.
 
 ---
 
@@ -236,9 +252,9 @@ All 7 pages required by this sprint's governance measured directly (via `assertN
 |---|---|---|
 | Empty public profile | 15 | Bounded (pre-existing test) |
 | Populated public profile | 15 | Bounded — proven not to grow with skill/experience/credential/gallery count |
-| Directory (many caregivers) | 28 / 43 / 57 at 5 / 10 / 20 matching candidates | Grows with total matching candidates before pagination — `DiscoveryRankingService.rank()` (KL-012), a shared `apps.discovery` domain-engine limitation, not fixed this sprint |
-| Search with filters | Same service as directory; correct results, output page bounded to `PAGE_SIZE=12` | New test proves correctness at scale |
-| Home featured providers | 27 / 32 / 42 at the same candidate counts | Same KL-012 cause; output capped at 4 cards regardless of candidate count |
+| Directory (many caregivers) | 16, flat from 1 to 100+ matching candidates | **RESOLVED (KL-012, PR #11 remediation)** — previously 28/43/57 at 5/10/20 candidates; now fully flat |
+| Search with filters | 17, flat from 1 to 100+ matching candidates | **RESOLVED** — same batching applies; output page still bounded to `PAGE_SIZE=12` |
+| Home featured providers | 17, flat from 1 to 100+ matching candidates | **RESOLVED** — previously 27/32/42; output capped at 4 cards regardless of candidate count |
 | Provider dashboard | 30 (populated) / 31 (empty) | Bounded (Sprint 2.5), proven not to grow with wallet-transaction count |
 | Provider profile-management page | 15 | Bounded (pre-existing), proven not to grow with document/order count |
 
@@ -246,10 +262,22 @@ The dashboard's ~30-query count was reviewed for safe consolidation opportunity 
 sprint's own governance note; no consolidation was applied, because the queries are already
 bounded/non-growing and any further reduction would require coupling the financial, order,
 invoice, wallet, and reviews domains into a single cross-domain query — an inappropriate
-coupling this sprint's governance explicitly warns against. Directory/home's KL-012 growth
-was measured and quantified this sprint (previously only qualitatively documented) but not
-fixed, since fixing it requires changing `apps.discovery`'s shared ranking engine — out of
-scope for a profile-integration sprint that explicitly forbids redesigning domain engines.
+coupling this sprint's governance explicitly warns against.
+
+**KL-012 resolution (PR #11 remediation):** the directory/search/home query-count growth was
+initially measured and quantified but left unfixed, on the premise that fixing it required
+redesigning `apps.discovery`'s shared ranking engine. A subsequent architecture review found
+that premise wrong: the actual root cause was three independent per-candidate query calls
+(one inside `DiscoveryRankingService`'s capacity scoring, one inside
+`SupplierSearchService`'s city filter, one inside `CaregiverDirectoryService`'s card
+building) that could each be batched at their own selector boundary — via
+`CapacityService.bulk_is_capacity_exceeded()`, the pre-existing
+`resolve_supplier_entities_bulk()`, and two new bulk rating/completed-jobs methods,
+respectively — without touching the ranking formula, scoring weights, sort order, filter
+semantics, or public-visibility policy at all. Directory/search/home query counts are now
+fully flat (16/17/17) from 1 through 100+ matching candidates, proven by 12 new tests. See
+`ARCHITECTURE_DECISION_LOG.md` ADM-022's remediation note and
+`quality/DEFECT_AND_RISK_REGISTER.md` KL-012 (now RESOLVED).
 
 Caching: no new cache introduced. A real, production-configured cache exists (Redis with
 LocMemCache fallback), but its only existing usage is narrow config/feature-flag caching
@@ -268,16 +296,25 @@ ADM-022 Decision 2.
 | Sprint 2.3 | 36 | 1984/1984 |
 | Sprint 2.4 (+ PR #9 concurrency remediation) | 49 | 2033/2033 |
 | Sprint 2.5 | 44 | 2077/2077 |
-| Sprint 2.6 | 5 (+ 1 pre-existing test fixed) | 2082/2082 |
-| **Phase 2 total new tests** | **258** | — |
+| Sprint 2.6 (initial) | 5 (+ 1 pre-existing test fixed) | 2082/2082 |
+| Sprint 2.6 (PR #11 remediation — KL-012) | 12 | 2094/2094 |
+| **Phase 2 total new tests** | **270** | — |
 
-Sprint 2.6 test levels: `manage.py check` (0), focused new file
+Sprint 2.6 initial test levels: `manage.py check` (0), focused new file
 (`apps.public_site.tests.test_phase2_acceptance`, 5/5), directly affected apps
 (`apps.public_site` + `apps.provider_portal`, 270/270), `apps.accounts` (368/368, the app
 containing the fixed pre-existing test), full regression run twice — once surfacing a
 genuinely pre-existing, environment-clock-dependent flaky failure unrelated to this sprint's
 own changes (`test_expired_document_does_not_appear`, diagnosed and fixed in one line), once
 green (2082/2082).
+
+Sprint 2.6 PR #11 remediation test levels (KL-012 resolution): `manage.py check` (0),
+`makemigrations --check` (only pre-existing unrelated drift), focused expanded query-budget
+suite (`Phase2QueryBudgetAcceptanceTest`, 15/15, up from 3), complete `apps.public_site`
+(151/151), other affected suites whose production selectors changed (`apps.discovery`,
+`apps.availability`, `apps.reviews`, `apps.booking`, `apps.organization_portal`,
+`apps.provider_portal`, `apps.accounts` — 763/763 combined), full regression run once
+(2094/2094).
 
 ---
 
@@ -310,37 +347,32 @@ All explicitly recorded, none silently dropped:
 2. **Organization-profile SEO `page_url` bug (KL-021 / BG-027)** — identical to the
    caregiver-profile bug fixed this sprint; deliberately left unfixed, out of caregiver-only
    scope.
-3. **Directory/home ranking-engine N+1 (KL-012)** — measured and quantified this sprint, not
-   fixed; a shared `apps.discovery` domain-engine change, explicitly out of scope.
-4. **Unassociated-`<label>` pattern in `organization_portal`/`admin_portal`/`portal`
+3. **Unassociated-`<label>` pattern in `organization_portal`/`admin_portal`/`portal`
    templates** — out of caregiver-profile-only scope.
-5. **Skill catalog/normalization (KL-016)** — `CaregiverSkill.name` remains free-text; a
+4. **Skill catalog/normalization (KL-016)** — `CaregiverSkill.name` remains free-text; a
    future modeling decision, not a UI-completion task.
-6. **Per-caregiver time zone (KL-018 / BG-024)** — platform-default time zone used
+5. **Per-caregiver time zone (KL-018 / BG-024)** — platform-default time zone used
    throughout; no evidence of multi-time-zone demand.
-7. **Gallery orphan-file cleanup/retry (KL-014)** and **fixed, non-tenant-configurable image
+6. **Gallery orphan-file cleanup/retry (KL-014)** and **fixed, non-tenant-configurable image
    dimension limits (KL-015)** — both deliberate simplicity choices from Sprint 2.2.
-8. **Production media storage strategy** (local `FileField`, no S3/CDN) — a pre-existing,
+7. **Production media storage strategy** (local `FileField`, no S3/CDN) — a pre-existing,
    unresolved roadmap-level dependency, unchanged by any Phase 2 sprint.
-9. **Extended financial reporting/exports and full orders-history pages** (remaining BG-021
+8. **Extended financial reporting/exports and full orders-history pages** (remaining BG-021
    scope) — Company/Reporting-Portal-scale features, explicitly outside Phase 2's own
    caregiver-public-profile mandate.
-10. **New public API for caregiver profiles** — reviewed (Section I), not required by any
-    current flow; existing public HTML surfaces already serve the need.
-11. **Caching layer** — reviewed (Section H), no proven performance blocker; existing cache
+9. **New public API for caregiver profiles** — reviewed (Section I), not required by any
+   current flow; existing public HTML surfaces already serve the need.
+10. **Caching layer** — reviewed (Section H), no proven performance blocker; existing cache
     infra's established pattern does not fit per-request read models without a broader
     invalidation design.
+
+**KL-012 (directory/home ranking-engine N+1) is no longer deferred — it was resolved inside
+PR #11's remediation pass (see Section 11).**
 
 ---
 
 ## 15. Remaining Risks
 
-- **KL-012 (directory/home ranking N+1)** is the most significant remaining performance
-  risk: query count grows linearly with total matching candidates before pagination, not
-  just page size. At the scales measured (5/10/20 candidates), this stays well within a
-  single request's practical budget, but it has not been measured at production-realistic
-  candidate counts (hundreds+) and would eventually require a `apps.discovery` ranking-engine
-  change to bound.
 - **Bonus/penalty (KL-020)** remains a genuine financial-domain modeling gap; any future
   attempt to surface caregiver bonuses/penalties on the dashboard requires a prior
   Financial Engine Review, not an extension of the current wallet/transaction model.
@@ -350,8 +382,16 @@ All explicitly recorded, none silently dropped:
 - **Accessibility** fixes this sprint were scoped to caregiver-profile templates only; the
   same defect patterns exist elsewhere in the repository and will resurface in any future
   accessibility audit of those other portals.
+- **New bulk selector methods** (`CapacityService.bulk_is_capacity_exceeded()`,
+  `SupplierSearchService._filter_by_city()`, `ReputationService
+  .get_reputation_summaries_bulk()`, `common.completed_jobs_counts_bulk()`/
+  `rating_summaries_bulk()`) are new surface area, each covered by the existing per-app test
+  suites (`apps.discovery`, `apps.availability`, `apps.reviews`) passing unchanged plus new
+  ranking-order/correctness tests — low risk, but worth noting as new code introduced by the
+  PR #11 remediation, not present in the original Sprint 2.6 diff.
 
-No new critical or high-severity risk was introduced by Phase 2 as a whole.
+No new critical or high-severity risk was introduced by Phase 2 as a whole. KL-012, the
+previously most significant remaining performance risk, is resolved (see Section 11).
 
 ---
 
@@ -375,10 +415,10 @@ No new critical or high-severity risk was introduced by Phase 2 as a whole.
 | 14 | Financial values use canonical sources | ✅ Satisfied (Sprint 2.5 — `WalletService`/`FinancialDocumentService`, no new calculation) |
 | 15 | Private data remains private | ✅ Satisfied (Section 8/9 above; direct content-level proof added Sprint 2.6) |
 | 16 | Owner mutation boundaries are enforced | ✅ Satisfied (every service re-verifies ownership per-row) |
-| 17 | Query behavior is bounded | ✅ Satisfied except KL-012 (measured, quantified, documented — a pre-existing, shared-engine limitation, not a caregiver-profile defect) |
+| 17 | Query behavior is bounded | ✅ Satisfied — KL-012 resolved (PR #11 remediation): directory/search/home query counts are fully flat regardless of candidate count |
 | 18 | Accessibility review is complete | ✅ Satisfied for caregiver-profile scope (Sprint 2.6) |
 | 19 | Documentation is synchronized | ✅ Satisfied (Section 13) |
-| 20 | Full tests are green | ✅ Satisfied (2082/2082) |
+| 20 | Full tests are green | ✅ Satisfied (2094/2094, after the PR #11 KL-012 remediation) |
 | 21 | No unresolved Phase 2 blocker remains | ✅ Satisfied — the only open item (bonus/penalty, KL-020) is an explicitly accepted external-domain dependency, not a profile-completion blocker |
 
 **PHASE 2 (CAREGIVER PROFESSIONAL PROFILE) IS COMPLETE**, with the bonus/penalty

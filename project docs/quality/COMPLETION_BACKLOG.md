@@ -233,7 +233,10 @@ note and `traceability/IMPLEMENTATION_JOURNAL.md`.
 **Not in scope (found during remediation, tracked separately):** a pre-existing, unrelated
 per-candidate N+1 in directory ranking/card-building (`DiscoveryRankingService.rank()`,
 `CaregiverDirectoryService._build_card()`) — see `quality/DEFECT_AND_RISK_REGISTER.md`
-KL-012.
+KL-012. **Update (2026-07-15, Sprint 2.6 PR #11 remediation): KL-012 is now RESOLVED** —
+batched via `CapacityService.bulk_is_capacity_exceeded()`, `resolve_supplier_entities_bulk()`
+(reused in `SupplierSearchService`'s city filter), and new bulk rating/completed-jobs
+methods; see `ARCHITECTURE_DECISION_LOG.md` ADM-022's remediation note.
 
 ### BG-023: Professional Credibility Layer — Precise Badges, Skill/Experience Visibility, Highlights — **RESOLVED**
 

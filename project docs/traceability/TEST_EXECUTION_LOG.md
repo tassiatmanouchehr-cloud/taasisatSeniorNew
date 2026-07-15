@@ -756,3 +756,39 @@ at 5/10/20 matching candidates; home featured 27/32/42 queries at the same candi
 Public profile detail page: 15 queries (bounded, does not grow — pre-existing test,
 re-confirmed). Provider dashboard: 30/31 queries (pre-existing, Sprint 2.5). Provider
 profile-management page: 15 queries (pre-existing, bounded).
+
+## Run 023 — Sprint 2.6 PR #11 Review Remediation: Resolve KL-012 Query-Performance Blocker
+
+```
+Branch: phase2-caregiver-public-profile-finalization (same branch, PR #11 review remediation)
+Settings module: config.settings.testing
+Python: 3.11.15  |  Django: 5.2.16  |  PostgreSQL: 16.13
+Date/time: 2026-07-15
+```
+
+| Command | Exit code | Result |
+|---------|-----------|--------|
+| `python manage.py check` | 0 | System check identified no issues |
+| `python manage.py makemigrations --check --dry-run` | 1 | Pre-existing cosmetic drift only, unchanged; no schema change this remediation |
+| `apps.discovery apps.availability apps.accounts.tests.test_supplier_bridge apps.booking.tests.test_availability_integration` (pre-fix behavior-preservation check) | 0 | 125/125 |
+| `apps.public_site.tests.test_phase2_acceptance` (expanded query-budget suite, focused) | 0 | 17/17 (15 in `Phase2QueryBudgetAcceptanceTest`, up from 3) |
+| `apps.public_site` (complete suite) | 0 | 151/151 |
+| `apps.discovery apps.availability apps.reviews apps.booking apps.organization_portal apps.provider_portal apps.accounts` (other affected suites — production selectors changed in each) | 0 | 763/763 |
+| **Full regression (run once)** | **0** | **Ran 2094 tests — OK** (2082 baseline + 12 new) |
+
+**Test level used:** Full regression, run exactly once, per this remediation's own policy
+("run the full repository suite exactly once after the final fix ... because production
+query/selectors will likely change and this is Phase 2 final acceptance"). `apps.public_site`
+run complete; every other app whose production selector code changed
+(`apps.availability`, `apps.discovery`, `apps.reviews`) plus their direct consumers
+(`apps.booking`, `apps.organization_portal`, `apps.provider_portal`) and the file containing
+the earlier test fix (`apps.accounts`) were all run directly in addition to the full suite.
+
+**Classification:** GREEN — 2094/2094, zero regressions. Zero new migration. Directory,
+filtered search (text + city), and home-featured query counts are now genuinely flat — not
+merely bounded with a high ceiling — measured at every candidate count from 1 through 100+:
+directory 16, filtered search 17, home featured 17 (previously 28-57 / 29-58 / 27-42
+depending on surface and candidate count). Public profile detail page, provider dashboard,
+and provider profile-management page counts are unchanged (15 / 30-31 / 15 respectively —
+none of their underlying selectors were touched by this remediation). KL-012 is RESOLVED.
+See `ARCHITECTURE_DECISION_LOG.md` ADM-022's remediation note.

@@ -59,6 +59,35 @@ class ReputationService:
         }
 
     @classmethod
+    def get_reputation_summaries_bulk(cls, supplier_ids) -> dict:
+        """Batched counterpart of get_reputation_summary() — one query
+        regardless of how many supplier_ids are passed, for callers (e.g.
+        the caregiver directory/home card-building path) that need this
+        for many suppliers in one pass instead of one query per supplier.
+        Missing suppliers (no ReputationSnapshot row yet) resolve to the
+        same {"review_count": 0, "average_score": None} the single-
+        supplier method returns."""
+        supplier_ids = list(supplier_ids)
+        if not supplier_ids:
+            return {}
+
+        snapshots_by_supplier_id = {
+            snapshot.supplier_id: snapshot
+            for snapshot in ReputationSnapshot.objects.filter(supplier_id__in=supplier_ids)
+        }
+        return {
+            supplier_id: (
+                {
+                    "review_count": snapshots_by_supplier_id[supplier_id].review_count,
+                    "average_score": snapshots_by_supplier_id[supplier_id].average_score,
+                }
+                if supplier_id in snapshots_by_supplier_id
+                else {"review_count": 0, "average_score": None}
+            )
+            for supplier_id in supplier_ids
+        }
+
+    @classmethod
     def list_recent_reviews_with_reviewer_names(cls, supplier, *, limit=5):
         """Sprint 2.5 (Caregiver Professional Dashboard) — the same
         APPROVED-only, reviewer-name-resolved shape

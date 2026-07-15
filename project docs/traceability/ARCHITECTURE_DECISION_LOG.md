@@ -1316,3 +1316,71 @@ routes). One new cross-app acceptance test file
 2082/2082 full regression green (2077 baseline + 5 new). See
 `quality/DEFECT_AND_RISK_REGISTER.md` KL-012 and KL-021, `quality/COMPLETION_BACKLOG.md`
 BG-027, and `project docs/PHASE_2_COMPLETION_REPORT.md`.
+
+## ADM-022 Remediation — Resolve the KL-012 Query-Performance Blocker (PR #11 review, 2026-07-15)
+
+**Context:** PR #11 review found Decision 4 above internally inconsistent: it reported
+directory/home query counts that visibly grew with candidate count (28/43/57 and 27/32/42)
+in the same PR that declared Phase 2 acceptance criterion #17 ("query behavior is bounded")
+and #21 ("no unresolved Phase 2 blocker remains") satisfied. Per this repository's own
+Phase 2 acceptance bar, a query cost that scales with total matching-candidate count before
+pagination is not "bounded" merely because it was measured and documented — it had to be
+fixed unless proven not candidate-count-dependent, and it was proven to be exactly that.
+
+**Root cause — three independent per-candidate query sources, not one:**
+
+1. `DiscoveryRankingService._score()` called `CapacityService.is_capacity_exceeded(supplier=
+   supplier)` once per candidate inside `rank()`'s scoring loop — one (or two, if the
+   supplier has an active `CapacityRule`) query per candidate, for every candidate passed to
+   `rank()`, before any pagination/limit slicing.
+2. `SupplierSearchService.filter_suppliers()` — only when a `city` filter was applied —
+   called `resolve_supplier_entity(supplier)` (the *singular* accounts-bridge resolver, not
+   the already-existing `resolve_supplier_entities_bulk()`) once per candidate inside a
+   Python list comprehension, for every candidate matching the base queryset before city
+   filtering.
+3. `CaregiverDirectoryService._build_card()` called `common.rating_summary(supplier)` and
+   `common.completed_jobs_count(...)` once per *built* card — bounded by `PAGE_SIZE`/`limit`,
+   not by total candidate count, but still one query pair per card rather than one query pair
+   per page.
+
+Sources 1 and 2 caused the unbounded (candidate-count-scaling) growth Decision 4 measured.
+Source 3 caused the smaller, page-size-bounded growth visible between 1 and `PAGE_SIZE`
+candidates.
+
+**Fix — batched at the canonical selector boundary, ranking/filtering semantics unchanged:**
+
+- `CapacityService.bulk_is_capacity_exceeded(supplier_ids)` (new, `apps.availability`) —
+  2 queries total regardless of candidate count (one `CapacityRule` lookup, one grouped
+  `SupplierAssignment` count). `DiscoveryRankingService.rank()` now computes this map once
+  and passes it through `_score()`/`_capacity_bonus()`; the single-supplier
+  `is_capacity_exceeded()` is unchanged and still used by `provider_portal`/
+  `organization_portal`'s own single-caregiver capacity display.
+- `SupplierSearchService._filter_by_city()` (new, replacing the inline per-candidate
+  `_matches_city()`) — calls the pre-existing `resolve_supplier_entities_bulk()` (built for
+  exactly this class of problem during Epic 06's Architecture Review remediation M1) instead
+  of the singular resolver.
+- `CaregiverDirectoryService._build_card()` now takes a precomputed `card_data` map, built
+  once per `search()`/`featured()` call by a new `_bulk_card_data()` — backed by two new bulk
+  methods, `ReputationService.get_reputation_summaries_bulk()` (`apps.reviews`) and
+  `common.completed_jobs_counts_bulk()` (`apps.public_site`), each one aggregate query
+  regardless of how many cards are being built.
+
+No ranking weight, scoring formula, sort order, tie-break rule, pagination behavior, filter
+semantics, or public-visibility policy changed — proven by the full pre-existing
+`apps.discovery`/`apps.availability`/`apps.public_site` suites passing unchanged (763 tests
+across the touched apps, plus the complete 151-test `apps.public_site` suite), and by a new
+explicit ranking-order test
+(`Phase2QueryBudgetAcceptanceTest.test_ranking_order_unchanged_by_the_query_optimization`).
+
+**Result:** Directory, filtered search (text + city), and home-featured query counts are now
+fully flat (not merely bounded-with-a-ceiling) from 1 to 100+ matching candidates — measured
+16 (directory), 17 (filtered search), 17 (home featured) at every candidate count from 1
+through 100 in the same measurement pass. KL-012 is RESOLVED, not merely documented. 12 new
+tests (`Phase2QueryBudgetAcceptanceTest`, expanded from 3 to 15 methods) prove the invariant
+directly: no growth 1→5, no material growth 5→20, a stable maximum from 20→100, for
+directory, text search, category filter, city filter, and home-featured independently, plus
+pagination correctness, hidden/ineligible exclusion, rating/service-category correctness,
+ranking-order preservation, no added private card fields, and unchanged detail-page
+behavior. Full regression 2094/2094 green (2082 baseline + 12 new). See
+`quality/DEFECT_AND_RISK_REGISTER.md` KL-012 (now marked RESOLVED) and
+`project docs/PHASE_2_COMPLETION_REPORT.md`.

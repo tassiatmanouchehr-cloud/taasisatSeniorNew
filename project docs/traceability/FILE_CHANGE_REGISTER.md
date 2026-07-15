@@ -451,3 +451,20 @@ The following files would be created or modified if the Offer Marketplace implem
 | `project docs/quality/COMPLETION_BACKLOG.md` | Modified | +BG-027 (organization-profile SEO bug backlog item) | git checkout |
 | `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |
 | `project docs/PHASE_2_COMPLETION_REPORT.md` | Added | Phase 2 completion report | git rm |
+
+---
+
+## 2026-07-15 — Sprint 2.6 PR #11 Review Remediation: Resolve KL-012 Query-Performance Blocker (CL-032)
+
+| Path | Change | Purpose | Rollback |
+|------|--------|---------|----------|
+| `src/apps/availability/services/capacity_service.py` | Modified | +`bulk_is_capacity_exceeded()` — batched capacity check, 2 queries regardless of candidate count | git checkout |
+| `src/apps/discovery/services/ranking_service.py` | Modified | `rank()`/`_score()`/`_capacity_bonus()` use a precomputed capacity map instead of one query per candidate | git checkout |
+| `src/apps/discovery/services/search_service.py` | Modified | `_matches_city()` replaced by `_filter_by_city()`, using `resolve_supplier_entities_bulk()` instead of one query per candidate | git checkout |
+| `src/apps/reviews/services/reputation_service.py` | Modified | +`get_reputation_summaries_bulk()` | git checkout |
+| `src/apps/public_site/services/common.py` | Modified | +`completed_jobs_counts_bulk()`, +`rating_summaries_bulk()` | git checkout |
+| `src/apps/public_site/services/directory_service.py` | Modified | `_build_card()` takes a precomputed `card_data` map; new `_bulk_card_data()` | git checkout |
+| `src/apps/public_site/tests/test_phase2_acceptance.py` | Modified | `Phase2QueryBudgetAcceptanceTest` expanded from 3 to 15 methods | git checkout |
+| `project docs/quality/DEFECT_AND_RISK_REGISTER.md` | Modified | KL-012 marked RESOLVED | git checkout |
+| `project docs/quality/COMPLETION_BACKLOG.md` | Modified | BG-022 entry's KL-012 cross-reference updated | git checkout |
+| `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |

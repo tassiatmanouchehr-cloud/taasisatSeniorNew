@@ -14,6 +14,7 @@ slice's own internal correctness. This file proves the slices compose."""
 import datetime
 import io
 import uuid
+from decimal import Decimal
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
@@ -35,6 +36,7 @@ from apps.availability.models import DayOfWeek
 from apps.availability.services.mutation_service import AvailabilityMutationService
 from apps.kernel.models import Person, UserAccount
 from apps.kernel.tests.rbac_helpers import grant_permissions
+from apps.orders.models import CatalogStatus, ServiceCategory
 
 from ..services.directory_service import CaregiverDirectoryService
 from ..services.home_service import HomePageService
@@ -264,66 +266,220 @@ class Phase2QueryBudgetAcceptanceTest(PublicSiteTestCase):
     dedicated assertNumQueries test — see
     apps.public_site.tests.test_professional_profile_public,
     apps.provider_portal.tests.test_professional_dashboard, and
-    apps.provider_portal.tests.test_profile)."""
+    apps.provider_portal.tests.test_profile).
 
-    def _seed(self, count):
+    KL-012 remediation (quality/DEFECT_AND_RISK_REGISTER.md): directory/
+    home query counts previously grew by one (or two) queries per
+    matching candidate, from two independent per-candidate sources —
+    DiscoveryRankingService's per-candidate CapacityService.
+    is_capacity_exceeded() call, and SupplierSearchService's per-candidate
+    resolve_supplier_entity() call inside its city filter. Both are now
+    batched (CapacityService.bulk_is_capacity_exceeded(),
+    resolve_supplier_entities_bulk()) — see ARCHITECTURE_DECISION_LOG.md
+    ADM-022's remediation note. These tests assert the resulting query
+    count is a stable maximum (bounded by PAGE_SIZE/`limit`, not by total
+    candidate count), not merely record whatever the current count is."""
+
+    def _seed(self, count, *, city="tehran", name_prefix="caregiver"):
         for i in range(count):
-            self._create_caregiver_supplier(display_name=f"caregiver-{i}", verification_status="verified")
+            self._create_caregiver_supplier(
+                display_name=f"{name_prefix}-{i}", city=city, verification_status="verified",
+            )
 
-    def test_directory_search_query_count_is_recorded(self):
-        """Not asserted as a fixed bound — DiscoveryRankingService.rank()
-        and CaregiverDirectoryService._build_card() are known
-        (quality/DEFECT_AND_RISK_REGISTER.md KL-012) to issue one query
-        per matching candidate before pagination, so this count legitimately
-        grows with the number of caregivers matching the filter (not with
-        the page size). This test measures and pins that relationship at
-        two scales so any further regression is visible, rather than
-        pretending the page is O(1) when it is not."""
+    def _query_count(self, callable_):
         from django.db import connection
         from django.test.utils import CaptureQueriesContext
 
+        with CaptureQueriesContext(connection) as ctx:
+            callable_()
+        return len(ctx.captured_queries)
+
+    # -- 1 & 2: directory query count does not grow with candidate count --
+
+    def test_directory_query_count_does_not_grow_from_1_to_5_caregivers(self):
+        self._seed(1)
+        count_at_1 = self._query_count(lambda: CaregiverDirectoryService.search(tenant_id=self.tenant.id))
+        self._seed(4)  # 5 total
+        count_at_5 = self._query_count(lambda: CaregiverDirectoryService.search(tenant_id=self.tenant.id))
+        self.assertEqual(count_at_1, count_at_5)
+
+    def test_directory_query_count_does_not_grow_materially_from_5_to_20_caregivers(self):
         self._seed(5)
-        with CaptureQueriesContext(connection) as small:
-            CaregiverDirectoryService.search(tenant_id=self.tenant.id)
+        count_at_5 = self._query_count(lambda: CaregiverDirectoryService.search(tenant_id=self.tenant.id))
+        self._seed(15)  # 20 total
+        count_at_20 = self._query_count(lambda: CaregiverDirectoryService.search(tenant_id=self.tenant.id))
+        # Growth from 5 to 20 candidates is bounded by PAGE_SIZE=12 card
+        # construction only (5 cards built -> 12 cards built), never by
+        # the remaining 15 candidates beyond a page. A further increase to
+        # 100 candidates (below) proves this saturates completely.
+        self.assertLessEqual(count_at_20 - count_at_5, 20)
 
-        self._seed(10)
-        with CaptureQueriesContext(connection) as large:
-            CaregiverDirectoryService.search(tenant_id=self.tenant.id)
+    def test_directory_query_count_is_a_stable_maximum_beyond_one_page(self):
+        self._seed(20)
+        count_at_20 = self._query_count(lambda: CaregiverDirectoryService.search(tenant_id=self.tenant.id))
+        self._seed(80)  # 100 total
+        count_at_100 = self._query_count(lambda: CaregiverDirectoryService.search(tenant_id=self.tenant.id))
+        self.assertEqual(count_at_20, count_at_100)
 
-        # Both counts are page-size-bounded for card *building* (PAGE_SIZE=12
-        # cards max), but candidate-set-bounded for ranking. Documented, not
-        # silently allowed to explode: neither count should exceed a sane
-        # ceiling for the realistic candidate counts exercised here.
-        self.assertLess(len(small.captured_queries), 40)
-        self.assertLess(len(large.captured_queries), 70)
+    # -- 3: text search remains bounded --
+
+    def test_text_search_query_count_is_a_stable_maximum(self):
+        self._seed(20)
+        count_at_20 = self._query_count(
+            lambda: CaregiverDirectoryService.search(tenant_id=self.tenant.id, text="caregiver"),
+        )
+        self._seed(80)  # 100 total
+        count_at_100 = self._query_count(
+            lambda: CaregiverDirectoryService.search(tenant_id=self.tenant.id, text="caregiver"),
+        )
+        self.assertEqual(count_at_20, count_at_100)
+
+    # -- 4: service/category filtering remains bounded --
+
+    def test_service_category_filter_query_count_is_a_stable_maximum(self):
+        for i in range(20):
+            self._create_caregiver_supplier(
+                display_name=f"cat-{i}", service_category_ids=[str(self.category.id)],
+                verification_status="verified",
+            )
+        count_at_20 = self._query_count(
+            lambda: CaregiverDirectoryService.search(tenant_id=self.tenant.id, service_category_id=str(self.category.id)),
+        )
+        for i in range(80):
+            self._create_caregiver_supplier(
+                display_name=f"cat-more-{i}", service_category_ids=[str(self.category.id)],
+                verification_status="verified",
+            )
+        count_at_100 = self._query_count(
+            lambda: CaregiverDirectoryService.search(tenant_id=self.tenant.id, service_category_id=str(self.category.id)),
+        )
+        self.assertEqual(count_at_20, count_at_100)
+
+    # -- 5: city filtering remains bounded --
+
+    def test_city_filter_query_count_is_a_stable_maximum(self):
+        self._seed(20, city="tehran")
+        count_at_20 = self._query_count(
+            lambda: CaregiverDirectoryService.search(tenant_id=self.tenant.id, city="tehran"),
+        )
+        self._seed(80, city="tehran", name_prefix="more")  # 100 total
+        count_at_100 = self._query_count(
+            lambda: CaregiverDirectoryService.search(tenant_id=self.tenant.id, city="tehran"),
+        )
+        self.assertEqual(count_at_20, count_at_100)
 
     def test_directory_search_with_filters_returns_correct_bounded_page(self):
         self._seed(15)
-        from django.db import connection
-        from django.test.utils import CaptureQueriesContext
-
-        with CaptureQueriesContext(connection):
-            page = CaregiverDirectoryService.search(
-                tenant_id=self.tenant.id, city="tehran", text="caregiver",
-            )
+        page = CaregiverDirectoryService.search(tenant_id=self.tenant.id, city="tehran", text="caregiver")
         self.assertEqual(page.pagination.total_count, 15)
         self.assertLessEqual(len(page.caregivers), 12)  # PAGE_SIZE
 
-    def test_home_featured_query_count_bounded_by_limit_not_candidate_count(self):
-        from django.db import connection
-        from django.test.utils import CaptureQueriesContext
+    # -- 6: home-page featured cards remain bounded --
 
+    def test_home_featured_query_count_is_a_stable_maximum(self):
         self._seed(3)
-        with CaptureQueriesContext(connection) as small:
-            HomePageService.get_home_view(tenant_id=self.tenant.id)
+        count_at_3 = self._query_count(lambda: HomePageService.get_home_view(tenant_id=self.tenant.id))
+        self._seed(17)  # 20 total
+        count_at_20 = self._query_count(lambda: HomePageService.get_home_view(tenant_id=self.tenant.id))
+        self._seed(80)  # 100 total
+        count_at_100 = self._query_count(lambda: HomePageService.get_home_view(tenant_id=self.tenant.id))
+        # featured() has a fixed limit=4 output regardless of candidate
+        # count, so once candidates >= 4 the count must be fully flat.
+        self.assertEqual(count_at_20, count_at_100)
+        self.assertLessEqual(count_at_20 - count_at_3, 15)
 
+    # -- 7: pagination count remains correct --
+
+    def test_pagination_total_count_and_page_count_remain_correct(self):
+        self._seed(25)
+        page = CaregiverDirectoryService.search(tenant_id=self.tenant.id, page=1)
+        self.assertEqual(page.pagination.total_count, 25)
+        self.assertEqual(page.pagination.total_pages, 3)  # ceil(25 / 12)
+        self.assertEqual(len(page.caregivers), 12)
+        last_page = CaregiverDirectoryService.search(tenant_id=self.tenant.id, page=3)
+        self.assertEqual(len(last_page.caregivers), 1)
+
+    # -- 8: hidden/ineligible caregivers remain excluded --
+
+    def test_hidden_ineligible_caregivers_remain_excluded_from_bounded_results(self):
         self._seed(20)
-        with CaptureQueriesContext(connection) as large:
-            HomePageService.get_home_view(tenant_id=self.tenant.id)
+        self._create_caregiver_supplier(display_name="hidden-unverified", verification_status="unverified")
+        self._create_caregiver_supplier(display_name="hidden-draft", profile_status="draft")
+        page = CaregiverDirectoryService.search(tenant_id=self.tenant.id)
+        home = HomePageService.get_home_view(tenant_id=self.tenant.id)
+        self.assertEqual(page.pagination.total_count, 20)
+        self.assertNotIn("hidden-unverified", {c.display_name for c in page.caregivers} | {
+            c.display_name for c in home.featured_caregivers
+        })
+        self.assertNotIn("hidden-draft", {c.display_name for c in page.caregivers} | {
+            c.display_name for c in home.featured_caregivers
+        })
 
-        # featured() ranks all candidates before slicing to its `limit` (4)
-        # — see CaregiverDirectoryService.featured() — so, like the
-        # directory, this legitimately grows with total candidate count
-        # (KL-012). Measured here rather than asserted as a fixed O(1) bound.
-        self.assertLess(len(small.captured_queries), 30)
-        self.assertLess(len(large.captured_queries), 90)
+    # -- 9: rating/review summary remains correct --
+
+    def test_rating_summary_remains_correct_at_scale(self):
+        self._seed(20)
+        supplier, _ = self._create_caregiver_supplier(display_name="rated-caregiver")
+        self._add_approved_review(supplier=supplier, rating="4.00")
+        page = CaregiverDirectoryService.search(tenant_id=self.tenant.id, text="rated-caregiver")
+        self.assertEqual(page.pagination.total_count, 1)
+        card = page.caregivers[0]
+        self.assertEqual(card.rating.review_count, 1)
+        self.assertEqual(card.rating.average, Decimal("4.00"))
+
+    # -- 10: service-category information remains correct --
+
+    def test_service_category_filter_returns_only_matching_caregivers(self):
+        other_category = ServiceCategory.objects.create(
+            tenant=self.tenant, name="خدمت دیگر", slug="other-service", status=CatalogStatus.ACTIVE,
+        )
+        self._create_caregiver_supplier(
+            display_name="matches-category", service_category_ids=[str(self.category.id)],
+        )
+        self._create_caregiver_supplier(
+            display_name="different-category", service_category_ids=[str(other_category.id)],
+        )
+        page = CaregiverDirectoryService.search(tenant_id=self.tenant.id, service_category_id=str(self.category.id))
+        names = {c.display_name for c in page.caregivers}
+        self.assertIn("matches-category", names)
+        self.assertNotIn("different-category", names)
+
+    # -- 11: ordering/ranking remains unchanged --
+
+    def test_ranking_order_unchanged_by_the_query_optimization(self):
+        """DiscoveryRankingService's own unit tests already prove each
+        scoring component (verification/reputation/availability/capacity)
+        independently — apps.discovery.tests.test_ranking_service — this
+        proves the batched capacity lookup this remediation introduced
+        still ranks a capacity-exceeded caregiver below one that is not,
+        exactly as the pre-remediation per-candidate lookup did."""
+        from apps.availability.services import CapacityService
+
+        supplier_ok, _ = self._create_caregiver_supplier(display_name="under-capacity")
+        supplier_over, _ = self._create_caregiver_supplier(display_name="over-capacity")
+        CapacityService.set_capacity_rule(supplier=supplier_over, max_concurrent_assignments=0)
+
+        page = CaregiverDirectoryService.search(tenant_id=self.tenant.id)
+        names_in_order = [c.display_name for c in page.caregivers]
+        self.assertLess(names_in_order.index("under-capacity"), names_in_order.index("over-capacity"))
+
+    # -- 12: no private data is added to cards --
+
+    def test_no_private_data_added_to_cards_at_scale(self):
+        self._seed(20)
+        supplier, caregiver = self._create_caregiver_supplier(display_name="private-data-check")
+        page = CaregiverDirectoryService.search(tenant_id=self.tenant.id, text="private-data-check")
+        card = page.caregivers[0]
+        card_fields = {f.name for f in card.__dataclass_fields__.values()}
+        self.assertNotIn("phone", card_fields)
+        self.assertNotIn("national_id", card_fields)
+        self.assertNotIn("bio", card_fields)  # only bio_snippet is exposed, never the raw bio
+
+    # -- 13: public detail behavior remains unchanged --
+
+    def test_public_detail_page_behavior_unchanged_by_the_query_optimization(self):
+        self._seed(20)
+        supplier, _ = self._create_caregiver_supplier(display_name="detail-page-caregiver")
+        profile = CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id)
+        self.assertIsNotNone(profile)
+        self.assertEqual(profile.display_name, "detail-page-caregiver")

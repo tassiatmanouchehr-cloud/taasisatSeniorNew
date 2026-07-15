@@ -1,6 +1,6 @@
 # CURRENT IMPLEMENTATION STATE
 
-**Last verified HEAD:** phase2-caregiver-professional-dashboard (from main @ 125dd3b, PR #9 merged)
+**Last verified HEAD:** phase2-caregiver-public-profile-finalization (from main @ 9a26024, PR #11 open — Sprint 2.6 + KL-012 remediation)
 **Last verified date:** 2026-07-15
 
 ---
@@ -15,15 +15,15 @@
 | **booking** | 1 (SupplierAssignment) | 5 | 0 | 67 | COMPLETE |
 | **execution** | 1 (ExecutionSession) | 3 | 0 | 58 | COMPLETE |
 | **matching** | 2 (MatchRound, MatchCandidate) | 4 | 0 | 33 | COMPLETE |
-| **availability** | 3 (ProviderWorkingWindow, AvailabilityBlockedPeriod, CapacityRule) | 3 (+evaluate()/get_distinct_active_days() on AvailabilityQueryService, overlap/duplicate refusal + toggle_working_window() on AvailabilityMutationService — Sprint 2.4; supplier-row locking — PR #9 concurrency remediation) | 0 | 65 (+19 Sprint 2.4, +9 PR #9 concurrency remediation) | COMPLETE |
+| **availability** | 3 (ProviderWorkingWindow, AvailabilityBlockedPeriod, CapacityRule) | 3 (+evaluate()/get_distinct_active_days() on AvailabilityQueryService, overlap/duplicate refusal + toggle_working_window() on AvailabilityMutationService — Sprint 2.4; supplier-row locking — PR #9 concurrency remediation; +CapacityService.bulk_is_capacity_exceeded() — Sprint 2.6 PR #11 KL-012 remediation) | 0 | 65 (+19 Sprint 2.4, +9 PR #9 concurrency remediation) | COMPLETE |
 | **finance** | 11 (FinancialParty, FinancialDocument, FinancialDocumentItem, FinancialObligation, PaymentTransaction, WalletAccount, WalletTransaction, EscrowRecord, EscrowMovement, LedgerEntry, SettlementBatch, SettlementItem) | 9+ (+list_for_beneficiary_party()/count_by_status_for_beneficiary_party() on FinancialDocumentService — Sprint 2.5) | 0 | 81 (+6 Sprint 2.5) | COMPLETE |
 | **payments** | 3 (PaymentIntent, PaymentAttempt, PaymentCallback) | 7 | 0 | 54 | PARTIAL (fake PSP only) |
 | **commission** | 11 (CommissionContract, PaymentDeadline, PaymentDeadlineExtension, CommissionSnapshot, ObjectionPeriod, ObjectionPeriodExtension, Dispute, DisputeLine, DisputeResolution, ReleaseInstruction, RefundInstruction) | 22 | 0 | 132 | COMPLETE |
 | **pricing** | 6 (PricingRule, Quote, QuoteLine, Promotion, PromotionCondition, PromotionEffect) | 2 | 0 | 69 | COMPLETE |
 | **wallet** | 3 (Wallet, WalletTransaction, WalletBalanceSnapshot) | 2 | 0 | 34 | COMPLETE |
-| **reviews** | 3 (Review, ReviewRating, ReputationSnapshot) | 3 (+list_recent_reviews_with_reviewer_names() on ReputationService — Sprint 2.5) | 0 | 39 (+6 Sprint 2.5) | COMPLETE |
+| **reviews** | 3 (Review, ReviewRating, ReputationSnapshot) | 4 (+list_recent_reviews_with_reviewer_names() on ReputationService — Sprint 2.5; +get_reputation_summaries_bulk() — Sprint 2.6 PR #11 KL-012 remediation) | 0 | 39 (+6 Sprint 2.5) | COMPLETE |
 | **notifications** | 2 (Notification, NotificationDeliveryAttempt) | 3 | 0 | 53 | PARTIAL (fake providers) |
-| **discovery** | 0 | 6 | 0 | 42 | COMPLETE |
+| **discovery** | 0 | 6 (`SupplierSearchService._filter_by_city()` now batches its city filter via `resolve_supplier_entities_bulk()`, and `DiscoveryRankingService.rank()` now precomputes capacity via `CapacityService.bulk_is_capacity_exceeded()` instead of a per-candidate call — Sprint 2.6 PR #11 KL-012 remediation, no new service, existing services modified) | 0 | 42 | COMPLETE |
 | **reporting** | 0 (DTOs only) | 5 | 0 | 37 | COMPLETE |
 | **jobs** | 2 (JobDefinition, JobRun) | 1 | 0 | 35 | COMPLETE |
 | **common** | 3 (abstract: TimestampedModel, TenantAwareModel, SoftDeleteMixin) | 0 | 0 | 0 | COMPLETE (no tests) |
@@ -32,7 +32,7 @@
 | **organization_portal** | 0 | 1 (presentation) | 18 | 51 (+2 Phase 1.3) | COMPLETE |
 | **admin_portal** | 0 | 0 | 20 (+4 document verification Phase 1.1, +4 activation Phase 1.3) | 56 (+16 Phase 1.1, +9 Phase 1.3, +2 Phase 1.3 remediation) | COMPLETE |
 | **api** | 0 | 0 | 12 | 97 | COMPLETE |
-| **public_site** | 0 | 4 | 18 | 139 (+2 Phase 2.1 eligibility, +11 Phase 2.1 skills/experience/credentials, +13 BG-022 canonical visibility, +11 Sprint 2.2 gallery, +11 Sprint 2.3 highlights/badges, +6 Sprint 2.4 schedule summary, +5 Sprint 2.6 Phase 2 acceptance) | COMPLETE (Sprint 2.6 — public profile finalization: SEO/accessibility fixes, redundant-badge removal, query-count measurement, Phase 2 E2E acceptance tests; Phase 2 acceptance criteria satisfied) |
+| **public_site** | 0 | 5 (+`_bulk_card_data()`/`rating_summaries_bulk()`/`completed_jobs_counts_bulk()` on directory_service.py/common.py — PR #11 KL-012 remediation) | 18 | 151 (+2 Phase 2.1 eligibility, +11 Phase 2.1 skills/experience/credentials, +13 BG-022 canonical visibility, +11 Sprint 2.2 gallery, +11 Sprint 2.3 highlights/badges, +6 Sprint 2.4 schedule summary, +5 Sprint 2.6 Phase 2 acceptance, +12 Sprint 2.6 PR #11 KL-012 remediation) | COMPLETE (Sprint 2.6 — public profile finalization: SEO/accessibility fixes, redundant-badge removal, query-count measurement + PR #11 remediation resolving KL-012, Phase 2 E2E acceptance tests; Phase 2 acceptance criteria satisfied) |
 | **showcase** | 0 | 0 | 15 | 0 | COMPLETE (no tests) |
 
 ## Offer Marketplace Current State
@@ -57,8 +57,8 @@ profiles, and portal completion phases.
 | Total Django apps | 25 + 1 config |
 | Total concrete models | ~73 (+CaregiverSkill, CaregiverExperience — Phase 2.1; +CaregiverGalleryItem — Sprint 2.2) |
 | Total migrations | ~47 |
-| Total test files | 213 (+1 `apps.availability.tests.test_concurrency` — PR #9 remediation; +3 `apps.orders.tests.test_supplier_queries`/`apps.finance.tests.test_beneficiary_queries`/`apps.provider_portal.tests.test_professional_dashboard` — Sprint 2.5; +1 `apps.public_site.tests.test_phase2_acceptance` — Sprint 2.6) |
-| Total test methods | 2,082 (full regression 2082/2082 green on phase2-caregiver-public-profile-finalization) |
+| Total test files | 213 (+1 `apps.availability.tests.test_concurrency` — PR #9 remediation; +3 `apps.orders.tests.test_supplier_queries`/`apps.finance.tests.test_beneficiary_queries`/`apps.provider_portal.tests.test_professional_dashboard` — Sprint 2.5; +1 `apps.public_site.tests.test_phase2_acceptance` — Sprint 2.6, expanded in the PR #11 KL-012 remediation, no new file) |
+| Total test methods | 2,094 (full regression 2094/2094 green on phase2-caregiver-public-profile-finalization, after the PR #11 KL-012 remediation) |
 | Total admin registrations | 20 |
 | Total management commands | 15 |
 | Total URL patterns | ~157 |

@@ -38,7 +38,7 @@ class SupplierSearchService:
         candidates = list(qs.order_by("id"))
 
         if query.city:
-            candidates = [supplier for supplier in candidates if cls._matches_city(supplier, query.city)]
+            candidates = cls._filter_by_city(candidates, query.city)
 
         if query.requested_start is not None and query.requested_end is not None:
             candidates = [
@@ -51,12 +51,25 @@ class SupplierSearchService:
     # --- internal helpers -------------------------------------------------
 
     @staticmethod
-    def _matches_city(supplier: ServiceSupplier, city: str) -> bool:
-        from apps.accounts.services.supplier_bridge import resolve_supplier_entity
+    def _filter_by_city(candidates: list[ServiceSupplier], city: str) -> list[ServiceSupplier]:
+        """Batched city filter — resolves every candidate's accounts-side
+        entity in at most two queries total (resolve_supplier_entities_bulk(),
+        the same bulk resolver apps.public_site.services.common
+        .bulk_supplier_attrs() already uses), instead of one
+        resolve_supplier_entity() query per candidate. Previously this was
+        a per-candidate lookup inside a Python list comprehension — a
+        genuine N+1 (quality/DEFECT_AND_RISK_REGISTER.md KL-012's second
+        source, alongside DiscoveryRankingService's per-candidate capacity
+        check)."""
+        from apps.accounts.services.supplier_bridge import resolve_supplier_entities_bulk
 
-        entity = resolve_supplier_entity(supplier)
-        entity_city = getattr(entity, "city", "") or ""
-        return entity_city.strip().casefold() == city
+        normalized_city = city.strip().casefold()
+        entities_by_supplier_id = resolve_supplier_entities_bulk(candidates)
+        return [
+            supplier for supplier in candidates
+            if (getattr(entities_by_supplier_id.get(supplier.id), "city", "") or "").strip().casefold()
+            == normalized_city
+        ]
 
     @staticmethod
     def _is_available_for_range(supplier: ServiceSupplier, start, end) -> bool:

@@ -2059,10 +2059,108 @@ fix): 368/368. Full regression: 2082/2082 green (2077 baseline + 5 new).
    `admin_portal`, and `portal` (customer) templates — out of this sprint's
    caregiver-profile-only scope.
 
-### Phase 2 Status
+### Phase 2 Status (superseded — see the PR #11 remediation entry below)
 
 **Phase 2 (Caregiver Professional Profile) acceptance criteria satisfied**, except the one
 explicitly accepted external-domain dependency (bonus/penalty, KL-020) that Section L's own
 governance names as not blocking Phase 2 profile completion when accurately documented. See
 `project docs/PHASE_2_COMPLETION_REPORT.md` for the full 17-section acceptance record.
-`quality/COMPLETION_BACKLOG.md` BG-026.
+
+## Sprint 2.6 PR #11 Review Remediation — Resolve the KL-012 Query-Performance Blocker (2026-07-15)
+
+A PR #11 architecture review found the Sprint 2.6 entry above internally inconsistent:
+Section G's own measurement showed directory/home query counts growing with total
+matching-candidate count (28/43/57 and 27/32/42), in the same PR that reported Phase 2
+acceptance criterion #17 ("query behavior is bounded") and #21 ("no unresolved Phase 2
+blocker remains") as satisfied. The review required KL-012 resolved inside PR #11 unless
+proven not candidate-count-dependent — it was not: it was proven to be exactly that, and
+fixable without redesigning ranking semantics.
+
+### Root Cause — Three Independent Per-Candidate Query Sources
+
+| Query group | Called from | Once or per candidate | Canonical owner |
+|---|---|---|---|
+| `CapacityRule` lookup + `SupplierAssignment` count | `DiscoveryRankingService._score()` → `_capacity_bonus()` → `CapacityService.is_capacity_exceeded()` | Per candidate, inside `rank()`, before pagination | `apps.availability` |
+| `CaregiverProfile`/`OrganizationProfile` resolution | `SupplierSearchService.filter_suppliers()`'s city filter → `_matches_city()` → `resolve_supplier_entity()` | Per candidate matching the base queryset, only when a `city` filter is applied, before city filtering itself | `apps.accounts` (supplier_bridge) |
+| `ReputationSnapshot` lookup + `Order` completed-count | `CaregiverDirectoryService._build_card()` → `common.rating_summary()` / `common.completed_jobs_count()` | Per *built* card — bounded by `PAGE_SIZE`/`limit`, not total candidates, but still one query pair per card | `apps.public_site` (common.py) / `apps.reviews` |
+
+Sources 1 and 2 caused the unbounded (candidate-count-scaling) growth measured in Section G.
+Source 3 caused the smaller, page-size-bounded growth visible between 1 and `PAGE_SIZE`
+candidates — itself also collapsed to O(1) in this remediation, since the governance's
+stricter invariant ("does not grow from 1 to 5 caregivers") required it.
+
+### Fix — Batched at the Canonical Selector Boundary
+
+- `CapacityService.bulk_is_capacity_exceeded(supplier_ids)` (new,
+  `apps/availability/services/capacity_service.py`) — 2 queries total regardless of
+  candidate count (one `CapacityRule.objects.filter(...).values_list(...)`, one grouped
+  `SupplierAssignment.objects.filter(...).values("supplier_id").annotate(Count("id"))`).
+  `DiscoveryRankingService.rank()` computes this map once via a new `_bulk_capacity_exceeded()`
+  helper and threads it through `_score()`/`_capacity_bonus()`. The single-supplier
+  `is_capacity_exceeded()` is untouched and still backs `provider_portal`'s and
+  `organization_portal`'s own single-caregiver capacity displays.
+- `SupplierSearchService._filter_by_city()` (new, replacing the inline per-candidate
+  `_matches_city()` list comprehension) — calls the pre-existing
+  `resolve_supplier_entities_bulk()` (`apps.accounts.services.supplier_bridge`, built during
+  Epic 06's Architecture Review remediation M1 for exactly this class of problem, and
+  already used by `common.bulk_supplier_attrs()`) instead of the singular resolver.
+- `CaregiverDirectoryService._build_card()` now takes a precomputed `card_data` dict; a new
+  `_bulk_card_data()` builds it once per `search()`/`featured()` call from two new bulk
+  methods — `ReputationService.get_reputation_summaries_bulk()` (`apps.reviews`) and
+  `common.completed_jobs_counts_bulk()` (`apps.public_site`) — each one aggregate query
+  regardless of how many cards are being built.
+
+No ranking weight, scoring formula, tie-break rule, sort order, pagination behavior, filter
+semantics, or public-visibility policy changed. Proven by: the full pre-existing
+`apps.discovery`, `apps.availability`, `apps.reviews`, `apps.booking`,
+`apps.organization_portal` test suites passing unmodified (763 tests across every app whose
+production selector code changed, plus their direct consumers); a new explicit
+`test_ranking_order_unchanged_by_the_query_optimization` test proving a capacity-exceeded
+caregiver still ranks below a non-exceeded one; and a new
+`test_service_category_filter_returns_only_matching_caregivers` /
+`test_rating_summary_remains_correct_at_scale` pair proving card content correctness at
+scale.
+
+### Query/Performance Impact
+
+Directory, filtered search (text + city), and home-featured query counts are now fully flat
+— not merely bounded with a high ceiling — from 1 through 100+ matching candidates, measured
+in the same pass: directory 16, filtered search 17, home featured 17, unchanged from
+candidate count 1 through 100. Public profile detail page (15), provider dashboard (30/31),
+and provider profile-management page (15) are unaffected — none of their underlying
+selectors were touched.
+
+### Test Level Decision
+
+`manage.py check` (0), `makemigrations --check` (pre-existing drift only), focused expanded
+query-budget suite (15/15, up from 3), complete `apps.public_site` (151/151), other affected
+suites whose production selectors changed (`apps.discovery` + `apps.availability` +
+`apps.reviews` + `apps.booking` + `apps.organization_portal` + `apps.provider_portal` +
+`apps.accounts`, 763/763 combined), full regression run exactly once (2094/2094), per this
+remediation's own explicit "run once" policy.
+
+### Reviewed, Not Changed (Section 7 of the remediation governance)
+
+The pre-existing flaky-test fix from Sprint 2.6's initial pass
+(`apps.accounts.tests.test_caregiver_professional_profile
+.test_expired_document_does_not_appear`) was re-reviewed: the only change was the clock
+source used to compute "yesterday" (`timezone.now().date()` instead of
+`datetime.date.today()`) — the assertion itself (`assertEqual(..., ())`) is byte-identical
+before and after, no assertion was weakened, and no production code
+(`apps.accounts.services.verification_policy`) was touched. Kept in PR #11 unchanged: it
+fixes a genuine, reproducible, nondeterministic test-setup bug without weakening any
+behavior, and Phase 2 acceptance explicitly requires "full tests are green."
+
+### KL-012 Status
+
+**RESOLVED.** See `quality/DEFECT_AND_RISK_REGISTER.md` KL-012 and
+`ARCHITECTURE_DECISION_LOG.md` ADM-022's remediation note.
+
+### Phase 2 Status (final)
+
+**Phase 2 (Caregiver Professional Profile) acceptance criteria satisfied**, including the
+query-bounded-behavior criterion (now genuinely satisfied, not merely documented), except
+the one explicitly accepted external-domain dependency (bonus/penalty, KL-020) that Section
+L's own governance names as not blocking Phase 2 profile completion when accurately
+documented. See `project docs/PHASE_2_COMPLETION_REPORT.md` for the full 17-section
+acceptance record.
