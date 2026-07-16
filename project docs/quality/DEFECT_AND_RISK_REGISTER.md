@@ -1,7 +1,13 @@
 # DEFECT AND RISK REGISTER
 
-**Last verified HEAD:** a5dbaf28703142edaa1d770ea8f3c2a45a12640f
-**Last verified date:** 2026-07-14
+**Last verified HEAD:** a5dbaf28703142edaa1d770ea8f3c2a45a12640f (full sweep); re-evaluated for
+Phase 3 closure approval / Phase 4 Customer Portal Architecture Assessment (a code-free
+governance/readiness review, not a numbered sprint) at main @ `a9a8a1181aa9f91a2f48f4cdbe9ceb104046a38c`
+(2026-07-16, recorded on PR #15, not yet merged) — no new defect found; KL-021 (already
+RESOLVED) confirmed accurate against the current template; KL-022 re-evaluated, still open,
+now explicitly scoped as cross-portal
+infrastructure (see `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-026)
+**Last verified date:** 2026-07-14 (full sweep); 2026-07-16 (targeted re-evaluation)
 
 ---
 

@@ -1858,3 +1858,99 @@ and `git status`/`git diff --check`/`manage.py check` all clean. Merged via
 `merge_pull_request` (merge commit `b78d6a293ab90831c10b2a8ad1d1d49aab06fa86`). Local `main`
 fast-forwarded to match `origin/main`. **Sprint 3.3 (Company Public Directory and Discovery)
 is now CLOSED and on `main`.**
+
+## ADM-026 — Phase 3 Closure Approval and Phase 4 Customer Portal Architecture Assessment (2026-07-16)
+
+**Context:** With Sprints 3.1–3.3 merged (PRs #12/#13/#14, `main` @
+`a9a8a1181aa9f91a2f48f4cdbe9ceb104046a38c`), a code-free architecture assessment was
+required to decide (a) whether Phase 3 needs a further bounded sprint or can be closed, and
+(b) — if closable — what Phase 4 (Customer Portal) actually needs, verified against the
+repository directly rather than assumed from the roadmap's own prose. This assessment (a
+governance/readiness activity, not a numbered implementation sprint — see Decision 3's own
+naming correction) is recorded on documentation-only branch
+`docs/phase3-closure-phase4-assessment`, PR #15. **Phase 3's formal closure on canonical
+`main` takes effect only once PR #15 merges — this ADR records the closure decision and its
+rationale; it does not itself constitute the closure.**
+
+**Decision 1 — Phase 3's implementation scope is complete and its closure is APPROVED. No
+Sprint 3.4 is required.** Every Phase 3
+roadmap acceptance criterion is delivered and merged: company identity/verification (Phase
+1, reused), caregiver affiliation lifecycle (Sprint 3.1), company caregiver management
+(Sprint 3.1), company professional profile (Sprint 3.2), public company profile (Sprint
+3.2), public company directory/discovery (Sprint 3.3), company services (Epic 02, reused),
+permissions/tenant isolation (Sprint 3.1's 4 permission keys + `OrganizationRoleSyncService`),
+dashboard/operational summaries (`organization_portal.dashboard_view`, pre-existing),
+notifications (`organization_portal.notifications_view`, pre-existing), and public
+visibility/privacy boundaries (canonical `common.is_publicly_visible_attrs()` throughout).
+Four items were evaluated and found safely deferrable, not blocking:
+
+- **Company gallery/certificates** — no product-value trigger; logo + description +
+  verification + services + rating + directory already give MVP credibility signal.
+- **Organization individual-review listing** — aggregate `RatingSummaryViewModel` exists;
+  `common.reviews_to_viewmodels()` (already used by the caregiver profile) is directly
+  reusable whenever this is prioritized; zero domain dependency, cosmetic parity gap only.
+- **Cross-portal flash messages (KL-022/BG-029)** — confirmed by repository inspection to
+  span `organization_portal`, `provider_portal`, **and `apps.portal`** (Customer Portal) by
+  its own backlog entry; explicitly NOT scoped to Phase 3, deferred to Phase 4 evaluation
+  instead (see Decision 3 below).
+- **Company financial fan-out** — `organization_portal.financial_view` is correct and
+  read-only, scoped to the organization's own `ServiceSupplier` assignments; it is
+  structurally empty under `CommissionConfiguration.DEFAULT_PRESERVICE_PAYMENT_ENABLED =
+  False` (unchanged), a Financial/Payment-phase dependency (BG-008), not a Company Portal
+  defect.
+
+**Decision 2 — BG-027 documentation drift corrected.** `quality/COMPLETION_BACKLOG.md`'s
+BG-027 entry (organization public-profile SEO canonical-URL bug) was not marked RESOLVED
+despite KL-021 recording the fix as shipped in Sprint 3.2 and direct template inspection
+confirming `organization_profile.html` resolves its own canonical URL. Corrected to an
+unambiguous RESOLVED entry, documentation-only, no code/template/test change.
+
+**Decision 3 — Phase 4 (Customer Portal) current-state inspection found the roadmap's own
+scope-line text stale.** `IMPLEMENTATION_ROADMAP.md`'s Phase 4 header already read
+"(production complete)", but its scope line still described dashboard/orders/payments/
+notifications as "(exists)" alongside "invoices + receipts pages (new, ...)" as if unbuilt.
+Direct inspection of `apps.portal` (dashboard_view, profile_view, settings_view,
+care_recipients_*, requests_list_view, request_detail_view, the 6-step order-request
+wizard, request_financial_view/_pay_view/_approve_view/_dispute_view, payments_view,
+reviews_view, notifications_view, share_link_create_view/_revoke_view) found a mature,
+already-tested implementation built under a pre-existing "Epic 07 — Customer Experience and
+Portal Completion" body of work (confirmed by every relevant service's own module
+docstring), predating this repository's Phase 1–5 roadmap renumbering:
+
+- `CustomerPaymentsPresentationService.get_summary_view()` already lists every
+  `FinancialDocument` for the customer's payer party via the canonical
+  `FinancialDocumentService.list_for_payer_party()`, with paid/outstanding totals summed
+  over already-fetched canonical `total_amount` values (not an independent financial
+  calculation) — the "invoices + receipts (new)" scope-line item was simply wrong; it
+  already exists. This domain has no separate "receipt" `FinancialDocumentType` — a paid
+  invoice serves that role, matching the roadmap's own "invoices + receipts" grouping.
+- `request_financial_view`/`_pay_view`/`_approve_view`/`_dispute_view` are real integrations
+  with the Commission engine (`PreServicePaymentService.simulate_fake_payment_outcome()`,
+  `ObjectionPeriodService.approve_by_customer()`, `DisputeService.open()`), not stubs.
+- Ownership/IDOR discipline is explicit and tested: `apps.portal.permissions
+  .resolve_customer_profile()` reads exclusively `request.user.person.customer_profile` —
+  never accepted from a URL parameter or POST body — and every ownership-scoped resource
+  lookup (`_get_order_for_customer()`, care-recipient lookups, share-link lookups) raises
+  `Http404`, never a distinguishable "not yours" response, per `apps.portal.tests
+  .test_access_control.py`'s explicit cross-customer-denial tests.
+- 1,063 lines across 9 dedicated test files (`apps.portal.tests`), 74 test methods,
+  including query-budget tests (`CaptureQueriesContext`) in
+  `test_epic07_customer_experience.py`.
+
+**The one confirmed gap, verified by broad case-insensitive repository-wide search:**
+Favorites/saved-suppliers. No `Favorite`, bookmark, shortlist, saved-supplier, or equivalent
+model, service, view, or template exists anywhere in this repository.
+
+**Recommendation:** Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers, a minimum
+complete vertical slice (one new model, reused selectors, a toggle on existing public
+profile pages, a portal list page) — the first numbered Phase 4 implementation sprint;
+**not started as of this ADR.** The flash-message framework (KL-022) is evaluated as shared
+portal infrastructure to fold into this same sprint's foundation work if the sprint touches
+mutation views anyway — see the Implementation Journal entry for the exact recommendation
+and rationale, kept separate from this ADR to avoid pre-committing an implementation choice
+inside the architecture-decision record.
+
+**Consequences:** No code, model, migration, view, template, service, selector, or test
+changed by this assessment — documentation-only, on branch
+`docs/phase3-closure-phase4-assessment`, PR against `main`, not merged. See
+`traceability/IMPLEMENTATION_JOURNAL.md` for the full 29-point assessment.

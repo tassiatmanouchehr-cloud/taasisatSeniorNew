@@ -356,27 +356,29 @@ customer dashboard; marketplace bidding; gallery/social changes; booking calenda
 payouts/withdrawals; accounting exports; bonus/penalty (no canonical model — recorded as a
 new backlog item, see the "Deferred" note in `traceability/IMPLEMENTATION_JOURNAL.md`).
 
-### BG-027: Organization Public Profile — SEO `page_url`/Canonical URL Bug
+### BG-027: Organization Public Profile — SEO `page_url`/Canonical URL Bug — **RESOLVED**
 
-**Current evidence:** `templates/public_site/organization_profile.html` line 5 passes the
+**Original evidence:** `templates/public_site/organization_profile.html` line 5 passed the
 generic caregiver-directory-style URL `page_url="/find-an-organization/"` to
 `ui/components/public/seo_meta.html` instead of the organization's own detail-page URL —
 identical to the bug found and fixed on `caregiver_profile.html` during Sprint 2.6
-(2026-07-15). This causes `og:url` (and any future `<link rel="canonical">`) for every
+(2026-07-15). This caused `og:url` (and any future `<link rel="canonical">`) for every
 organization profile page to point at the directory listing instead of that organization's
-own page.
-**Why needed:** Correct Open Graph/canonical metadata per organization profile; social-share
-previews and search engines currently cannot distinguish one organization's page from
-another via this metadata.
+own page. Deliberately left unfixed in Sprint 2.6 — organization-profile templates were out
+of that sprint's strict caregiver-public-profile-finalization scope.
+**Resolution (2026-07-16, Sprint 3.2):** `organization_profile.html` now resolves
+`{% url 'public_site:organization-profile' supplier_id=profile.supplier_id %}` and passes it
+as both `page_url` and `canonical_url` to `ui/components/public/seo_meta.html`, matching the
+caregiver profile page's own established pattern exactly (confirmed by direct inspection of
+the template — this is no longer a bug in the repository as of Sprint 3.2). See
+`quality/DEFECT_AND_RISK_REGISTER.md` KL-021 (marked RESOLVED at the same time) and
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-024 Decision 3.
 **Affected modules:** public_site (organization profile template only).
-**Suggested implementation size:** Trivial (one-line template fix, mirroring the caregiver
-profile's Sprint 2.6 fix — resolve the organization's own detail URL via its named URL
-pattern and pass it as both `page_url` and `canonical_url`).
-**Required tests:** Existing organization-profile rendering tests; no new test infrastructure
-needed.
-**Risk:** Low — template-only, no behavior/privacy impact.
-**Not in scope:** Any other organization-profile change. See `quality/DEFECT_AND_RISK_REGISTER.md`
-KL-021.
+**Status update (2026-07-16):** Landed as part of Sprint 3.2, **MERGED to main via PR #13**
+(merge commit `49b643e130018b959938907e9a5d1ae491d51f6c`). This entry was left without an
+explicit RESOLVED marker after that merge — a documentation-only drift, corrected here
+(2026-07-16) with no code, template, or test change, per direct verification against the
+current repository template.
 
 ### BG-028: Company-Caregiver Affiliation Foundation — **RESOLVED**
 

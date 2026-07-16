@@ -2705,3 +2705,383 @@ recorded 2192/2192 verification and the merge — nothing new to verify).
 
 **Sprint 3.3 (Company Public Directory and Discovery) is now CLOSED and on `main`.** Sprint
 3.4 has not started.
+
+## Phase 3 Closure and Phase 4 Customer Portal Architecture Assessment (2026-07-16, code-free)
+
+A governance/readiness activity — not a numbered implementation sprint (see item 2's naming
+note below). Performed on `main` @ `a9a8a1181aa9f91a2f48f4cdbe9ceb104046a38c`, on a
+documentation-only branch (`docs/phase3-closure-phase4-assessment`, PR #15) per this task's
+own explicit governance — no product code, model, migration, view, form, template, service,
+selector, or test was changed. See `ARCHITECTURE_DECISION_LOG.md` ADM-026 for the decision
+record this entry provides evidence for. **PR #15 was still open at the time of this entry
+— Phase 3's formal closure and everything recorded here become canonical on `main` only
+once PR #15 merges.**
+
+### 1. Confirmed repository state
+
+`main` HEAD `a9a8a1181aa9f91a2f48f4cdbe9ceb104046a38c`; local `main` identical to
+`origin/main`; working tree clean; PR #14 merged; Sprints 3.1/3.2/3.3 complete; full
+regression baseline 2192/2192; no Sprint 3.4 exists; no Phase 4 branch existed before this
+task's own documentation branch (PR #15, not yet merged).
+
+### 2. Phase 3 closure confirmation
+
+Every roadmap acceptance criterion is delivered and merged — see ADM-026 Decision 1 for the
+full capability-by-capability confirmation (identity/verification, affiliation lifecycle,
+caregiver management, professional profile, public profile, public directory, services,
+permissions/tenancy, dashboard/summaries, notifications, visibility/privacy). **Phase 3's
+implementation scope is complete and its closure is APPROVED. No Sprint 3.4 is required.
+PR #15 (documentation-only) is the change that records this closure — formal closure on
+canonical `main` is pending PR #15's merge.** (Naming note: the code-free investigation in
+this entry is labeled "Phase 4 Customer Portal Architecture Assessment," deliberately not
+"Sprint 4.0," to avoid colliding with "Sprint 4.1," the first numbered Phase 4
+implementation sprint recommended in item 19 below — a Sprint identifier must refer to
+exactly one bounded implementation unit.)
+
+### 3. Documentation drift corrected
+
+`quality/COMPLETION_BACKLOG.md` BG-027 was not marked RESOLVED despite `quality
+/DEFECT_AND_RISK_REGISTER.md` KL-021 recording the fix as shipped in Sprint 3.2. Corrected
+to an explicit RESOLVED entry with resolution evidence (direct template inspection of
+`organization_profile.html`'s `{% url 'public_site:organization-profile' ... %}` usage).
+Searched all active documentation for BG-027/KL-021 references (14 files); every other
+occurrence was already a correct historical mention ("previously deferred," "fixed in
+Sprint 3.2," etc.) — only the BG-027 section header itself was stale. No other
+documentation-only current-state contradiction was found during this pass.
+
+### 4. Customer Portal capability matrix
+
+| Capability | Classification | Evidence |
+|---|---|---|
+| Customer account/profile (`CustomerProfile`) | Complete | `apps/accounts/models/profiles.py` — phone, display_name, city, relation_to_elder, preferred_contact_method, notes, profile_completion_percent, status |
+| Care recipients (`ElderProfile`) | Complete | Full CRUD + archive (`care_recipient_service.py`, `care_recipients_list/detail/form` templates); `address`/`city`/`care_needs` fields |
+| Trusted contacts | Complete (model + access-level enum) | `TrustedContact` model, `access_level` (notify_only/limited_view/coordinator) |
+| Customer registration/verification | Complete (reused from Phase 1) | Phone/OTP is the current-phase mechanism (KL-007/BG-016 — customer document verification is an explicitly recorded domain-model gap, unrelated to portal completeness) |
+| Customer roles/permission keys | Sufficient for current phase | No RBAC permission keys — ownership-only model (`resolve_customer_profile()`), correct for a single-role, no-delegation customer account (see Permission review below) |
+| Customer portal URLs | Complete | 30 routes in `apps/portal/urls.py` |
+| Views/forms/services/selectors/viewmodels | Complete | `apps/portal/views.py` (871 lines), `forms.py`, 5 presentation services, `viewmodels.py` (210 lines, 10+ frozen dataclasses) |
+| Templates | Complete | 24 templates, `base.html` + `_sidebar_nav.html` shared shell |
+| Navigation | Complete | `CustomerProfilePresentationService.build_nav_items()`, active-state highlighting |
+| Dashboard | Complete | Recent orders, upcoming visits, care recipients, wallet balance, notifications, profile-completion nudge, pending actions |
+| Notifications | Complete | `notifications_view`, `NotificationQueryService`, unread count |
+| Favorites/saved suppliers | **Missing** | No `Favorite`/bookmark/shortlist/saved-supplier model, service, view, or template anywhere in the repository (confirmed by broad case-insensitive search) |
+| Public caregiver/company discovery integration | Sufficient for current phase | The order-request wizard and public directories (`CaregiverDirectoryService`/`OrganizationDirectoryService`) are independent, correct surfaces; no direct "browse then request" linkage exists yet, but nothing in Phase 4's own acceptance criteria requires one |
+| Order visibility | Complete | `requests_list_view` (active/completed/cancelled filter), `request_detail_view`, ownership-scoped via `OrderQueryService.get_for_customer()` |
+| Order history | Complete | Same `requests_list_view`/`OrderQueryService.list_for_customer()` — full history, not just recent |
+| Invoices | Complete (previously mis-documented as "new") | `CustomerPaymentsPresentationService.get_summary_view()`/`get_rows_for_order()`, reading `FinancialDocumentService.list_for_payer_party()`/`list_for_order()` |
+| Receipts | Sufficient for current phase (no separate domain concept) | `FinancialDocumentType` has no RECEIPT type — a PAID invoice serves that role; matches the roadmap's own "invoices + receipts" grouping |
+| Payments | Complete | `payments_view` (tenant-wide summary) + `request_financial_view`/`_pay_view` (per-order, fake-PSP-simulated) |
+| Refunds | Sufficient for current phase | Refund/credit-note document types exist in `FinancialDocumentType` and surface through the same read path; no dedicated refund-initiation UI exists, and none is required — refunds are operator/commission-engine-initiated, not customer-initiated, in this domain |
+| Cancellations | Sufficient for current phase | `OrderStatus.CANCELLATION_REQUESTED`/`CANCELLED` are modeled and rendered (dashboard status variants); no dedicated customer-facing "cancel" button was found in `views.py` — a genuine minor gap, but not a Phase 4 blocker (order-state-machine changes are explicitly out of Phase 4 scope per this task's own Phase Dependency Review section) |
+| Addresses | Sufficient for current phase | No separate `Address` model — `ElderProfile.address`/`city` (free text) and `Order.address`/`city` (per-request) are the existing representation; consistent with the organization side's own `city`-only service-area decision (ADM-024 Decision 6c) |
+| Service-location data | Sufficient for current phase | Same as addresses — per-order/per-elder free text, no structured geocoding |
+| Profile editing | Complete | `profile_edit_view`, `CustomerProfileUpdateService` |
+| Privacy | Complete | No cross-customer data ever included in any query — every selector is scoped by `customer_profile`/`tenant_id` |
+| Tenant isolation | Complete | `resolve_tenant_id()` reads only `request.user.tenant_id`; every service call threads `tenant_id` explicitly |
+| Object ownership checks | Complete | 404-not-403 convention, explicit test suite (`test_access_control.py`) |
+| Query performance | Sufficient for current phase, partially proven | `CaptureQueriesContext` tests exist in `test_epic07_customer_experience.py` (4 usages); not exhaustively covering every view the way `public_site`'s KL-012-hardened suite does — a possible future hardening item, not a defect |
+| Existing migrations | Complete, no drift found | `CustomerProfile`/`ElderProfile`/`TrustedContact` all present since early accounts migrations; no Favorite-related migration exists (confirming the gap) |
+| Backlog/defect entries | Reviewed | No open `quality/COMPLETION_BACKLOG.md`/`DEFECT_AND_RISK_REGISTER.md` entry names `apps.portal` as incomplete except BG-029/KL-022 (cross-portal flash messages) |
+
+### 5. Existing route/page inventory (`apps/portal/urls.py`, 30 routes)
+
+Dashboard; profile (view/edit); settings; payments; reviews; care-recipients (list/create/detail/edit/archive — 5 routes); requests (list/detail/review-submit/financial view+pay+approve+dispute/share-link create+revoke — 8 routes); order-request wizard (care-recipient/service/schedule/address/notes/review/submit — 7 routes); notifications; public shared-order view (`share/<token>/`, unauthenticated).
+
+### 6. Customer-domain ownership map
+
+| Data | Canonical owner |
+|---|---|
+| `CustomerProfile` | `apps.accounts` (owned by the authenticated `UserAccount`/`Person`, one-to-one) |
+| Customer contact information (phone, preferred contact method) | `CustomerProfile` fields, `apps.accounts` |
+| Service/care-recipient addresses | `ElderProfile.address`/`city`, `apps.accounts`; per-order snapshot on `Order.address`/`city`, `apps.orders` |
+| Saved/favorite suppliers | **Not yet modeled** — would belong to a new `apps.accounts` (or `apps.portal`) model, customer → `kernel.ServiceSupplier`, never to `apps.public_site` (a presentation layer, not a domain owner) |
+| Orders | `apps.orders` (order aggregate); `customer_profile`/`elder_profile`/`created_by` FKs establish the customer-side participant links |
+| Order participants | `apps.orders.Order` FKs (`customer_profile`, `elder_profile`, `assigned_supplier`, `created_by`) — no separate participants table |
+| Invoices/receipts | `apps.finance` (`FinancialDocument`, finance aggregate) — `apps.portal` only reads via `FinancialDocumentService`, never computes or stores |
+| Payments | `apps.commission`/`apps.payments`/`apps.wallet` (finance aggregate) — `apps.portal` reads via `FinancialCoreQueryService`, triggers only through existing service calls (`PreServicePaymentService.simulate_fake_payment_outcome()`), never mutates finance rows directly |
+| Refunds | `apps.finance`/`apps.commission` (finance aggregate) — read-only in the portal |
+| Notifications | `apps.notifications` (tenant + recipient-scoped) |
+| Reviews | `apps.reviews` (`Review`, keyed to `reviewer_person_id` — not a hard FK, an existing documented design choice) — `apps.portal` reads via `ReviewSubmissionService.list_for_reviewer()`, writes via the same service's submission path, never direct ORM |
+| Uploaded documents | None exist for customers — `VerificationDocument` has no customer-owner path (KL-007/BG-016), unrelated to Phase 4 |
+
+No ownership transfers or duplicate financial truth were found or would be introduced by
+closing this gap — every read path in `apps.portal` already goes through the canonical
+finance/order/review services.
+
+### 7. Permission and object-ownership matrix
+
+Customer Portal access relies on **authenticated identity + object ownership**, not RBAC
+permission keys (correctly — a customer account has exactly one role, no delegation, no
+scope to check beyond "is this my own data"). `resolve_customer_profile()` never accepts a
+profile id from the request — it always resolves `request.user.person.customer_profile`.
+Every ownership-scoped lookup (`_get_order_for_customer()`, care-recipient
+get/edit/archive, share-link create/revoke) raises `Http404` on any row not belonging to
+the caller — proven directly by `test_access_control.py`'s
+`test_care_recipient_edit_denies_other_customers_recipient()` and
+`test_request_detail_denies_other_customers_order()`, both asserting 404 (not 403) for a
+second, real customer attempting to reach the first customer's data.
+
+### 8. Tenant-isolation assessment
+
+`resolve_tenant_id()` reads exclusively `request.user.tenant_id` (never from the URL or
+POST body); every service call in `views.py` threads `tenant_id` explicitly
+(`OrderQueryService`, `NotificationQueryService`, `FinancialDocumentService`,
+`FinancialCoreQueryService` all take `tenant_id=` as a required kwarg). No cross-tenant
+leak path was found.
+
+### 9. Privacy assessment
+
+No view or service in `apps.portal` returns another customer's data, another supplier's
+private data, or internal financial/admin records. `apps.portal`'s own module docstring
+states its ORM-discipline guardrail explicitly (`PortalOrmDisciplineTest`) — no direct ORM
+access exists in views, only service calls, which is the same discipline `public_site` and
+`organization_portal` already follow.
+
+### 10. Security and IDOR risks
+
+None found. The 404-not-403 convention is applied consistently and is explicitly tested.
+The one soft observation: `CustomerPaymentsPresentationService.get_summary_view()` sums
+`doc.total_amount` client-side (in the presentation service) rather than reading a
+precomputed aggregate — this is a simple sum over already-fetched canonical values (not an
+independent recalculation of pricing/settlement), the same pattern
+`CaregiverDashboardPresentationService` and other established presentation services in this
+codebase already use; not a defect, noted for completeness per this assessment's explicit
+"must not calculate totals independently" instruction.
+
+### 11. Order/history capability assessment
+
+Complete. `requests_list_view` supports `?filter=active|completed|cancelled`, backed by
+`OrderQueryService.list_for_customer(only=...)`; `request_detail_view` shows full order
+detail, ownership-scoped via `OrderQueryService.get_for_customer()`. No gap.
+
+### 12. Invoice/receipt/payment read-model assessment
+
+Complete, and already reuses canonical finance services exclusively — `FinancialDocumentService
+.list_for_payer_party()` (portal-wide list), `.list_for_order()` (per-order rows),
+`FinancialCoreQueryService.get_order_financial_view()` (escrow/objection/dispute status).
+No independent total calculation beyond simple sums over canonical values (see Section 10);
+no mutation of financial state from the portal beyond calling existing, already-audited
+service methods (`PreServicePaymentService.simulate_fake_payment_outcome()`,
+`ObjectionPeriodService.approve_by_customer()`, `DisputeService.open()`); no feature-gate
+bypass found; no supplier/company private financial data exposed (every row is scoped to
+the customer's own `FinancialParty`).
+
+### 13. Favorites assessment
+
+**No canonical model exists.** Broad case-insensitive search (`favorite`, `bookmark`,
+`shortlist`, `saved_provider`, `saved_supplier`, `watchlist`) across all `apps/*.py` found
+zero hits beyond one unrelated code-comment use of the English word "bookmark" in
+`apps.accounts.views`. **Smallest correct domain model proposed** (not built this task):
+
+- New model `Favorite` (working name — final name TBD at implementation time), owned by
+  `apps.accounts` (mirrors `CustomerProfile`'s own app) or `apps.portal` (if kept
+  presentation-adjacent; `apps.accounts` is the more consistent choice, matching how
+  `CaregiverSkill`/`CaregiverGalleryItem` are accounts-owned child models, not portal-owned).
+- Fields: `customer_profile` FK (CASCADE), `supplier` FK to `kernel.ServiceSupplier`
+  (CASCADE — a favorite of a supplier that no longer exists should not orphan-linger),
+  `tenant` FK (or derived from `customer_profile`'s own tenant via `UserAccount`, matching
+  `CustomerProfile`'s own "no tenant field, `UserAccount` is the source of truth" pattern
+  noted in `apps.portal.permissions`'s own docstring), `created_at`.
+- Uniqueness: `UniqueConstraint(customer_profile, supplier)` — a customer can favorite a
+  given supplier at most once (mirrors `OrganizationMembership`'s conditional-constraint
+  precedent for "at most one of X" invariants, though here an unconditional constraint
+  suffices since there is no historical-period concept to preserve).
+- Deletion semantics: **hard delete** on unfavorite — a favorite carries no history/audit
+  value the way an affiliation period does (ADM-023's reasoning for
+  `OrganizationMembership`'s soft/historical model does not apply here: a favorite is a
+  pure UI convenience toggle, not a domain-history record). No soft-delete field needed.
+- Terminated/inactive supplier behavior: the favorites list must read through the same
+  `common.is_publicly_visible_attrs()` (or a supplier-status check) before rendering a
+  favorited supplier as "visible" — a favorite of a supplier that later becomes
+  unverified/inactive should not silently vanish from the list (data integrity) but should
+  render with a "no longer publicly listed" state rather than link to a 404. Exact
+  presentation is an implementation-time UI decision, not an architecture decision.
+- Caregiver and organization compatibility: `supplier` FK to `kernel.ServiceSupplier`
+  (the same generic registry both `CaregiverDirectoryService` and
+  `OrganizationDirectoryService` already key off) makes a single model naturally support
+  favoriting both caregivers and organizations — no separate `CaregiverFavorite`/
+  `OrganizationFavorite` split needed, mirroring `ServiceSupplier`'s own
+  type-agnostic design that `apps.discovery`'s search/ranking services already rely on.
+- Concurrency/idempotency: toggle (favorite/unfavorite) should be a `get_or_create()`/
+  `delete()` pair guarded by the unique constraint — no row-lock needed (no derived
+  aggregate depends on favorite count in a way that requires serialization, unlike
+  `OrganizationMembership`'s capacity-sensitive activation paths).
+- Query performance: a favorites list of up to some bounded page size needs the same
+  bulk-resolution discipline as the two existing directories (`resolve_supplier_entities_bulk()`,
+  `bulk_supplier_attrs()`) — this is a direct, low-risk reuse, not new query-performance
+  design work.
+
+### 14. Notification and feedback-framework assessment
+
+**Notifications:** complete (Section 4). **Flash-message/error-surfacing framework
+(KL-022/BG-029) reassessment:**
+
+- Existing POST/redirect behavior: every mutating view in `organization_portal` and
+  `provider_portal` follows `except <DomainError>: pass` then `redirect(...)` — a failed
+  action is indistinguishable from success at the HTTP layer.
+- Silent failures/validation errors: confirmed present in `apps.portal` too —
+  `request_financial_pay_view`/`_approve_view`/`_dispute_view` all follow the identical
+  `except CommissionError: pass` pattern; `request_financial_dispute_view`'s
+  `DisputeOpenForm` validation failure (`if form.is_valid():`) has no visible `else`
+  branch either.
+- Shared base templates: `templates/portal/base.html`, `organization_portal`'s and
+  `provider_portal`'s own base templates are three independent templates, not a single
+  shared enterprise-UI base — a `django.contrib.messages` integration would need to touch
+  all three (or their shared `ui/layouts/` ancestor, if one exists) plus every affected view.
+- Accessibility: no ARIA-live region or equivalent exists anywhere in these portals for
+  asynchronous status changes — a message framework addition should include one from the
+  start rather than retrofitting it later.
+- Test impact: `apps.portal`'s existing 74 tests, `organization_portal`'s and
+  `provider_portal`'s equivalents, would all need new coverage for message rendering — a
+  cross-cutting test surface, not a single-app addition.
+
+**Determination: Option B — implement as a separate, cross-cutting infrastructure sprint,
+evaluated for possible bundling into Sprint 4.1's own foundation work only if that sprint
+already touches portal-wide base templates; otherwise scheduled independently.** Rationale:
+it is confirmed to span three portals including two Phase-3-owned apps and one Phase-4-owned
+app — bundling it entirely into a Company-Portal sprint (Option D, rejected in ADM-025/the
+prior Phase 3 assessment) or entirely into a single Customer-Portal sprint would
+under-deliver for the other two portals either way. A dedicated, portal-agnostic sprint (or
+a first-class part of whichever Phase 4 sprint next touches shared base templates) is the
+correct unit of work. **Not implemented in this assessment, per its own governance.**
+
+### 15. Query-performance assessment
+
+`apps.portal` already has `CaptureQueriesContext`-based tests in
+`test_epic07_customer_experience.py` (4 usages) — the discipline exists, though not as
+exhaustively as `public_site`'s KL-012-hardened 0/1/5/20+-candidate convention (which makes
+sense: `apps.portal` pages are single-customer-scoped, not directory/listing pages over an
+unbounded candidate set, so the N+1 risk class KL-012 addressed does not apply the same way
+here). No query-count regression risk was found for the recommended Favorites addition,
+provided its list view reuses the existing bulk-resolution helpers (Section 13).
+
+### 16. Dependency analysis
+
+Favorites depends only on `kernel.ServiceSupplier` (generic, already exists) and the public
+visibility helpers already built for Phase 2/3 (`common.is_publicly_visible_attrs()`,
+`resolve_supplier_entities_bulk()`) — no dependency on Marketplace, Invoice workflow
+(already exists), Financial Engine changes, Payment execution, Settlement, Payroll,
+Messaging, or AI verification. The flash-message framework depends on nothing beyond
+`django.contrib.messages` (already a Django built-in, unused so far) — no domain dependency,
+purely a cross-cutting UI-infrastructure decision.
+
+### 17. Remaining gaps
+
+Favorites (missing, addressable in one bounded sprint); flash-message framework (missing,
+cross-portal, scheduled separately); customer-initiated order cancellation UI (minor,
+noted, not a Phase 4 blocker per the state-machine-redesign exclusion); customer document
+verification (KL-007/BG-016, pre-existing, unrelated to portal completeness, Phase-agnostic
+domain-model gap).
+
+### 18. Candidate Phase 4 implementation sprints
+
+- **Sprint 4.1 — Customer Favorites and Saved Providers.** Minimum vertical slice, no
+  dependency on anything unbuilt. **Recommended first sprint.**
+- **Sprint 4.x (number TBD at scheduling time) — Cross-portal flash-message framework.**
+  Valid, but not Customer-Portal-specific — better scheduled as its own cross-cutting
+  infrastructure sprint, potentially immediately after Sprint 4.1 if no other Phase 4 work
+  is queued, or bundled into whichever future sprint next touches shared base templates.
+  Rejected as the *first* Phase 4 sprint because it delivers no new customer-facing
+  capability on its own and is not what "Customer Portal Sprint 4.1" self-evidently means.
+- **Sprint 4.x (number TBD) — Customer-initiated order cancellation.** A real, minor gap,
+  but not evidenced as urgent (no acceptance criterion, no defect report) — a reasonable
+  future candidate, not the first sprint.
+
+### 19. Recommended first bounded implementation sprint
+
+**Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers.** Not started as of this
+assessment.
+
+### 20. Exact in-scope capabilities
+
+`Favorite` model (customer → `kernel.ServiceSupplier`, tenant-scoped, unique constraint,
+hard delete); a service layer (`apps.accounts.services` — mirroring where
+`CaregiverGalleryService`/`CaregiverSkillService` already live) with `add_favorite()`/
+`remove_favorite()`/`list_favorites_for_customer()`, reusing `common
+.is_publicly_visible_attrs()`/`resolve_supplier_entities_bulk()` for rendering; a toggle
+affordance on the existing public caregiver profile (`caregiver_profile.html`) and
+organization profile (`organization_profile.html`) pages, authenticated-customer-only; a
+new `apps.portal` "My Favorites" list page (`favorites_view`, new route, new template,
+reusing the existing caregiver/organization card components from `public_site`'s own
+`ui/components/public/` directory where possible — do not duplicate card markup).
+
+### 21. Exact out-of-scope capabilities
+
+Flash-message framework (separate sprint, Section 14); order cancellation UI; invoice/
+receipt/payment work (already complete, do not touch); Marketplace offer/assignment
+workflow; new order state-machine; invoice generation logic changes; payment execution;
+settlement; payroll; company financial reporting; messaging; AI verification; any change to
+`apps.discovery`, `CaregiverDirectoryService`, or `OrganizationDirectoryService` beyond
+reading their already-public data.
+
+### 22. Expected model/migration impact
+
+One new model, one migration. No change to any existing model.
+
+### 23. Expected permission impact
+
+None beyond the existing ownership-only convention (`resolve_customer_profile()`) — no new
+RBAC permission key needed, matching every other `apps.portal` capability.
+
+### 24. Expected concurrency invariants
+
+`get_or_create()`/`delete()` guarded by a `UniqueConstraint(customer_profile, supplier)` —
+no row-lock required (see Section 13's reasoning).
+
+### 25. Expected test level
+
+Focused tests for the new service (add/remove/list, uniqueness, ownership, tenant scoping,
+terminated-supplier rendering) + view-level tests (toggle from both profile pages, list page
+ownership, 404-not-403 for another customer's favorite) + a query-budget test mirroring the
+existing directory-service convention. Full regression once, given the toggle touches two
+existing, shared public-profile templates.
+
+### 26. Required documentation updates (at Sprint 4.1 implementation time)
+
+New ADR recording the `Favorite` model's exact final shape; `current/IMPLEMENTATION_STATE.md`
+new `accounts`/`portal` rows; `current/PORTALS_AND_APIS.md` new route entry;
+`IMPLEMENTATION_ROADMAP.md` Phase 4 status update; `traceability/IMPLEMENTATION_JOURNAL.md`
+new entry; `quality/COMPLETION_BACKLOG.md` new BG item marked RESOLVED at merge.
+
+### 27. Proposed branch name
+
+`phase4-customer-favorites`
+
+### 28. Proposed PR title
+
+`Sprint 4.1: Customer favorites and saved providers`
+
+### 29. Complete implementation prompt for the recommended first Phase 4 sprint
+
+> This prompt is to be issued only after PR #15 (documentation-only, Phase 3 closure +
+> Phase 4 Customer Portal Architecture Assessment) has merged to `main` — do not issue it
+> while PR #15 is still open, and do not claim Phase 4 implementation has begun until this
+> prompt itself is acted on.
+>
+> Phase 3 is formally closed and Phase 4 implementation is beginning. Current canonical
+> repository state: `main` HEAD — verify the actual current HEAD after PR #15's merge (do
+> not assume `a9a8a1181aa9f91a2f48f4cdbe9ceb104046a38c`, which predates that merge); Customer
+> Portal (`apps.portal`) already substantially complete under pre-existing Epic 07 work — do
+> not rebuild dashboard, orders, payments/invoices, reviews, notifications, or the
+> order-request wizard. Create a new branch from the current `main`:
+> `phase4-customer-favorites`. Do not modify `main`.
+>
+> PHASE 4 — SPRINT 4.1: Customer Favorites and Saved Providers. STEP 1 — current-state
+> verification: re-read `apps.portal` in full (already substantially done by this
+> assessment — verify it is still accurate against the actual `main` HEAD you branch from),
+> confirm no `Favorite`/bookmark/saved-supplier model has been added since this assessment,
+> confirm `kernel.ServiceSupplier` and `common.is_publicly_visible_attrs()`/
+> `resolve_supplier_entities_bulk()` are unchanged. STEP 2 — ADR (mandatory): record the
+> `Favorite` model's final field shape, app placement (`apps.accounts` recommended, mirroring
+> `CaregiverGalleryItem`'s precedent — record the decision either way), and hard-delete
+> rationale, before writing code. STEP 3 — implementation: the model, service, toggle UI on
+> both public profile pages, and the portal list page, exactly as scoped in item 20 above,
+> reusing existing selectors, introducing no second visibility policy, no second bulk
+> resolution helper. Do NOT implement the flash-message framework, order cancellation, or any
+> financial/invoice change in this sprint. TESTS: focused tests for the new service and views
+> (ownership, tenant scoping, uniqueness, terminated-supplier handling, query budget), full
+> regression once. DOCUMENTATION: synchronize per item 26 above. PR: create a PR against
+> `main`. Do not merge. Stop after PR creation. FINAL REPORT: ADR decision; current-state
+> findings; implemented scope; reused components; query-budget measurements; privacy
+> verification; test results; documentation updates; PR number; branch HEAD; git status;
+> merge recommendation. Do not start a further Phase 4 sprint.

@@ -842,7 +842,17 @@ Discovery) is now CLOSED and on `main`.**
 
 ## IMMEDIATE NEXT TASK
 
-### Await the next Phase 3 sprint's scope; do not start Sprint 3.4 automatically
+### Review and merge PR #15 to formally close Phase 3. After that merge, the immediate implementation task is Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers.
+
+Phase 3's implementation scope is complete and its closure has been approved (2026-07-16),
+but **PR #15 is still open** — this documentation-only PR is what will record Phase 3's
+formal closure on canonical `main` once it merges. Until then, treat Phase 3 as
+closure-approved-but-not-yet-canonical. A code-free Phase 4 Customer Portal Architecture
+Assessment (a governance/readiness review, not a numbered sprint) found the portal already
+substantially implemented (Epic 07); **Phase 4 implementation has not started.** The
+immediate next task before any Phase 4 work is reviewing and merging PR #15; the immediate
+next *implementation* task after that merge is the bounded Sprint 4.1 (Customer Favorites
+and Saved Providers), the one confirmed gap.
 
 Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active implementation
 order).
@@ -855,31 +865,58 @@ history and cleaned up active documentation). Sprint 3.2 is also fully
 closed and merged to `main` via PR #13 (including its architecture-review
 remediation that renders the public company logo). Sprint 3.3 (Company
 Public Directory and Discovery) is also fully closed and merged to `main`
-via PR #14 — see the entry immediately above. No Sprint 3.4 work has
-started. Remaining roadmap Phase 3 scope, explicitly NOT started yet:
+via PR #14 — see the entry immediately above.
+
+**Phase 3's implementation scope is complete and its closure has been approved
+(2026-07-16); PR #15 (documentation-only) is what records this formal closure —
+it is still open, so formal closure on canonical `main` is pending PR #15's
+merge.** A code-free architecture assessment confirmed every Phase 3 roadmap
+acceptance criterion is delivered and merged: company identity/verification,
+caregiver affiliation lifecycle, company caregiver management, company
+professional profile, public company profile, public company
+directory/discovery, company services, permissions/tenant isolation,
+dashboard/operational summaries, notifications, and public visibility/privacy
+boundaries.
+**No Sprint 3.4 is required.** The following items were evaluated and
+found to be safely deferrable — they do NOT block Phase 4 and are
+explicitly not required for Phase 3 closure:
 
 1. Company financial overview + reports (extend), company invoicing —
-   not started, explicitly out of Sprint 3.2/3.3's scope. Company public
-   profile/discovery parity with the caregiver side is now **further
-   addressed** by Sprint 3.3 (public directory, search, city/service
-   filters) on top of Sprint 3.2's profile-page work (headline, canonical
-   visibility policy, SEO fix, permission-gated media, transaction-safe
-   media replacement, public logo rendering) — gallery/certificates
-   generalized to organizations remains open (explicitly out of Sprint
-   3.2/3.3's minimum-vertical-slice scope; Sprint 3.3 also explicitly did
+   not started, explicitly out of Sprint 3.2/3.3's scope, and structurally
+   blocked on `quality/COMPLETION_BACKLOG.md` BG-008 (Enable Pre-Service
+   Payment Gate) — a Financial/Payment-phase dependency, not a Company
+   Portal defect (`organization_portal`'s `financial_view` is correct and
+   read-only; it is simply empty until the payment gate is enabled).
+   Company public profile/discovery parity with the caregiver side is
+   **fully addressed** by Sprint 3.3 (public directory, search,
+   city/service filters) on top of Sprint 3.2's profile-page work
+   (headline, canonical visibility policy, SEO fix, permission-gated
+   media, transaction-safe media replacement, public logo rendering) —
+   gallery/certificates generalized to organizations remains open
+   (deferred, no product-value trigger; Sprint 3.3 also explicitly did
    not implement `SupplierDirectoryService`, advanced filters, or new
    ranking algorithms — see ADM-025).
 2. Company gallery/social feed, messaging, AI verification, payroll/
    salary, HR leave workflow, caregiver scheduling by company — not
-   started, explicitly out of Sprint 3.1/3.2's scope per their own
-   governance.
-3. No flash-message/error-surfacing framework exists for the new
-   POST-action affiliation views (invite/approve/reject/terminate/etc.)
-   — a failed action silently redirects back with no visible feedback,
-   matching this app's own pre-existing convention for action buttons
-   (`staff_approve_view`/`staff_suspend_view` have never surfaced
-   errors either); recorded as a known, minimal-v1 UX gap, not solved
-   this sprint (`quality/DEFECT_AND_RISK_REGISTER.md` KL-022).
+   started, explicitly out of Phase 3's scope per its own governance;
+   remain out of scope for Phase 4 as well (later-phase or no-evidence
+   items, not Customer Portal prerequisites).
+3. No flash-message/error-surfacing framework exists for POST-action
+   portal views (invite/approve/reject/terminate/etc. in
+   `organization_portal`/`provider_portal`, and any future `portal`
+   customer-facing mutation) — a failed action silently redirects back
+   with no visible feedback, matching this app's own pre-existing
+   convention for action buttons (`staff_approve_view`/
+   `staff_suspend_view` have never surfaced errors either). This is a
+   **cross-portal infrastructure item, not a Company-Portal-specific
+   blocker** — its own backlog entry (BG-029) names `apps.portal` (the
+   Customer Portal) as equally affected, so it is evaluated as part of
+   the Phase 4 Customer Portal Architecture Assessment rather than as a
+   Phase 3 sprint (`quality/DEFECT_AND_RISK_REGISTER.md` KL-022).
+4. Organization individual-review listing (aggregate rating exists;
+   per-review detail does not, unlike the caregiver profile's
+   `common.reviews_to_viewmodels()`) — cosmetic parity gap, zero domain
+   dependency, does not block Phase 4.
 4. ~~Known, recorded during BG-022's remediation~~ — **RESOLVED (PR #11
    remediation, 2026-07-15):** the pre-existing per-candidate query cost
    in directory ranking/card-building (`DiscoveryRankingService.rank()`,
@@ -910,15 +947,76 @@ started. Remaining roadmap Phase 3 scope, explicitly NOT started yet:
    was the one Phase 2 acceptance criterion satisfied only as an
    explicitly accepted external-domain dependency, not a
    caregiver-profile defect.
-10. Known, recorded during Sprint 2.6, deferred: identical SEO
-    `page_url` bug on `organization_profile.html` (KL-021/BG-027); the
-    same unassociated-`<label>` accessibility pattern in
-    `organization_portal`/`admin_portal`/`portal` (customer) templates
-    — both out of Sprint 2.6's caregiver-only scope.
-11. Known, recorded during Sprint 3.1: no flash-message/error-surfacing
+10. **RESOLVED (Sprint 3.2, 2026-07-16).** The SEO `page_url` bug on
+    `organization_profile.html` (KL-021/BG-027, recorded during Sprint 2.6
+    as deferred/caregiver-only scope) was fixed in Sprint 3.2 — confirmed
+    by direct template inspection during the Phase 3 closure review
+    (2026-07-16); `quality/COMPLETION_BACKLOG.md` BG-027's own entry was
+    found not marked RESOLVED (a documentation-only drift) and corrected
+    at the same time. The same unassociated-`<label>` accessibility
+    pattern in `organization_portal`/`admin_portal`/`portal` (customer)
+    templates remains open, out of caregiver-only scope, unrelated to
+    Phase 3 closure.
+11. Known, recorded during Sprint 3.1, re-evaluated during the Phase 3
+    closure review (2026-07-16): no flash-message/error-surfacing
     framework exists anywhere in this codebase's portals — see item 3
-    above (KL-022).
+    above (KL-022). Not a Phase 3 blocker; scheduled for evaluation as
+    part of the Phase 4 Customer Portal Architecture Assessment since
+    `apps.portal` (Customer Portal) is equally affected.
 
 Note: the previously listed follow-up "Phase 2: OrderOfferService" is now
 scheduled as roadmap Phase 5 (Marketplace Order Workflow) and must not be
 started before roadmap Phases 1–4.
+
+### Phase 4 — Customer Portal Architecture Assessment (2026-07-16, code-free)
+
+A governance/readiness activity — not a numbered implementation sprint. Performed
+immediately after Phase 3's closure was approved (PR #15, documentation-only, still open at
+the time of this assessment), on a documentation-only branch
+(`docs/phase3-closure-phase4-assessment`) per explicit governance for this task — no product
+code, model, migration, view, template, service, selector, or test was changed. **Phase 4
+implementation has not started.**
+
+**Major finding:** the Customer Portal (`apps.portal`) is NOT a greenfield build. Direct
+inspection (not documentation) found a mature, already-tested body of work built under
+"Epic 07 — Customer Experience and Portal Completion" (per every relevant service's own
+docstring), predating this repository's current Phase 1–5 roadmap numbering:
+`CustomerProfile`/`ElderProfile`/`TrustedContact` models; a full order-request wizard
+(care-recipient → service → schedule → address → notes → review → submit); order
+list/detail/history with active/completed/cancelled filters
+(`OrderQueryService.list_for_customer()`); per-order financial pay/approve/dispute pages with
+real `apps.commission` engine integration (`PreServicePaymentService`,
+`ObjectionPeriodService`, `DisputeService`); a customer-facing invoices/payments page
+(`CustomerPaymentsPresentationService`, reading `FinancialDocumentService
+.list_for_payer_party()` — this domain has no separate "receipt" document type, a paid
+invoice serves that role); a written-reviews list; notifications; public order-share links
+(create/revoke); dashboard; profile/settings editing — all with dedicated test files
+(`apps.portal.tests`, 1063 test lines across 9 files) including an explicit IDOR-focused
+suite (`test_access_control.py`) proving the 404-not-403 ownership-scoping convention
+(`resolve_customer_profile()` reads only `request.user.person.customer_profile`, never
+accepted from the URL/body).
+`IMPLEMENTATION_ROADMAP.md`'s own Phase 4 header already read "(production complete)" — only
+its scope-line text (still describing invoices/payments/dashboard/orders as partially "new")
+was stale relative to the code. This documentation drift is recorded, not silently corrected
+beyond what this closure task authorizes.
+
+**The one confirmed, repository-wide-verified gap: Favorites/saved-suppliers.** No
+`Favorite`/bookmark/shortlist/saved-supplier model or equivalent exists anywhere in the
+repository (confirmed by broad case-insensitive search across all app source).
+
+See the full 29-point assessment in `traceability/IMPLEMENTATION_JOURNAL.md`'s "Phase 3
+Closure and Phase 4 Customer Portal Architecture Assessment" entry.
+
+**Recommended first Phase 4 implementation sprint: Phase 4 — Sprint 4.1: Customer
+Favorites and Saved Providers.** Not started. A
+minimum complete vertical slice: one new `Favorite` model (customer → supplier, tenant-scoped,
+unique constraint), a service layer reusing existing supplier/visibility selectors, a toggle
+affordance on the existing public caregiver/organization profile pages, and a portal "My
+Favorites" list page. Deliberately does NOT bundle a flash-message framework, order-history
+changes, or any financial/invoice work into the same sprint — none of those need new work in
+Phase 4. See the assessment for the full in-scope/out-of-scope breakdown, model-shape
+options, and the exact implementation prompt.
+
+**Do not begin Phase 4 implementation without a fresh current-state-verification instruction
+that explicitly authorizes branch creation and code changes** — this assessment is planning
+output only, per this task's own governance.
