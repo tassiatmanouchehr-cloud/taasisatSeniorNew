@@ -2066,5 +2066,5 @@ views/routes, two new portal views/routes, new `CustomerFavoritesPresentationSer
 (portal), new `FavoriteRowViewModel`/`FavoritesListViewModel` ViewModels, new
 `templates/portal/favorites.html` + `ui/components/public/favorite_toggle.html`. 54 new
 tests, full regression 2246/2246 green (2192 baseline + 54 net). Branch
-`phase4-customer-favorites`, PR created against `main` — **not yet merged.** See
+`phase4-customer-favorites`, PR #16 created against `main` — **not yet merged.** See
 `traceability/IMPLEMENTATION_JOURNAL.md` for the full implementation record.

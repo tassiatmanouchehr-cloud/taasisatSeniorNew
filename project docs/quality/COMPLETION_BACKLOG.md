@@ -473,7 +473,7 @@ sharing favorite lists, notifications, mobile-client APIs, financial/order-workf
 supplier-side favorites analytics, broad public-site authentication redesign, broad Shared
 Discovery refactoring.
 **Status update (2026-07-16):** Implementation and tests complete on branch
-`phase4-customer-favorites`. **PR open against `main` — not yet merged. Do not treat as
+`phase4-customer-favorites`. **PR #16 open against `main` — not yet merged. Do not treat as
 RESOLVED until the PR merges.**
 
 ### BG-031: Company Public Directory and Discovery — **RESOLVED**

@@ -10,7 +10,7 @@
 | URL | https://github.com/tassiatmanouchehr-cloud/taasisatSeniorNew |
 | Default branch | main |
 | main HEAD SHA | d50f83fb7aa2f71c50bb039c8259397740bc832b (post-PR #15-merge documentation sync) |
-| Feature branch HEAD | `phase4-customer-favorites` (Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers) — implemented, PR open against `main`, **not yet merged** |
+| Feature branch HEAD | `phase4-customer-favorites` @ `0beae647b61e8cec9c2f5785f5e8cf900f41f7f7` (Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers) — implemented, PR #16 open against `main`, **not yet merged** |
 | Last verified date | July 16, 2026 |
 | Python version | 3.12 (owner dev); 3.11.15 (cloud verification environment) |
 | Django version | 5.2.16 |

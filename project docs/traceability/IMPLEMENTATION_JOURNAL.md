@@ -3290,5 +3290,5 @@ flash-message framework (not named in-scope by this sprint's own instruction, le
 future, explicitly-scoped task).
 
 **Status:** Implementation and full verification complete on branch
-`phase4-customer-favorites`. PR to be opened against `main`. **Not merged. Do not treat
+`phase4-customer-favorites`. PR #16 opened against `main`. **Not merged. Do not treat
 Sprint 4.1 as closed until the PR merges.**

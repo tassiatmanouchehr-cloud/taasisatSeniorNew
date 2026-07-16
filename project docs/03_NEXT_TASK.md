@@ -874,7 +874,7 @@ profile services, and the portal's existing `_guard()`/nav-item schema.
   representative sizes (0/1/5/20). Full regression **2246/2246 green** (2192 baseline + 54
   net). `manage.py check`/`makemigrations --check`/`manage.py migrate`/`git diff --check` all
   clean.
-- Branch `phase4-customer-favorites`, PR created against `main` — see
+- Branch `phase4-customer-favorites`, PR #16 created against `main` — see
   `traceability/IMPLEMENTATION_JOURNAL.md`'s "Phase 4 — Sprint 4.1" entry for the full
   implementation record. **Not yet merged.**
 
