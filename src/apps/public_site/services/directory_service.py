@@ -24,7 +24,6 @@ already resolved earlier in the same call.
 """
 
 import math
-from urllib.parse import urlencode
 
 from apps.discovery.services.query_normalizer import normalize_query
 from apps.discovery.services.ranking_service import DiscoveryRankingService
@@ -39,8 +38,6 @@ from .viewmodels import (
     DirectoryFiltersViewModel,
     DirectoryPageViewModel,
     FilterOptionViewModel,
-    PaginationLinkViewModel,
-    PaginationViewModel,
     RatingSummaryViewModel,
 )
 
@@ -86,7 +83,7 @@ class CaregiverDirectoryService:
 
         total_count = len(ranked)
         total_pages = max(1, math.ceil(total_count / PAGE_SIZE))
-        current_page = max(1, min(cls._parse_page(page), total_pages))
+        current_page = max(1, min(common.parse_page(page), total_pages))
         offset = (current_page - 1) * PAGE_SIZE
         page_items = ranked[offset : offset + PAGE_SIZE]
         page_supplier_ids = [item.supplier_id for item in page_items if item.supplier_id in candidates_by_id]
@@ -160,15 +157,6 @@ class CaregiverDirectoryService:
         )
 
     # ------------------------------------------------------------------
-
-    @staticmethod
-    def _parse_page(page) -> int:
-        """Architecture Review remediation M3: a malformed page value
-        (e.g. ?page=abc) must fall back to page 1, never raise."""
-        try:
-            return int(page)
-        except (TypeError, ValueError):
-            return 1
 
     @classmethod
     def _filter_candidates(cls, *, tenant_id, allowed_types, text, city, service_category_id, availability_status):
@@ -292,22 +280,10 @@ class CaregiverDirectoryService:
         if availability_status:
             params["availability"] = availability_status
 
-        def _url_for(page_number):
-            page_params = {**params, "page": page_number}
-            return f"{base_url}?{urlencode(page_params)}"
-
-        window_start = max(1, current_page - 2)
-        window_end = min(total_pages, current_page + 2)
-        page_links = tuple(
-            PaginationLinkViewModel(number=n, url=_url_for(n), is_current=(n == current_page))
-            for n in range(window_start, window_end + 1)
-        )
-
-        return PaginationViewModel(
+        return common.build_pagination(
             current_page=current_page,
             total_pages=total_pages,
             total_count=total_count,
-            previous_url=_url_for(current_page - 1) if current_page > 1 else None,
-            next_url=_url_for(current_page + 1) if current_page < total_pages else None,
-            page_links=page_links,
+            base_url=base_url,
+            params=params,
         )

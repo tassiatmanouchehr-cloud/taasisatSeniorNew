@@ -1,7 +1,7 @@
 # RUNTIME WORKFLOWS
 
-**Last verified HEAD:** main @ 49b643e130018b959938907e9a5d1ae491d51f6c (PR #12 merged — Sprint 3.1 CLOSED; PR #13 merged — Sprint 3.2 CLOSED; Sprint 3.3 not started)
-**Last verified date:** 2026-07-16 (Sprint 3.2)
+**Last verified HEAD:** main @ 9929da5a5c6c109232bc4931db549848a04521e2 (PR #12 merged — Sprint 3.1 CLOSED; PR #13 merged — Sprint 3.2 CLOSED; Sprint 3.3 implemented on branch `phase3-company-public-directory`, PR open — not yet merged)
+**Last verified date:** 2026-07-16 (Sprint 3.3)
 
 ---
 
@@ -40,6 +40,8 @@
 | 29 | Caregiver Professional Dashboard | IMPLEMENTED (Sprint 2.5) | `provider_portal/services/dashboard_service.py:CaregiverDashboardPresentationService` |
 | 30 | Public Profile Finalization and Phase 2 Acceptance | IMPLEMENTED (Sprint 2.6 + PR #11 KL-012 remediation — Phase 2 acceptance criteria satisfied except the accepted bonus/penalty dependency; **PR #11 MERGED, Phase 2 CLOSED**) | `public_site/services/profile_service.py:CaregiverPublicProfileService` (SEO/accessibility/redundant-badge fixes); `public_site/services/directory_service.py:CaregiverDirectoryService` (bulk card-data resolution); `discovery/services/ranking_service.py:DiscoveryRankingService` (bulk capacity check); `apps.public_site.tests.test_phase2_acceptance` (Phase 2 E2E acceptance + query-budget proof) |
 | 31 | Company-Caregiver Affiliation Lifecycle (join-by-code, invitation, approval, termination) | IMPLEMENTED (Sprint 3.1) | `apps.accounts.services.affiliations` (extended) |
+| 32 | Company Professional Profile and Public Presence (headline, canonical visibility, public logo) | IMPLEMENTED (Sprint 3.2 + PR #13 remediation) | `public_site/services/organization_profile_service.py:OrganizationPublicProfileService` |
+| 33 | Company Public Directory and Discovery (search, city/service filters, pagination, cards) | IMPLEMENTED (Sprint 3.3) | `public_site/services/organization_directory_service.py:OrganizationDirectoryService` |
 
 ---
 

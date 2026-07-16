@@ -18,6 +18,7 @@ from apps.kernel.services.tenant_service import TenantService
 
 from .services.directory_service import CAREGIVER_SUPPLIER_TYPES, CaregiverDirectoryService
 from .services.home_service import HomePageService
+from .services.organization_directory_service import OrganizationDirectoryService
 from .services.organization_profile_service import OrganizationPublicProfileService
 from .services.profile_service import CaregiverPublicProfileService
 
@@ -70,6 +71,16 @@ def caregiver_profile(request, supplier_id):
     if profile is None:
         raise Http404("Caregiver profile not found.")
     return render(request, "public_site/caregiver_profile.html", {"profile": profile})
+
+
+def find_an_organization(request):
+    page_view = OrganizationDirectoryService.search(
+        text=request.GET.get("q", ""),
+        city=request.GET.get("city") or None,
+        service_category_id=request.GET.get("service") or None,
+        page=request.GET.get("page", 1),
+    )
+    return render(request, "public_site/organization_directory.html", {"page": page_view})
 
 
 def organization_profile(request, supplier_id):

@@ -21,6 +21,7 @@
 {% block nav_links %}
 <a href="/" class="text-sm font-semibold transition-colors {% if request.path == '/' %}text-primary{% else %}text-text-muted hover:text-primary{% endif %}">خانه</a>
 <a href="/find-a-caregiver/" class="text-sm font-semibold transition-colors {% if '/find-a-caregiver/' in request.path %}text-primary{% else %}text-text-muted hover:text-primary{% endif %}">پیدا کردن مراقب</a>
+<a href="/find-an-organization/" class="text-sm font-semibold transition-colors {% if '/find-an-organization/' in request.path %}text-primary{% else %}text-text-muted hover:text-primary{% endif %}">پیدا کردن سازمان</a>
 <a href="/services/" class="text-sm font-semibold transition-colors {% if '/services/' in request.path %}text-primary{% else %}text-text-muted hover:text-primary{% endif %}">خدمات</a>
 <a href="/how-it-works/" class="text-sm font-semibold transition-colors {% if '/how-it-works/' in request.path %}text-primary{% else %}text-text-muted hover:text-primary{% endif %}">نحوه کار</a>
 <a href="/trust-safety/" class="text-sm font-semibold transition-colors {% if '/trust-safety/' in request.path %}text-primary{% else %}text-text-muted hover:text-primary{% endif %}">اعتماد و امنیت</a>
@@ -49,6 +50,7 @@
 {% block mobile_nav_links %}
 <a href="/" @click="mobileNav = false" class="block rounded-xl px-4 py-3 text-sm font-semibold transition-colors {% if request.path == '/' %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text hover:bg-background-alt{% endif %}">خانه</a>
 <a href="/find-a-caregiver/" @click="mobileNav = false" class="block rounded-xl px-4 py-3 text-sm font-semibold transition-colors {% if '/find-a-caregiver/' in request.path %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text hover:bg-background-alt{% endif %}">پیدا کردن مراقب</a>
+<a href="/find-an-organization/" @click="mobileNav = false" class="block rounded-xl px-4 py-3 text-sm font-semibold transition-colors {% if '/find-an-organization/' in request.path %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text hover:bg-background-alt{% endif %}">پیدا کردن سازمان</a>
 <a href="/services/" @click="mobileNav = false" class="block rounded-xl px-4 py-3 text-sm font-semibold transition-colors {% if '/services/' in request.path %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text hover:bg-background-alt{% endif %}">خدمات</a>
 <a href="/how-it-works/" @click="mobileNav = false" class="block rounded-xl px-4 py-3 text-sm font-semibold transition-colors {% if '/how-it-works/' in request.path %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text hover:bg-background-alt{% endif %}">نحوه کار</a>
 <a href="/trust-safety/" @click="mobileNav = false" class="block rounded-xl px-4 py-3 text-sm font-semibold transition-colors {% if '/trust-safety/' in request.path %}bg-primary-50 text-primary dark:bg-primary-950{% else %}text-text hover:bg-background-alt{% endif %}">اعتماد و امنیت</a>
@@ -109,6 +111,7 @@
     <h3 class="text-sm font-black text-text">بازار خدمات</h3>
     <ul class="mt-4 space-y-3 text-sm text-text-muted">
       <li><a class="transition-colors hover:text-primary" href="/find-a-caregiver/">پیدا کردن مراقب</a></li>
+      <li><a class="transition-colors hover:text-primary" href="/find-an-organization/">پیدا کردن سازمان</a></li>
       <li><a class="transition-colors hover:text-primary" href="/services/">دسته‌های خدمات</a></li>
       <li><a class="transition-colors hover:text-primary" href="/how-it-works/">نحوه کار پلتفرم</a></li>
       <li><a class="transition-colors hover:text-primary" href="/pricing/">مدل قیمت‌گذاری</a></li>

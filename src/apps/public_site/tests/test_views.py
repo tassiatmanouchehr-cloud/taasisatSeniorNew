@@ -313,3 +313,65 @@ class OrganizationProfileTenantHintTest(PublicSiteTestCase):
             )
 
         self.assertEqual(len(without_logo.captured_queries), len(with_logo.captured_queries))
+
+
+class FindAnOrganizationViewTest(PublicSiteTestCase):
+    """Phase 3 Sprint 3.3 (Company Public Directory and Discovery) — HTTP-level
+    coverage mirroring FindACaregiverViewTest's own structure exactly."""
+
+    def setUp(self):
+        super().setUp()
+        self.default_tenant = TenantService.get_default_tenant()
+        self.tenant = self.default_tenant
+
+    def test_directory_page_returns_200(self):
+        response = self.client.get(reverse("public_site:organization-directory"))
+        self.assertEqual(response.status_code, 200)
+
+    def test_directory_page_lists_real_organization(self):
+        self._create_organization_supplier(name="سازمان نمای تست")
+
+        response = self.client.get(reverse("public_site:organization-directory"))
+
+        self.assertContains(response, "سازمان نمای تست")
+
+    def test_unverified_organization_not_listed(self):
+        self._create_organization_supplier(
+            name="سازمان تأییدنشده تست", verification_status=VerificationStatus.UNVERIFIED,
+        )
+
+        response = self.client.get(reverse("public_site:organization-directory"))
+
+        self.assertNotContains(response, "سازمان تأییدنشده تست")
+
+    def test_city_filter_via_querystring(self):
+        self._create_organization_supplier(name="سازمان تهرانی تست", city="tehran")
+        self._create_organization_supplier(name="سازمان مشهدی تست", city="mashhad")
+
+        response = self.client.get(reverse("public_site:organization-directory"), {"city": "mashhad"})
+
+        self.assertContains(response, "سازمان مشهدی تست")
+        self.assertNotContains(response, "سازمان تهرانی تست")
+
+    def test_malformed_page_query_param_falls_back_to_page_1_not_a_500(self):
+        response = self.client.get(reverse("public_site:organization-directory"), {"page": "abc"})
+        self.assertEqual(response.status_code, 200)
+
+    def test_existing_organizations_marketing_page_still_works(self):
+        """Regression guard: /organizations/ (the pre-existing B2B
+        recruitment page — ADM-025 Option B) must remain untouched by the
+        new /find-an-organization/ directory route."""
+        response = self.client.get(reverse("public_site:organizations"))
+        self.assertEqual(response.status_code, 200)
+
+    def test_directory_route_is_distinct_from_profile_route(self):
+        """path("find-an-organization/", ...) must resolve before
+        path("find-an-organization/<uuid:supplier_id>/", ...) — the list
+        route must never be swallowed by the detail route's pattern."""
+        supplier, _ = self._create_organization_supplier(name="سازمان مسیر تست")
+
+        list_response = self.client.get("/find-an-organization/")
+        detail_response = self.client.get(f"/find-an-organization/{supplier.id}/")
+
+        self.assertEqual(list_response.status_code, 200)
+        self.assertEqual(detail_response.status_code, 200)

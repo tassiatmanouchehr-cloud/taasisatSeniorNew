@@ -753,11 +753,79 @@ remained valid (no code changed after the baseline run). Merged via `merge_pull_
 match `origin/main`. **Sprint 3.2 (Company Professional Profile and Public Presence,
 including the PR #13 architecture-review remediation) is now CLOSED and on `main`.**
 
+### Sprint 3.3 — Company Public Directory and Discovery — IMPLEMENTED, PR OPEN (2026-07-16)
+
+Branched fresh from merged `main` (`phase3-company-public-directory`, from
+`9929da5`) per governance. Current-state verification (Step 1, mandatory
+before implementation) found no "browse companies" surface existed:
+`/organizations/` renders a zero-context B2B recruitment page, and
+`OrganizationPublicProfileService`'s own docstring is explicit it is
+"deliberately not the full organization directory... only single-
+organization lookup." ADR (Step 2, mandatory — see
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-025) chose **Option
+B**: keep `/organizations/` unchanged, add a new, dedicated
+`/find-an-organization/` directory route — mirrors the established
+`/caregivers/` vs `/find-a-caregiver/` precedent exactly; rejected Option
+A (repurposing `/organizations/`) on SEO/backward-compatibility/
+navigation-consistency grounds.
+
+- `OrganizationDirectoryService` (new file,
+  `apps.public_site.services.organization_directory_service`): search +
+  city + service-category filters, pagination, canonical public
+  visibility. Reuses `SupplierSearchService.filter_suppliers()`/
+  `DiscoveryRankingService.rank()` unmodified and
+  `common.bulk_supplier_attrs()`/`is_publicly_visible_attrs()` unchanged
+  — no second search/ranking/visibility implementation. Scoped to
+  `SupplierType.ORGANIZATION` only, disjoint from
+  `CAREGIVER_SUPPLIER_TYPES`.
+- `common.py` gained `parse_page()`/`build_pagination()`, extracted
+  verbatim (zero behavior change) from `CaregiverDirectoryService`'s own
+  former private `_parse_page()`/`_build_pagination()` — "do not
+  duplicate logic" required lifting them to the shared module; both
+  directory services now call them as thin wrappers.
+- `OrganizationStaffService.list_active_caregiver_counts_bulk()` (new
+  method on the existing service): one grouped query regardless of
+  organization count — avoids a KL-012-class N+1 when rendering up to 12
+  directory cards per page (`active_provider_count`). An initial
+  implementation also called `CatalogQueryService.list_active_categories()`
+  once per card for `service_names` — caught by the query-budget test
+  suite itself (1-vs-5-candidate count mismatch) and fixed by resolving
+  categories once per `search()` call instead.
+- New `OrganizationCardViewModel`/`OrganizationDirectoryFiltersViewModel`/
+  `OrganizationDirectoryPageViewModel` (reuse the existing generic
+  `FilterOptionViewModel`/`PaginationLinkViewModel`/`PaginationViewModel`/
+  `RatingSummaryViewModel` unchanged), new `find_an_organization` view,
+  new route `find-an-organization/` (ordered before the existing
+  `find-an-organization/<uuid:supplier_id>/` detail route), new template
+  `organization_directory.html` and component `organization_card.html`
+  (mirror `caregiver_directory.html`/`caregiver_card.html`'s structure),
+  new "پیدا کردن سازمان" nav links in `base_public.html` (desktop, mobile,
+  footer — distinct from the existing "برای سازمان‌ها" recruitment link).
+- Kept `search()`'s signature deliberately parallel to
+  `CaregiverDirectoryService.search()`'s own (minus the two caregiver-only
+  params) — composability for a future Supplier-level discovery layer,
+  without building that layer or an abstract base class now (explicitly
+  out of scope).
+
+No new model, no migration (confirmed by `makemigrations --check
+--dry-run`; `accounts`/`public_site` alone report no changes). Read-only,
+unauthenticated, zero permission/tenancy impact. 25 new tests (18
+`apps.public_site.tests.test_organization_directory_service` — visibility,
+search, city/service filters, pagination, logo, no-private-field-leakage,
+0/1/5/20+ candidate query-budget — + 7 `test_views.py`
+`FindAnOrganizationViewTest` — HTTP-level 200s, filtering, malformed-page
+safety, route-ordering, marketing-page regression guard). Full regression
+run once (cross-cutting `common.py` refactor touching 3 existing
+services): 2192/2192 green (2167 baseline + 25 net). Branch
+`phase3-company-public-directory`, PR created against `main` — **not
+merged, awaiting review.** See `traceability/ARCHITECTURE_DECISION_LOG.md`
+ADM-025.
+
 ---
 
 ## IMMEDIATE NEXT TASK
 
-### Await the next Phase 3 sprint's scope; do not start Sprint 3.3 automatically
+### Await the next Phase 3 sprint's scope; do not start Sprint 3.4 automatically
 
 Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active implementation
 order).
@@ -768,17 +836,22 @@ also fully closed and merged to `main` via PR #12 (including its
 architecture-review remediation that preserves affiliation-period
 history and cleaned up active documentation). Sprint 3.2 is also fully
 closed and merged to `main` via PR #13 (including its architecture-review
-remediation that renders the public company logo). No Sprint 3.3 work has
-started — remaining roadmap Phase 3 scope, explicitly NOT started yet:
+remediation that renders the public company logo). Sprint 3.3 (Company
+Public Directory and Discovery) is **implemented, PR open, not yet
+merged** — see the entry immediately above. Remaining roadmap Phase 3
+scope, explicitly NOT started yet:
 
 1. Company financial overview + reports (extend), company invoicing —
-   not started, explicitly out of Sprint 3.2's scope. Company public
-   profile parity with the caregiver profile is now **partially
-   addressed** by Sprint 3.2 (headline, canonical visibility policy, SEO
-   fix, permission-gated media, transaction-safe media replacement,
-   public logo rendering) — gallery/certificates generalized to
-   organizations remains open (explicitly out of Sprint 3.2's
-   minimum-vertical-slice scope).
+   not started, explicitly out of Sprint 3.2/3.3's scope. Company public
+   profile/discovery parity with the caregiver side is now **further
+   addressed** by Sprint 3.3 (public directory, search, city/service
+   filters) on top of Sprint 3.2's profile-page work (headline, canonical
+   visibility policy, SEO fix, permission-gated media, transaction-safe
+   media replacement, public logo rendering) — gallery/certificates
+   generalized to organizations remains open (explicitly out of Sprint
+   3.2/3.3's minimum-vertical-slice scope; Sprint 3.3 also explicitly did
+   not implement `SupplierDirectoryService`, advanced filters, or new
+   ranking algorithms — see ADM-025).
 2. Company gallery/social feed, messaging, AI verification, payroll/
    salary, HR leave workflow, caregiver scheduling by company — not
    started, explicitly out of Sprint 3.1/3.2's scope per their own

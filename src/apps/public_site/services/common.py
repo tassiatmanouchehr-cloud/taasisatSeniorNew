@@ -35,6 +35,8 @@ function every public surface already shares, closing that gap without
 introducing a second, parallel eligibility implementation.
 """
 
+from urllib.parse import urlencode
+
 from django.db.models import Count
 
 from apps.accounts.models.profiles import OrganizationMembership
@@ -44,7 +46,7 @@ from apps.kernel.models.supplier import AvailabilityStatus, SupplierType
 from apps.orders.models import Order, OrderStatus
 from apps.reviews.services.reputation_service import ReputationService
 
-from .viewmodels import RatingSummaryViewModel, ReviewViewModel
+from .viewmodels import PaginationLinkViewModel, PaginationViewModel, RatingSummaryViewModel, ReviewViewModel
 
 AVAILABILITY_LABELS = {
     AvailabilityStatus.AVAILABLE: "در دسترس",
@@ -284,6 +286,49 @@ def distinct_cities_from_attrs(attrs_list) -> tuple[str, ...]:
     (from bulk_supplier_attrs()) — never re-fetches CaregiverProfile rows."""
     cities = (attrs["city"] for attrs in attrs_list)
     return tuple(sorted({city_name for city_name in cities if city_name}))
+
+
+def parse_page(page) -> int:
+    """Shared by every paginated public directory (Sprint 3.3): a
+    malformed page value (e.g. ?page=abc) falls back to page 1, never
+    raises. Extracted verbatim from CaregiverDirectoryService's own
+    former private _parse_page() — zero behavior change, now reused by
+    OrganizationDirectoryService instead of being reimplemented."""
+    try:
+        return int(page)
+    except (TypeError, ValueError):
+        return 1
+
+
+def build_pagination(*, current_page, total_pages, total_count, base_url, params) -> PaginationViewModel:
+    """Shared by every paginated public directory (Sprint 3.3): builds a
+    windowed page-link list (current_page-2 .. current_page+2) and
+    previous/next URLs, encoding `params` plus a `page` number into each
+    URL's query string. Extracted verbatim from CaregiverDirectoryService's
+    own former private _build_pagination() — `params` replaces that
+    method's individual filter kwargs so this stays generic across
+    directories with different filter sets (e.g. the organization
+    directory has no type/availability filters)."""
+
+    def _url_for(page_number):
+        page_params = {**params, "page": page_number}
+        return f"{base_url}?{urlencode(page_params)}"
+
+    window_start = max(1, current_page - 2)
+    window_end = min(total_pages, current_page + 2)
+    page_links = tuple(
+        PaginationLinkViewModel(number=n, url=_url_for(n), is_current=(n == current_page))
+        for n in range(window_start, window_end + 1)
+    )
+
+    return PaginationViewModel(
+        current_page=current_page,
+        total_pages=total_pages,
+        total_count=total_count,
+        previous_url=_url_for(current_page - 1) if current_page > 1 else None,
+        next_url=_url_for(current_page + 1) if current_page < total_pages else None,
+        page_links=page_links,
+    )
 
 
 def reviews_to_viewmodels(reviews) -> tuple[ReviewViewModel, ...]:

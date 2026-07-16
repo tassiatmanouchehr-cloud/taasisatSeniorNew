@@ -25,6 +25,7 @@ transition too, rather than leaving the two out of sync.
 """
 
 from django.db import transaction
+from django.db.models import Count
 
 from apps.kernel.services.audit_service import AuditService
 from apps.kernel.services.permission_service import PermissionService
@@ -172,6 +173,31 @@ class OrganizationStaffService:
             raise AccountsError("Staff member not found.")
 
         return resolve_supplier_for_user(membership.user)
+
+    @classmethod
+    def list_active_caregiver_counts_bulk(cls, organizations) -> dict:
+        """Phase 3 Sprint 3.3 (Company Public Directory): batched
+        counterpart of list_active_caregivers(organization).count() — one
+        grouped-count query regardless of how many organizations are
+        passed, mirroring apps.public_site.services.common
+        .completed_jobs_counts_bulk()'s own shape. Needed because the
+        Public Organization Directory renders up to PAGE_SIZE cards per
+        page; calling the single-organization count once per card would
+        reintroduce a KL-012-class N+1 (quality/DEFECT_AND_RISK_REGISTER.md)."""
+        from ..models.profiles import OrganizationMembership, OrgMembershipRole, OrgMembershipStatus
+
+        organization_ids = [organization.id for organization in organizations]
+        if not organization_ids:
+            return {}
+
+        counts = dict(
+            OrganizationMembership.objects.filter(
+                organization_id__in=organization_ids,
+                role_type=OrgMembershipRole.CAREGIVER,
+                status=OrgMembershipStatus.ACTIVE,
+            ).values("organization_id").annotate(count=Count("id")).values_list("organization_id", "count"),
+        )
+        return {organization_id: counts.get(organization_id, 0) for organization_id in organization_ids}
 
     @classmethod
     def list_active_caregiver_supplier_ids(cls, organization):

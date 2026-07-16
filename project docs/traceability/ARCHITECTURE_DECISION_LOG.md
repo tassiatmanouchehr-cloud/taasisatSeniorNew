@@ -1728,3 +1728,117 @@ alone reports no changes); `git diff --check` clean. No model/migration/permissi
 file-lifecycle/shared-visibility-policy code changed, so — per this remediation's own test
 policy — the full regression was not re-run; only the directly affected focused suites were.
 **MERGED to main via PR #13** (merge commit `49b643e130018b959938907e9a5d1ae491d51f6c`, 2026-07-16). **Sprint 3.2 is CLOSED.**
+
+## ADM-025 — Company Public Directory and Discovery (Phase 3 Sprint 3.3, 2026-07-16)
+
+**Context:** Sprint 3.2 built the single-organization Public Organization Profile page
+(`OrganizationPublicProfileService.get_profile()`, resolved by `supplier_id`), but that
+service's own docstring is explicit that it is "deliberately not the full organization
+directory... there is no 'list all organizations' view or route here, only single-
+organization lookup." No visitor-facing way to browse/search real companies exists yet,
+even though the exact architecture this needs (search, ranking, canonical visibility,
+bulk resolution) was already proven for the caregiver directory in Epic 06 and hardened
+against N+1 growth in the KL-012 remediation (ADM-022). This sprint closes that gap.
+
+**Decision — Option B: keep `/organizations/` unchanged as the B2B recruitment page;
+introduce a new, dedicated `/find-an-organization/` directory route.** Rejected Option A
+(repurposing the existing `organizations` route into the directory) for five reasons:
+
+1. **Existing semantics.** `apps.public_site.views.organizations` renders
+   `organizations.html` verbatim with zero context — a B2B recruitment pitch ("team
+   management," "internal order assignment," "centralized financial settlement") aimed at
+   companies considering *joining* the platform, not visitors *browsing* companies already
+   on it. Repurposing its URL to a real, populated directory would silently change what
+   that URL means without any compensating benefit.
+2. **Established precedent.** The caregiver side already draws exactly this line:
+   `/caregivers/` (recruitment pitch, "For Caregivers") is a separate, independently
+   nav-linked page from `/find-a-caregiver/` (the real, populated directory). Option B
+   makes `/organizations/` vs `/find-an-organization/` the exact structural mirror of
+   `/caregivers/` vs `/find-a-caregiver/` — one consistent site information architecture,
+   not two.
+3. **SEO.** `/organizations/` is already linked from primary/mobile nav and
+   `services.html`'s "خدمات سازمانی" card with established "recruit companies" intent and
+   whatever inbound signal it has accumulated; overwriting its content would discard that
+   without gain. A new `/find-an-organization/` route accrues its own SEO signal for
+   "browse companies" intent, mirroring `/find-a-caregiver/`'s already-proven role.
+4. **Backward compatibility.** Option B changes zero existing behavior — `/organizations/`
+   keeps rendering exactly what it always has. Option A would have been a breaking content
+   change on a URL nothing in this sprint's scope asked to touch.
+5. **Future Marketplace integration / maintainability.** A future Supplier Discovery layer
+   composing both directories only needs `OrganizationDirectoryService` and
+   `CaregiverDirectoryService` to expose parallel shapes (see below) — it does not care,
+   and should not care, which URL either one is mounted at. Keeping the two concerns
+   (recruitment marketing vs. discovery) on separate routes/views/templates, exactly as the
+   caregiver side already does, keeps each one simple to reason about and change
+   independently; conflating them into one view would make future changes to either concern
+   risk regressing the other.
+
+**Implementation — minimum vertical slice, reusing existing building blocks, no new
+services beyond one directory service:**
+
+- `apps.public_site.services.organization_directory_service.OrganizationDirectoryService`
+  — new file, mirrors `CaregiverDirectoryService`'s architecture exactly: reuses
+  `apps.discovery.services.search_service.SupplierSearchService.filter_suppliers()` and
+  `apps.discovery.services.ranking_service.DiscoveryRankingService.rank()` unmodified
+  (both already fully generic — confirmed by reading both in full; neither has any
+  caregiver-specific field or assumption), and reuses
+  `apps.public_site.services.common`'s canonical `bulk_supplier_attrs()`/
+  `is_publicly_visible_attrs()`/`rating_summaries_bulk()`/`distinct_cities_from_attrs()`/
+  `avatar_initial()`/`verification_label()` unchanged — no second visibility policy, no
+  second search/ranking implementation. Scoped to `SupplierType.ORGANIZATION` only
+  (disjoint from `CAREGIVER_SUPPLIER_TYPES`, which is `(INDEPENDENT_PROVIDER,
+  ORGANIZATION_PROVIDER)` — confirmed zero overlap by reading
+  `directory_service.py`'s own constant).
+- `search()`'s signature is deliberately kept parallel to
+  `CaregiverDirectoryService.search()`'s own (`tenant_id`, `text`, `city`,
+  `service_category_id`, `page`, `base_url`), omitting only the two caregiver-only params
+  (`supplier_type`, `availability_status`) — structural consistency only, no abstract base
+  class or `SupplierDirectoryService` introduced (explicitly out of scope this sprint).
+  This is what "easily composable into a future Supplier-level discovery layer" means here:
+  the two services can be called side-by-side with the same calling convention whenever
+  that layer is eventually built, without either one needing to change shape first.
+- New bulk method `OrganizationStaffService.list_active_caregiver_counts_bulk(organizations)`
+  — one grouped-count query over `OrganizationMembership` regardless of how many
+  organizations are passed, added to the *existing* service (not a new one), mirroring
+  `common.completed_jobs_counts_bulk()`'s own shape. Needed because the existing
+  single-organization `list_active_caregivers(organization).count()` (already used by the
+  single-profile page, where one query per page view is fine) would have reintroduced a
+  KL-012-class N+1 if called once per directory card (up to `PAGE_SIZE=12` per page).
+- `common.py` gained two small generic helpers, `parse_page()` and `build_pagination()`,
+  extracted verbatim (zero behavior change) from `CaregiverDirectoryService`'s own private
+  `_parse_page()`/`_build_pagination()` — neither had any caregiver-specific logic in its
+  body, so "do not duplicate logic" required lifting them to the shared module both
+  directory services now call as thin wrappers, rather than re-implementing the same
+  malformed-page fallback and windowed-pagination-link logic a second time.
+- New `OrganizationCardViewModel`, `OrganizationDirectoryFiltersViewModel`,
+  `OrganizationDirectoryPageViewModel` dataclasses in `viewmodels.py` — reuses the existing,
+  already-generic `FilterOptionViewModel`/`PaginationLinkViewModel`/`PaginationViewModel`/
+  `RatingSummaryViewModel` unchanged.
+- New view `apps.public_site.views.find_an_organization`, new route
+  `path("find-an-organization/", views.find_an_organization, name="organization-directory")`
+  — placed before the existing `find-an-organization/<uuid:supplier_id>/` detail route so
+  Django's URL resolver tries the literal path first (same ordering precedent as
+  `find-a-caregiver/` before `find-a-caregiver/<uuid:supplier_id>/`).
+- New template `templates/public_site/organization_directory.html` and new component
+  `ui/components/public/organization_card.html`, both mirroring
+  `caregiver_directory.html`/`caregiver_card.html`'s exact structure (search/filter form,
+  card grid, pagination nav, empty state) with the two caregiver-only filters (type,
+  availability) omitted and the caregiver card's specialty/bio/completed-jobs fields
+  replaced with the organization card's headline/service-summary/active-caregiver-count —
+  reusing `ui/components/data/avatar.html` (`type="org"`, `src=`) exactly as
+  `organization_profile.html` already does for the logo/initials fallback.
+- `base_public.html` nav gained a "پیدا کردن سازمان" (Find an Organization) link in the
+  same three places `/find-a-caregiver/`'s own link already appears (desktop `nav_links`,
+  mobile `mobile_nav_links`, footer "بازار خدمات" column) — distinct from the existing
+  "برای سازمان‌ها" (For Organizations, recruitment) link, mirroring the caregiver
+  precedent's own separation exactly.
+
+**Out of scope (unchanged this sprint, per explicit instruction):** Customer Portal,
+Marketplace, Booking, Assignment, Financial, Payment, Settlement, Payroll, Messaging, AI,
+company gallery/certificates/financial dashboard, new ranking algorithms, advanced filters
+(distance, availability). No `SupplierDirectoryService` was built.
+
+**Consequences:** No new model, no migration (all data already exists on `ServiceSupplier`/
+`OrganizationProfile`; confirmed by `makemigrations --check --dry-run`). Read-only,
+unauthenticated, zero permission/tenancy impact. See the Implementation Journal entry for
+this sprint for exact test counts and query-budget measurements.
