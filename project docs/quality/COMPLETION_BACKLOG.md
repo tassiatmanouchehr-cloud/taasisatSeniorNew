@@ -467,8 +467,10 @@ green. See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-025 and
 (distance, availability), new ranking algorithms, company gallery/certificates,
 Customer Portal, Marketplace, Booking, Assignment, Financial, Payment, Settlement, Payroll,
 Messaging, AI.
-**Status update (2026-07-16):** Branch `phase3-company-public-directory`, PR created against
-`main` — **not yet merged.**
+**Status update (2026-07-16):** **MERGED to main via PR #14** (merge commit
+`b78d6a293ab90831c10b2a8ad1d1d49aab06fa86`). Final architecture/implementation review
+approved with no blocking issues; two non-blocking observations recorded (see
+`traceability/IMPLEMENTATION_JOURNAL.md`'s PR #14 merge entry), not actioned this sprint.
 
 ### BG-029: No Flash-Message/Error-Surfacing Framework for Portal Action Views
 

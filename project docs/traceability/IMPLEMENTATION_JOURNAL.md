@@ -2676,5 +2676,32 @@ against `vars()` in a dedicated test — no staff details, admin account identif
 notes, or any field beyond what the caregiver-directory-equivalent card already exposes for
 organizations.
 
-See `ARCHITECTURE_DECISION_LOG.md` ADM-025 for the full ADR. PR created against `main` —
-**not merged, awaiting review, per explicit instruction to stop after PR creation.**
+See `ARCHITECTURE_DECISION_LOG.md` ADM-025 for the full ADR. PR #14 created against `main`.
+
+## PR #14 Merge (2026-07-16)
+
+Final architecture and implementation review approved the branch with no blocking issues in
+architecture, domain ownership, public visibility, privacy, tenant isolation, routing, query
+performance, tests, documentation, or scope control. Two non-blocking observations were
+recorded and deliberately not actioned this sprint: `available_cities()` performs a second
+candidate-resolution pass, which is not a new inconsistency — it matches the existing
+`CaregiverDirectoryService.available_cities()` precedent exactly, the same pattern this
+sprint's own ADR committed to mirroring; `list_active_caregiver_counts_bulk()` may eventually
+belong in a dedicated read selector rather than the broader `OrganizationStaffService`, but
+introducing that abstraction now — for a single bulk method — is not justified by this
+sprint's minimum-vertical-slice scope.
+
+Pre-merge verification confirmed: the branch was unchanged at
+`7c39917251599501ff0f5ab45570598bb1819fae`; the saved PR description accurately reflected
+ADM-025's Option B decision, `/organizations/` retained unchanged, `/find-an-organization/`
+added as the new directory route, 25 new tests, 634/634 affected-suite tests, 2192/2192 full
+regression, and no model/migration change; `git status --short`, `git diff --check`, and
+`manage.py check` were all clean. Merged via `merge_pull_request` (merge commit
+`b78d6a293ab90831c10b2a8ad1d1d49aab06fa86`). Local `main` fast-forwarded to match
+`origin/main`, confirmed identical (`git rev-parse main` == `git rev-parse origin/main` ==
+`b78d6a293ab90831c10b2a8ad1d1d49aab06fa86`); `manage.py check` exits 0 on the merged tree.
+No full-regression rerun was performed post-merge (the branch was unchanged between the
+recorded 2192/2192 verification and the merge — nothing new to verify).
+
+**Sprint 3.3 (Company Public Directory and Discovery) is now CLOSED and on `main`.** Sprint
+3.4 has not started.

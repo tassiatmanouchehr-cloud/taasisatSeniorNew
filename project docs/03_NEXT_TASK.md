@@ -817,9 +817,26 @@ search, city/service filters, pagination, logo, no-private-field-leakage,
 safety, route-ordering, marketing-page regression guard). Full regression
 run once (cross-cutting `common.py` refactor touching 3 existing
 services): 2192/2192 green (2167 baseline + 25 net). Branch
-`phase3-company-public-directory`, PR created against `main` — **not
-merged, awaiting review.** See `traceability/ARCHITECTURE_DECISION_LOG.md`
-ADM-025.
+`phase3-company-public-directory`, PR #14 created against `main`. See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-025.
+
+### PR #14 — MERGED (2026-07-16)
+
+Final architecture and implementation review approved the branch with no blocking issues
+across architecture, domain ownership, public visibility, privacy, tenant isolation,
+routing, query performance, tests, documentation, and scope control. Two non-blocking
+observations recorded, explicitly not actioned this sprint: `available_cities()` performs a
+second candidate-resolution pass (matches the existing caregiver-directory precedent, not a
+new inconsistency); `list_active_caregiver_counts_bulk()` may eventually belong in a
+dedicated read selector rather than `OrganizationStaffService` (introducing that abstraction
+now is not justified). Pre-merge verification confirmed the branch unchanged at `7c39917`,
+the saved PR description accurate (ADM-025 Option B, `/organizations/` retained,
+`/find-an-organization/` added, 25 new tests, 634/634 affected suites, 2192/2192 full
+regression, no model/migration change), and `git status`/`git diff --check`/`manage.py
+check` all clean. Merged via `merge_pull_request` (merge commit
+`b78d6a293ab90831c10b2a8ad1d1d49aab06fa86`). Local `main` fast-forwarded to match
+`origin/main`; `manage.py check` exits 0. **Sprint 3.3 (Company Public Directory and
+Discovery) is now CLOSED and on `main`.**
 
 ---
 
@@ -837,9 +854,9 @@ architecture-review remediation that preserves affiliation-period
 history and cleaned up active documentation). Sprint 3.2 is also fully
 closed and merged to `main` via PR #13 (including its architecture-review
 remediation that renders the public company logo). Sprint 3.3 (Company
-Public Directory and Discovery) is **implemented, PR open, not yet
-merged** — see the entry immediately above. Remaining roadmap Phase 3
-scope, explicitly NOT started yet:
+Public Directory and Discovery) is also fully closed and merged to `main`
+via PR #14 — see the entry immediately above. No Sprint 3.4 work has
+started. Remaining roadmap Phase 3 scope, explicitly NOT started yet:
 
 1. Company financial overview + reports (extend), company invoicing —
    not started, explicitly out of Sprint 3.2/3.3's scope. Company public

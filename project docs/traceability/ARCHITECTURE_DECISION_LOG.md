@@ -1842,3 +1842,19 @@ company gallery/certificates/financial dashboard, new ranking algorithms, advanc
 `OrganizationProfile`; confirmed by `makemigrations --check --dry-run`). Read-only,
 unauthenticated, zero permission/tenancy impact. See the Implementation Journal entry for
 this sprint for exact test counts and query-budget measurements.
+
+## ADM-025 Merge — PR #14 (2026-07-16)
+
+Final architecture and implementation review approved the branch with no blocking issues
+across architecture, domain ownership, public visibility, privacy, tenant isolation,
+routing, query performance, tests, documentation, and scope control. Two non-blocking
+observations recorded, explicitly not actioned this sprint: `available_cities()` performs a
+second candidate-resolution pass (matches the existing `CaregiverDirectoryService
+.available_cities()` precedent, not a new inconsistency); `list_active_caregiver_counts_bulk()`
+may eventually belong in a dedicated read selector rather than `OrganizationStaffService`
+(introducing that abstraction now is not justified by this sprint's minimum-vertical-slice
+scope). Pre-merge verification confirmed the branch unchanged at `7c39917251599501ff0f5ab45570598bb1819fae`
+and `git status`/`git diff --check`/`manage.py check` all clean. Merged via
+`merge_pull_request` (merge commit `b78d6a293ab90831c10b2a8ad1d1d49aab06fa86`). Local `main`
+fast-forwarded to match `origin/main`. **Sprint 3.3 (Company Public Directory and Discovery)
+is now CLOSED and on `main`.**

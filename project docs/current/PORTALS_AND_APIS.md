@@ -1,6 +1,6 @@
 # PORTALS, APIS, AND ENTRY POINTS
 
-**Last verified HEAD:** phase3-company-public-directory (from main @ 9929da5, PR #13 merged — Sprint 3.2 CLOSED; Sprint 3.3 implemented, PR open)
+**Last verified HEAD:** main @ b78d6a293ab90831c10b2a8ad1d1d49aab06fa86 (PR #14 merged — Sprint 3.3 CLOSED)
 **Last verified date:** 2026-07-16
 
 ---

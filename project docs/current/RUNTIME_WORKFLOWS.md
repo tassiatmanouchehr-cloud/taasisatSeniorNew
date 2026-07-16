@@ -1,7 +1,7 @@
 # RUNTIME WORKFLOWS
 
-**Last verified HEAD:** main @ 9929da5a5c6c109232bc4931db549848a04521e2 (PR #12 merged — Sprint 3.1 CLOSED; PR #13 merged — Sprint 3.2 CLOSED; Sprint 3.3 implemented on branch `phase3-company-public-directory`, PR open — not yet merged)
-**Last verified date:** 2026-07-16 (Sprint 3.3)
+**Last verified HEAD:** main @ b78d6a293ab90831c10b2a8ad1d1d49aab06fa86 (PR #12 merged — Sprint 3.1 CLOSED; PR #13 merged — Sprint 3.2 CLOSED; PR #14 merged — Sprint 3.3 CLOSED)
+**Last verified date:** 2026-07-16 (Sprint 3.3 merged)
 
 ---
 
