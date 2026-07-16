@@ -118,6 +118,7 @@ def bulk_supplier_attrs(suppliers) -> dict:
         attrs_by_id[supplier.id] = {
             "city": getattr(entity, "city", "") or "",
             "specialty": getattr(entity, "specialty", "") or "",
+            "headline": getattr(entity, "headline", "") or "",
             "bio": getattr(entity, "bio", "") or "",
             "description": getattr(entity, "description", "") or "",
             "years_experience": getattr(entity, "years_experience", None),

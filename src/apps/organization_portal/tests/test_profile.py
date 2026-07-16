@@ -155,6 +155,35 @@ class OrganizationProfileUpdateTest(OrganizationPortalTestCase):
         self.organization.refresh_from_db()
         self.assertEqual(self.organization.verification_status, VerificationStatus.UNVERIFIED)
 
+    def test_headline_update(self):
+        """Sprint 3.2: the professional-headline field is editable through
+        the same profile-edit action, whitelisted alongside the other
+        public/contact fields."""
+        self.login_as_admin()
+        response = self.client.post(
+            reverse("organization_portal:profile-edit"),
+            {
+                "name": "Care Co",
+                "headline": "بیش از ۱۰ سال تجربه در مراقبت سالمندان",
+                "description": "",
+                "city": "",
+                "phone": "",
+                "address": "",
+                "company_type": "",
+                "team_size": "",
+            },
+        )
+        self.assertRedirects(response, reverse("organization_portal:profile"))
+        self.organization.refresh_from_db()
+        self.assertEqual(self.organization.headline, "بیش از ۱۰ سال تجربه در مراقبت سالمندان")
+
+    def test_headline_shown_on_profile_page(self):
+        self.organization.headline = "متخصص مراقبت در منزل"
+        self.organization.save(update_fields=["headline"])
+        self.login_as_admin()
+        response = self.client.get(reverse("organization_portal:profile"))
+        self.assertContains(response, "متخصص مراقبت در منزل")
+
 
 class OrganizationMediaUploadTest(OrganizationPortalTestCase):
     def test_logo_upload(self):
@@ -192,6 +221,58 @@ class OrganizationMediaUploadTest(OrganizationPortalTestCase):
         self.assertEqual(response.status_code, 200)
         self.organization.refresh_from_db()
         self.assertFalse(self.organization.logo)
+
+    def test_media_upload_only_affects_own_organization(self):
+        """Sprint 3.2 tenant-isolation requirement: an org admin's media
+        upload/remove can only ever reach their own organization —
+        profile-logo-upload/-remove take no organization id at all,
+        always resolving through resolve_organization()'s own-identity
+        lookup, so a second organization is structurally unreachable."""
+        other_admin = self._create_user(tenant=self.tenant, phone="09121110097")
+        other_org = OrganizationProfile.objects.create(
+            name="Other Org", code=f"other-{uuid.uuid4().hex[:8]}", admin_user=other_admin, tenant=self.tenant,
+        )
+        OrganizationMembership.objects.create(
+            organization=other_org, user=other_admin,
+            role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+        )
+
+        self.login_as_admin()
+        self.client.post(
+            reverse("organization_portal:profile-logo-upload"),
+            {"image": SimpleUploadedFile("logo.png", _PNG_BYTES, content_type="image/png")},
+        )
+        other_org.refresh_from_db()
+        self.assertFalse(other_org.logo)
+
+    def test_media_upload_denied_for_unauthenticated(self):
+        response = self.client.post(
+            reverse("organization_portal:profile-logo-upload"),
+            {"image": SimpleUploadedFile("logo.png", _PNG_BYTES, content_type="image/png")},
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_media_upload_denied_for_non_admin_staff(self):
+        self.client.force_login(self.caregiver_user)
+        response = self.client.post(
+            reverse("organization_portal:profile-logo-upload"),
+            {"image": SimpleUploadedFile("logo.png", _PNG_BYTES, content_type="image/png")},
+        )
+        self.assertEqual(response.status_code, 403)
+        self.organization.refresh_from_db()
+        self.assertFalse(self.organization.logo)
+
+    def test_terminated_caregiver_membership_gets_no_portal_access(self):
+        """Sprint 3.2 tenant-isolation requirement: a former (terminated)
+        caregiver staff member must not retain any organization-internal
+        access, mirroring the already-active-only rule an active
+        CAREGIVER-role member is already held to."""
+        self.staff_membership.status = OrgMembershipStatus.REMOVED
+        self.staff_membership.save(update_fields=["status"])
+
+        self.client.force_login(self.caregiver_user)
+        response = self.client.get(reverse("organization_portal:profile"))
+        self.assertEqual(response.status_code, 403)
 
 
 class OrganizationDocumentTest(OrganizationPortalTestCase):
@@ -246,10 +327,15 @@ class OrganizationPublicPreviewTest(OrganizationPortalTestCase):
         self.assertContains(response, f"/find-an-organization/{supplier.id}/")
 
     def test_private_staff_data_absent_from_public_preview(self):
+        from apps.accounts.models.profiles import VerificationStatus
         from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_organization
         from apps.public_site.services.organization_profile_service import OrganizationPublicProfileService
 
+        self.organization.verification_status = VerificationStatus.VERIFIED
+        self.organization.save(update_fields=["verification_status"])
         supplier = get_or_create_supplier_for_organization(self.organization, tenant_id=self.tenant.id)
+        supplier.status = "active"
+        supplier.save(update_fields=["status"])
         profile = OrganizationPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id)
         self.assertIsNotNone(profile)
         field_names = {f.name for f in profile.__dataclass_fields__.values()}

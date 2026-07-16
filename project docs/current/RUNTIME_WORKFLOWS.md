@@ -1,7 +1,7 @@
 # RUNTIME WORKFLOWS
 
-**Last verified HEAD:** phase3-company-portal-foundation (from main @ 90e608d, PR #11 merged — Phase 2 CLOSED; Sprint 3.1 implemented on PR #12, PR #12 architecture-review remediation applied, PR #12 not yet merged)
-**Last verified date:** 2026-07-16 (PR #12 remediation)
+**Last verified HEAD:** phase3-company-professional-profile (from main @ ffb82a4, PR #12 merged — Sprint 3.1 CLOSED; Sprint 3.2 implemented, PR created, not yet merged)
+**Last verified date:** 2026-07-16 (Sprint 3.2)
 
 ---
 
@@ -403,6 +403,48 @@ from the table itself. See `ARCHITECTURE_DECISION_LOG.md` ADM-023's remediation 
 `terminate_membership()`/`leave_organization()` both revert `CaregiverProfile.provider_type`
 to `INDEPENDENT` (safe under the one-active-company policy: a caregiver being terminated or
 leaving cannot have had another active membership at the same time).
+
+**Sprint 3.1 (including the PR #12 remediation above) is now MERGED to `main`.**
+
+## Company Professional Profile and Public Presence (Sprint 3.2)
+
+`OrganizationProfileUpdateService.update_profile()`/`update_service_categories()`
+(pre-existing, Epic 06 Sprint 2, permission-gated on `ORGANIZATION_PROFILE_UPDATE`) and
+`ProfileMediaService`'s organization logo/cover methods (now also permission-gated, same key)
+are the only write paths to a company's professional profile — `organization_portal`'s
+profile/profile-edit/profile-edit-services/logo/cover views call exactly these, never the
+model directly. `OrganizationPublicProfileService.get_profile()`
+(`apps.public_site.services.organization_profile_service`) is the single read path a
+public visitor reaches, resolved by `ServiceSupplier` id (never `OrganizationProfile` id),
+at `/find-an-organization/<supplier_id>/`.
+
+**Canonical public-visibility-policy fix:** `get_profile()` now calls
+`common.is_publicly_visible_attrs()` — the same function
+`apps.public_site.services.profile_service.CaregiverPublicProfileService.get_profile()`
+already used — instead of a local, weaker `profile_status != "active"`-only check. An
+organization is publicly visible only when: `OrganizationProfile.status == ACTIVE`,
+`verification_status == VERIFIED`, and the admin account (`OrganizationProfile.admin_user`)
+is itself active — exactly the same three-part rule BG-022 already established for
+caregivers, applied here for the first time. Proven by
+`apps.public_site.tests.test_organization_profile_service`'s
+`test_returns_none_for_unverified_organization`/
+`test_returns_none_for_pending_verification_organization`/
+`test_returns_none_when_admin_account_deactivated`.
+
+**SEO fix (KL-021/BG-027):** `templates/public_site/organization_profile.html` now resolves
+its own canonical URL via `{% url 'public_site:organization-profile'
+supplier_id=profile.supplier_id %}` and passes it as both `page_url` and `canonical_url` to
+`seo_meta.html` — previously `page_url` was hardcoded to the organization-list path, and
+`canonical_url` was never passed at all, matching the caregiver profile page's
+already-correct pattern for the first time.
+
+**Deliberately unchanged (matches established precedent, not a gap):** the public profile
+shows the organization's logo as an initials avatar (`ui/components/data/avatar.html`,
+`type="org"`), never the real uploaded logo image — identical to how the caregiver public
+profile shows an initials avatar, never the real uploaded avatar image. Private
+phone/address are never shown publicly, regardless of any future "make contact public"
+demand (none exists yet) — a public visitor is routed to a generic contact CTA instead,
+exactly as before this sprint.
 
 ## Order Lifecycle (Status Machine)
 

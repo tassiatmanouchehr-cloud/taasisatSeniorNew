@@ -13,7 +13,7 @@ import uuid
 from django.test import TestCase
 from django.urls import reverse
 
-from apps.accounts.models.profiles import OrganizationProfile
+from apps.accounts.models.profiles import OrganizationProfile, VerificationStatus
 from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_organization
 from apps.kernel.models import Person, UserAccount
 from apps.kernel.models.supplier import SupplierStatus
@@ -186,6 +186,7 @@ class OrganizationProfileTenantHintTest(PublicSiteTestCase):
             admin_user=admin_user,
             tenant=self.tenant,
             status="active",
+            verification_status=VerificationStatus.VERIFIED,
         )
         supplier = get_or_create_supplier_for_organization(organization, tenant_id=self.tenant.id)
         supplier.status = SupplierStatus.ACTIVE

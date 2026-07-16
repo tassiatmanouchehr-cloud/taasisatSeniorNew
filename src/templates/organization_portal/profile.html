@@ -46,10 +46,13 @@
     <div class="lg:col-span-2 space-y-6">
       {% include "ui/components/portal/profile_section.html" with title="اطلاعات سازمان" action_label="ویرایش" action_href="/organization/profile/edit/" %}
       <div class="rounded-2xl border border-border bg-surface p-5">
+        {% if profile.headline %}
+        <p class="text-sm font-bold text-text">{{ profile.headline }}</p>
+        {% endif %}
         {% if profile.description %}
-        <p class="text-sm leading-7 text-text">{{ profile.description }}</p>
+        <p class="mt-2 text-sm leading-7 text-text">{{ profile.description }}</p>
         {% else %}
-        <p class="text-sm text-text-muted">هنوز توضیحاتی ثبت نشده است.</p>
+        <p class="mt-2 text-sm text-text-muted">هنوز توضیحاتی ثبت نشده است.</p>
         {% endif %}
       </div>
       {% include "ui/components/portal/data_summary.html" with items=profile.summary_items %}

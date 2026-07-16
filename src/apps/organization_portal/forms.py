@@ -32,6 +32,7 @@ class InviteCaregiverForm(StyledForm):
 
 class OrganizationProfileForm(StyledForm):
     name = forms.CharField(max_length=255, label="نام سازمان", error_messages={"required": "نام سازمان الزامی است."})
+    headline = forms.CharField(max_length=150, label="عنوان کوتاه / معرفی حرفه‌ای", required=False)
     description = forms.CharField(widget=forms.Textarea, label="توضیحات", required=False, max_length=2000)
     city = forms.CharField(max_length=100, label="شهر", required=False)
     phone = forms.CharField(max_length=20, label="تلفن", required=False)

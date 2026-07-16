@@ -51,6 +51,7 @@ class RatingSummaryViewModel:
 class OrganizationProfileViewModel:
     organization_id: str
     name: str
+    headline: str
     logo_url: str
     cover_url: str
     city: str
@@ -80,6 +81,7 @@ class OrganizationProfileViewModel:
 @dataclass(frozen=True)
 class OrganizationProfileFormViewModel:
     name: str
+    headline: str
     description: str
     city: str
     phone: str

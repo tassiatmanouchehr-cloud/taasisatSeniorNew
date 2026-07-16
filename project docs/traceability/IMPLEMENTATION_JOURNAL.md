@@ -2414,3 +2414,121 @@ record, per this repository's own "never delete decision history, mark supersede
 Every one of the 9 files now states one unambiguous current state: PR #11 merged; main at
 merge commit `90e608d` before PR #12; Phase 2 closed; Phase 3 active; Sprint 3.1 implemented on
 PR #12 (architecture-review remediation applied) and awaiting review; **PR #12 not merged.**
+
+## PR #12 Merge (2026-07-16)
+
+Final architecture re-review inspected the saved PR description directly via the GitHub API
+and confirmed it already stated the final remediated implementation (row-per-cycle history,
+both conditional constraints, `closure_reason`, both migrations, 2150/2150) — no repository or
+GitHub change was needed for that step. Merged via `merge_pull_request` (merge commit
+`ffb82a4767ba115dc158cb845b92211ccbc30d00`). Local `main` fast-forwarded to match
+`origin/main`; confirmed identical (`git rev-parse main` == `git rev-parse origin/main`).
+**Sprint 3.1 (Company Foundation and Caregiver Management, including the PR #12
+architecture-review remediation) is now CLOSED and on `main`.**
+
+## Sprint 3.2 — Company Professional Profile and Public Presence (2026-07-16)
+
+Branch `phase3-company-professional-profile`, created fresh from merged `main` @ `ffb82a4`
+(not a reuse of the merged Sprint 3.1 branch, per governance).
+
+### Current-State Assessment (required before implementation)
+
+Direct inspection of `apps.accounts.models.profiles.OrganizationProfile`,
+`apps.accounts.services.organization_profile_service.OrganizationProfileUpdateService`,
+`apps.accounts.services.profile_media_service.ProfileMediaService`,
+`apps.organization_portal`'s profile views/forms/templates, and
+`apps.public_site.services.organization_profile_service.OrganizationPublicProfileService`
+found most target capabilities already built by Epic 06 Sprint 2:
+
+| Capability | Existing | Reusable | Missing/Broken |
+|---|---|---|---|
+| Display name, description, city, phone, address, company_type, team_size | `OrganizationProfile` fields | Yes | Professional headline/short intro |
+| Logo/cover image | `OrganizationProfile.logo`/`.cover_image`, `ProfileMediaService.set_organization_logo()`/etc. | Yes | No permission check on the 4 media methods (only ownership) |
+| Verified company status | `verification_status`/`is_verified` in both portal and public ViewModels | Yes | — |
+| Services/capabilities | `OrganizationProfileUpdateService.update_service_categories()`, `ServiceSupplier.service_categories` | Yes | — |
+| Public profile page, canonical URL | `OrganizationPublicProfileService.get_profile()`, `/find-an-organization/<supplier_id>/` | Yes | Canonical public-visibility policy not actually used (weaker local check); SEO `page_url`/`canonical_url` wrong (KL-021/BG-027, previously deferred) |
+| Portal profile management | `profile_view`/`profile_edit_view`/`profile_edit_services_view`, permission-gated via `ORGANIZATION_PROFILE_UPDATE` | Yes | — |
+| Company caregiver aggregation | `active_provider_count` (count only) on both viewmodels | Yes, already privacy-safe | — |
+| Address/service-area | `address` (portal-only, never public) | Yes | No dedicated service-area model; not needed — `city` + `service_names` already summarize coverage |
+| Verification badges | `VERIFICATION_LABELS`, badge components | Yes | — |
+| Permission keys | `ORGANIZATION_PROFILE_UPDATE` (Epic 06 Sprint 2) | Yes, but under-enforced | Not checked at the 4 media call sites |
+| Query performance | Both profile pages are single-entity lookups; portal page has a locked 10-query test | Yes | — |
+| Reusable UI components | `avatar.html`, `badge.html`, `chip.html`, `rating_stars.html`, `cta_section.html`, `seo_meta.html` | Yes, all already reused | — |
+
+No parallel model was introduced. The sprint closed exactly the "Missing/Broken" column.
+
+### Implemented Scope
+
+See `ARCHITECTURE_DECISION_LOG.md` ADM-024 for the full decision record (6 decisions):
+added `OrganizationProfile.headline`; fixed the canonical public-visibility-policy bug in
+`OrganizationPublicProfileService.get_profile()`; fixed the SEO canonical-URL bug on
+`organization_profile.html`; permission-gated `ProfileMediaService`'s 4 organization media
+methods; made `_replace()` transaction-safe; confirmed 4 other target capabilities already
+sufficient without change (public logo display, contact policy, service-coverage summary,
+caregiver aggregation).
+
+### Domain Ownership
+
+`OrganizationProfile`/its professional-profile fields remain owned by the Organization/
+Company aggregate — no field or data was moved onto `CaregiverProfile`, and no caregiver
+professional data was duplicated onto `OrganizationProfile`. `active_provider_count` reads
+live from `OrganizationStaffService.list_active_caregivers()` (already filters
+`status=ACTIVE`) — a terminated/historical affiliation was already excluded before this
+sprint (Sprint 3.1's per-cycle history model) and remains excluded; no caregiver identity is
+exposed publicly by that count.
+
+### Tests
+
+10 new/rewritten tests. `apps.public_site.tests.test_organization_profile_service` (+4):
+`test_returns_none_for_unverified_organization`,
+`test_returns_none_for_pending_verification_organization`,
+`test_returns_none_when_admin_account_deactivated`, `test_headline_included_when_set` — the
+existing `_create_organization_supplier()` fixture now defaults
+`verification_status=VERIFIED` (matching the caregiver fixture's own established default),
+since every pre-existing "should be visible" test previously passed only because the weaker
+check never looked at verification. `apps.public_site.tests.test_views`'s parallel fixture
+received the same default. `apps.organization_portal.tests.test_profile` (+6):
+`test_headline_update`, `test_headline_shown_on_profile_page`,
+`test_media_upload_only_affects_own_organization`,
+`test_media_upload_denied_for_unauthenticated`,
+`test_media_upload_denied_for_non_admin_staff`,
+`test_terminated_caregiver_membership_gets_no_portal_access`.
+
+### Test Level Decision and Results
+
+Media/file lifecycle change (`ProfileMediaService._replace()`) is an explicit Level-3
+full-regression trigger per this sprint's own test policy — run once. Focused:
+`apps.organization_portal.tests.test_profile` 27/27,
+`apps.public_site.tests.test_organization_profile_service` +
+`apps.public_site.tests.test_views` all green. Affected suites (`apps.accounts` +
+`apps.organization_portal` + `apps.public_site` + `apps.provider_portal` + `apps.kernel`
+combined): 999/999. `manage.py check` 0 issues; `makemigrations accounts --check --dry-run`
+"No changes detected"; migration 0007→0010 apply, 0010→0009 rollback, 0009→0010 re-apply all
+clean against the dev database; `git diff --check` clean. Full regression: **2160/2160 green**
+(2150 baseline + 10 net). `OrganizationProfileQueryCountTest`'s locked 10-query baseline
+unaffected (`headline` adds no query).
+
+### Deferred (explicitly, recorded)
+
+1. Company financial overview + reports extension, company invoicing — explicitly out of
+   this sprint's mandate, remaining Phase 3 scope.
+2. Gallery/certificates parity with the caregiver public profile — explicitly out of this
+   sprint's minimum-vertical-slice mandate, remaining Phase 3 scope.
+3. A full public company directory/listing page (`public_site.views.organizations` renders a
+   static template with no queryset today) — the task scoped "company public profile" to the
+   single-organization detail page, explicitly distinguishing it from Marketplace/
+   Customer-Portal-consumption behavior; not built this sprint.
+4. An opt-in "make phone/email public" toggle — no evidence of demand; the existing
+   never-expose-private-contact-details default is treated as this sprint's "public contact
+   policy," not a gap.
+5. A dedicated service-area/coverage-radius field for organizations (mirroring
+   `CaregiverProfile.service_radius_km`) — `city` + `service_names` already summarize
+   coverage; no evidence a company-level radius concept is meaningful (companies typically
+   describe coverage by service area/city, not a caregiver's individual travel radius).
+
+### BG-030 Status
+
+**RESOLVED.** Company professional profile and public presence (headline, canonical
+visibility policy, SEO fix, permission-gated media, transaction-safe media replacement)
+delivered as a minimum vertical slice, reusing the canonical model and existing services
+throughout. See `quality/COMPLETION_BACKLOG.md` BG-030.

@@ -23,6 +23,19 @@ scopes this Sprint to "the minimal public organization profile required
 to preview real organization data," not a directory) — there is no
 "list all organizations" view or route here, only single-organization
 lookup by supplier_id.
+
+Phase 3 Sprint 3.2 (Company Professional Profile and Public Presence)
+remediation: get_profile() previously re-implemented its own, weaker
+visibility check (`attrs["profile_status"] != "active"` only) instead of
+calling the canonical `common.is_publicly_visible_attrs()` — the same
+function `apps.public_site.services.profile_service
+.CaregiverPublicProfileService.get_profile()` already uses, and the one
+`is_publicly_visible_attrs()`'s own module docstring already claims every
+public entry point uses ("there is exactly one implementation of "is
+this publicly visible""). That was untrue for this function: an
+ACTIVE-but-UNVERIFIED organization, or one whose admin account had been
+deactivated, was still publicly visible. Fixed to call the same
+canonical function, closing that gap — no second visibility policy.
 """
 
 from apps.accounts.services.organization_staff import OrganizationStaffService
@@ -61,7 +74,7 @@ class OrganizationPublicProfileService:
             return None
 
         attrs = common.supplier_entity_attrs(supplier)
-        if attrs["profile_status"] != "active":
+        if not common.is_publicly_visible_attrs(attrs):
             return None
 
         entity = resolve_supplier_entity(supplier)
@@ -72,6 +85,7 @@ class OrganizationPublicProfileService:
             supplier_id=supplier.id,
             name=supplier.display_name,
             logo_initial=common.avatar_initial(supplier.display_name),
+            headline=attrs["headline"],
             city=attrs["city"],
             description=attrs["description"],
             service_names=cls._service_names(supplier, tenant_id=tenant_id),

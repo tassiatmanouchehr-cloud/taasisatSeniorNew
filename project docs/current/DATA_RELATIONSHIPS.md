@@ -220,6 +220,22 @@ is preserved unchanged on its own terminal row, directly queryable from the tabl
 caregiver), closing the same race for join-by-code duplicate submissions. See
 `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-023's remediation note.
 
+**Sprint 3.1 (including the PR #12 remediation) is now MERGED to `main`** (merge commit
+`ffb82a4767ba115dc158cb845b92211ccbc30d00`); the schema described above is on `main`.
+
+## Sprint 3.2 (Company Professional Profile and Public Presence) — One Migration
+
+`OrganizationProfile` gained one new field: `headline` (CharField, max_length=150, blank).
+No new model, no new FK relationship type. Wired through
+`OrganizationProfileUpdateService.update_profile()`'s existing field whitelist (not a
+generic mass-assignment path), both the organization-portal and public-site ViewModels, and
+`common.bulk_supplier_attrs()`'s generic getattr-based attrs dict (the same pattern `city`/
+`description` already use there).
+
+No other schema change this sprint — the remaining Sprint 3.2 work (canonical
+public-visibility-policy fix, SEO fix, media permission-gating, transaction-safe media
+replacement) is entirely behavioral/service-layer, touching no field or FK.
+
 ## Append-Only Immutability
 
 The following models are append-only (never updated after creation):

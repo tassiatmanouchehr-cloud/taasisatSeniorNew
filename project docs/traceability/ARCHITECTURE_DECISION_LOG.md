@@ -1568,4 +1568,115 @@ grant no current company access (`get_active_membership_for_caregiver()` returns
 `OrganizationStaffService.list_active_caregivers()` excludes them); two periods with the same
 company render as two separate history rows. Full regression 2150/2150 green (2145 + 5 net).
 `organization_portal`/`provider_portal` affiliation test suites required no changes — their
-assertions did not depend on row-reactivation behavior. **PR #12 not merged.**
+assertions did not depend on row-reactivation behavior. **MERGED to main via PR #12** (merge
+commit `ffb82a4767ba115dc158cb845b92211ccbc30d00`, 2026-07-16). **Sprint 3.1 is CLOSED.**
+
+## ADM-024: Company Professional Profile and Public Presence — Reuse Over Rebuild, Two Real Bug Fixes (Phase 3 Sprint 3.2)
+
+**Context:** Sprint 3.2's own governance required a current-state assessment before any
+implementation, explicitly warning against introducing parallel models where a canonical one
+already exists. Direct inspection of `apps.accounts.models.profiles.OrganizationProfile`,
+`apps.accounts.services.organization_profile_service.OrganizationProfileUpdateService`,
+`apps.accounts.services.profile_media_service.ProfileMediaService`,
+`apps.organization_portal`'s profile views/templates, and
+`apps.public_site.services.organization_profile_service.OrganizationPublicProfileService`
+found nearly every target capability already built by Epic 06 Sprint 2: editable public/
+contact fields, permission-gated update service, logo/cover upload, a public organization-
+profile page at a stable canonical URL, service-category selection, and a caregiver-count
+summary — none of it caregiver-only, all of it directly reusable.
+
+**Decision 1 — Add exactly one new field (`headline`), no new model.** The one target
+capability with no existing field was "professional headline or short introduction."
+`CaregiverProfile.specialty` already plays this exact role for caregivers (a short line
+distinct from the long-form `bio`/`description`); `OrganizationProfile` had no equivalent.
+Added `headline` (`CharField`, max_length=150, blank) — one migration
+(`accounts/0010_organizationprofile_headline.py`), wired through the existing
+field-whitelisted `update_profile()`, both portal and public ViewModels, the edit form, and
+both templates. No new service, no new view, no new URL.
+
+**Decision 2 — Reuse `common.is_publicly_visible_attrs()` instead of building a second
+visibility policy.** `OrganizationPublicProfileService.get_profile()` re-implemented its own
+check (`attrs["profile_status"] != "active"` only) rather than calling
+`is_publicly_visible_attrs()` — the canonical rule
+`apps.public_site.services.profile_service.CaregiverPublicProfileService.get_profile()`
+already used, and the one that function's own docstring already claimed every public entry
+point called ("there is exactly one implementation of 'is this publicly visible'"). That
+claim was false for organizations: `bulk_supplier_attrs()` already resolves
+`OrganizationProfile` entities correctly (reads `entity.admin_user` when `entity.user` is
+absent, exactly as it reads `entity.user` for caregivers) and already includes
+`verification_status`/`account_active` in its generic attrs dict — the canonical function was
+fully reusable, just not called. Before this fix, an ACTIVE-but-UNVERIFIED organization, or
+one whose admin account had been deactivated, was incorrectly publicly visible. Every
+pre-existing test fixture that exercised "should be publicly visible" happened to pass only
+because the weaker check never looked at `verification_status`/`account_active` — fixed by
+setting `verification_status=VERIFIED` explicitly in those fixtures (matching the caregiver
+fixture helper's own existing default) and adding negative tests for the two previously
+unchecked exclusion reasons.
+
+**Decision 3 — Fix the SEO canonical-URL bug (KL-021/BG-027) now that it is this sprint's own
+scope.** Sprint 2.6 explicitly deferred this identical bug on `organization_profile.html`
+because it was caregiver-only scoped. `page_url` was hardcoded to
+`/find-an-organization/` (the list path, not this organization's own URL), and
+`canonical_url` was never passed to `seo_meta.html` at all. Fixed to resolve
+`{% url 'public_site:organization-profile' supplier_id=profile.supplier_id %}` and pass it as
+both `page_url` and `canonical_url`, matching `caregiver_profile.html`'s already-correct
+pattern exactly.
+
+**Decision 4 — Permission-gate organization media mutations using the existing
+`ORGANIZATION_PROFILE_UPDATE` key, not a new one.** `ProfileMediaService`'s four organization
+logo/cover set/remove methods had no permission check at all — only
+`resolve_organization()`'s ownership boundary, unlike `OrganizationProfileUpdateService`'s own
+methods, which already checked `ORGANIZATION_PROFILE_UPDATE` (whose own registered
+description already claimed to cover "public/contact fields, media, or documents"). A new,
+narrower key was considered and rejected: the existing key's description already promised
+media coverage, and Sprint 3.1's own precedent (reusing `ORGANIZATION_MEMBERSHIP_APPROVE` for
+affiliation-request approval rather than minting a redundant key) argues for reuse when the
+action is semantically already covered. Fixed by adding an `actor` kwarg and the same
+`PermissionService.require(..., ownership_authorized_by=actor, ...)` shape every other
+organization-mutation call site already uses. Because `ownership_authorized_by` always
+succeeds for a real, non-`None` actor (the same established property Sprint 3.1's own ADM-023
+Decision 6 documented), this changes no observable behavior for an authorized admin — it is
+explicit, audited RBAC-readiness hardening, the real access boundary remains
+`resolve_organization()`.
+
+**Decision 5 — Make `ProfileMediaService._replace()` transaction-safe, shared by caregiver and
+organization media.** `_replace()` deleted the old physical file *before* saving the new field
+value — the same unsafe-ordering defect `CaregiverGalleryService.remove_item()`'s Sprint 2.2
+remediation already fixed for gallery items (physical storage deletion is not transactional;
+deleting before a save that might still fail or roll back can strand a not-actually-removed
+DB row pointing at a deleted file). Fixed identically: save the new value first, then delete
+the old file (if any) via `transaction.on_commit()`, which Django discards entirely on
+rollback. Applied to the one shared `_replace()` helper rather than duplicating the fix
+per-caller, so caregiver avatar/cover replacement gets the same safety property as a natural
+consequence, not a second implementation.
+
+**Decision 6 — Four target capabilities confirmed already sufficient, deliberately left
+unchanged.** (a) Public logo/avatar display stays initials-only
+(`ui/components/data/avatar.html`'s `type="org"` mode, no `src=` passed) — matches the
+caregiver public profile's own identical, established treatment; passing the real uploaded
+`logo` file's URL would have been an inconsistent, unrequested design change, not a fix. (b)
+"Public contact policy" stays "never expose phone/address publicly, route to a generic
+contact CTA" — already the existing, privacy-safe default; no opt-in "make my phone public"
+toggle was built, since no evidence of demand exists (mirrors this codebase's established
+"do not invent without evidence" convention, e.g. BG-024's deferred per-caregiver timezone).
+(c) "Service coverage summary" is `city` + the existing `service_names` (from
+`ServiceSupplier.service_categories`) — no new service-area/radius field was added; an
+organization's coverage is reasonably summarized by its office city plus offered service
+categories, unlike an individual caregiver's `service_radius_km`. (d) Company caregiver
+aggregation stays a count only (`active_provider_count`) — already privacy-safe (no caregiver
+identity is exposed), and no consent mechanism exists for listing individual affiliated
+caregivers publicly, so none was built.
+
+**Consequences:** One migration (`accounts/0010_organizationprofile_headline.py`). 10 new/
+rewritten tests (4 `apps.public_site.tests.test_organization_profile_service` + 6
+`apps.organization_portal.tests.test_profile`) prove: unverified/pending-verification/admin-
+deactivated organizations are excluded from the public profile; headline round-trips through
+the edit form and appears on both profile pages; media upload/remove is denied for
+unauthenticated and non-admin-staff callers and structurally cannot reach a second
+organization (no id parameter exists in those URLs); a terminated (former) caregiver staff
+member retains no portal access. Full regression 2160/2160 green (2150 + 10 net) — run once,
+per this sprint's own policy (media/file lifecycle change is an explicit Level-3 trigger).
+`organization_portal`'s locked query-count test
+(`OrganizationProfileQueryCountTest.test_profile_page_query_count_bounded`, 10 queries)
+unaffected — `headline` is a plain field on the already-fetched `organization` row, no new
+query. **PR not merged.**

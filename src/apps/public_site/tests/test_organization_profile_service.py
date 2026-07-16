@@ -1,8 +1,20 @@
-"""OrganizationPublicProfileService — Epic 06 Sprint 2."""
+"""OrganizationPublicProfileService — Epic 06 Sprint 2.
+
+Phase 3 Sprint 3.2 (Company Professional Profile and Public Presence)
+remediation: `_create_organization_supplier()` now defaults
+`verification_status="verified"` and `admin_is_active=True` — a real,
+publicly-visible organization must satisfy the same canonical
+`common.is_publicly_visible_attrs()` rule the caregiver public-profile
+fixtures already assume by default (see
+`apps.public_site.tests.helpers.PublicSiteTestCase._create_caregiver_supplier()`'s
+own `verification_status="verified"` default). Before this remediation,
+`get_profile()` only checked `profile_status`, so every test below
+happened to pass against an UNVERIFIED fixture — masking the fact that an
+unverified (or admin-deactivated) organization was incorrectly public."""
 
 import uuid
 
-from apps.accounts.models.profiles import OrganizationProfile
+from apps.accounts.models.profiles import OrganizationProfile, VerificationStatus
 from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_organization
 from apps.kernel.models import Person, UserAccount
 from apps.kernel.models.supplier import SupplierStatus
@@ -12,19 +24,30 @@ from .helpers import PublicSiteTestCase
 
 
 class OrganizationPublicProfileServiceTest(PublicSiteTestCase):
-    def _create_organization_supplier(self, *, name="سازمان نمونه", status="active"):
+    def _create_organization_supplier(
+        self,
+        *,
+        name="سازمان نمونه",
+        status="active",
+        verification_status=VerificationStatus.VERIFIED,
+        admin_is_active=True,
+    ):
         admin_person = Person.objects.create(tenant=self.tenant, full_name="مدیر سازمان")
         admin_user = UserAccount.objects.create_user(
             phone=f"0913{uuid.uuid4().hex[:7]}",
             person=admin_person,
             tenant=self.tenant,
         )
+        if not admin_is_active:
+            admin_user.is_active = False
+            admin_user.save(update_fields=["is_active"])
         organization = OrganizationProfile.objects.create(
             name=name,
             code=f"org-{uuid.uuid4().hex[:8]}",
             admin_user=admin_user,
             tenant=self.tenant,
             status=status,
+            verification_status=verification_status,
         )
         supplier = get_or_create_supplier_for_organization(organization, tenant_id=self.tenant.id)
         supplier.status = SupplierStatus.ACTIVE
@@ -45,12 +68,37 @@ class OrganizationPublicProfileServiceTest(PublicSiteTestCase):
         supplier.save(update_fields=["status"])
         self.assertIsNone(OrganizationPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id))
 
+    def test_returns_none_for_unverified_organization(self):
+        """PR canonical-visibility-policy fix: an ACTIVE but UNVERIFIED
+        organization must not be publicly visible, matching the
+        caregiver page's own established rule."""
+        supplier, _ = self._create_organization_supplier(verification_status=VerificationStatus.UNVERIFIED)
+        self.assertIsNone(OrganizationPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id))
+
+    def test_returns_none_for_pending_verification_organization(self):
+        supplier, _ = self._create_organization_supplier(verification_status=VerificationStatus.PENDING)
+        self.assertIsNone(OrganizationPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id))
+
+    def test_returns_none_when_admin_account_deactivated(self):
+        """PR canonical-visibility-policy fix: a deactivated admin
+        account must exclude the organization from public visibility,
+        matching BG-022's own account_active rule for caregivers."""
+        supplier, _ = self._create_organization_supplier(admin_is_active=False)
+        self.assertIsNone(OrganizationPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id))
+
     def test_full_profile_fields_populated(self):
         supplier, organization = self._create_organization_supplier(name="سازمان مراقبت آفتاب")
         profile = OrganizationPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id)
         self.assertIsNotNone(profile)
         self.assertEqual(profile.name, "سازمان مراقبت آفتاب")
         self.assertIn(self.category.name, profile.service_names)
+
+    def test_headline_included_when_set(self):
+        supplier, organization = self._create_organization_supplier()
+        organization.headline = "بیش از ۱۰ سال تجربه در مراقبت سالمندان"
+        organization.save(update_fields=["headline"])
+        profile = OrganizationPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id)
+        self.assertEqual(profile.headline, "بیش از ۱۰ سال تجربه در مراقبت سالمندان")
 
     def test_tenant_isolation(self):
         from apps.kernel.models import Tenant

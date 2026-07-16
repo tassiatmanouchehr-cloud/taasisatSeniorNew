@@ -69,6 +69,7 @@ class OrganizationProfilePresentationService:
         return OrganizationProfileViewModel(
             organization_id=str(organization.id),
             name=organization.name,
+            headline=organization.headline,
             logo_url=organization.logo.url if organization.logo else "",
             cover_url=organization.cover_image.url if organization.cover_image else "",
             city=organization.city,
@@ -116,6 +117,7 @@ class OrganizationProfilePresentationService:
     def get_profile_form(cls, organization) -> OrganizationProfileFormViewModel:
         return OrganizationProfileFormViewModel(
             name=organization.name,
+            headline=organization.headline,
             description=organization.description,
             city=organization.city,
             phone=organization.phone,
