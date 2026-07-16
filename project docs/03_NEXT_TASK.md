@@ -545,11 +545,16 @@ closes new backlog item BG-028:
   owning parent" precedent) — proven by 3 new `TransactionTestCase`
   tests, including a genuine two-different-organizations race that the
   lock closes.
-- One migration (3 new nullable `OrganizationMembership` fields — no new
-  model, no altered financial/order/payment table).
+- One migration (`accounts/0008_company_affiliation_termination.py`: 3 new
+  nullable `OrganizationMembership` fields — no new model, no altered
+  financial/order/payment table). **Superseded by the PR #12 remediation
+  below — see that entry for the final migration/constraint state and
+  final test/regression counts.**
 
 51 new tests (32 service-layer + 9 `organization_portal` HTTP-level + 10
-`provider_portal` HTTP-level), full regression 2145/2145 green. Branch
+`provider_portal` HTTP-level) landed at this point in the sprint; full
+regression 2145/2145 green at this point (superseded — see the PR #12
+remediation entry below for the final 2150/2150 count). Branch
 `phase3-company-portal-foundation`, PR #12 created — see
 `traceability/IMPLEMENTATION_JOURNAL.md` and `ARCHITECTURE_DECISION_LOG.md`
 ADM-023.

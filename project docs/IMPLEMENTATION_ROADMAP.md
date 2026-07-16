@@ -222,7 +222,11 @@ Pre-phase (P0 hygiene, small): ~~fix seed test race (G12)~~ — **DONE, merged i
 - 4 new permission keys (`ORGANIZATION_MEMBERSHIP_INVITE`/`_REJECT`/`_TERMINATE`, reusing existing `_APPROVE`), granted to `organization_admin` via the existing `OrganizationRoleSyncService` sync.
 - New UI: `organization_portal` staff page extended (pending requests/invitations, invite-by-phone, terminate); `provider_portal` new "company" page (join by code, respond to invitations, leave, history).
 - Concurrency: every activation path locks the caregiver's own `CaregiverProfile` row first, closing a genuine cross-organization race — proven by 3 new `TransactionTestCase` tests.
-- One migration (3 new nullable fields, no new model). 51 new tests, full regression 2145/2145 green. **BG-028 is RESOLVED.** Company financial overview/reports and public-profile parity remain open — Phase 3 as a whole is NOT complete. PR #12 created — see PR #12 remediation entry below.
+- One migration at this point (`accounts/0008_...`, 3 new nullable fields, no new model);
+  51 new tests, full regression 2145/2145 green at this point — **both superseded, see the
+  PR #12 remediation entry immediately below for the final migration/constraint state and
+  final 2150/2150 count.** **BG-028 is RESOLVED.** Company financial overview/reports and
+  public-profile parity remain open — Phase 3 as a whole is NOT complete. PR #12 created.
 
 **PR #12 architecture-review remediation (2026-07-16, same branch) — preserve affiliation-period history:**
 - Root defect: `approve_affiliation_request()`/`invite_caregiver()` used `update_or_create()`, so a caregiver rejoining the same organization after termination reactivated the same `OrganizationMembership` row instead of getting a new one — prior cycles' termination detail was only reconstructable from `AuditLog`, not the row itself.

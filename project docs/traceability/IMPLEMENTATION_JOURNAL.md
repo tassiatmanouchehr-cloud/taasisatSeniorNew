@@ -2295,21 +2295,28 @@ All 14 points proven directly:
 13. Unauthorized staff actions are denied — `test_non_admin_cannot_invite` (403, no administered organization).
 14. Public company data separated from internal — `test_preview_shows_only_public_safe_fields` (`{id, name, city}` only).
 
-### Section K — Migration
+### Section K — Migration (as originally implemented; SUPERSEDED, see the PR #12 remediation
+section below for the final migration/constraint state)
 
-One migration (`accounts/0008_company_affiliation_termination.py`): 3 new nullable fields on
-`OrganizationMembership`. No new model, no altered financial/order/payment table. Essential
-to Section B's "termination date, termination actor, reason" requirement — could not be
-satisfied by any existing field.
+One migration at this point in the sprint (`accounts/0008_company_affiliation_termination.py`):
+3 new nullable fields on `OrganizationMembership`. No new model, no altered financial/order/
+payment table. Essential to Section B's "termination date, termination actor, reason"
+requirement — could not be satisfied by any existing field. **A second migration
+(`accounts/0009_...`) was added later the same sprint by the PR #12 architecture-review
+remediation — see that section below; this Section K entry describes only the
+first migration and is not the final state.**
 
-### Test Level Decision
+### Test Level Decision (as originally implemented; SUPERSEDED, see the PR #12 remediation
+section below for the final count)
 
 Full regression, run exactly once (models/migration/shared affiliation logic/permissions/
 concurrency all changed, several apps participate — matches this sprint's own explicit "run
 full regression once" trigger list). 51 new tests (32 `apps.accounts` + 9
 `apps.organization_portal` + 10 `apps.provider_portal`). Level 2 (`apps.accounts` +
 `apps.organization_portal` + `apps.provider_portal` + `apps.kernel` combined): 833/833. Full
-regression: 2145/2145 green (2094 baseline + 51 new).
+regression at this point: 2145/2145 green (2094 baseline + 51 new). **The PR #12 remediation
+below added 5 more tests and one more migration; the final, current full regression count is
+2150/2150 — see that section, not this one, for the current state.**
 
 ### Deferred (explicitly, recorded)
 
