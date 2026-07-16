@@ -241,3 +241,75 @@ class OrganizationProfileTenantHintTest(PublicSiteTestCase):
             {"tenant": self.tenant.slug},
         )
         self.assertEqual(response.status_code, 404)
+
+    def test_logo_rendered_when_present(self):
+        """PR #13 remediation: the real uploaded logo is rendered on the
+        public profile page (an <img> tag pointing at the logo's own
+        storage URL), not just the initials avatar."""
+        import io
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+
+        supplier, organization = self._create_organization_supplier(name="سازمان با لوگو")
+        buffer = io.BytesIO()
+        Image.new("RGB", (1, 1), color=(0, 255, 0)).save(buffer, format="PNG")
+        organization.logo.save(
+            "logo.png", SimpleUploadedFile("logo.png", buffer.getvalue(), content_type="image/png"), save=True,
+        )
+
+        response = self.client.get(
+            reverse("public_site:organization-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, organization.logo.url)
+        self.assertContains(response, "<img")
+
+    def test_initials_fallback_when_no_logo(self):
+        """No logo uploaded — the page still renders (initials avatar
+        fallback), and no broken/empty <img src=""> is emitted."""
+        supplier, organization = self._create_organization_supplier(name="سازمان بدون لوگو")
+        self.assertFalse(organization.logo)
+
+        response = self.client.get(
+            reverse("public_site:organization-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, '<img src=""')
+
+    def test_query_count_unaffected_by_logo_presence(self):
+        """Reading `entity.logo.url` off the already-resolved entity adds
+        no query — proven by comparing the page's query count with and
+        without a logo present."""
+        import io
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.db import connection, reset_queries
+        from django.test.utils import CaptureQueriesContext
+        from PIL import Image
+
+        supplier_without, _ = self._create_organization_supplier(name="بدون لوگو")
+        supplier_with, organization_with = self._create_organization_supplier(name="با لوگو")
+        buffer = io.BytesIO()
+        Image.new("RGB", (1, 1), color=(0, 255, 0)).save(buffer, format="PNG")
+        organization_with.logo.save(
+            "logo.png", SimpleUploadedFile("logo.png", buffer.getvalue(), content_type="image/png"), save=True,
+        )
+
+        reset_queries()
+        with CaptureQueriesContext(connection) as without_logo:
+            self.client.get(
+                reverse("public_site:organization-profile", args=[supplier_without.id]),
+                {"tenant": self.tenant.slug},
+            )
+        with CaptureQueriesContext(connection) as with_logo:
+            self.client.get(
+                reverse("public_site:organization-profile", args=[supplier_with.id]),
+                {"tenant": self.tenant.slug},
+            )
+
+        self.assertEqual(len(without_logo.captured_queries), len(with_logo.captured_queries))

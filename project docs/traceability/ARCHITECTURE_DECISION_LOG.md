@@ -1650,22 +1650,25 @@ rollback. Applied to the one shared `_replace()` helper rather than duplicating 
 per-caller, so caregiver avatar/cover replacement gets the same safety property as a natural
 consequence, not a second implementation.
 
-**Decision 6 — Four target capabilities confirmed already sufficient, deliberately left
-unchanged.** (a) Public logo/avatar display stays initials-only
-(`ui/components/data/avatar.html`'s `type="org"` mode, no `src=` passed) — matches the
-caregiver public profile's own identical, established treatment; passing the real uploaded
-`logo` file's URL would have been an inconsistent, unrequested design change, not a fix. (b)
-"Public contact policy" stays "never expose phone/address publicly, route to a generic
-contact CTA" — already the existing, privacy-safe default; no opt-in "make my phone public"
-toggle was built, since no evidence of demand exists (mirrors this codebase's established
-"do not invent without evidence" convention, e.g. BG-024's deferred per-caregiver timezone).
-(c) "Service coverage summary" is `city` + the existing `service_names` (from
+**Decision 6 (SUPERSEDED for part (a) by the PR #13 architecture-review remediation — see the
+remediation note below; original text kept for record) — Four target capabilities confirmed
+already sufficient, deliberately left unchanged.** (a) Public logo/avatar display stays
+initials-only (`ui/components/data/avatar.html`'s `type="org"` mode, no `src=` passed) —
+matches the caregiver public profile's own identical, established treatment; passing the real
+uploaded `logo` file's URL would have been an inconsistent, unrequested design change, not a
+fix. **The PR #13 review rejected this: a company professional profile's own logo is exactly
+the kind of professional-identity field this sprint exists to expose, not an unrequested
+addition.** (b) "Public contact policy" stays "never expose phone/address publicly, route to a
+generic contact CTA" — already the existing, privacy-safe default; no opt-in "make my phone
+public" toggle was built, since no evidence of demand exists (mirrors this codebase's
+established "do not invent without evidence" convention, e.g. BG-024's deferred per-caregiver
+timezone). (c) "Service coverage summary" is `city` + the existing `service_names` (from
 `ServiceSupplier.service_categories`) — no new service-area/radius field was added; an
 organization's coverage is reasonably summarized by its office city plus offered service
 categories, unlike an individual caregiver's `service_radius_km`. (d) Company caregiver
 aggregation stays a count only (`active_provider_count`) — already privacy-safe (no caregiver
 identity is exposed), and no consent mechanism exists for listing individual affiliated
-caregivers publicly, so none was built.
+caregivers publicly, so none was built. Parts (b), (c), (d) remain valid and unchanged.
 
 **Consequences:** One migration (`accounts/0010_organizationprofile_headline.py`). 10 new/
 rewritten tests (4 `apps.public_site.tests.test_organization_profile_service` + 6
@@ -1679,4 +1682,49 @@ per this sprint's own policy (media/file lifecycle change is an explicit Level-3
 `organization_portal`'s locked query-count test
 (`OrganizationProfileQueryCountTest.test_profile_page_query_count_bounded`, 10 queries)
 unaffected — `headline` is a plain field on the already-fetched `organization` row, no new
-query. **PR not merged.**
+query. **MERGED into PR #13's remediation — see below.**
+
+## ADM-024 Remediation — Render the Public Company Logo (PR #13 architecture review, 2026-07-16)
+
+**Context:** Architecture review of PR #13 found one remaining scope blocker: Decision 6(a)'s
+initials-only public logo/avatar treatment left the logo capability — already uploadable,
+already permission-gated, already file-safety-hardened by this same sprint — disconnected
+from the public professional profile Sprint 3.2 exists to build. A company's logo is exactly
+the kind of professional-identity field a "professional profile and public presence" sprint
+is supposed to expose, not an unrequested design change.
+
+**Fix — expose the existing field's existing URL, no new model or upload path:**
+
+- Added `logo_url` to the public `OrganizationProfileViewModel` (`apps.public_site.services
+  .viewmodels`). Populated in `OrganizationPublicProfileService.get_profile()` from the
+  already-resolved `entity.logo.url` (the `OrganizationProfile.logo` `ImageField`'s own
+  `.url` property — Django's standard storage-URL abstraction, never a filesystem path),
+  exposed only when `entity.logo` is truthy (a file is actually present); empty string
+  otherwise.
+- `templates/public_site/organization_profile.html` now passes
+  `src=profile.logo_url` to the existing `ui/components/data/avatar.html` include
+  (`type="org"`, unchanged). That component already supported an optional `src` prop with an
+  automatic initials fallback when `src` is falsy — no template logic branching was added;
+  the existing fallback condition now does exactly what it was already built to do.
+- No new field, no new model, no new migration, no new upload/removal flow, no new permission
+  key, no change to `ProfileMediaService` or its file-lifecycle/permission behavior (all of
+  that landed earlier in this same sprint, unchanged by this remediation), no change to
+  `common.is_publicly_visible_attrs()` or any other shared visibility-policy code — the
+  canonical visibility gate in `get_profile()` runs exactly as before, before `logo_url` is
+  ever computed, so an unverified/suspended/rejected/admin-deactivated organization still
+  returns `None`/404 regardless of whether it has a logo.
+
+**Consequences:** No migration. 7 new tests in `apps.public_site.tests
+.test_organization_profile_service`/`test_views` prove: a publicly eligible organization with
+a logo exposes `logo_url` equal to the field's own `.url` (and distinct from its `.path`, and
+containing no organization internal id) and the page renders an `<img>` tag; one without a
+logo returns an empty `logo_url` and the page falls back to the initials avatar with no
+broken `<img src="">`; an unverified organization with a logo still returns no public
+profile/404; an organization with a deactivated admin account and a logo remains hidden; the
+page's query count is identical with and without a logo present (reading `.url` off the
+already-resolved entity is a zero-query property access). `manage.py check` 0 issues;
+`makemigrations --check --dry-run` unchanged (pre-existing kernel drift only, `accounts`
+alone reports no changes); `git diff --check` clean. No model/migration/permission/
+file-lifecycle/shared-visibility-policy code changed, so — per this remediation's own test
+policy — the full regression was not re-run; only the directly affected focused suites were.
+**PR #13 not merged.**

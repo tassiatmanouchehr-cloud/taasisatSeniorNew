@@ -36,7 +36,21 @@ this publicly visible""). That was untrue for this function: an
 ACTIVE-but-UNVERIFIED organization, or one whose admin account had been
 deactivated, was still publicly visible. Fixed to call the same
 canonical function, closing that gap — no second visibility policy.
-"""
+
+PR #13 architecture-review remediation: the public profile is now the
+one place a caregiver-portfolio-style "professional profile" capability
+(this sprint's own stated purpose) omitted the organization's own
+already-uploaded logo, leaving it disconnected from the public presence
+it is meant to represent. Added `logo_url` — the existing
+`OrganizationProfile.logo` field's own `.url` (Django's standard
+storage-URL abstraction, never a filesystem path), exposed only when a
+file is actually present. No new field, no new upload path, no second
+media pipeline — this reads the exact same `logo` field
+`apps.organization_portal.services.profile_service
+.OrganizationProfilePresentationService.get_profile_view()` already
+exposes to the owning admin, just gated behind the same
+`is_publicly_visible_attrs()` check every other field on this ViewModel
+already goes through."""
 
 from apps.accounts.services.organization_staff import OrganizationStaffService
 from apps.accounts.services.supplier_bridge import resolve_supplier_entity
@@ -85,6 +99,7 @@ class OrganizationPublicProfileService:
             supplier_id=supplier.id,
             name=supplier.display_name,
             logo_initial=common.avatar_initial(supplier.display_name),
+            logo_url=entity.logo.url if entity and entity.logo else "",
             headline=attrs["headline"],
             city=attrs["city"],
             description=attrs["description"],

@@ -2459,13 +2459,13 @@ No parallel model was introduced. The sprint closed exactly the "Missing/Broken"
 
 ### Implemented Scope
 
-See `ARCHITECTURE_DECISION_LOG.md` ADM-024 for the full decision record (6 decisions):
-added `OrganizationProfile.headline`; fixed the canonical public-visibility-policy bug in
-`OrganizationPublicProfileService.get_profile()`; fixed the SEO canonical-URL bug on
+See `ARCHITECTURE_DECISION_LOG.md` ADM-024 for the full decision record (6 decisions, one of
+which — public logo display — was superseded by the PR #13 architecture-review remediation
+below): added `OrganizationProfile.headline`; fixed the canonical public-visibility-policy
+bug in `OrganizationPublicProfileService.get_profile()`; fixed the SEO canonical-URL bug on
 `organization_profile.html`; permission-gated `ProfileMediaService`'s 4 organization media
-methods; made `_replace()` transaction-safe; confirmed 4 other target capabilities already
-sufficient without change (public logo display, contact policy, service-coverage summary,
-caregiver aggregation).
+methods; made `_replace()` transaction-safe; confirmed 3 other target capabilities (contact
+policy, service-coverage summary, caregiver aggregation) already sufficient without change.
 
 ### Domain Ownership
 
@@ -2529,6 +2529,44 @@ unaffected (`headline` adds no query).
 ### BG-030 Status
 
 **RESOLVED.** Company professional profile and public presence (headline, canonical
-visibility policy, SEO fix, permission-gated media, transaction-safe media replacement)
-delivered as a minimum vertical slice, reusing the canonical model and existing services
-throughout. See `quality/COMPLETION_BACKLOG.md` BG-030.
+visibility policy, SEO fix, permission-gated media, transaction-safe media replacement,
+public logo rendering — see the PR #13 remediation below) delivered as a minimum vertical
+slice, reusing the canonical model and existing services throughout. See
+`quality/COMPLETION_BACKLOG.md` BG-030.
+
+## PR #13 Architecture Review Remediation — Render the Public Company Logo (2026-07-16)
+
+Architecture review of PR #13 found one remaining scope blocker: Sprint 3.2's own
+Decision 6(a) (`ARCHITECTURE_DECISION_LOG.md` ADM-024) left the organization's logo —
+already uploadable, already permission-gated, already file-safety-hardened by this same
+sprint — disconnected from the public professional profile the sprint exists to build. Fixed
+in place on the same branch/PR (no new branch, no new PR, no model/migration/permission/
+upload-flow/company-directory/contact-settings/gallery/certificates/financial/Marketplace
+change, per the remediation's own explicit constraints):
+
+- Added `logo_url` to the public `OrganizationProfileViewModel`
+  (`apps.public_site.services.viewmodels`), populated in
+  `OrganizationPublicProfileService.get_profile()` from the already-resolved
+  `entity.logo.url` — the existing `OrganizationProfile.logo` field's own storage-URL
+  abstraction, never a filesystem path — exposed only when a file is actually present.
+- `templates/public_site/organization_profile.html` now passes `src=profile.logo_url` to the
+  existing `ui/components/data/avatar.html` include; that component's own pre-existing
+  initials fallback (already used identically by the caregiver public profile) now serves its
+  real purpose: no logo uploaded, not "logos are never public."
+- Canonical visibility (`common.is_publicly_visible_attrs()`, unchanged) still gates the
+  entire profile, logo included.
+- The organization-portal admin's own profile page already showed the real logo before this
+  remediation (private, authenticated context) — nothing changed there.
+
+7 new tests (`apps.public_site.tests.test_organization_profile_service`: exposure when
+present, empty when absent, hidden when unverified, hidden when admin-deactivated, no
+filesystem-path/private-metadata leakage; `apps.public_site.tests.test_views`: `<img>`
+rendered when present, initials fallback rendered when absent, query-count parity with/
+without a logo). `organization_portal`'s locked query-count test unaffected (no change to
+that app). `manage.py check` 0 issues; `makemigrations --check --dry-run` unchanged
+(pre-existing kernel drift only); `git diff --check` clean. No model, migration, permission,
+file-lifecycle, or shared visibility-policy code changed — only ViewModel/service/template
+projection — so, per this remediation's own test policy, no full-regression rerun was
+performed; only the directly affected focused suites were run (all green). See
+`ARCHITECTURE_DECISION_LOG.md`'s ADM-024 remediation note for the full design record.
+**PR #13 not merged.**

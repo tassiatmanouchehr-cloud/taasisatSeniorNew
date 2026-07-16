@@ -682,20 +682,16 @@ genuinely missing or broken pieces:
   remediation already fixed). Fixed identically: save first, delete the
   old file via `transaction.on_commit()`. Applies to both caregiver and
   organization media (one shared helper).
-- **Deliberately unchanged, confirmed sufficient:** public logo/avatar
-  display stays initials-only (`ui/components/data/avatar.html`'s
-  existing `type="org"` mode) — matches the caregiver public profile's
-  own established precedent exactly, not a gap; adding a real image would
-  have been an inconsistent, unrequested design change. Public contact
-  policy stays "never expose phone/address, route to a generic contact
-  CTA" — the existing, already-privacy-safe default, not a new opt-in
-  toggle (no evidence of demand for one). Service coverage summary is
-  `city` + the existing `service_names` (from `service_categories`) — no
-  new service-area model, since none is needed. Company caregiver
-  aggregation stays a count only (`active_provider_count`) — already
-  privacy-safe, no caregiver identity exposed. `duplicate company-service
-  records` cannot occur — `service_categories` is a single array field on
-  `ServiceSupplier`, not separate rows.
+- **Public contact policy** stays "never expose phone/address, route to a
+  generic contact CTA" — the existing, already-privacy-safe default, not
+  a new opt-in toggle (no evidence of demand for one). **Service coverage
+  summary** is `city` + the existing `service_names` (from
+  `service_categories`) — no new service-area model, since none is
+  needed. **Company caregiver aggregation** stays a count only
+  (`active_provider_count`) — already privacy-safe, no caregiver identity
+  exposed. `duplicate company-service records` cannot occur —
+  `service_categories` is a single array field on `ServiceSupplier`, not
+  separate rows.
 
 10 new/rewritten tests (4 `apps.public_site.tests
 .test_organization_profile_service` + 6 `apps.organization_portal.tests
@@ -706,9 +702,46 @@ upload/remove is denied for unauthenticated and non-admin-staff callers
 and structurally cannot reach a second organization; a terminated
 (former) caregiver staff member retains no portal access. One migration.
 Full regression 2160/2160 green (2150 + 10 net). Branch
-`phase3-company-professional-profile`, PR created — see
+`phase3-company-professional-profile`, PR #13 created — see
 `traceability/IMPLEMENTATION_JOURNAL.md` and
-`ARCHITECTURE_DECISION_LOG.md` ADM-024. **Not merged — awaiting review.**
+`ARCHITECTURE_DECISION_LOG.md` ADM-024.
+
+### PR #13 Architecture Review Remediation — Render the Public Company Logo (2026-07-16)
+
+Architecture review found one remaining scope blocker: Sprint 3.2's own initials-only public
+logo/avatar decision (Decision 6(a) in ADM-024, originally reasoned as "matches the caregiver
+public profile's own established precedent") left the logo capability disconnected from the
+public professional profile Sprint 3.2 exists to build — the organization's already-uploaded,
+already permission-gated, already file-safety-hardened logo was never actually shown to a
+public visitor. **That original reasoning is superseded**, not merely appended past: exposing
+the real logo is the correct minimum-vertical-slice completion, not a redesign.
+
+- Added `logo_url` to the public `OrganizationProfileViewModel`, populated from the existing
+  `OrganizationProfile.logo` field's own `.url` (Django's standard storage-URL abstraction —
+  never a filesystem path), exposed only when `entity.logo` is actually present. No new
+  field, no new model, no new upload path, no second media pipeline.
+  `organization_profile.html` now passes `src=profile.logo_url` to the existing
+  `ui/components/data/avatar.html` include — that component's own pre-existing fallback
+  (initials, when `src` is empty) now serves its originally intended purpose: the fallback
+  for *no logo uploaded*, not a blanket "logo capability is public-facing only", not a
+  substitute for it.
+- Canonical visibility policy (`common.is_publicly_visible_attrs()`) is unchanged and still
+  gates the entire profile, logo included — an unverified, suspended, rejected, or
+  admin-deactivated organization returns `None`/404 exactly as before, regardless of whether
+  it has a logo.
+- The organization-portal admin's own profile page already showed the real logo before this
+  remediation (private, authenticated, unrelated to the public-visibility boundary) — no
+  change was needed there.
+
+7 new tests prove: a publicly eligible organization with a logo exposes/renders it;
+one without a logo falls back to initials; an unverified organization with a logo still
+returns no public profile; an organization with a deactivated admin account and a logo
+remains hidden; no filesystem path or private media metadata appears in the response
+(`logo_url` differs from `logo.path`, no organization internal id appears in the URL); the
+existing query-count contract is unaffected (reading `.url` off the already-resolved entity
+adds no query). No model, migration, permission, file-lifecycle, or shared visibility-policy
+code changed — only ViewModel/service/template projection — so no full-regression rerun was
+required per this remediation's own policy. **PR #13 not merged — awaiting review.**
 
 ---
 

@@ -243,6 +243,7 @@ class OrganizationProfileViewModel:
     supplier_id: UUID
     name: str
     logo_initial: str
+    logo_url: str
     headline: str
     city: str
     description: str

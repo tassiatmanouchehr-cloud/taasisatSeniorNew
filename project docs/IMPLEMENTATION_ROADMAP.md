@@ -23,7 +23,8 @@
 **Sprint 3.1 update:** 2026-07-16 — company foundation and caregiver management (see PHASE 3 section below) implemented on branch `phase3-company-portal-foundation` (from main @ `90e608d`); PR #12 created
 **PR #12 architecture-review remediation update:** 2026-07-16 — preserve affiliation-period history (see PHASE 3 section's remediation entry); applied in place on the same branch/PR; full regression 2150/2150 green
 **PR #12 merge update:** 2026-07-16 — final architecture re-review confirmed both blockers resolved and the saved PR description accurate; **MERGED to main via PR #12 (merge commit `ffb82a4767ba115dc158cb845b92211ccbc30d00`); Sprint 3.1 is CLOSED**
-**Sprint 3.2 update:** 2026-07-16 — company professional profile and public presence (see PHASE 3 section's Sprint 3.2 entry) implemented on branch `phase3-company-professional-profile` (from main @ `ffb82a4`); 1 new migration; full regression 2160/2160 green; PR created, not yet merged
+**Sprint 3.2 update:** 2026-07-16 — company professional profile and public presence (see PHASE 3 section's Sprint 3.2 entry) implemented on branch `phase3-company-professional-profile` (from main @ `ffb82a4`); 1 new migration; full regression 2160/2160 green; PR #13 created
+**PR #13 architecture-review remediation update:** 2026-07-16 — render the public company logo (see PHASE 3 section's remediation entry); applied in place on the same branch/PR; no model/migration/permission change; **PR #13 still not merged — awaiting review**
 **Branch verified:** phase3-company-professional-profile (via claude/taasisat-senior-state-verify-9dzzlm)
 **Authority:** This roadmap replaces every previous implementation order (including
 `project docs/03_NEXT_TASK.md` sequencing and the archived Offer Marketplace phase plans).
@@ -233,7 +234,12 @@ Pre-phase (P0 hygiene, small): ~~fix seed test race (G12)~~ — **DONE, merged i
 - Fixed the organization public-profile page's SEO canonical-URL bug (KL-021/BG-027, previously deferred as caregiver-only scope).
 - Permission-gated the four organization logo/cover set/remove methods on `ProfileMediaService` (previously no permission check at all, only ownership) — reuses the existing `ORGANIZATION_PROFILE_UPDATE` key, mirroring Sprint 3.1's own permission-hardening precedent.
 - Made `ProfileMediaService._replace()` transaction-safe (old file deleted via `transaction.on_commit()`, mirroring Sprint 2.2's gallery remediation) — shared by caregiver and organization media.
-- One migration (`accounts/0010_organizationprofile_headline.py`). 10 new/rewritten tests. Full regression 2160/2160 green. See `ARCHITECTURE_DECISION_LOG.md` ADM-024. PR created — **not merged, awaiting review.**
+- One migration (`accounts/0010_organizationprofile_headline.py`). 10 new/rewritten tests. Full regression 2160/2160 green. See `ARCHITECTURE_DECISION_LOG.md` ADM-024. PR #13 created.
+
+**PR #13 architecture-review remediation (2026-07-16, same branch) — render the public company logo:**
+- Root defect: the sprint's own initials-only public logo/avatar decision left the organization's already-uploaded, already permission-gated, already file-safety-hardened logo disconnected from the public professional profile the sprint exists to build.
+- Fix: exposed `logo_url` on the public `OrganizationProfileViewModel` (from the existing `OrganizationProfile.logo` field's own `.url`, never a filesystem path), passed as `src=` to the existing `avatar.html` include — its pre-existing initials fallback now serves its real purpose (no logo uploaded) instead of a blanket "never show the real logo." Canonical visibility policy (unchanged) still gates the logo along with the rest of the profile.
+- No model, migration, permission, upload-flow, company-directory, contact-settings, gallery, certificates, financial, or Marketplace change. 5 new tests proving exposure/fallback/visibility-gating/no-metadata-leakage/query-count parity. No full regression rerun (ViewModel/service/template projection only). See `ARCHITECTURE_DECISION_LOG.md` ADM-024's remediation note. **PR #13 not merged — awaiting review.**
 
 ### PHASE 4 — Customer Portal (production complete)
 

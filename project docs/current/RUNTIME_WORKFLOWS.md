@@ -438,13 +438,19 @@ supplier_id=profile.supplier_id %}` and passes it as both `page_url` and `canoni
 `canonical_url` was never passed at all, matching the caregiver profile page's
 already-correct pattern for the first time.
 
-**Deliberately unchanged (matches established precedent, not a gap):** the public profile
-shows the organization's logo as an initials avatar (`ui/components/data/avatar.html`,
-`type="org"`), never the real uploaded logo image — identical to how the caregiver public
-profile shows an initials avatar, never the real uploaded avatar image. Private
-phone/address are never shown publicly, regardless of any future "make contact public"
-demand (none exists yet) — a public visitor is routed to a generic contact CTA instead,
-exactly as before this sprint.
+**PR #13 architecture-review remediation:** the public profile now renders the organization's
+own already-uploaded logo — `OrganizationPublicProfileService.get_profile()` exposes
+`logo_url` (the `OrganizationProfile.logo` field's own `.url`, Django's standard storage-URL
+abstraction, never a filesystem path; empty when no logo exists), and
+`organization_profile.html` passes it as `src=` to the existing
+`ui/components/data/avatar.html` include (`type="org"`). That component's own pre-existing
+initials fallback now serves its real purpose — no logo uploaded, or no usable URL — not a
+blanket "logos are never shown publicly" policy. Canonical visibility
+(`common.is_publicly_visible_attrs()`) still gates the entire profile, logo included: an
+unverified/suspended/rejected/admin-deactivated organization returns nothing, regardless of
+whether it has a logo. Private phone/address are never shown publicly, regardless of any
+future "make contact public" demand (none exists yet) — a public visitor is routed to a
+generic contact CTA instead, unchanged by this remediation.
 
 ## Order Lifecycle (Status Machine)
 

@@ -427,6 +427,12 @@ logo/cover methods on the existing `ORGANIZATION_PROFILE_UPDATE` key. Made
 media). 10 new/rewritten tests, full regression 2160/2160 green. See
 `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-024 and
 `traceability/IMPLEMENTATION_JOURNAL.md`.
+**PR #13 architecture-review remediation (2026-07-16):** the public profile now renders the
+organization's own already-uploaded logo (`logo_url`, from the existing `logo` field's own
+storage URL; initials fallback only when no logo/no usable URL) — the initial "initials-only"
+decision left the logo capability disconnected from the public presence this backlog item
+exists to deliver. Canonical visibility policy still gates the logo. No model/migration/
+permission change; 7 new tests. See ADM-024's remediation note.
 **Affected modules:** accounts, organization_portal, public_site.
 **Not in scope (explicitly deferred, not this sprint's mandate):** company financial overview/
 reports extension, company invoicing, gallery/certificates parity with the caregiver profile,
