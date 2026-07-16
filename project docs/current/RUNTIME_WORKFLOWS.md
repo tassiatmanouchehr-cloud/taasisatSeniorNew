@@ -1,7 +1,7 @@
 # RUNTIME WORKFLOWS
 
-**Last verified HEAD:** phase3-company-portal-foundation (from main @ 90e608d, PR #11 merged — Phase 2 CLOSED)
-**Last verified date:** 2026-07-15
+**Last verified HEAD:** phase3-company-portal-foundation (from main @ 90e608d, PR #11 merged — Phase 2 CLOSED; Sprint 3.1 implemented on PR #12, PR #12 architecture-review remediation applied, PR #12 not yet merged)
+**Last verified date:** 2026-07-16 (PR #12 remediation)
 
 ---
 
@@ -382,16 +382,23 @@ ADM-022's remediation note.
 
 Two existing models, extended rather than replaced (see `ARCHITECTURE_DECISION_LOG.md`
 ADM-023): `CompanyAffiliationRequest` is the caregiver-initiated join-by-code intake;
-`OrganizationMembership` (now with `terminated_at`/`terminated_by`/`termination_reason`) is
-the single canonical, historical relationship record for both the request-approval path and
-the new company-invitation path. One active company per caregiver at a time — every
-activation path (`approve_affiliation_request()`, `invite_caregiver()`,
+`OrganizationMembership` (now with `terminated_at`/`terminated_by`/`termination_reason`/
+`closure_reason`) is the single canonical, historical relationship record for both the
+request-approval path and the company-invitation path. One active company per caregiver at
+a time — every activation path (`approve_affiliation_request()`, `invite_caregiver()`,
 `accept_invitation()`) locks the caregiver's own `CaregiverProfile` row first, then checks
 for an existing ACTIVE membership anywhere, closing a genuine cross-organization race
 (proven by `apps.accounts.tests.test_affiliation_lifecycle.AffiliationConcurrencyTest`).
-Reactivating a previously-REMOVED row (rejoining the same organization) is a deliberate reuse
-of the same row, not a new one — `unique_together` on `OrganizationMembership` permits at
-most one row per (organization, caregiver, role_type).
+
+**PR #12 architecture-review remediation (Blocker 1):** rejoining a previously-REMOVED
+organization now always creates a **new, independent** `OrganizationMembership` row —
+`approve_affiliation_request()`/`invite_caregiver()` `.create()` unconditionally, never
+reactivating a prior terminal row. `unique_together` was removed and replaced with two
+conditional `UniqueConstraint`s that enforce only the live-state invariants (at most one
+ACTIVE caregiver-role membership per user, globally; at most one open PENDING/ACTIVE
+membership per organization+user+role_type) while leaving terminal rows free to
+accumulate without limit — full affiliation-period history is therefore directly queryable
+from the table itself. See `ARCHITECTURE_DECISION_LOG.md` ADM-023's remediation note.
 
 `terminate_membership()`/`leave_organization()` both revert `CaregiverProfile.provider_type`
 to `INDEPENDENT` (safe under the one-active-company policy: a caregiver being terminated or

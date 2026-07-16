@@ -1422,32 +1422,34 @@ invariant, not a DB constraint, because `unique_together` on `OrganizationMember
 per-organization and cannot express a cross-organization "at most one active" rule. Multi-company
 simultaneous affiliation is explicitly deferred, not built.
 
-**Decision 3 — Reactivation reuses the same `OrganizationMembership` row; cross-cycle history
-lives in `AuditLog`, not on the row itself.** Because `unique_together = [("organization",
-"user", "role_type")]` permits at most one row per (org, caregiver) pair, a caregiver who
-leaves an organization and later rejoins the *same* one cannot get a second row without either
-loosening that constraint (a bigger, riskier schema change explicitly out of this sprint's
-minimal-migration mandate) or reactivating the existing one. `approve_affiliation_request()`
-and `invite_caregiver()` both use `update_or_create()` (not `get_or_create()`) precisely so a
-prior REMOVED row is reactivated rather than raising `IntegrityError`. The row therefore always
-reflects the *current/latest* cycle only — `terminated_at`/`terminated_by`/`termination_reason`
-from an earlier cycle are overwritten on reactivation. Full historical reconstruction across
-multiple join/leave cycles is available via `AuditService.log()`'s existing audit trail
-(`organization.membership.approved`/`.terminated`/`.invited`/etc.), matching this codebase's
-established "AuditLog is historical evidence, never the primary read-model" convention (see
-ADM-016's remediation note on `ProfileActivationService`).
+**Decision 3 (SUPERSEDED by the PR #12 architecture-review remediation — see the remediation
+note below; original text kept for record) — Reactivation reuses the same
+`OrganizationMembership` row; cross-cycle history lives in `AuditLog`, not on the row itself.**
+Because `unique_together = [("organization", "user", "role_type")]` permits at most one row per
+(org, caregiver) pair, a caregiver who leaves an organization and later rejoins the *same* one
+cannot get a second row without either loosening that constraint (a bigger, riskier schema
+change explicitly out of this sprint's minimal-migration mandate) or reactivating the existing
+one. `approve_affiliation_request()` and `invite_caregiver()` both use `update_or_create()`
+(not `get_or_create()`) precisely so a prior REMOVED row is reactivated rather than raising
+`IntegrityError`. The row therefore always reflects the *current/latest* cycle only —
+`terminated_at`/`terminated_by`/`termination_reason` from an earlier cycle are overwritten on
+reactivation. Full historical reconstruction across multiple join/leave cycles is available via
+`AuditService.log()`'s existing audit trail. **The PR #12 review rejected this: each
+company-caregiver affiliation period must remain an immutable domain-history record, and
+`AuditLog` must not be the only source of that history.**
 
-**Decision 4 — No new `OrgMembershipStatus` values; `REMOVED` covers every "this relationship
-ended" case, distinguished by whether `joined_at` was ever set.** Section C's required lifecycle
-(`INVITED -> REJECTED/CANCELLED`, `ACTIVE -> TERMINATED`) could have been modeled with new enum
-values (`DECLINED`, `CANCELLED_INVITATION`, `TERMINATED`), but `OrgMembershipStatus` already has
-exactly one terminal, non-active state (`REMOVED`) and three new nullable fields
-(`terminated_at`/`terminated_by`/`termination_reason`, this sprint's only schema change) fully
-capture *when*, *by whom*, and *why* a relationship ended — whether it was declined/cancelled
-before ever becoming ACTIVE (`joined_at` stays `None`) or terminated after being ACTIVE
-(`joined_at` was set). Reusing `REMOVED` avoids enum proliferation and keeps every existing
-`status == OrgMembershipStatus.REMOVED` check (there were none yet, but future ones) meaningful
-without a status-value migration.
+**Decision 4 (SUPERSEDED by the PR #12 architecture-review remediation — see the remediation
+note below; original text kept for record) — No new `OrgMembershipStatus` values; `REMOVED`
+covers every "this relationship ended" case, distinguished by whether `joined_at` was ever
+set.** Section C's required lifecycle (`INVITED -> REJECTED/CANCELLED`, `ACTIVE ->
+TERMINATED`) could have been modeled with new enum values (`DECLINED`, `CANCELLED_INVITATION`,
+`TERMINATED`), but `OrgMembershipStatus` already has exactly one terminal, non-active state
+(`REMOVED`) and three new nullable fields (`terminated_at`/`terminated_by`/`termination_reason`,
+this sprint's only schema change) fully capture *when*, *by whom*, and *why* a relationship
+ended. **The PR #12 review found this insufficient to machine-distinguish the 4
+`OrganizationMembership`-level closure cases (invitation declined by caregiver, invitation
+cancelled by company, terminated by company, left by caregiver) without relying on free-text
+`termination_reason`; see the remediation note's new `closure_reason` field.**
 
 **Decision 5 — Mutual termination is two explicit, symmetric-but-separately-authorized service
 functions, not one shared function with a role flag.** `terminate_membership()` (company-side,
@@ -1499,3 +1501,71 @@ different exception type). Two new portal pages (`organization_portal`'s extende
 service-layer incl. 3 `TransactionTestCase` concurrency proofs, 9 `organization_portal` HTTP-level,
 10 `provider_portal` HTTP-level). Full regression run once (multiple apps + migration + shared
 affiliation logic + permissions + concurrency all changed, per this sprint's own test policy).
+
+## ADM-023 Remediation — Preserve Affiliation Period History (PR #12 architecture review, 2026-07-16)
+
+**Context:** An architecture review of PR #12 rejected Decisions 3 and 4 above. Reactivating
+the same `OrganizationMembership` row on rejoin means each company-caregiver affiliation
+period is not an immutable domain-history record, and `AuditLog` was the only place a prior
+cycle's termination detail survived — inconsistent with this repository's own established
+"AuditLog is historical evidence, never the primary read-model" convention that Decision 3
+itself cited (ADM-016's remediation note), which requires the *row itself*, not just the audit
+trail, to be a trustworthy historical record.
+
+**Fix — new row per cycle, conditional constraints replace `unique_together`, machine-readable
+closure reason:**
+
+- `OrganizationMembership.unique_together = [("organization", "user", "role_type")]` removed;
+  replaced with two `Meta.constraints` (`django.db.models.UniqueConstraint(condition=Q(...))`,
+  PostgreSQL partial unique indexes under the hood — the same mechanism
+  `kernel.migrations.0011_role_assignment_active_scope_constraint.py` already uses for
+  `RoleAssignment.uq_role_assignment_active_scope`, an established, pre-existing pattern in
+  this codebase, not a new technique):
+  - `uniq_active_caregiver_membership_per_user` — `fields=["user"]`,
+    `condition=Q(status=ACTIVE, role_type=CAREGIVER)`. Preserves Decision 2's global
+    one-active-company invariant at the DB layer (previously service-layer only), scoped to
+    `role_type=CAREGIVER` since that policy never applied to `ADMIN`/other roles.
+  - `uniq_open_membership_per_org_user_role` — `fields=["organization", "user", "role_type"]`,
+    `condition=Q(status__in=[PENDING, ACTIVE])`. Replaces the old blanket uniqueness: only
+    *open* (non-terminal) rows are constrained, so REMOVED rows accumulate without limit.
+- `approve_affiliation_request()`/`invite_caregiver()` changed from `update_or_create()` to
+  `OrganizationMembership.objects.create()`, wrapped in `IntegrityError`-to-`AccountsError`
+  translation (mirrors `CaregiverSkillService.add_skill()`'s existing precedent) so the
+  service-layer `_assert_no_active_membership()`/existing-row pre-checks fail cleanly for the
+  common case, with the new constraints as the concurrency-safe backstop for the race case.
+  `accept_invitation()` is unaffected — it transitions an already-open PENDING row it does not
+  create.
+- New `AffiliationClosureReason` (`TextChoices`) and `OrganizationMembership.closure_reason`
+  field (blank CharField, one migration): `invitation_declined_by_caregiver`,
+  `invitation_cancelled_by_company`, `terminated_by_company`, `left_by_caregiver`. Deliberately
+  does not add a 5th value for "join request rejected by company" — `CompanyAffiliationRequest
+  .status=REJECTED` already distinctly captures that on its own model; no `OrganizationMembership`
+  row is ever created for a rejected join-by-code request.
+- `CompanyAffiliationRequest` gained a matching conditional constraint,
+  `uniq_pending_affiliation_request_per_caregiver` (`fields=["caregiver_profile"]`,
+  `condition=Q(status=PENDING)`), closing the same idempotency gap `submit_join_request()`'s
+  own pre-check could not race-proof alone.
+- Activation continues to lock the caregiver-owned `CaregiverProfile` row first (Decision 2,
+  unchanged). `AffiliationConcurrencyTest.test_duplicate_active_membership_not_creatable_under_race`
+  was rewritten: the old technique (two simultaneously-pending `CompanyAffiliationRequest` rows,
+  one per organization, created by bypassing `submit_join_request()`'s own guard) no longer
+  applies now that `uniq_pending_affiliation_request_per_caregiver` refuses a second pending
+  request outright; the test now races one join request (org A) against one invitation (org B)
+  to exercise the same cross-organization activation race.
+- `provider_portal/company.html`/`organization_portal/staff_list.html` updated to render
+  `closure_reason` and each period's joined/terminated dates. No selector query change was
+  needed — `list_membership_history_for_caregiver()`/`OrganizationStaffService.list_staff()`
+  already returned every matching row; removing reactivation means repeated periods with the
+  same company now naturally appear as separate rows in that same, unchanged query.
+
+**Consequences:** One additional migration
+(`accounts/0009_alter_organizationmembership_unique_together_and_more.py`). 5 new/rewritten
+tests in `apps.accounts.tests.test_affiliation_lifecycle` prove: terminate → re-invite →
+accept creates two separate membership records; the first remains terminal and unchanged, the
+second becomes active; two concurrent organizations still cannot activate the same caregiver;
+duplicate pending invitations/requests are rejected idempotently; historical (REMOVED) rows
+grant no current company access (`get_active_membership_for_caregiver()` returns `None`,
+`OrganizationStaffService.list_active_caregivers()` excludes them); two periods with the same
+company render as two separate history rows. Full regression 2150/2150 green (2145 + 5 net).
+`organization_portal`/`provider_portal` affiliation test suites required no changes — their
+assertions did not depend on row-reactivation behavior. **PR #12 not merged.**

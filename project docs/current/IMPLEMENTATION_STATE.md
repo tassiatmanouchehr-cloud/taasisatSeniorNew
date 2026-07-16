@@ -1,7 +1,7 @@
 # CURRENT IMPLEMENTATION STATE
 
-**Last verified HEAD:** phase3-company-portal-foundation (from main @ 90e608d, PR #11 merged — Phase 2 CLOSED; Sprint 3.1 in progress)
-**Last verified date:** 2026-07-15
+**Last verified HEAD:** phase3-company-portal-foundation (from main @ 90e608d, PR #11 merged — Phase 2 CLOSED; Sprint 3.1 implemented on PR #12, PR #12 architecture-review remediation applied, PR #12 not yet merged)
+**Last verified date:** 2026-07-16 (PR #12 remediation)
 
 ---
 
@@ -10,7 +10,7 @@
 | App | Models | Services | Views | Tests | Status |
 |-----|--------|----------|-------|-------|--------|
 | **kernel** | 14 (Tenant, Person, UserAccount, Role, Permission, RoleAssignment, EventOutbox, AuditLog, ConfigurationKey, ConfigurationValue, FeatureFlag, PolicyDefinition, PolicyVersion, ServiceSupplier) | 11 | API: 1 | 232 | COMPLETE |
-| **accounts** | 13 (OTPChallenge, CustomerProfile, ElderProfile, TrustedContact, CaregiverProfile, OrganizationProfile, OrganizationMembership — +terminated_at/terminated_by/termination_reason Sprint 3.1, CompanyAffiliationRequest, PlatformTeamMember, VerificationDocument, CaregiverSkill, CaregiverExperience — Phase 2.1, CaregiverGalleryItem — Sprint 2.2) | 27 (+VerificationReviewService, RequiredDocumentPolicy, ProfileVerificationRollupService, ActivationEligibilityService, document_ownership helpers — Phase 1.1/1.2; +ProfileCompletionService, ProfileActivationService — Phase 1.3; +CaregiverSkillService, CaregiverExperienceService, PublicCredentialSelector — Phase 2.1; +CaregiverGalleryService, image_validation.validate_image() — Sprint 2.2; +CaregiverSkillService.toggle_visibility(), RequiredDocumentPolicy.is_expiring_soon() — Sprint 2.3; `apps.accounts.services.affiliations` extended with 11 new functions + 6 read helpers — join-by-code, invitation, mutual termination — Sprint 3.1) | 9 | 400 (+25 Phase 1.1, +47 Phase 1.2, +27 Phase 1.3, +14 Phase 1.3 remediation, +24 Phase 2.1, +21 Sprint 2.2, +14 Sprint 2.3, +32 Sprint 3.1 `test_affiliation_lifecycle.py`) | COMPLETE (manual document verification + roll-up/activation rules + controlled activation + skills/experience/credential-summary + gallery/media portfolio + professional credibility layer + full affiliation lifecycle added; profile.status is now the activation-state source of truth) |
+| **accounts** | 13 (OTPChallenge, CustomerProfile, ElderProfile, TrustedContact, CaregiverProfile, OrganizationProfile, OrganizationMembership — +terminated_at/terminated_by/termination_reason Sprint 3.1, +closure_reason PR #12 remediation, CompanyAffiliationRequest, PlatformTeamMember, VerificationDocument, CaregiverSkill, CaregiverExperience — Phase 2.1, CaregiverGalleryItem — Sprint 2.2) | 27 (+VerificationReviewService, RequiredDocumentPolicy, ProfileVerificationRollupService, ActivationEligibilityService, document_ownership helpers — Phase 1.1/1.2; +ProfileCompletionService, ProfileActivationService — Phase 1.3; +CaregiverSkillService, CaregiverExperienceService, PublicCredentialSelector — Phase 2.1; +CaregiverGalleryService, image_validation.validate_image() — Sprint 2.2; +CaregiverSkillService.toggle_visibility(), RequiredDocumentPolicy.is_expiring_soon() — Sprint 2.3; `apps.accounts.services.affiliations` extended with 11 new functions + 6 read helpers — join-by-code, invitation, mutual termination — Sprint 3.1; PR #12 remediation: `approve_affiliation_request()`/`invite_caregiver()` changed from `update_or_create()` to always-`.create()`, `closure_reason` set on every terminal transition) | 9 | 405 (+25 Phase 1.1, +47 Phase 1.2, +27 Phase 1.3, +14 Phase 1.3 remediation, +24 Phase 2.1, +21 Sprint 2.2, +14 Sprint 2.3, +32 Sprint 3.1 `test_affiliation_lifecycle.py`, +5 PR #12 remediation) | COMPLETE (manual document verification + roll-up/activation rules + controlled activation + skills/experience/credential-summary + gallery/media portfolio + professional credibility layer + full affiliation lifecycle, now with per-cycle history preservation, added; profile.status is now the activation-state source of truth) |
 | **orders** | 7 (ServiceCategory, ServiceType, Order, OrderStatusHistory, OrderShareLink, OrderOffer, OrderOrganizationEligibility) | 7 (+list_for_supplier()/count_by_status_for_supplier() on OrderQueryService — Sprint 2.5) | 0 | 175 (incl. 40 OrderOffer + 8 BG-002 + 8 Sprint 2.5) | COMPLETE (Offer Phase 1 committed in ce3b30e; BG-002 fix merged in eb51018) |
 | **booking** | 1 (SupplierAssignment) | 5 | 0 | 67 | COMPLETE |
 | **execution** | 1 (ExecutionSession) | 3 | 0 | 58 | COMPLETE |
@@ -56,9 +56,9 @@ profiles, and portal completion phases.
 |--------|-------|
 | Total Django apps | 25 + 1 config |
 | Total concrete models | ~73 (+CaregiverSkill, CaregiverExperience — Phase 2.1; +CaregiverGalleryItem — Sprint 2.2) |
-| Total migrations | ~47 |
+| Total migrations | ~48 (+1 `accounts/0009_...` — PR #12 remediation: closure_reason field + conditional constraints) |
 | Total test files | 216 (+1 `apps.availability.tests.test_concurrency` — PR #9 remediation; +3 `apps.orders.tests.test_supplier_queries`/`apps.finance.tests.test_beneficiary_queries`/`apps.provider_portal.tests.test_professional_dashboard` — Sprint 2.5; +1 `apps.public_site.tests.test_phase2_acceptance` — Sprint 2.6, expanded in the PR #11 KL-012 remediation, no new file; +3 `apps.accounts.tests.test_affiliation_lifecycle`/`apps.organization_portal.tests.test_affiliation_management`/`apps.provider_portal.tests.test_company_affiliation` — Sprint 3.1) |
-| Total test methods | 2,145 (full regression 2145/2145 green on phase3-company-portal-foundation) |
+| Total test methods | 2,150 (full regression 2150/2150 green on phase3-company-portal-foundation, PR #12 architecture-review remediation: +5 net over Sprint 3.1's 2,145) |
 | Total admin registrations | 20 |
 | Total management commands | 15 |
 | Total URL patterns | ~157 |

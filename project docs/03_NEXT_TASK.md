@@ -520,9 +520,7 @@ closes new backlog item BG-028:
   historical relationship record; `CompanyAffiliationRequest` remains the
   caregiver-initiated join-by-code intake that feeds it. One active
   company per caregiver at a time (documented minimal policy — see
-  ADM-023 Decision 2); reactivation reuses the same row after
-  termination (Decision 3); `REMOVED` covers every "ended" case, no new
-  enum values (Decision 4).
+  ADM-023 Decision 2).
 - Join-by-code: new tenant-scoped, exact-code-only, ACTIVE-organization-
   only resolver (`submit_join_request()`/`preview_join_code_organization()`),
   distinct from the legacy, looser `find_organization_by_code_or_name()`
@@ -552,23 +550,84 @@ closes new backlog item BG-028:
 
 51 new tests (32 service-layer + 9 `organization_portal` HTTP-level + 10
 `provider_portal` HTTP-level), full regression 2145/2145 green. Branch
-`phase3-company-portal-foundation`, PR created — see
+`phase3-company-portal-foundation`, PR #12 created — see
 `traceability/IMPLEMENTATION_JOURNAL.md` and `ARCHITECTURE_DECISION_LOG.md`
-ADM-023. **Not merged — awaiting review.**
+ADM-023.
+
+### PR #12 Architecture Review Remediation — Preserve Affiliation Period History (Blocker 1) — IMPLEMENTED (2026-07-16)
+
+An architecture review of PR #12 identified two merge blockers. Blocker 1:
+`approve_affiliation_request()`/`invite_caregiver()` used
+`update_or_create()`, so a caregiver rejoining the same organization after
+a prior termination reactivated that same `OrganizationMembership` row
+instead of getting a new one — each company-caregiver affiliation period
+must be an immutable domain-history record, and `AuditLog` must not be the
+only source of that history. Fixed in place on the same branch/PR (no new
+branch, no new PR):
+
+- Removed `OrganizationMembership.unique_together`; added two conditional
+  `Meta.constraints` (`django.db.models.UniqueConstraint(condition=Q(...))`):
+  `uniq_active_caregiver_membership_per_user` (at most one ACTIVE
+  caregiver-role membership per user, globally) and
+  `uniq_open_membership_per_org_user_role` (at most one open PENDING/ACTIVE
+  membership per organization+user+role_type). Terminal rows are excluded
+  from both, so they accumulate without limit.
+- `approve_affiliation_request()`/`invite_caregiver()` now always
+  `OrganizationMembership.objects.create()` a new row — never reactivate a
+  prior terminal one — wrapped in `IntegrityError`-to-`AccountsError`
+  translation (mirrors `CaregiverSkillService.add_skill()`'s existing
+  precedent) so a duplicate-open-row race fails cleanly and idempotently.
+- New `closure_reason` field (`AffiliationClosureReason` choices:
+  invitation declined by caregiver, invitation cancelled by company,
+  terminated by company, left by caregiver) gives a machine-readable end
+  reason distinct from free-text `termination_reason` and from
+  `CompanyAffiliationRequest.status=REJECTED` (already distinct for
+  "join request rejected by company," unchanged).
+- Added a matching conditional constraint on `CompanyAffiliationRequest`
+  (`uniq_pending_affiliation_request_per_caregiver`) closing the same
+  idempotency gap for duplicate pending join requests.
+- Activation continues to lock the caregiver-owned `CaregiverProfile` row
+  first (unchanged concurrency precedent), now proven against a
+  cross-organization race that uses one join request and one invitation
+  (the old two-simultaneous-pending-requests race technique no longer
+  applies now that pending requests are themselves constrained to one per
+  caregiver).
+- `provider_portal/company.html`/`organization_portal/staff_list.html`
+  updated to display `closure_reason` and each affiliation period's
+  joined/terminated dates; no selector query change needed —
+  `list_membership_history_for_caregiver()`/`list_staff()` already
+  returned every row, so repeated periods with the same company already
+  render as separate list entries.
+
+5 new/rewritten tests in `apps.accounts.tests.test_affiliation_lifecycle`
+prove: terminate → re-invite → accept creates two separate membership
+records; the first remains terminal and unchanged; the second becomes
+active; two concurrent organizations still cannot activate the same
+caregiver; duplicate pending invitations/requests are rejected
+idempotently; historical rows do not grant current company access; two
+periods with the same company render as two separate history rows. One
+migration (`accounts/0009_alter_organizationmembership_unique_together_and_more.py`).
+Full regression 2150/2150 green (2145 + 5 net). See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-023's remediation note.
+Blocker 2 (documentation cleanup) addressed the same session — see the
+9 files listed in `traceability/IMPLEMENTATION_JOURNAL.md`'s PR #12
+remediation entry. **PR #12 not merged — awaiting review.**
 
 ---
 
 ## IMMEDIATE NEXT TASK
 
-### Await review of the Sprint 3.1 PR; do not start the next Company Portal sprint automatically
+### Await review of PR #12 (Sprint 3.1 + its architecture-review remediation); do not start the next Company Portal sprint automatically
 
 Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active implementation
 order).
 
 Phase 1 and Phase 2 (all sprints, including Sprint 2.6 + its PR #11
-KL-012 remediation) are fully closed and merged to `main`. Sprint 3.1
-(this session's work) delivers the first Company Portal slice — remaining
-roadmap Phase 3 scope, explicitly NOT started by this task:
+KL-012 remediation) are fully closed and merged to `main`. Sprint 3.1,
+now including the PR #12 architecture-review remediation that preserves
+affiliation-period history (Blocker 1) and cleaned up active documentation
+(Blocker 2), delivers the first Company Portal slice on PR #12 —
+remaining roadmap Phase 3 scope, explicitly NOT started by this task:
 
 1. Company financial overview + reports (extend), company invoicing,
    company public profile parity with the caregiver profile

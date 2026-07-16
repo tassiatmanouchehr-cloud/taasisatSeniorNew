@@ -14,10 +14,11 @@ import threading
 import uuid
 
 from django.apps import apps as django_apps
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.test import TestCase, TransactionTestCase
 
 from apps.accounts.models.profiles import (
+    AffiliationClosureReason,
     AffiliationStatus,
     CaregiverProfile,
     CaregiverProviderType,
@@ -103,6 +104,22 @@ class JoinByCodeTest(_FixtureMixin, TestCase):
         with self.assertRaises(AccountsError):
             svc.submit_join_request(caregiver_profile=self.caregiver, code=self.other_organization.code, tenant_id=self.tenant.id)
 
+    def test_duplicate_pending_request_refused_idempotently_under_constraint(self):
+        """The uniq_pending_affiliation_request_per_caregiver DB constraint
+        is the concurrency backstop behind submit_join_request()'s own
+        pre-check — proven directly here by creating a second pending row
+        past that pre-check (mirrors the AffiliationConcurrencyTest race
+        tests' bypass-the-service-guard technique, without needing threads
+        since this is a single-statement IntegrityError, not a TOCTOU
+        race)."""
+        svc.submit_join_request(caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id)
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            CompanyAffiliationRequest.objects.create(
+                caregiver_profile=self.caregiver,
+                requested_company_name_or_code=self.other_organization.code,
+                organization=self.other_organization,
+            )
+
     def test_duplicate_active_membership_refused(self):
         req = svc.submit_join_request(caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id)
         svc.approve_affiliation_request(request_id=req.id, reviewed_by=self.admin_user)
@@ -150,22 +167,42 @@ class ApprovalRejectionTest(_FixtureMixin, TestCase):
         self.caregiver.refresh_from_db()
         self.assertEqual(self.caregiver.provider_type, CaregiverProviderType.INDEPENDENT)
 
-    def test_rejoin_after_termination_reactivates_same_row(self):
+    def test_rejoin_after_termination_creates_new_row(self):
+        """PR #12 remediation (Blocker 1): a caregiver rejoining the same
+        organization after a prior termination gets a *second*,
+        independent OrganizationMembership row — the first stays terminal
+        and untouched, it is never reactivated."""
         svc.approve_affiliation_request(request_id=self.request.id, reviewed_by=self.admin_user)
-        membership = OrganizationMembership.objects.get(organization=self.organization, user=self.caregiver_user)
-        svc.terminate_membership(membership_id=membership.id, terminated_by=self.admin_user)
+        first_membership = OrganizationMembership.objects.get(
+            organization=self.organization, user=self.caregiver_user, status=OrgMembershipStatus.ACTIVE,
+        )
+        svc.terminate_membership(membership_id=first_membership.id, terminated_by=self.admin_user, reason="Ended.")
+        first_membership.refresh_from_db()
+        first_terminated_at = first_membership.terminated_at
+        self.assertEqual(first_membership.status, OrgMembershipStatus.REMOVED)
+        self.assertEqual(first_membership.closure_reason, AffiliationClosureReason.TERMINATED_BY_COMPANY)
 
         second_request = svc.submit_join_request(
             caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id,
         )
         svc.approve_affiliation_request(request_id=second_request.id, reviewed_by=self.admin_user)
 
-        self.assertEqual(
-            OrganizationMembership.objects.filter(organization=self.organization, user=self.caregiver_user).count(), 1,
-        )
-        membership.refresh_from_db()
-        self.assertEqual(membership.status, OrgMembershipStatus.ACTIVE)
-        self.assertIsNone(membership.terminated_at)
+        rows = OrganizationMembership.objects.filter(
+            organization=self.organization, user=self.caregiver_user,
+        ).order_by("created_at")
+        self.assertEqual(rows.count(), 2)
+
+        first_membership.refresh_from_db()
+        self.assertEqual(first_membership.id, rows[0].id)
+        self.assertEqual(first_membership.status, OrgMembershipStatus.REMOVED)
+        self.assertEqual(first_membership.terminated_at, first_terminated_at)
+        self.assertEqual(first_membership.closure_reason, AffiliationClosureReason.TERMINATED_BY_COMPANY)
+
+        second_membership = rows[1]
+        self.assertNotEqual(second_membership.id, first_membership.id)
+        self.assertEqual(second_membership.status, OrgMembershipStatus.ACTIVE)
+        self.assertIsNone(second_membership.terminated_at)
+        self.assertIsNotNone(second_membership.joined_at)
 
 
 class InvitationTest(_FixtureMixin, TestCase):
@@ -234,6 +271,47 @@ class InvitationTest(_FixtureMixin, TestCase):
                 organization=self.other_organization, caregiver_phone=self.caregiver.phone, invited_by=self.other_admin_user,
             )
 
+    def test_duplicate_pending_invitation_rejected_idempotently(self):
+        svc.invite_caregiver(organization=self.organization, caregiver_phone=self.caregiver.phone, invited_by=self.admin_user)
+        with self.assertRaises(AccountsError):
+            svc.invite_caregiver(
+                organization=self.organization, caregiver_phone=self.caregiver.phone, invited_by=self.admin_user,
+            )
+        self.assertEqual(
+            OrganizationMembership.objects.filter(organization=self.organization, user=self.caregiver_user).count(), 1,
+        )
+
+    def test_terminate_reinvite_accept_creates_two_separate_membership_records(self):
+        """PR #12 remediation (Blocker 1), requirement 7's exact scenario:
+        terminate -> re-invite -> accept creates two separate membership
+        records; the first remains terminal and unchanged; the second
+        becomes active."""
+        first_membership = svc.invite_caregiver(
+            organization=self.organization, caregiver_phone=self.caregiver.phone, invited_by=self.admin_user,
+        )
+        svc.accept_invitation(membership_id=first_membership.id, caregiver_profile=self.caregiver)
+        svc.terminate_membership(membership_id=first_membership.id, terminated_by=self.admin_user, reason="Ended.")
+        first_membership.refresh_from_db()
+        first_terminated_at = first_membership.terminated_at
+        self.assertEqual(first_membership.status, OrgMembershipStatus.REMOVED)
+
+        second_membership = svc.invite_caregiver(
+            organization=self.organization, caregiver_phone=self.caregiver.phone, invited_by=self.admin_user,
+        )
+        self.assertNotEqual(second_membership.id, first_membership.id)
+        svc.accept_invitation(membership_id=second_membership.id, caregiver_profile=self.caregiver)
+        second_membership.refresh_from_db()
+
+        rows = OrganizationMembership.objects.filter(organization=self.organization, user=self.caregiver_user)
+        self.assertEqual(rows.count(), 2)
+
+        first_membership.refresh_from_db()
+        self.assertEqual(first_membership.status, OrgMembershipStatus.REMOVED)
+        self.assertEqual(first_membership.terminated_at, first_terminated_at)
+
+        self.assertEqual(second_membership.status, OrgMembershipStatus.ACTIVE)
+        self.assertIsNone(second_membership.terminated_at)
+
 
 class TerminationTest(_FixtureMixin, TestCase):
     def setUp(self):
@@ -275,6 +353,40 @@ class TerminationTest(_FixtureMixin, TestCase):
         history = svc.list_membership_history_for_caregiver(self.caregiver)
         self.assertEqual(list(history), [self.membership])
         self.assertEqual(history[0].status, OrgMembershipStatus.REMOVED)
+
+    def test_repeated_affiliation_periods_appear_as_separate_history_rows(self):
+        """PR #12 remediation (Blocker 1), requirement 6: two separate
+        affiliation periods with the same company show up as two distinct
+        rows in the history selector, not one merged/reactivated row."""
+        svc.terminate_membership(membership_id=self.membership.id, terminated_by=self.admin_user, reason="First cycle ended.")
+
+        second_request = svc.submit_join_request(
+            caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id,
+        )
+        svc.approve_affiliation_request(request_id=second_request.id, reviewed_by=self.admin_user)
+
+        history = list(svc.list_membership_history_for_caregiver(self.caregiver))
+        self.assertEqual(len(history), 2)
+        statuses = {row.id: row.status for row in history}
+        self.assertEqual(statuses[self.membership.id], OrgMembershipStatus.REMOVED)
+        active_rows = [row for row in history if row.status == OrgMembershipStatus.ACTIVE]
+        self.assertEqual(len(active_rows), 1)
+        self.assertNotEqual(active_rows[0].id, self.membership.id)
+
+    def test_historical_row_does_not_grant_current_company_access(self):
+        """PR #12 remediation (Blocker 1), requirement 7: a terminal
+        (REMOVED) row must not be mistaken for a live affiliation by any
+        selector that gates current company access."""
+        svc.terminate_membership(membership_id=self.membership.id, terminated_by=self.admin_user, reason="Ended.")
+
+        self.assertIsNone(svc.get_active_membership_for_caregiver(self.caregiver))
+
+        from apps.accounts.services.organization_staff import OrganizationStaffService
+
+        active_caregiver_ids = {
+            m.user_id for m in OrganizationStaffService.list_active_caregivers(self.organization)
+        }
+        self.assertNotIn(self.caregiver_user.id, active_caregiver_ids)
 
 
 class ScopedVisibilityTest(_FixtureMixin, TestCase):
@@ -408,16 +520,20 @@ class AffiliationConcurrencyTest(_FixtureMixin, TransactionTestCase):
 
     def test_duplicate_active_membership_not_creatable_under_race(self):
         """Two organizations simultaneously try to activate the same
-        caregiver — the row lock inside each approval and the
-        _assert_no_active_membership() check mean at most one can win."""
+        caregiver — the row lock inside each activation path and the
+        _assert_no_active_membership() check mean at most one can win.
+        Uses one join-by-code request (org A) and one invitation (org B) —
+        rather than two CompanyAffiliationRequest rows — because
+        uniq_pending_affiliation_request_per_caregiver (this remediation's
+        own idempotency constraint) now refuses a second simultaneously-
+        pending request for the same caregiver outright, at creation time;
+        an invitation creates its PENDING OrganizationMembership row
+        directly, without going through that constraint, so this still
+        exercises the deeper, activation-time race across two independent
+        OrganizationMembership rows."""
         req_a = svc.submit_join_request(caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id)
-        # A second, independent request row for the other organization —
-        # bypassing submit_join_request()'s own duplicate-pending guard
-        # (which would otherwise refuse this at creation time) to exercise
-        # the deeper, approval-time race directly.
-        req_b = CompanyAffiliationRequest.objects.create(
-            caregiver_profile=self.caregiver, requested_company_name_or_code=self.other_organization.code,
-            organization=self.other_organization,
+        membership_b = svc.invite_caregiver(
+            organization=self.other_organization, caregiver_phone=self.caregiver.phone, invited_by=self.other_admin_user,
         )
         barrier = threading.Barrier(2)
         results = {}
@@ -432,10 +548,10 @@ class AffiliationConcurrencyTest(_FixtureMixin, TransactionTestCase):
             finally:
                 transaction.get_connection().close()
 
-        def approve_b():
+        def accept_b():
             try:
                 barrier.wait(timeout=5)
-                svc.approve_affiliation_request(request_id=req_b.id, reviewed_by=self.other_admin_user)
+                svc.accept_invitation(membership_id=membership_b.id, caregiver_profile=self.caregiver)
                 results["b"] = "ok"
             except Exception as exc:  # noqa: BLE001
                 results["b"] = type(exc).__name__
@@ -443,7 +559,7 @@ class AffiliationConcurrencyTest(_FixtureMixin, TransactionTestCase):
                 transaction.get_connection().close()
 
         t1 = threading.Thread(target=approve_a)
-        t2 = threading.Thread(target=approve_b)
+        t2 = threading.Thread(target=accept_b)
         t1.start()
         t2.start()
         t1.join()

@@ -2213,14 +2213,15 @@ architectural blocker exists") — no blocker found, only extension work.
 
 ### Sections B/C — Canonical Model and Lifecycle
 
-See `ARCHITECTURE_DECISION_LOG.md` ADM-023 for the full decision record (7 decisions):
+See `ARCHITECTURE_DECISION_LOG.md` ADM-023 for the full decision record (7 decisions, 2 of
+which — reactivation and the no-new-status-values choice — were superseded by the PR #12
+architecture-review remediation; see that section below and ADM-023's own remediation note):
 `OrganizationMembership` is the single canonical relationship record; one active company per
-caregiver at a time (service-layer-enforced, row-locked); reactivation reuses the same row
-after termination (cross-cycle history lives in `AuditLog`); no new `OrgMembershipStatus`
-values (`REMOVED` covers every "ended" case); mutual termination is two separately-authorized
-functions converging on one `_finalize_termination()` helper; company control boundary uses
-4 permission keys (3 new + 1 reused); caregiver-facing company-preview data stays
-public-safe-only (`{id, name, city}`).
+caregiver at a time (service-layer-enforced, row-locked, later also DB-constraint-backed by
+the PR #12 remediation); mutual termination is two separately-authorized functions converging
+on one `_finalize_termination()` helper; company control boundary uses 4 permission keys (3
+new + 1 reused); caregiver-facing company-preview data stays public-safe-only
+(`{id, name, city}`).
 
 ### Section D — Join Code
 
@@ -2331,3 +2332,78 @@ regression: 2145/2145 green (2094 baseline + 51 new).
 **RESOLVED.** Company-caregiver affiliation foundation (join-by-code, invitation, approval/
 rejection, mutual termination, history, minimum usable UI in both portals) delivered. See
 `quality/COMPLETION_BACKLOG.md` BG-028.
+
+## PR #12 Architecture Review Remediation — Preserve Affiliation Period History and Clean Documentation (2026-07-16)
+
+An architecture review of PR #12 identified two merge blockers, both fixed in place on the
+same branch/PR (no new branch, no new PR).
+
+### Blocker 1 — Preserve Affiliation Period History
+
+Review rejected Sprint 3.1's Decisions 3/4 (`ARCHITECTURE_DECISION_LOG.md` ADM-023): reusing
+the same `OrganizationMembership` row across rejoin cycles meant each affiliation period was
+not an immutable domain-history record, and `AuditLog` was the only place a prior cycle's
+termination detail survived.
+
+- `OrganizationMembership.unique_together` removed; replaced with two conditional
+  `Meta.constraints` (`UniqueConstraint(condition=Q(...))`):
+  `uniq_active_caregiver_membership_per_user` (one ACTIVE caregiver-role membership per user,
+  globally) and `uniq_open_membership_per_org_user_role` (one open PENDING/ACTIVE membership
+  per organization+user+role_type). Terminal rows are excluded from both, so they accumulate
+  without limit.
+- `approve_affiliation_request()`/`invite_caregiver()` changed from `update_or_create()` to
+  `.create()`, wrapped in `IntegrityError`-to-`AccountsError` translation (mirrors
+  `CaregiverSkillService.add_skill()`'s existing precedent). `accept_invitation()` unchanged —
+  it transitions an already-open row, not a terminal one.
+- New `AffiliationClosureReason` choices field, `closure_reason`, on `OrganizationMembership`:
+  `invitation_declined_by_caregiver`, `invitation_cancelled_by_company`,
+  `terminated_by_company`, `left_by_caregiver`. No 5th value added for "join request rejected
+  by company" — `CompanyAffiliationRequest.status=REJECTED` already captures that distinctly.
+- `CompanyAffiliationRequest` gained `uniq_pending_affiliation_request_per_caregiver`
+  (one PENDING request per caregiver), the same fix applied to the parallel duplicate-request
+  race `submit_join_request()`'s own pre-check could not close alone.
+- `AffiliationConcurrencyTest.test_duplicate_active_membership_not_creatable_under_race`
+  rewritten: the old technique (two simultaneously-pending `CompanyAffiliationRequest` rows,
+  created by bypassing `submit_join_request()`'s own guard) no longer applies once pending
+  requests are themselves constrained to one per caregiver; the test now races one join
+  request (org A) against one invitation (org B) — the same cross-organization activation race,
+  proven the same way.
+- `provider_portal/company.html`/`organization_portal/staff_list.html` updated to render
+  `closure_reason` and each period's joined/terminated dates; no selector query change needed.
+
+One migration (`accounts/0009_alter_organizationmembership_unique_together_and_more.py`,
+generated via `makemigrations accounts`, inspected clean — no unrelated drift). 5 new/rewritten
+tests in `apps.accounts.tests.test_affiliation_lifecycle`:
+`test_rejoin_after_termination_creates_new_row` (rewrite of the old reactivation-asserting
+test — now proves two separate rows, first terminal/unchanged, second active),
+`test_terminate_reinvite_accept_creates_two_separate_membership_records` (requirement 7's exact
+scenario via the invitation path), `test_duplicate_pending_invitation_rejected_idempotently`,
+`test_duplicate_pending_request_refused_idempotently_under_constraint`,
+`test_repeated_affiliation_periods_appear_as_separate_history_rows`,
+`test_historical_row_does_not_grant_current_company_access`. `organization_portal`/
+`provider_portal` affiliation test suites (`test_affiliation_management.py`/
+`test_company_affiliation.py`) required no changes.
+
+**Verification:** `manage.py check` exit 0; `manage.py makemigrations --check --dry-run`
+exit 1, pre-existing kernel-app cosmetic drift only, identical in kind to every prior sprint's
+recorded drift, `accounts` app itself reports "No changes detected" when checked alone; focused
+`test_affiliation_lifecycle` 37/37; `apps.accounts` + `apps.kernel` + `apps.organization_portal`
++ `apps.provider_portal` combined 838/838; full regression 2150/2150 green (2145 baseline + 5
+net). See `ARCHITECTURE_DECISION_LOG.md` ADM-023's remediation note for the full design record.
+
+### Blocker 2 — Clean Active Documentation
+
+Corrected contradictory stale/current entries across the 9 governance-listed active
+documents: `02_PROJECT_CONTINUATION.md`, `03_NEXT_TASK.md`, `IMPLEMENTATION_ROADMAP.md`,
+`current/IMPLEMENTATION_STATE.md`, `current/DATA_RELATIONSHIPS.md`,
+`current/PERMISSIONS_AND_TENANCY.md`, `current/RUNTIME_WORKFLOWS.md`,
+`traceability/ARCHITECTURE_DECISION_LOG.md` (this file's sibling), and this file. Removed (not
+retained beside corrected text): the "PR to be created, not yet merged" phrasing that predated
+PR #12's creation; `DATA_RELATIONSHIPS.md`'s/`RUNTIME_WORKFLOWS.md`'s/`PERMISSIONS_AND_
+TENANCY.md`'s explicit row-reactivation/`AuditLog`-as-history-source claims (now factually
+wrong per Blocker 1); ADM-023 Decisions 3/4 marked superseded in place (original text kept for
+record, per this repository's own "never delete decision history, mark superseded" convention
+— see how ADM-022's Decision 4 was handled after its own remediation) rather than deleted.
+Every one of the 9 files now states one unambiguous current state: PR #11 merged; main at
+merge commit `90e608d` before PR #12; Phase 2 closed; Phase 3 active; Sprint 3.1 implemented on
+PR #12 (architecture-review remediation applied) and awaiting review; **PR #12 not merged.**

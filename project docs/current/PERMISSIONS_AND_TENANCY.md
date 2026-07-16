@@ -247,10 +247,13 @@ never a permission key. Proven by `apps.accounts.tests.test_affiliation_lifecycl
 elses_membership`/etc., and at the HTTP layer by `apps.provider_portal.tests
 .test_company_affiliation`.
 
-One active company per caregiver at a time is enforced at the service layer
+One active company per caregiver at a time is enforced at both layers: the service layer
 (`_assert_no_active_membership()`, called after locking the caregiver's own `CaregiverProfile`
-row) — not a DB constraint, since it must hold across different `organization` values. See
-`ARCHITECTURE_DECISION_LOG.md` ADM-023 Decision 2.
+row) gives a clean `AccountsError` first; the DB layer backs it with a conditional
+`UniqueConstraint` (`uniq_active_caregiver_membership_per_user`, on `user` alone — no
+`organization` in its fields, so it applies across all organizations, not just one) added by
+the PR #12 architecture-review remediation as the concurrency-safe backstop. See
+`ARCHITECTURE_DECISION_LOG.md` ADM-023 Decision 2 and its remediation note.
 
 ### Unscoped Queries (Known)
 

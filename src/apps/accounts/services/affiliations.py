@@ -2,7 +2,7 @@
 
 Epic 04 (Enterprise Organization Isolation): approve_affiliation_request()
 now also calls OrganizationRoleSyncService.sync_for_membership() in the
-same atomic block as the membership get_or_create() — a no-op today (this
+same atomic block as the membership create() — a no-op today (this
 flow only ever creates CAREGIVER-role_type memberships, which are not
 synced to a RoleAssignment in this Epic — see that service's module
 docstring), but correct and future-proof if this flow is ever extended to
@@ -17,39 +17,44 @@ existing models:
   intake record. REQUESTED -> ACTIVE (approve_affiliation_request) or
   REQUESTED -> REJECTED (reject_affiliation_request) or REQUESTED ->
   CANCELLED (cancel_affiliation_request, caregiver-initiated withdrawal).
-- `OrganizationMembership` — the single canonical, historical,
-  organization+caregiver relationship record, for BOTH the join-by-code
-  path (created ACTIVE the moment a request is approved) and the new
-  company-initiated invitation path (created PENDING with `invited_by`
-  set; the caregiver then accepts or declines). ACTIVE -> TERMINATED by
-  either side (terminate_membership()/leave_organization()). Because
-  `unique_together = [("organization", "user", "role_type")]` allows at
-  most one row per (org, caregiver) pair, a caregiver who leaves and later
-  rejoins the *same* organization reactivates that same row rather than
-  getting a second one — full cross-cycle history for that case lives in
-  AuditLog (via AuditService.log()), not on the row itself; the row always
-  reflects the current/latest cycle. See ARCHITECTURE_DECISION_LOG.md's
-  Sprint 3.1 entry.
+- `OrganizationMembership` — an immutable-once-terminal, historical,
+  organization+caregiver relationship record. Every new invitation or
+  approved join cycle creates a brand-new row (`.create()`, never
+  `update_or_create()`); a terminal (REMOVED) row is never reactivated
+  and never mutated again after it closes. A caregiver who leaves and
+  later rejoins the *same* organization ends up with two separate rows:
+  the first stays REMOVED/terminal with its own `closure_reason`, the
+  second is the new PENDING/ACTIVE cycle. Full cross-cycle history is
+  therefore queryable directly from this table (AuditLog is a
+  supplementary audit trail, never the only source of affiliation-period
+  history). Live-state invariants — at most one ACTIVE caregiver
+  affiliation globally, at most one open (PENDING/ACTIVE) membership per
+  (organization, user, role_type) — are enforced with conditional
+  `UniqueConstraint`s (see the model's `Meta.constraints`), not a blanket
+  `unique_together`, precisely so terminal rows can coexist without
+  limit. See ARCHITECTURE_DECISION_LOG.md's Sprint 3.1 entry (as amended
+  by the PR #12 architecture-review remediation).
 
 One-active-company-at-a-time is this sprint's deliberate, minimal policy
 (see the same ADM entry): `CaregiverProfile.provider_type` is a scalar,
 not a set, and no other part of this codebase resolves a caregiver to
 more than one organization at once. `_assert_no_active_membership()`
-enforces this at the service layer (not a DB constraint, since it must
-hold across different `organization` values, which the unique_together
-above does not cover) — every caller locks the caregiver's own
-CaregiverProfile row (the one stable "parent" every activation path
-shares, regardless of which organization/request/invitation is involved)
-via `select_for_update()` *before* calling it, mirroring
-`CaregiverGalleryService.add_item()`'s and `AvailabilityMutationService
-.add_working_window()`'s existing "lock the owning parent, then
-check-then-write" precedent for the same class of problem: two different
-`CompanyAffiliationRequest`/`OrganizationMembership` rows (one per
-organization) share no lockable row of their own, so without this the
-same caregiver could be raced into two simultaneously-ACTIVE memberships
-at two different organizations."""
+enforces this at the service layer ahead of the `.create()` call (the DB
+constraint alone would only reject the write after the fact with an
+IntegrityError; the service-layer check gives a clean AccountsError
+first, and the constraint is the concurrency backstop) — every caller
+locks the caregiver's own CaregiverProfile row (the one stable "parent"
+every activation path shares, regardless of which organization/request/
+invitation is involved) via `select_for_update()` *before* calling it,
+mirroring `CaregiverGalleryService.add_item()`'s and
+`AvailabilityMutationService.add_working_window()`'s existing "lock the
+owning parent, then check-then-write" precedent for the same class of
+problem: two different `CompanyAffiliationRequest`/`OrganizationMembership`
+rows (one per organization) share no lockable row of their own, so
+without this the same caregiver could be raced into two simultaneously-
+ACTIVE memberships at two different organizations."""
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.kernel.permissions.keys import (
@@ -62,6 +67,7 @@ from apps.kernel.services.audit_service import AuditService
 from apps.kernel.services.permission_service import PermissionService
 
 from ..models.profiles import (
+    AffiliationClosureReason,
     AffiliationStatus,
     CaregiverProfile,
     CaregiverProviderType,
@@ -151,12 +157,19 @@ def submit_join_request(*, caregiver_profile, code, tenant_id, caregiver_note=""
     if organization is None:
         raise AccountsError("Invalid company code.")
 
-    return CompanyAffiliationRequest.objects.create(
-        caregiver_profile=caregiver_profile,
-        requested_company_name_or_code=code,
-        organization=organization,
-        caregiver_note=caregiver_note,
-    )
+    try:
+        with transaction.atomic():
+            return CompanyAffiliationRequest.objects.create(
+                caregiver_profile=caregiver_profile,
+                requested_company_name_or_code=code,
+                organization=organization,
+                caregiver_note=caregiver_note,
+            )
+    except IntegrityError:
+        # The .exists() pre-check above is not itself race-proof; the
+        # uniq_pending_affiliation_request_per_caregiver constraint is what
+        # actually serializes concurrent duplicate submissions.
+        raise AccountsError("A join request is already pending.") from None
 
 
 def preview_join_code_organization(*, code, tenant_id):
@@ -202,7 +215,8 @@ def approve_affiliation_request(*, request_id, reviewed_by, reviewer_note=""):
     - Request must be pending
     - Organization must be resolved
     - Caregiver becomes organization_affiliated
-    - Creates/reactivates an active OrganizationMembership
+    - Always creates a new active OrganizationMembership record (never
+      reactivates a prior terminal row — see module docstring)
     """
     req = CompanyAffiliationRequest.objects.select_for_update().get(id=request_id)
 
@@ -238,24 +252,23 @@ def approve_affiliation_request(*, request_id, reviewed_by, reviewer_note=""):
     profile.provider_type = CaregiverProviderType.ORGANIZATION_AFFILIATED
     profile.save(update_fields=["provider_type", "updated_at"])
 
-    # Create/reactivate membership — update_or_create (not get_or_create) so a
-    # caregiver rejoining the same organization after a prior termination
-    # reactivates that same row (unique_together permits only one row per
-    # organization+user+role_type) rather than raising IntegrityError.
-    membership, _ = OrganizationMembership.objects.update_or_create(
-        organization=req.organization,
-        user=profile.user,
-        role_type=OrgMembershipRole.CAREGIVER,
-        defaults={
-            "person": profile.person,
-            "status": OrgMembershipStatus.ACTIVE,
-            "approved_by": reviewed_by,
-            "joined_at": timezone.now(),
-            "terminated_at": None,
-            "terminated_by": None,
-            "termination_reason": "",
-        },
-    )
+    # Always create a new row — a caregiver rejoining the same organization
+    # after a prior termination gets a fresh affiliation-period record; the
+    # prior terminal row is left unchanged. uniq_open_membership_per_org_user_role
+    # is the concurrency backstop against a duplicate open row.
+    try:
+        with transaction.atomic():
+            membership = OrganizationMembership.objects.create(
+                organization=req.organization,
+                user=profile.user,
+                person=profile.person,
+                role_type=OrgMembershipRole.CAREGIVER,
+                status=OrgMembershipStatus.ACTIVE,
+                approved_by=reviewed_by,
+                joined_at=timezone.now(),
+            )
+    except IntegrityError:
+        raise AccountsError("This caregiver already has an open membership with this organization.") from None
     OrganizationRoleSyncService.sync_for_membership(membership)
     AuditService.log(
         tenant_id=req.organization.tenant_id,
@@ -307,8 +320,9 @@ def reject_affiliation_request(*, request_id, reviewed_by, reviewer_note=""):
 
 @transaction.atomic
 def invite_caregiver(*, organization, caregiver_phone, invited_by):
-    """Company-initiated invitation: creates (or reactivates) a PENDING
-    OrganizationMembership with invited_by set. The caregiver must accept
+    """Company-initiated invitation: always creates a new PENDING
+    OrganizationMembership row with invited_by set (never reactivates a
+    prior terminal row — see module docstring). The caregiver must accept
     (accept_invitation()) before it becomes ACTIVE — never auto-activated."""
     if organization.tenant_id is None:
         raise AccountsError("Cannot invite: organization has no tenant.")
@@ -329,26 +343,26 @@ def invite_caregiver(*, organization, caregiver_phone, invited_by):
 
     _assert_no_active_membership(user=caregiver.user)
     existing = OrganizationMembership.objects.filter(
-        organization=organization, user=caregiver.user, role_type=OrgMembershipRole.CAREGIVER,
-    ).first()
-    if existing and existing.status == OrgMembershipStatus.PENDING:
-        raise AccountsError("This caregiver already has a pending invitation or request.")
-
-    membership, _ = OrganizationMembership.objects.update_or_create(
         organization=organization,
         user=caregiver.user,
         role_type=OrgMembershipRole.CAREGIVER,
-        defaults={
-            "person": caregiver.person,
-            "status": OrgMembershipStatus.PENDING,
-            "invited_by": invited_by,
-            "approved_by": None,
-            "joined_at": None,
-            "terminated_at": None,
-            "terminated_by": None,
-            "termination_reason": "",
-        },
-    )
+        status__in=[OrgMembershipStatus.PENDING, OrgMembershipStatus.ACTIVE],
+    ).first()
+    if existing:
+        raise AccountsError("This caregiver already has a pending invitation or request.")
+
+    try:
+        with transaction.atomic():
+            membership = OrganizationMembership.objects.create(
+                organization=organization,
+                user=caregiver.user,
+                person=caregiver.person,
+                role_type=OrgMembershipRole.CAREGIVER,
+                status=OrgMembershipStatus.PENDING,
+                invited_by=invited_by,
+            )
+    except IntegrityError:
+        raise AccountsError("This caregiver already has a pending invitation or request.") from None
     AuditService.log(
         tenant_id=organization.tenant_id,
         action="organization.membership.invited",
@@ -381,7 +395,12 @@ def cancel_invitation(*, membership_id, cancelled_by):
     membership.terminated_at = timezone.now()
     membership.terminated_by = cancelled_by
     membership.termination_reason = "Invitation cancelled by organization."
-    membership.save(update_fields=["status", "terminated_at", "terminated_by", "termination_reason", "updated_at"])
+    membership.closure_reason = AffiliationClosureReason.INVITATION_CANCELLED_BY_COMPANY
+    membership.save(
+        update_fields=[
+            "status", "terminated_at", "terminated_by", "termination_reason", "closure_reason", "updated_at",
+        ],
+    )
 
     AuditService.log(
         tenant_id=membership.organization.tenant_id,
@@ -449,7 +468,12 @@ def decline_invitation(*, membership_id, caregiver_profile):
     membership.terminated_at = timezone.now()
     membership.terminated_by = caregiver_profile.user
     membership.termination_reason = "Invitation declined by caregiver."
-    membership.save(update_fields=["status", "terminated_at", "terminated_by", "termination_reason", "updated_at"])
+    membership.closure_reason = AffiliationClosureReason.INVITATION_DECLINED_BY_CAREGIVER
+    membership.save(
+        update_fields=[
+            "status", "terminated_at", "terminated_by", "termination_reason", "closure_reason", "updated_at",
+        ],
+    )
     return membership
 
 
@@ -471,7 +495,12 @@ def terminate_membership(*, membership_id, terminated_by, reason=""):
         scope={"scope_type": "organization", "scope_id": str(membership.organization_id)},
     )
 
-    _finalize_termination(membership, terminated_by=terminated_by, reason=reason or "Terminated by organization.")
+    _finalize_termination(
+        membership,
+        terminated_by=terminated_by,
+        reason=reason or "Terminated by organization.",
+        closure_reason=AffiliationClosureReason.TERMINATED_BY_COMPANY,
+    )
 
     AuditService.log(
         tenant_id=membership.organization.tenant_id,
@@ -497,17 +526,25 @@ def leave_organization(*, membership_id, caregiver_profile, reason=""):
         raise AccountsError("Only an active membership can be left.")
 
     _finalize_termination(
-        membership, terminated_by=caregiver_profile.user, reason=reason or "Left by caregiver.",
+        membership,
+        terminated_by=caregiver_profile.user,
+        reason=reason or "Left by caregiver.",
+        closure_reason=AffiliationClosureReason.LEFT_BY_CAREGIVER,
     )
     return membership
 
 
-def _finalize_termination(membership, *, terminated_by, reason) -> None:
+def _finalize_termination(membership, *, terminated_by, reason, closure_reason) -> None:
     membership.status = OrgMembershipStatus.REMOVED
     membership.terminated_at = timezone.now()
     membership.terminated_by = terminated_by
     membership.termination_reason = reason
-    membership.save(update_fields=["status", "terminated_at", "terminated_by", "termination_reason", "updated_at"])
+    membership.closure_reason = closure_reason
+    membership.save(
+        update_fields=[
+            "status", "terminated_at", "terminated_by", "termination_reason", "closure_reason", "updated_at",
+        ],
+    )
 
     caregiver = CaregiverProfile.objects.filter(user=membership.user).first()
     if caregiver and caregiver.provider_type == CaregiverProviderType.ORGANIZATION_AFFILIATED:

@@ -190,25 +190,35 @@ exposed on any public surface — distinct from `Review.reviewer_person_id` abov
 *is* intentionally resolved to a public reviewer display name (a customer's own product
 review, not credential-moderation data).
 
-## Sprint 3.1 (Company Foundation and Caregiver Management) — One Migration
+## Sprint 3.1 (Company Foundation and Caregiver Management) — Two Migrations
 
-`OrganizationMembership` gained three new nullable fields:
-`terminated_at` (DateTimeField), `terminated_by` (FK to UserAccount, SET_NULL,
-`related_name="+"`), `termination_reason` (CharField, blank). No new model, no new FK
-relationship type — the existing `organization`/`user`/`person`/`invited_by`/`approved_by`
-FKs are unchanged. `CompanyAffiliationRequest` gained no schema change; its existing
-`AffiliationStatus.CANCELLED` value (already present, previously unused by any service
-function) is now reachable via the new `cancel_affiliation_request()`.
+`OrganizationMembership` gained, across Sprint 3.1's original migration and the PR #12
+architecture-review remediation's follow-up migration: `terminated_at` (DateTimeField,
+nullable), `terminated_by` (FK to UserAccount, SET_NULL, `related_name="+"`),
+`termination_reason` (CharField, blank), and `closure_reason` (CharField, blank,
+choices=`AffiliationClosureReason`). No new model, no new FK relationship type — the
+existing `organization`/`user`/`person`/`invited_by`/`approved_by` FKs are unchanged.
+`CompanyAffiliationRequest` gained no new field; its existing `AffiliationStatus.CANCELLED`
+value (already present, previously unused by any service function) is now reachable via
+`cancel_affiliation_request()`.
 
-`OrganizationMembership.unique_together = [("organization", "user", "role_type")]`
-(pre-existing) now has a real behavioral consequence documented here: because a caregiver
-who leaves an organization and later rejoins the *same* one cannot get a second row under
-this constraint, `approve_affiliation_request()`/`invite_caregiver()` both use
-`update_or_create()` to reactivate the existing row rather than insert a new one. This means
-`terminated_at`/`terminated_by`/`termination_reason` reflect only the *most recent* cycle for
-a given (organization, caregiver) pair — earlier cycles' termination details are not
-reconstructable from the row itself, only from `AuditLog` (see
-`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-023 Decision 3).
+**PR #12 architecture-review remediation (Blocker 1):** `OrganizationMembership`'s
+`unique_together = [("organization", "user", "role_type")]` was removed and replaced with
+two conditional `Meta.constraints` (`UniqueConstraint(condition=Q(...))`):
+`uniq_active_caregiver_membership_per_user` (at most one ACTIVE caregiver-role membership
+per user, globally) and `uniq_open_membership_per_org_user_role` (at most one open —
+PENDING or ACTIVE — membership per organization+user+role_type). Terminal (REMOVED) rows
+are excluded from both constraints, so they can coexist without limit. As a direct
+consequence, a caregiver who leaves an organization and later rejoins the *same* one now
+gets a **second, independent row** — `approve_affiliation_request()`/`invite_caregiver()`
+always `.create()` a new row, never `update_or_create()` to reactivate a prior one. Every
+affiliation period's `terminated_at`/`terminated_by`/`termination_reason`/`closure_reason`
+is preserved unchanged on its own terminal row, directly queryable from the table itself —
+`AuditLog` is a supplementary audit trail, not the source of affiliation-period history.
+`CompanyAffiliationRequest` gained a matching conditional constraint,
+`uniq_pending_affiliation_request_per_caregiver` (at most one PENDING request per
+caregiver), closing the same race for join-by-code duplicate submissions. See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-023's remediation note.
 
 ## Append-Only Immutability
 

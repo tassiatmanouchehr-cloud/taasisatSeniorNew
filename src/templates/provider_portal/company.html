@@ -75,7 +75,15 @@
       {% for membership in history %}
       <li class="py-3">
         <p class="text-sm text-text">{{ membership.organization.name }} — {{ membership.get_status_display }}</p>
-        {% if membership.termination_reason %}
+        {% if membership.joined_at %}
+        <p class="text-xs text-text-muted mt-0.5">
+          {{ membership.joined_at|date:"Y-m-d" }}
+          {% if membership.terminated_at %} — {{ membership.terminated_at|date:"Y-m-d" }}{% endif %}
+        </p>
+        {% endif %}
+        {% if membership.closure_reason %}
+        <p class="text-xs text-text-muted mt-0.5">{{ membership.get_closure_reason_display }}</p>
+        {% elif membership.termination_reason %}
         <p class="text-xs text-text-muted mt-0.5">{{ membership.termination_reason }}</p>
         {% endif %}
       </li>
