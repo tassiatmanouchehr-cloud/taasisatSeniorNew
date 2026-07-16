@@ -1,0 +1,45 @@
+{% comment %} Organization Card Component — Phase 3 Sprint 3.3
+   Usage:
+     {% include "ui/components/public/organization_card.html" with organization=card %}
+
+   Props:
+     organization — an OrganizationCardViewModel (apps.public_site.services.viewmodels)
+{% endcomment %}
+<a href="{{ organization.profile_url }}"
+   class="flex min-w-0 flex-col rounded-3xl border border-border bg-surface p-6 shadow-sm no-underline text-text
+          transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2">
+  <div class="flex items-start gap-4">
+    {% include "ui/components/data/avatar.html" with src=organization.logo_url name=organization.name size="lg" type="org" %}
+    <div class="min-w-0 flex-1">
+      <div class="flex items-center gap-2">
+        <h3 class="truncate text-base font-black text-text">{{ organization.name }}</h3>
+        {% if organization.is_verified %}
+        <svg class="h-4 w-4 shrink-0 text-info" fill="currentColor" viewBox="0 0 20 20" aria-label="تأییدشده">
+          <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+        </svg>
+        {% endif %}
+      </div>
+      <p class="mt-0.5 text-sm text-text-muted">
+        {% if organization.city %}{{ organization.city }}{% endif %}
+        {% if organization.headline %}{% if organization.city %}·{% endif %} {{ organization.headline }}{% endif %}
+      </p>
+      <div class="mt-2 flex flex-wrap items-center gap-1.5">
+        {% include "ui/components/feedback/badge.html" with label=organization.verification_label variant=organization.is_verified|yesno:"info,warning" size="xs" %}
+      </div>
+    </div>
+  </div>
+
+  {% if organization.service_names %}
+  <div class="mt-4 flex flex-wrap gap-1.5">
+    {% for service_name in organization.service_names %}
+    {% include "ui/components/feedback/chip.html" with label=service_name %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="mt-4 flex items-center justify-between border-t border-border pt-4">
+    {% include "ui/components/public/rating_stars.html" with average=organization.rating.average stars_rounded=organization.rating.stars_rounded review_count=organization.rating.review_count %}
+    <span class="text-xs font-bold text-text-muted ltr-value">{{ organization.active_provider_count }} مراقب فعال</span>
+  </div>
+</a>

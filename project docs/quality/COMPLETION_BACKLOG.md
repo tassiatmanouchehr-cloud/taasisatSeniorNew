@@ -436,9 +436,39 @@ permission change; 7 new tests. See ADM-024's remediation note.
 **Affected modules:** accounts, organization_portal, public_site.
 **Not in scope (explicitly deferred, not this sprint's mandate):** company financial overview/
 reports extension, company invoicing, gallery/certificates parity with the caregiver profile,
-a full public company directory/listing page, an opt-in public-contact-details toggle, a
-dedicated service-area/coverage-radius field.
+a full public company directory/listing page (now **resolved by Sprint 3.3/BG-031**), an
+opt-in public-contact-details toggle, a dedicated service-area/coverage-radius field.
 **Status update (2026-07-16):** **MERGED to main via PR #13** (merge commit `49b643e`).
+
+### BG-031: Company Public Directory and Discovery — **RESOLVED**
+
+**Original evidence:** Roadmap Phase 3's third slice, and BG-030's own explicitly-deferred
+"full public company directory/listing page" item. Current-state verification (Sprint 3.3,
+2026-07-16) found `/organizations/` renders a zero-context B2B recruitment page and
+`OrganizationPublicProfileService` is explicitly single-supplier-only by its own docstring —
+no way for a visitor to browse/search real companies existed, even though the caregiver side
+had a proven, KL-012-hardened equivalent (`CaregiverDirectoryService`).
+**Resolution (2026-07-16, Sprint 3.3):** ADR (`traceability/ARCHITECTURE_DECISION_LOG.md`
+ADM-025) chose Option B — new dedicated `/find-an-organization/` route, `/organizations/`
+unchanged. New `OrganizationDirectoryService` (search/city/service-category filters,
+pagination, canonical visibility), reusing `SupplierSearchService.filter_suppliers()`/
+`DiscoveryRankingService.rank()`/`common.bulk_supplier_attrs()`/`is_publicly_visible_attrs()`
+unmodified — no second search/ranking/visibility implementation. `common.py` gained
+`parse_page()`/`build_pagination()`, extracted verbatim from `CaregiverDirectoryService`'s
+own former private methods. `OrganizationStaffService.list_active_caregiver_counts_bulk()`
+(new method on the existing service) avoids a KL-012-class N+1 on directory cards — an
+initial per-card category-name query was caught by the query-budget tests themselves and
+fixed before merge. No new model, no migration. 25 new tests, full regression 2192/2192
+green. See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-025 and
+`traceability/IMPLEMENTATION_JOURNAL.md`.
+**Affected modules:** accounts (`OrganizationStaffService`), public_site.
+**Not in scope (explicitly deferred, not this sprint's mandate, per ADM-025):**
+`SupplierDirectoryService`/a shared Supplier-level discovery layer, advanced filters
+(distance, availability), new ranking algorithms, company gallery/certificates,
+Customer Portal, Marketplace, Booking, Assignment, Financial, Payment, Settlement, Payroll,
+Messaging, AI.
+**Status update (2026-07-16):** Branch `phase3-company-public-directory`, PR created against
+`main` — **not yet merged.**
 
 ### BG-029: No Flash-Message/Error-Surfacing Framework for Portal Action Views
 

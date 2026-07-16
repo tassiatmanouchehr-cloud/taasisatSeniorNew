@@ -2582,3 +2582,99 @@ valid since no code changed after that run. Merged via `merge_pull_request` (mer
 **Sprint 3.2 (Company Professional Profile and Public Presence, including the PR #13
 architecture-review remediation that renders the public company logo) is now CLOSED and on
 `main`.**
+
+## Sprint 3.3 — Company Public Directory and Discovery (2026-07-16)
+
+Branched fresh from merged `main` (`phase3-company-public-directory`, from `9929da5`) per
+governance. STEP 1 (current-state verification, mandatory before implementation) confirmed:
+the public caregiver directory (`CaregiverDirectoryService`), the public organization
+profile (`OrganizationPublicProfileService` — explicitly single-supplier by its own
+docstring), the public route table (18 routes, no organization-list route), the canonical
+visibility policy (`common.is_publicly_visible_attrs()`), the discovery search/ranking
+building blocks (`SupplierSearchService.filter_suppliers()`, `DiscoveryRankingService.rank()`
+— both fully generic, zero caregiver-specific assumption), the bulk-selector pattern
+(`common.bulk_supplier_attrs()`/`resolve_supplier_entities_bulk()`), the pagination shape
+(`CaregiverDirectoryService._build_pagination()`/`_parse_page()`), and the existing
+query-budget test pattern (`Phase2QueryBudgetAcceptanceTest`).
+
+STEP 2 (mandatory ADR) recorded as `ARCHITECTURE_DECISION_LOG.md` ADM-025: **Option B** —
+keep `/organizations/` (the existing B2B recruitment page) unchanged, add a new, dedicated
+`/find-an-organization/` directory route, mirroring the established `/caregivers/` vs
+`/find-a-caregiver/` precedent. Rejected Option A (repurposing `/organizations/`) on
+SEO/backward-compatibility/navigation-consistency grounds — see the ADR for the full
+five-point rationale.
+
+STEP 3 (implementation), minimum vertical slice:
+
+- **New `OrganizationDirectoryService`** (`apps.public_site.services
+  .organization_directory_service`): `search()` (text/city/service_category_id/page/
+  base_url — deliberately parallel to `CaregiverDirectoryService.search()`'s own shape,
+  minus the two caregiver-only params), `available_cities()`. Reuses
+  `SupplierSearchService.filter_suppliers()`/`DiscoveryRankingService.rank()` unmodified and
+  `common.bulk_supplier_attrs()`/`is_publicly_visible_attrs()` unchanged — no second search/
+  ranking/visibility implementation. Scoped to `SupplierType.ORGANIZATION` only, confirmed
+  disjoint from `CAREGIVER_SUPPLIER_TYPES` (`INDEPENDENT_PROVIDER`/`ORGANIZATION_PROVIDER`).
+- **`common.py` gained `parse_page()`/`build_pagination()`** — extracted verbatim (zero
+  behavior change) from `CaregiverDirectoryService`'s own former private
+  `_parse_page()`/`_build_pagination()`; both directory services now call them as thin
+  wrappers, satisfying "do not duplicate logic." `CaregiverDirectoryService`'s own existing
+  test suite re-run unchanged as the regression check for this refactor (all green).
+- **`OrganizationStaffService.list_active_caregiver_counts_bulk()`** (new method on the
+  existing service, not a new service): one grouped-count query over `OrganizationMembership`
+  regardless of organization count, mirroring `common.completed_jobs_counts_bulk()`'s own
+  shape — needed because the directory renders up to `PAGE_SIZE=12` cards per page, and the
+  existing single-organization `list_active_caregivers(organization).count()` (fine for the
+  one-supplier profile page) would have reintroduced a KL-012-class N+1 if called once per
+  card.
+- **Caught and fixed a self-introduced N+1 during test-writing:** the first implementation of
+  `_build_card()` called `CatalogQueryService.list_active_categories(...).filter(id__in=...)`
+  once per card to compute `service_names` — the query-budget test
+  (`test_query_count_does_not_grow_from_1_to_5_organizations`) caught this immediately
+  (14 vs 18 queries, growing by exactly 1 per candidate). Fixed by resolving the tenant's
+  active categories once per `search()` call (already needed for the filter dropdown) and
+  deriving each card's service names from that already-in-memory list in Python — zero
+  additional queries per card, matching this codebase's own KL-012-avoidance convention.
+- **New ViewModels** (`OrganizationCardViewModel`, `OrganizationDirectoryFiltersViewModel`,
+  `OrganizationDirectoryPageViewModel`) reuse the existing generic `FilterOptionViewModel`/
+  `PaginationLinkViewModel`/`PaginationViewModel`/`RatingSummaryViewModel` unchanged.
+- **New view** `find_an_organization` (`apps.public_site.views`), **new route**
+  `path("find-an-organization/", views.find_an_organization, name="organization-directory")`
+  placed before the existing `find-an-organization/<uuid:supplier_id>/` detail route so the
+  literal path resolves first (same ordering as `find-a-caregiver/` before its own detail
+  route) — proven by a dedicated test hitting both routes back-to-back.
+- **New template** `organization_directory.html` and **new component**
+  `ui/components/public/organization_card.html`, mirroring
+  `caregiver_directory.html`/`caregiver_card.html`'s structure (search/filter form — city and
+  service only, no type/availability, which are caregiver-only concepts; card grid;
+  pagination nav; empty state).
+- **New nav links** in `base_public.html` — "پیدا کردن سازمان" (Find an Organization) added
+  in the same three places `/find-a-caregiver/`'s own link already appears (desktop
+  `nav_links`, mobile `mobile_nav_links`, footer "بازار خدمات" column), distinct from the
+  existing "برای سازمان‌ها" (For Organizations, recruitment) link.
+
+No new model, no migration — confirmed by `manage.py makemigrations accounts public_site
+--check --dry-run` reporting "No changes detected" (the repository-wide drift check reports
+only the same pre-existing kernel/accounts field-alter cosmetic noise every prior sprint has
+also confirmed harmless).
+
+**Tests:** 25 new (18 in new `apps.public_site.tests.test_organization_directory_service` —
+verified/unverified/archived/deactivated-admin visibility, caregiver-supplier-type exclusion,
+text search, city filter, service-category filter, malformed-page fallback, pagination
+bounds, logo present/absent, active-provider-count, headline/service-names, no-private-
+field-leakage via an exact-field-set assertion, and three query-budget tests at 1→5,
+20→100, and city-filtered 20→100 candidates; 7 in `test_views.py`'s new
+`FindAnOrganizationViewTest` — HTTP 200, real-data rendering, unverified exclusion, city
+filter via querystring, malformed-page safety, `/organizations/` regression guard, and
+route-ordering proof). All 634 tests in `apps.public_site`/`apps.accounts`/`apps.discovery`
+green. Full regression run once (justified: `common.py` is a cross-cutting module already
+depended on by `directory_service.py`, `profile_service.py`, and `home_service.py`) —
+**2192/2192 green** (2167 baseline after PR #13 + 25 net). `manage.py check` 0 issues;
+`git diff --check` clean.
+
+**Privacy verification:** `OrganizationCardViewModel`'s exact field set was asserted directly
+against `vars()` in a dedicated test — no staff details, admin account identifiers, internal
+notes, or any field beyond what the caregiver-directory-equivalent card already exposes for
+organizations.
+
+See `ARCHITECTURE_DECISION_LOG.md` ADM-025 for the full ADR. PR created against `main` —
+**not merged, awaiting review, per explicit instruction to stop after PR creation.**

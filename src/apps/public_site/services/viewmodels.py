@@ -253,3 +253,42 @@ class OrganizationProfileViewModel:
     is_verified: bool
     rating: RatingSummaryViewModel
     active_provider_count: int
+
+
+@dataclass(frozen=True)
+class OrganizationCardViewModel:
+    """One row in the Company Public Directory grid (Sprint 3.3) — the
+    organization-side sibling of CaregiverCardViewModel, deliberately
+    without any caregiver-only field (specialty, bio, availability)."""
+
+    supplier_id: UUID
+    name: str
+    logo_initial: str
+    logo_url: str
+    headline: str
+    city: str
+    service_names: tuple[str, ...]
+    verification_status: str
+    verification_label: str
+    is_verified: bool
+    rating: RatingSummaryViewModel
+    active_provider_count: int
+    profile_url: str
+
+
+@dataclass(frozen=True)
+class OrganizationDirectoryFiltersViewModel:
+    """Sprint 3.3 — leaner than DirectoryFiltersViewModel: only city and
+    service-category filters apply to organizations (no type/availability/
+    gender, which are caregiver-only concepts)."""
+
+    city_options: tuple[FilterOptionViewModel, ...]
+    service_options: tuple[FilterOptionViewModel, ...]
+    search_text: str = ""
+
+
+@dataclass(frozen=True)
+class OrganizationDirectoryPageViewModel:
+    organizations: tuple[OrganizationCardViewModel, ...]
+    filters: OrganizationDirectoryFiltersViewModel
+    pagination: PaginationViewModel

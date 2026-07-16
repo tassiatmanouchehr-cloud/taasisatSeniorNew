@@ -20,8 +20,9 @@ from apps.accounts.models.profiles import (
     OrganizationProfile,
     OrgMembershipRole,
     OrgMembershipStatus,
+    VerificationStatus,
 )
-from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_caregiver
+from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_caregiver, get_or_create_supplier_for_organization
 from apps.kernel.models import Person, Tenant, UserAccount
 from apps.kernel.models.supplier import AvailabilityStatus, SupplierStatus
 from apps.orders.models import CatalogStatus, Order, OrderSource, OrderStatus, ServiceCategory
@@ -109,6 +110,61 @@ class PublicSiteTestCase(TestCase):
             person=person,
             role_type=OrgMembershipRole.CAREGIVER,
             status=status,
+            joined_at=timezone.now(),
+        )
+
+    def _create_organization_supplier(
+        self,
+        *,
+        name="سازمان نمونه",
+        status="active",
+        verification_status=VerificationStatus.VERIFIED,
+        admin_is_active=True,
+        city="tehran",
+        headline="",
+        service_category_ids=None,
+    ):
+        """Phase 3 Sprint 3.3: shared organization-supplier fixture for the
+        Company Public Directory tests — mirrors
+        test_organization_profile_service.py's own
+        _create_organization_supplier() shape (verified/active by default,
+        matching common.is_publicly_visible_attrs()'s canonical rule)."""
+        admin_person = Person.objects.create(tenant=self.tenant, full_name="مدیر سازمان")
+        admin_user = UserAccount.objects.create_user(
+            phone=f"0913{uuid.uuid4().hex[:7]}",
+            person=admin_person,
+            tenant=self.tenant,
+        )
+        if not admin_is_active:
+            admin_user.is_active = False
+            admin_user.save(update_fields=["is_active"])
+        organization = OrganizationProfile.objects.create(
+            name=name,
+            code=f"org-{uuid.uuid4().hex[:8]}",
+            admin_user=admin_user,
+            tenant=self.tenant,
+            status=status,
+            verification_status=verification_status,
+            city=city,
+            headline=headline,
+        )
+        supplier = get_or_create_supplier_for_organization(organization, tenant_id=self.tenant.id)
+        supplier.status = SupplierStatus.ACTIVE
+        supplier.service_categories = service_category_ids or [str(self.category.id)]
+        supplier.save(update_fields=["status", "service_categories"])
+        return supplier, organization
+
+    def _add_active_caregiver_to_organization(self, *, organization):
+        person = Person.objects.create(tenant=self.tenant, full_name="مراقب سازمانی تست")
+        user = UserAccount.objects.create_user(
+            phone=f"0914{uuid.uuid4().hex[:7]}", person=person, tenant=self.tenant,
+        )
+        return OrganizationMembership.objects.create(
+            organization=organization,
+            user=user,
+            person=person,
+            role_type=OrgMembershipRole.CAREGIVER,
+            status=OrgMembershipStatus.ACTIVE,
             joined_at=timezone.now(),
         )
 

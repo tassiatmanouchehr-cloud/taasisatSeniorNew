@@ -1,7 +1,7 @@
 # PORTALS, APIS, AND ENTRY POINTS
 
-**Last verified HEAD:** phase3-company-portal-foundation (from main @ 90e608d, PR #11 merged — Phase 2 CLOSED)
-**Last verified date:** 2026-07-15
+**Last verified HEAD:** phase3-company-public-directory (from main @ 9929da5, PR #13 merged — Sprint 3.2 CLOSED; Sprint 3.3 implemented, PR open)
+**Last verified date:** 2026-07-16
 
 ---
 
@@ -62,9 +62,24 @@ Entry: `require_admin_permission()` → `require_authenticated()` → RBAC check
 | `/api/v1/payments/intents/<id>/attempts/` | POST | Payment attempt |
 | `/api/v1/payments/callbacks/fake/` | POST | Fake PSP callback (unauthenticated) |
 
-## Public Site (18 views)
+## Public Site (19 views)
 
-Home, about, services, how-it-work, contact, pricing, trust-safety, caregivers, organizations, find-a-caregiver, caregiver profile (now includes a Sprint 2.4 privacy-safe weekly-availability summary — day labels only, never exact times; Sprint 2.6 — SEO `page_url`/`canonical_url` now the profile's own URL, gallery alt-text fallback, redundant generic verification badge removed), organization profile, FAQ, privacy, terms, accessibility, support, service-areas.
+Home, about, services, how-it-work, contact, pricing, trust-safety, caregivers, organizations, find-a-caregiver, caregiver profile (now includes a Sprint 2.4 privacy-safe weekly-availability summary — day labels only, never exact times; Sprint 2.6 — SEO `page_url`/`canonical_url` now the profile's own URL, gallery alt-text fallback, redundant generic verification badge removed), **find-an-organization (Phase 3 Sprint 3.3 — the Company Public Directory: search/city/service-category filters, pagination, organization cards with logo/headline/rating/verification badge/city/service summary/active-caregiver count; route ordered before the existing `find-an-organization/<uuid:supplier_id>/` detail route)**, organization profile, FAQ, privacy, terms, accessibility, support, service-areas.
+
+Phase 3 Sprint 3.3 (Company Public Directory and Discovery, 2026-07-16): added the public
+Organization Directory (`OrganizationDirectoryService`, `apps.public_site.services
+.organization_directory_service`), mirroring `CaregiverDirectoryService`'s architecture
+exactly — reuses `SupplierSearchService.filter_suppliers()`/`DiscoveryRankingService.rank()`
+unmodified and `common.bulk_supplier_attrs()`/`is_publicly_visible_attrs()` unchanged (no
+second visibility policy). See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-025 for the
+full Option-B ADR (why `/organizations/` stays the unchanged B2B recruitment page and
+`/find-an-organization/` is the new, separate directory route — mirrors the
+`/caregivers/` vs `/find-a-caregiver/` precedent exactly). `common.py` gained two small
+generic helpers, `parse_page()`/`build_pagination()`, extracted verbatim (zero behavior
+change) from `CaregiverDirectoryService`'s own former private methods — both directory
+services now call them as thin wrappers. `OrganizationStaffService` gained
+`list_active_caregiver_counts_bulk()` (one grouped query regardless of organization count)
+to avoid a KL-012-class N+1 when rendering up to 12 directory cards per page.
 
 Sprint 2.6 (Public Profile Finalization): the caregiver profile page (`caregiver-profile`),
 directory (`find-a-caregiver`), and home page were all re-verified — not changed — to
@@ -88,7 +103,7 @@ Each portal has presentation services that transform domain models into view-rea
 - `CustomerDashboardPresentationService`, `CustomerProfilePresentationService`, etc. (portal)
 - `ProviderProfilePresentationService` (provider_portal)
 - `OrganizationProfilePresentationService` (organization_portal)
-- `HomePageService`, `CaregiverDirectoryService`, `CaregiverPublicProfileService` (public_site) — all three resolve caregiver/organization public visibility through the same canonical function, `apps.public_site.services.common.is_publicly_visible_attrs()` (BG-022 remediation, 2026-07-15); there is exactly one implementation of "is this publicly visible," never a per-surface duplicate. `CaregiverDirectoryService._build_card()` (Sprint 2.6 PR #11 KL-012 remediation) resolves rating/completed-jobs data for an entire page of cards in one bulk pass (`_bulk_card_data()`), never per card.
+- `HomePageService`, `CaregiverDirectoryService`, `CaregiverPublicProfileService`, `OrganizationDirectoryService` (public_site) — all four resolve caregiver/organization public visibility through the same canonical function, `apps.public_site.services.common.is_publicly_visible_attrs()` (BG-022 remediation, 2026-07-15); there is exactly one implementation of "is this publicly visible," never a per-surface duplicate. `CaregiverDirectoryService._build_card()` (Sprint 2.6 PR #11 KL-012 remediation) and `OrganizationDirectoryService._build_card()` (Phase 3 Sprint 3.3, same shape) both resolve rating/completed-jobs/logo/active-provider-count data for an entire page of cards in one bulk pass (`_bulk_card_data()`), never per card — including service-category names, resolved once per `search()` call and looked up in Python per card, not queried per card.
 - `CaregiverSkillService`, `CaregiverExperienceService`, `PublicCredentialSelector` (accounts, Phase 2.1 — domain services/selectors, not presentation services; called by provider_portal/public_site)
 - `CaregiverGalleryService` (accounts, Sprint 2.2 — domain service, not a presentation service; called by provider_portal; `CaregiverPublicProfileService._gallery()` is the read-only public-facing counterpart, gated by the existing BG-022 canonical visibility policy, no second rule)
 - `CaregiverPublicProfileService._highlights()`/`_verification_badges()` and `ProviderProfilePresentationService._highlights()` (Sprint 2.3 — pure, read-only aggregations over data each service already resolved elsewhere on the same page; the public versions add zero new queries, the provider-portal preview adds two fixed-cost `.count()` queries). **PR #7 remediation:** physical file deletion is deferred to `transaction.on_commit()` rather than performed inline before the row commits, and `apps.accounts.services.image_validation.validate_image()` (called from every route into this service) now also bounds decoded image width/height/pixel count, not just upload byte size.
