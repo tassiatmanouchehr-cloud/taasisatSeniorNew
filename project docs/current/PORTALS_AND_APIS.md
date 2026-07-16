@@ -1,6 +1,6 @@
 # PORTALS, APIS, AND ENTRY POINTS
 
-**Last verified HEAD:** main @ a9a8a1181aa9f91a2f48f4cdbe9ceb104046a38c (PR #14 merged — Sprint 3.3 CLOSED; Phase 3 implementation scope complete, closure APPROVED, formal closure PENDING PR #15 merge; Phase 4 Customer Portal Architecture Assessment complete — Phase 4 implementation has not started)
+**Last verified HEAD:** main @ 078e435fee2b2c6350c66be113c4e7e607178763 (PR #14 merged — Sprint 3.3 CLOSED; PR #15 merged — **Phase 3 FORMALLY CLOSED**; Phase 4 Customer Portal Architecture Assessment complete — Phase 4 implementation has not started)
 **Last verified date:** 2026-07-16
 
 **Phase 4 Customer Portal Architecture Assessment note (2026-07-16):** a code-free
@@ -14,9 +14,9 @@ customer-facing invoices/payments page, reviews, notifications, and public order
 all exist and are tested. The one confirmed gap is Favorites/saved-suppliers — no such model
 exists anywhere in the repository, recommended as **Phase 4 — Sprint 4.1: Customer Favorites
 and Saved Providers** (not started). See `traceability/IMPLEMENTATION_JOURNAL.md` for the
-full assessment. This note is recorded on the `docs/phase3-closure-phase4-assessment` branch
-(PR #15); Phase 3's formal closure and this note both become canonical on `main` only once
-PR #15 merges.
+full assessment. Recorded via `docs/phase3-closure-phase4-assessment` (PR #15), **MERGED to
+main** (merge commit `078e435fee2b2c6350c66be113c4e7e607178763`) — this note and Phase 3's
+formal closure are both canonical on `main`.
 
 ---
 

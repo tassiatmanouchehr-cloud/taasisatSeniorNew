@@ -2713,16 +2713,20 @@ note below). Performed on `main` @ `a9a8a1181aa9f91a2f48f4cdbe9ceb104046a38c`, o
 documentation-only branch (`docs/phase3-closure-phase4-assessment`, PR #15) per this task's
 own explicit governance — no product code, model, migration, view, form, template, service,
 selector, or test was changed. See `ARCHITECTURE_DECISION_LOG.md` ADM-026 for the decision
-record this entry provides evidence for. **PR #15 was still open at the time of this entry
-— Phase 3's formal closure and everything recorded here become canonical on `main` only
-once PR #15 merges.**
+record this entry provides evidence for. **PR #15 has since MERGED to `main`** (merge commit
+`078e435fee2b2c6350c66be113c4e7e607178763`, 2026-07-16) — see the "PR #15 Merge" entry
+following this one; Phase 3's formal closure and everything recorded here are now canonical
+on `main`. (This entry's body is left as originally written, describing the state at the
+time of the assessment, before that merge — the historical-record convention this journal
+already follows for every prior sprint's own merge postscript.)
 
 ### 1. Confirmed repository state
 
-`main` HEAD `a9a8a1181aa9f91a2f48f4cdbe9ceb104046a38c`; local `main` identical to
-`origin/main`; working tree clean; PR #14 merged; Sprints 3.1/3.2/3.3 complete; full
-regression baseline 2192/2192; no Sprint 3.4 exists; no Phase 4 branch existed before this
-task's own documentation branch (PR #15, not yet merged).
+`main` HEAD `a9a8a1181aa9f91a2f48f4cdbe9ceb104046a38c` at assessment time (superseded by
+`078e435fee2b2c6350c66be113c4e7e607178763` after PR #15's merge — see the "PR #15 Merge"
+entry below); local `main` identical to `origin/main`; working tree clean; PR #14 merged;
+Sprints 3.1/3.2/3.3 complete; full regression baseline 2192/2192; no Sprint 3.4 exists; no
+Phase 4 branch existed before this task's own documentation branch (PR #15).
 
 ### 2. Phase 3 closure confirmation
 
@@ -2730,9 +2734,9 @@ Every roadmap acceptance criterion is delivered and merged — see ADM-026 Decis
 full capability-by-capability confirmation (identity/verification, affiliation lifecycle,
 caregiver management, professional profile, public profile, public directory, services,
 permissions/tenancy, dashboard/summaries, notifications, visibility/privacy). **Phase 3's
-implementation scope is complete and its closure is APPROVED. No Sprint 3.4 is required.
-PR #15 (documentation-only) is the change that records this closure — formal closure on
-canonical `main` is pending PR #15's merge.** (Naming note: the code-free investigation in
+implementation scope is complete and its closure is APPROVED and now CANONICAL on `main` —
+PR #15 (documentation-only) recorded this closure and has merged.** No Sprint 3.4 is
+required. (Naming note: the code-free investigation in
 this entry is labeled "Phase 4 Customer Portal Architecture Assessment," deliberately not
 "Sprint 4.0," to avoid colliding with "Sprint 4.1," the first numbered Phase 4
 implementation sprint recommended in item 19 below — a Sprint identifier must refer to
@@ -3053,14 +3057,15 @@ new entry; `quality/COMPLETION_BACKLOG.md` new BG item marked RESOLVED at merge.
 
 ### 29. Complete implementation prompt for the recommended first Phase 4 sprint
 
-> This prompt is to be issued only after PR #15 (documentation-only, Phase 3 closure +
-> Phase 4 Customer Portal Architecture Assessment) has merged to `main` — do not issue it
-> while PR #15 is still open, and do not claim Phase 4 implementation has begun until this
-> prompt itself is acted on.
+> PR #15 (documentation-only, Phase 3 closure + Phase 4 Customer Portal Architecture
+> Assessment) has MERGED to `main` (merge commit
+> `078e435fee2b2c6350c66be113c4e7e607178763`, 2026-07-16) — this prompt is now unblocked.
+> Do not claim Phase 4 implementation has begun until this prompt itself is acted on.
 >
-> Phase 3 is formally closed and Phase 4 implementation is beginning. Current canonical
-> repository state: `main` HEAD — verify the actual current HEAD after PR #15's merge (do
-> not assume `a9a8a1181aa9f91a2f48f4cdbe9ceb104046a38c`, which predates that merge); Customer
+> Phase 3 is formally closed. Phase 4 implementation has not started; this prompt begins it.
+> Current canonical repository state: `main` HEAD `078e435fee2b2c6350c66be113c4e7e607178763`
+> (re-verify against the actual current HEAD before branching, in case further commits have
+> landed since); Customer
 > Portal (`apps.portal`) already substantially complete under pre-existing Epic 07 work — do
 > not rebuild dashboard, orders, payments/invoices, reviews, notifications, or the
 > order-request wizard. Create a new branch from the current `main`:
@@ -3085,3 +3090,34 @@ new entry; `quality/COMPLETION_BACKLOG.md` new BG item marked RESOLVED at merge.
 > findings; implemented scope; reused components; query-budget measurements; privacy
 > verification; test results; documentation updates; PR number; branch HEAD; git status;
 > merge recommendation. Do not start a further Phase 4 sprint.
+
+## PR #15 Merge (2026-07-16)
+
+A follow-up architecture/documentation-governance re-review found two blockers in PR #15's
+initial revision: "Sprint 4.0" was used for both the code-free investigation and the
+recommended first implementation sprint (a Sprint identifier must refer to exactly one
+bounded unit), and several statements claimed Phase 3 was already formally closed while
+PR #15 itself was still open. Both were corrected in place on the same branch/PR (no new
+branch, no new PR): the investigation was renamed "Phase 4 Customer Portal Architecture
+Assessment" (a governance/readiness label, not a numbered sprint); the recommended sprint
+was renamed "Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers"; every
+unqualified closure claim was corrected to precise, pending-merge-aware language across all
+10 modified documents.
+
+Final pre-merge verification confirmed the branch unchanged at
+`812efae4ad6f9eb098d64b58e062e9d613d852c3`, the saved PR title
+("Docs: Close Phase 3 and record Phase 4 Customer Portal assessment") and description
+accurate via the authenticated GitHub API (`mergeable_state: clean`), and
+`git status`/`git diff --check`/`manage.py check` all clean. Merged via `merge_pull_request`
+(merge commit `078e435fee2b2c6350c66be113c4e7e607178763`). Local `main` fast-forwarded to
+match `origin/main`, confirmed identical. Post-merge documentation synchronization replaced
+every "pending PR #15 merge" statement across `02_PROJECT_CONTINUATION.md`,
+`03_NEXT_TASK.md`, `IMPLEMENTATION_ROADMAP.md`, `current/IMPLEMENTATION_STATE.md`,
+`current/PORTALS_AND_APIS.md`, `current/RUNTIME_WORKFLOWS.md`, and this file's own framing
+paragraphs with canonical "MERGED"/"FORMALLY CLOSED" language — no full regression rerun
+(documentation-only change, no code changed after the recorded 2192/2192 baseline).
+
+**Phase 3 (Company Portal: Sprints 3.1, 3.2, 3.3, and this closure-recording PR #15) is now
+FORMALLY CLOSED and canonical on `main`.** No Sprint 3.4 exists or is required. **Phase 4
+implementation has not started; Sprint 4.1 (Customer Favorites and Saved Providers) has not
+started.**

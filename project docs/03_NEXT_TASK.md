@@ -842,17 +842,15 @@ Discovery) is now CLOSED and on `main`.**
 
 ## IMMEDIATE NEXT TASK
 
-### Review and merge PR #15 to formally close Phase 3. After that merge, the immediate implementation task is Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers.
+### Phase 3 is formally CLOSED (PR #15 merged). The immediate next task is Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers.
 
-Phase 3's implementation scope is complete and its closure has been approved (2026-07-16),
-but **PR #15 is still open** — this documentation-only PR is what will record Phase 3's
-formal closure on canonical `main` once it merges. Until then, treat Phase 3 as
-closure-approved-but-not-yet-canonical. A code-free Phase 4 Customer Portal Architecture
-Assessment (a governance/readiness review, not a numbered sprint) found the portal already
-substantially implemented (Epic 07); **Phase 4 implementation has not started.** The
-immediate next task before any Phase 4 work is reviewing and merging PR #15; the immediate
-next *implementation* task after that merge is the bounded Sprint 4.1 (Customer Favorites
-and Saved Providers), the one confirmed gap.
+Phase 3's implementation scope is complete and its closure has been approved (2026-07-16);
+**PR #15 (documentation-only) has merged to `main`** (merge commit
+`078e435fee2b2c6350c66be113c4e7e607178763`), making this closure canonical. A code-free
+Phase 4 Customer Portal Architecture Assessment (a governance/readiness review, not a
+numbered sprint) found the portal already substantially implemented (Epic 07); **Phase 4
+implementation has not started.** The immediate next task is planning/implementing the
+bounded Sprint 4.1 (Customer Favorites and Saved Providers), the one confirmed gap.
 
 Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active implementation
 order).
@@ -867,10 +865,9 @@ remediation that renders the public company logo). Sprint 3.3 (Company
 Public Directory and Discovery) is also fully closed and merged to `main`
 via PR #14 — see the entry immediately above.
 
-**Phase 3's implementation scope is complete and its closure has been approved
-(2026-07-16); PR #15 (documentation-only) is what records this formal closure —
-it is still open, so formal closure on canonical `main` is pending PR #15's
-merge.** A code-free architecture assessment confirmed every Phase 3 roadmap
+**Phase 3 is formally CLOSED (2026-07-16).** PR #15 (documentation-only) recorded
+this formal closure and has MERGED to `main` (merge commit
+`078e435fee2b2c6350c66be113c4e7e607178763`). A code-free architecture assessment confirmed every Phase 3 roadmap
 acceptance criterion is delivered and merged: company identity/verification,
 caregiver affiliation lifecycle, company caregiver management, company
 professional profile, public company profile, public company
@@ -971,11 +968,10 @@ started before roadmap Phases 1–4.
 ### Phase 4 — Customer Portal Architecture Assessment (2026-07-16, code-free)
 
 A governance/readiness activity — not a numbered implementation sprint. Performed
-immediately after Phase 3's closure was approved (PR #15, documentation-only, still open at
-the time of this assessment), on a documentation-only branch
-(`docs/phase3-closure-phase4-assessment`) per explicit governance for this task — no product
-code, model, migration, view, template, service, selector, or test was changed. **Phase 4
-implementation has not started.**
+immediately after Phase 3's closure was approved, on a documentation-only branch
+(`docs/phase3-closure-phase4-assessment`, PR #15, merged to `main`) per explicit governance
+for this task — no product code, model, migration, view, template, service, selector, or
+test was changed. **Phase 4 implementation has not started.**
 
 **Major finding:** the Customer Portal (`apps.portal`) is NOT a greenfield build. Direct
 inspection (not documentation) found a mature, already-tested body of work built under

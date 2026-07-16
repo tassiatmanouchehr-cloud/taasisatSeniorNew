@@ -1868,12 +1868,12 @@ required to decide (a) whether Phase 3 needs a further bounded sprint or can be 
 repository directly rather than assumed from the roadmap's own prose. This assessment (a
 governance/readiness activity, not a numbered implementation sprint — see Decision 3's own
 naming correction) is recorded on documentation-only branch
-`docs/phase3-closure-phase4-assessment`, PR #15. **Phase 3's formal closure on canonical
-`main` takes effect only once PR #15 merges — this ADR records the closure decision and its
-rationale; it does not itself constitute the closure.**
+`docs/phase3-closure-phase4-assessment`, **PR #15, MERGED to `main`** (merge commit
+`078e435fee2b2c6350c66be113c4e7e607178763`, 2026-07-16). **Phase 3's formal closure is now
+canonical on `main`.**
 
-**Decision 1 — Phase 3's implementation scope is complete and its closure is APPROVED. No
-Sprint 3.4 is required.** Every Phase 3
+**Decision 1 — Phase 3's implementation scope is complete and its closure is APPROVED and
+now CANONICAL on `main`. No Sprint 3.4 is required.** Every Phase 3
 roadmap acceptance criterion is delivered and merged: company identity/verification (Phase
 1, reused), caregiver affiliation lifecycle (Sprint 3.1), company caregiver management
 (Sprint 3.1), company professional profile (Sprint 3.2), public company profile (Sprint
@@ -1952,5 +1952,7 @@ inside the architecture-decision record.
 
 **Consequences:** No code, model, migration, view, template, service, selector, or test
 changed by this assessment — documentation-only, on branch
-`docs/phase3-closure-phase4-assessment`, PR against `main`, not merged. See
-`traceability/IMPLEMENTATION_JOURNAL.md` for the full 29-point assessment.
+`docs/phase3-closure-phase4-assessment`, **MERGED to `main` via PR #15** (merge commit
+`078e435fee2b2c6350c66be113c4e7e607178763`, 2026-07-16). See
+`traceability/IMPLEMENTATION_JOURNAL.md` for the full 29-point assessment and the "PR #15
+Merge" entry recording final pre-merge verification.
