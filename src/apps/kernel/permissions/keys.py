@@ -217,6 +217,43 @@ ORGANIZATION_MEMBERSHIP_SUSPEND = register(
     description="Suspend an OrganizationMembership. Guards OrganizationStaffService.suspend_membership().",
     organization_scope=True,
 )
+ORGANIZATION_MEMBERSHIP_INVITE = register(
+    "organization.membership.invite",
+    domain="organization",
+    resource="membership",
+    action="invite",
+    description=(
+        "Invite a caregiver to join the organization (creates a PENDING "
+        "OrganizationMembership). Guards apps.accounts.services.affiliations.invite_caregiver() "
+        "(Phase 3 Sprint 3.1)."
+    ),
+    organization_scope=True,
+)
+ORGANIZATION_MEMBERSHIP_REJECT = register(
+    "organization.membership.reject",
+    domain="organization",
+    resource="membership",
+    action="reject",
+    description=(
+        "Reject a caregiver's affiliation request, or cancel a pending invitation the "
+        "organization itself sent. Guards apps.accounts.services.affiliations"
+        ".reject_affiliation_request()/cancel_invitation() (Phase 3 Sprint 3.1)."
+    ),
+    organization_scope=True,
+)
+ORGANIZATION_MEMBERSHIP_TERMINATE = register(
+    "organization.membership.terminate",
+    domain="organization",
+    resource="membership",
+    action="terminate",
+    description=(
+        "Terminate an ACTIVE OrganizationMembership from the organization's side. Guards "
+        "apps.accounts.services.affiliations.terminate_membership() (Phase 3 Sprint 3.1). "
+        "A caregiver terminating their own membership uses leave_organization() instead, "
+        "which is ownership-authorized, not permission-gated."
+    ),
+    organization_scope=True,
+)
 ORGANIZATION_PROFILE_UPDATE = register(
     "organization.profile.update",
     domain="organization",

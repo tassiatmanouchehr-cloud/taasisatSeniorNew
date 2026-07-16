@@ -24,6 +24,7 @@ from django.http import Http404
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 
+from apps.accounts.services import affiliations as affiliation_services
 from apps.accounts.services.caregiver_gallery_service import MAX_GALLERY_ITEMS_PER_CAREGIVER, CaregiverGalleryService
 from apps.accounts.services.caregiver_professional_profile_service import (
     CaregiverExperienceService,
@@ -60,6 +61,7 @@ from .forms import (
     GalleryItemEditForm,
     GalleryUploadForm,
     ImageUploadForm,
+    JoinCompanyCodeForm,
     ProfessionalInfoForm,
     SkillForm,
     WorkingWindowEditForm,
@@ -567,6 +569,87 @@ def profile_edit_professional_view(request):
             "nav_items": ProviderProfilePresentationService.build_nav_items(active="profile"),
         },
     )
+
+
+# ============================================================
+# Company affiliation — Phase 3 Sprint 3.1 (Company Foundation and
+# Caregiver Management)
+# ============================================================
+
+
+@require_http_methods(["GET"])
+def company_view(request):
+    supplier, tenant_id, caregiver = _guard_with_caregiver(request)
+    active_membership = affiliation_services.get_active_membership_for_caregiver(caregiver)
+    pending_invitations = affiliation_services.list_pending_invitations_for_caregiver(caregiver)
+    affiliation_requests = affiliation_services.list_affiliation_requests_for_caregiver(caregiver)
+    history = affiliation_services.list_membership_history_for_caregiver(caregiver)
+    return render(
+        request,
+        "provider_portal/company.html",
+        {
+            "active_membership": active_membership,
+            "pending_invitations": pending_invitations,
+            "affiliation_requests": affiliation_requests,
+            "history": history,
+            "join_form": JoinCompanyCodeForm(),
+            "nav_items": ProviderProfilePresentationService.build_nav_items(active="company"),
+        },
+    )
+
+
+@require_http_methods(["POST"])
+def company_join_view(request):
+    supplier, tenant_id, caregiver = _guard_with_caregiver(request)
+    form = JoinCompanyCodeForm(request.POST)
+    if form.is_valid():
+        try:
+            affiliation_services.submit_join_request(
+                caregiver_profile=caregiver, code=form.cleaned_data["code"], tenant_id=tenant_id,
+            )
+        except AccountsError:
+            pass
+    return redirect("provider_portal:company")
+
+
+@require_http_methods(["POST"])
+def company_request_cancel_view(request, request_id):
+    supplier, tenant_id, caregiver = _guard_with_caregiver(request)
+    try:
+        affiliation_services.cancel_affiliation_request(request_id=request_id, caregiver_profile=caregiver)
+    except AccountsError:
+        pass
+    return redirect("provider_portal:company")
+
+
+@require_http_methods(["POST"])
+def company_invitation_accept_view(request, membership_id):
+    supplier, tenant_id, caregiver = _guard_with_caregiver(request)
+    try:
+        affiliation_services.accept_invitation(membership_id=membership_id, caregiver_profile=caregiver)
+    except AccountsError:
+        pass
+    return redirect("provider_portal:company")
+
+
+@require_http_methods(["POST"])
+def company_invitation_decline_view(request, membership_id):
+    supplier, tenant_id, caregiver = _guard_with_caregiver(request)
+    try:
+        affiliation_services.decline_invitation(membership_id=membership_id, caregiver_profile=caregiver)
+    except AccountsError:
+        pass
+    return redirect("provider_portal:company")
+
+
+@require_http_methods(["POST"])
+def company_leave_view(request, membership_id):
+    supplier, tenant_id, caregiver = _guard_with_caregiver(request)
+    try:
+        affiliation_services.leave_organization(membership_id=membership_id, caregiver_profile=caregiver)
+    except AccountsError:
+        pass
+    return redirect("provider_portal:company")
 
 
 # ============================================================

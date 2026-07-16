@@ -38,6 +38,16 @@ enforcement point to hold a permission for in this Epic.
 Epic 06 Sprint 2: `ORGANIZATION_PROFILE_UPDATE` added, guarding
 `OrganizationProfileUpdateService.update_profile()` — same
 ownership-fallback shape as `ORGANIZATION_MEMBERSHIP_APPROVE`/`_SUSPEND`.
+
+Phase 3 Sprint 3.1 (Company Foundation and Caregiver Management):
+`ORGANIZATION_MEMBERSHIP_INVITE`/`_REJECT`/`_TERMINATE` added, guarding
+the new company-side affiliation-lifecycle actions in
+`apps.accounts.services.affiliations` (invite a caregiver, reject a
+request or cancel an invitation, terminate an active membership). The
+caregiver-side counterparts (accept/decline an invitation, cancel a
+request, leave an organization) remain ownership-authorized only — no
+OrgMembershipRole.CAREGIVER enforcement point exists yet, unchanged from
+this module's own note above.
 """
 
 from apps.kernel.permissions.keys import (
@@ -45,7 +55,10 @@ from apps.kernel.permissions.keys import (
     ACCOUNTS_PROFILE_ACTIVATE,
     BOOKING_ASSIGNMENT_ASSIGN,
     ORGANIZATION_MEMBERSHIP_APPROVE,
+    ORGANIZATION_MEMBERSHIP_INVITE,
+    ORGANIZATION_MEMBERSHIP_REJECT,
     ORGANIZATION_MEMBERSHIP_SUSPEND,
+    ORGANIZATION_MEMBERSHIP_TERMINATE,
     ORGANIZATION_PROFILE_UPDATE,
 )
 
@@ -54,6 +67,9 @@ __all__ = [
     "ACCOUNTS_PROFILE_ACTIVATE",
     "BOOKING_ASSIGNMENT_ASSIGN",
     "ORGANIZATION_MEMBERSHIP_APPROVE",
+    "ORGANIZATION_MEMBERSHIP_INVITE",
+    "ORGANIZATION_MEMBERSHIP_REJECT",
     "ORGANIZATION_MEMBERSHIP_SUSPEND",
+    "ORGANIZATION_MEMBERSHIP_TERMINATE",
     "ORGANIZATION_PROFILE_UPDATE",
 ]

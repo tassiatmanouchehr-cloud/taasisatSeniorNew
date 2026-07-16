@@ -1,0 +1,96 @@
+{% extends "provider_portal/base.html" %}
+
+{% block portal_title %}سازمان من{% endblock %}
+{% block page_title %}سازمان من{% endblock %}
+
+{% block portal_content %}
+<div class="mx-auto max-w-2xl space-y-6">
+
+  {% if active_membership %}
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-sm font-bold text-text mb-3">سازمان فعلی</h2>
+    <p class="text-sm text-text">{{ active_membership.organization.name }}</p>
+    <p class="text-xs text-text-muted mt-1">عضو از {{ active_membership.joined_at|date:"Y/m/d" }}</p>
+    <form method="post" action="{% url 'provider_portal:company-leave' membership_id=active_membership.id %}" class="mt-4">
+      {% csrf_token %}
+      <button type="submit" class="text-sm font-medium text-danger hover:underline">ترک سازمان</button>
+    </form>
+  </div>
+  {% else %}
+
+  {% if pending_invitations %}
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-sm font-bold text-text mb-3">دعوت‌های دریافتی</h2>
+    <ul class="divide-y divide-border">
+      {% for invitation in pending_invitations %}
+      <li class="py-3 flex items-center justify-between gap-inline-3">
+        <p class="text-sm text-text">{{ invitation.organization.name }}</p>
+        <div class="flex items-center gap-inline-2">
+          <form method="post" action="{% url 'provider_portal:company-invitation-accept' membership_id=invitation.id %}">
+            {% csrf_token %}
+            <button type="submit" class="text-sm font-medium text-primary hover:underline">پذیرش</button>
+          </form>
+          <form method="post" action="{% url 'provider_portal:company-invitation-decline' membership_id=invitation.id %}">
+            {% csrf_token %}
+            <button type="submit" class="text-sm font-medium text-danger hover:underline">رد</button>
+          </form>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% with pending_request=affiliation_requests|first %}
+  {% if pending_request and pending_request.status == "pending" %}
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-sm font-bold text-text mb-3">درخواست عضویت در انتظار</h2>
+    <p class="text-sm text-text">{{ pending_request.organization.name|default:pending_request.requested_company_name_or_code }}</p>
+    <form method="post" action="{% url 'provider_portal:company-request-cancel' request_id=pending_request.id %}" class="mt-3">
+      {% csrf_token %}
+      <button type="submit" class="text-sm font-medium text-danger hover:underline">انصراف از درخواست</button>
+    </form>
+  </div>
+  {% else %}
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-sm font-bold text-text mb-3">پیوستن به یک سازمان</h2>
+    <form method="post" action="{% url 'provider_portal:company-join' %}" class="flex flex-wrap items-end gap-inline-3">
+      {% csrf_token %}
+      <div>
+        <label for="{{ join_form.code.id_for_label }}" class="block text-sm font-bold text-text">{{ join_form.code.label }}</label>
+        {{ join_form.code }}
+      </div>
+      <button type="submit" class="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-700">ارسال درخواست</button>
+    </form>
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  {% endif %}
+
+  {% if history %}
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <h2 class="text-sm font-bold text-text mb-3">سابقه همکاری</h2>
+    <ul class="divide-y divide-border">
+      {% for membership in history %}
+      <li class="py-3">
+        <p class="text-sm text-text">{{ membership.organization.name }} — {{ membership.get_status_display }}</p>
+        {% if membership.joined_at %}
+        <p class="text-xs text-text-muted mt-0.5">
+          {{ membership.joined_at|date:"Y-m-d" }}
+          {% if membership.terminated_at %} — {{ membership.terminated_at|date:"Y-m-d" }}{% endif %}
+        </p>
+        {% endif %}
+        {% if membership.closure_reason %}
+        <p class="text-xs text-text-muted mt-0.5">{{ membership.get_closure_reason_display }}</p>
+        {% elif membership.termination_reason %}
+        <p class="text-xs text-text-muted mt-0.5">{{ membership.termination_reason }}</p>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

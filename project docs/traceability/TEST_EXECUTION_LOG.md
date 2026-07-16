@@ -792,3 +792,60 @@ depending on surface and candidate count). Public profile detail page, provider 
 and provider profile-management page counts are unchanged (15 / 30-31 / 15 respectively —
 none of their underlying selectors were touched by this remediation). KL-012 is RESOLVED.
 See `ARCHITECTURE_DECISION_LOG.md` ADM-022's remediation note.
+
+## Run 023b — PR #11 Final Verify and Merge (Sprint 2.6 + KL-012 remediation -> main)
+
+```
+Branch under review: phase2-caregiver-public-profile-finalization @ 3e18970 (PR #11)
+Merge target: main
+Date/time: 2026-07-16
+```
+
+| Check | Result |
+|-------|--------|
+| `git diff --check origin/main...HEAD` | Clean |
+| `git status --short` | Clean tree |
+| `python manage.py check` | 0 |
+| 12-point pre-merge review (directory/search/home query counts independent of candidate count; bulk capacity evaluation preserves ranking semantics; bulk city/entity resolution preserves filtering semantics; bulk reputation/completed-job data preserves card values; canonical public visibility unchanged; no private data added to cards; expiry-test correction does not weaken its assertion; no Phase 3 code in the diff; documentation/`PHASE_2_COMPLETION_REPORT.md` synchronized; diff contains no unrelated code) | All 12 confirmed via direct inspection |
+
+**Result:** Merged to `main` — merge commit `90e608dc5d14ff4f367abafc022f756819734f6d`
+(`90e608d`). New `main` HEAD confirmed to equal the merge commit; local `main`
+fast-forwarded to match `origin/main`; working tree clean; `python manage.py check` exit 0
+post-merge. Full suite not re-run for the merge itself — branch unchanged since the
+2094/2094 verification recorded in Run 023. **Phase 2 (Caregiver Professional Profile) is
+now CLOSED.**
+
+## Run 024 — Sprint 3.1: Company Foundation and Caregiver Management
+
+```
+Branch: phase3-company-portal-foundation (from main @ 90e608d, PR #11 merged)
+Settings module: config.settings.testing
+Python: 3.11.15  |  Django: 5.2.16  |  PostgreSQL: 16.13
+Date/time: 2026-07-16
+```
+
+| Command | Exit code | Result |
+|---------|-----------|--------|
+| `python manage.py check` | 0 | System check identified no issues |
+| `python manage.py makemigrations --check --dry-run` | 1 | Pre-existing cosmetic drift only, unchanged; new termination-field migration already generated and applied |
+| `apps.kernel.tests.test_architecture_guardrails` (ORM-discipline guardrails) | 0 | 13/13 |
+| `apps.accounts.tests.test_affiliation_lifecycle` (new, focused — 32 tests incl. 3 `TransactionTestCase` concurrency proofs) | 0 | 32/32 |
+| `apps.organization_portal.tests.test_affiliation_management` (new, focused) | 0 | 9/9 |
+| `apps.provider_portal.tests.test_company_affiliation` (new, focused) | 0 | 10/10 |
+| `apps.accounts apps.organization_portal apps.provider_portal apps.kernel` (Level 2 — directly affected apps) | 0 | 833/833 |
+| **Full regression (run once)** | **0** | **Ran 2145 tests — OK** (2094 baseline + 51 new) |
+
+**Test level used:** Full regression, run exactly once, per this sprint's own policy
+(models/migration/shared affiliation logic/permissions/concurrency all changed, several apps
+participate). `apps.accounts`/`apps.organization_portal`/`apps.provider_portal`/`apps.kernel`
+(every app with production code or permission-registry changes) run directly in addition to
+the full suite.
+
+**Classification:** GREEN — 2145/2145, zero regressions. One migration
+(`accounts/0008_company_affiliation_termination.py`, 3 new nullable fields, no financial/
+order/payment table touched). Concurrency proven via `AffiliationConcurrencyTest`'s 3
+`TransactionTestCase` tests, including a genuine two-different-organizations race
+(`test_duplicate_active_membership_not_creatable_under_race`) that the caregiver-profile
+row lock closes — confirmed to actually require the lock (removing it before the fix would
+allow both organizations' approvals to succeed simultaneously). See
+`ARCHITECTURE_DECISION_LOG.md` ADM-023.

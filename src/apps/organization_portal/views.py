@@ -11,6 +11,7 @@ from django.http import Http404
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 
+from apps.accounts.services import affiliations as affiliation_services
 from apps.accounts.services.document_service import DocumentService
 from apps.accounts.services.errors import AccountsError
 from apps.accounts.services.organization_profile_service import OrganizationProfileUpdateService
@@ -28,6 +29,7 @@ from apps.reporting.services.provider_report_service import ProviderReportServic
 
 from .forms import (
     AssignStaffForm,
+    InviteCaregiverForm,
     OrganizationDocumentUploadForm,
     OrganizationImageUploadForm,
     OrganizationProfileForm,
@@ -102,11 +104,16 @@ def dashboard_view(request):
 def staff_list_view(request):
     organization, tenant_id = _guard(request)
     staff = OrganizationStaffService.list_staff(organization)
+    pending_requests = affiliation_services.list_pending_requests_for_organization(organization)
+    pending_invitations = affiliation_services.list_pending_invitations_for_organization(organization)
     return render(
         request,
         "organization_portal/staff_list.html",
         {
             "staff": staff,
+            "pending_requests": pending_requests,
+            "pending_invitations": pending_invitations,
+            "invite_form": InviteCaregiverForm(),
             "nav_items": OrganizationProfilePresentationService.build_nav_items(active="staff"),
         },
     )
@@ -133,6 +140,85 @@ def staff_suspend_view(request, membership_id):
         raise Http404("Staff member not found.")
 
     OrganizationStaffService.suspend_membership(membership, suspended_by=request.user)
+    return redirect("organization_portal:staff")
+
+
+@require_http_methods(["POST"])
+def staff_terminate_view(request, membership_id):
+    organization, tenant_id = _guard(request)
+    try:
+        membership = OrganizationStaffService.get_membership(organization=organization, membership_id=membership_id)
+    except AccountsError:
+        raise Http404("Staff member not found.")
+
+    try:
+        affiliation_services.terminate_membership(membership_id=membership.id, terminated_by=request.user)
+    except AccountsError:
+        pass
+    return redirect("organization_portal:staff")
+
+
+@require_http_methods(["POST"])
+def affiliation_request_approve_view(request, request_id):
+    organization, tenant_id = _guard(request)
+    req = _get_own_pending_request(organization, request_id)
+    try:
+        affiliation_services.approve_affiliation_request(request_id=req.id, reviewed_by=request.user)
+    except AccountsError:
+        pass
+    return redirect("organization_portal:staff")
+
+
+@require_http_methods(["POST"])
+def affiliation_request_reject_view(request, request_id):
+    organization, tenant_id = _guard(request)
+    req = _get_own_pending_request(organization, request_id)
+    try:
+        affiliation_services.reject_affiliation_request(request_id=req.id, reviewed_by=request.user)
+    except AccountsError:
+        pass
+    return redirect("organization_portal:staff")
+
+
+def _get_own_pending_request(organization, request_id):
+    """Ownership-safe lookup: the affiliation request must belong to
+    the caller's own organization, mirroring
+    OrganizationStaffService.get_membership()'s shape."""
+    req = next(
+        (r for r in affiliation_services.list_pending_requests_for_organization(organization) if str(r.id) == str(request_id)),
+        None,
+    )
+    if req is None:
+        raise Http404("Affiliation request not found.")
+    return req
+
+
+@require_http_methods(["POST"])
+def invite_caregiver_view(request):
+    organization, tenant_id = _guard(request)
+    form = InviteCaregiverForm(request.POST)
+    if form.is_valid():
+        try:
+            affiliation_services.invite_caregiver(
+                organization=organization, caregiver_phone=form.cleaned_data["phone"], invited_by=request.user,
+            )
+        except AccountsError:
+            pass
+    return redirect("organization_portal:staff")
+
+
+@require_http_methods(["POST"])
+def invitation_cancel_view(request, membership_id):
+    organization, tenant_id = _guard(request)
+    try:
+        membership = OrganizationStaffService.get_membership(organization=organization, membership_id=membership_id)
+    except AccountsError:
+        raise Http404("Invitation not found.")
+
+    try:
+        affiliation_services.cancel_invitation(membership_id=membership.id, cancelled_by=request.user)
+    except AccountsError:
+        pass
     return redirect("organization_portal:staff")
 
 

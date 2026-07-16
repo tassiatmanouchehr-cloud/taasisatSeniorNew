@@ -98,6 +98,18 @@ class OrgMembershipStatus(models.TextChoices):
     REMOVED = "removed", "Removed"
 
 
+class AffiliationClosureReason(models.TextChoices):
+    """Machine-readable reason a terminal OrganizationMembership row closed.
+    Distinct from CompanyAffiliationRequest.status=REJECTED, which already
+    covers "join-by-code request rejected by company" on its own model —
+    no OrganizationMembership row is ever created for that case."""
+
+    INVITATION_DECLINED_BY_CAREGIVER = "invitation_declined_by_caregiver", "Invitation declined by caregiver"
+    INVITATION_CANCELLED_BY_COMPANY = "invitation_cancelled_by_company", "Invitation cancelled by company"
+    TERMINATED_BY_COMPANY = "terminated_by_company", "Terminated by company"
+    LEFT_BY_CAREGIVER = "left_by_caregiver", "Left by caregiver"
+
+
 class PlatformTeamArea(models.TextChoices):
     OWNER = "owner", "Owner"
     SUPPORT = "support", "Support"
@@ -393,12 +405,44 @@ class OrganizationMembership(models.Model):
         related_name="+",
     )
     joined_at = models.DateTimeField(null=True, blank=True)
+    terminated_at = models.DateTimeField(null=True, blank=True)
+    terminated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    termination_reason = models.CharField(max_length=255, blank=True)
+    closure_reason = models.CharField(
+        max_length=40, choices=AffiliationClosureReason.choices, blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "accounts_organization_membership"
-        unique_together = [("organization", "user", "role_type")]
+        constraints = [
+            # A caregiver may have at most one ACTIVE company affiliation
+            # globally (this sprint's one-active-company-at-a-time policy —
+            # see ARCHITECTURE_DECISION_LOG.md). Scoped to role_type=caregiver
+            # since only caregiver-role memberships are subject to that policy.
+            models.UniqueConstraint(
+                fields=["user"],
+                condition=models.Q(status=OrgMembershipStatus.ACTIVE, role_type=OrgMembershipRole.CAREGIVER),
+                name="uniq_active_caregiver_membership_per_user",
+            ),
+            # A caregiver and organization may not have more than one open
+            # (PENDING or ACTIVE) membership for the same role at a time.
+            # Terminal (REMOVED/SUSPENDED) rows are excluded, so repeated
+            # affiliation cycles with the same organization each persist as
+            # their own row instead of reactivating a prior one.
+            models.UniqueConstraint(
+                fields=["organization", "user", "role_type"],
+                condition=models.Q(status__in=[OrgMembershipStatus.PENDING, OrgMembershipStatus.ACTIVE]),
+                name="uniq_open_membership_per_org_user_role",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.user} → {self.organization.name} ({self.role_type})"
@@ -440,6 +484,17 @@ class CompanyAffiliationRequest(models.Model):
     class Meta:
         db_table = "accounts_affiliation_request"
         ordering = ["-requested_at"]
+        constraints = [
+            # A caregiver may have at most one open (PENDING) join request
+            # at a time — makes submit_join_request()'s duplicate-pending
+            # check race-safe under concurrent submission, mirroring the
+            # OrganizationMembership open-membership constraint above.
+            models.UniqueConstraint(
+                fields=["caregiver_profile"],
+                condition=models.Q(status=AffiliationStatus.PENDING),
+                name="uniq_pending_affiliation_request_per_caregiver",
+            ),
+        ]
 
     def __str__(self):
         return f"Affiliation: {self.caregiver_profile.display_name} → {self.requested_company_name_or_code} [{self.status}]"

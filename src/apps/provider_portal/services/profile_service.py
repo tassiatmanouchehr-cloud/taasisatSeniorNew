@@ -254,6 +254,7 @@ class ProviderProfilePresentationService:
             ("assignments", "تخصیص‌ها", "/provider/assignments/"),
             ("availability", "زمان‌بندی", "/provider/availability/"),
             ("profile", "نمایه من", "/provider/profile/"),
+            ("company", "سازمان من", "/provider/company/"),
             ("earnings", "درآمد", "/provider/earnings/"),
             ("notifications", "اعلان‌ها", "/provider/notifications/"),
         )

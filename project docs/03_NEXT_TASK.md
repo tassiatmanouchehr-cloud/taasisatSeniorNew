@@ -483,28 +483,172 @@ matching candidates. 12 new tests, zero new migration, full regression
 `project docs/PHASE_2_COMPLETION_REPORT.md`. **Phase 2 (Caregiver
 Professional Profile) acceptance criteria satisfied**, except the one
 explicitly accepted external-domain dependency (no canonical
-bonus/penalty representation, KL-020). **PR #11 not merged — awaiting
-review.**
+bonus/penalty representation, KL-020).
+
+### PR #11 — MERGED (2026-07-16)
+
+Final verification confirmed branch HEAD unchanged (`3e18970`), `git diff
+--check origin/main...HEAD` clean, `git status --short` clean, `manage.py
+check` exit 0, and all 12 required points (directory/search/home query
+counts independent of candidate count; bulk capacity evaluation preserves
+ranking semantics; bulk city/entity resolution preserves filtering
+semantics; bulk reputation/completed-job data preserves card values;
+canonical public visibility unchanged; no private data added to cards;
+the expiry-test correction does not weaken its assertion; no Phase 3 code
+in the diff; documentation and `PHASE_2_COMPLETION_REPORT.md`
+synchronized; diff contains no unrelated code) confirmed via direct
+inspection and the already-recorded 2094/2094 verification (branch
+unchanged, not re-run). Merged via `merge_pull_request` (merge commit
+`90e608dc5d14ff4f367abafc022f756819734f6d`). Local `main` fast-forwarded
+to match `origin/main`; `manage.py check` exits 0. **Phase 2 (Caregiver
+Professional Profile) is now CLOSED and on `main`.**
+
+### Sprint 3.1 — Company Foundation and Caregiver Management — IMPLEMENTED (2026-07-16)
+
+Branched fresh from merged `main` (`phase3-company-portal-foundation`,
+from `90e608d`) per governance. First Phase 3 (Company Portal) slice —
+closes new backlog item BG-028:
+
+- Current-state inspection found the model layer already built —
+  `OrganizationMembership` and `CompanyAffiliationRequest` — but no path
+  ever produced a PENDING membership, no invitation concept existed, and
+  no UI/permission enforcement covered either model. Extended (not
+  replaced) `apps.accounts.services.affiliations` to close all three
+  gaps.
+- Canonical model: `OrganizationMembership` (extended with
+  `terminated_at`/`terminated_by`/`termination_reason`) is the single
+  historical relationship record; `CompanyAffiliationRequest` remains the
+  caregiver-initiated join-by-code intake that feeds it. One active
+  company per caregiver at a time (documented minimal policy — see
+  ADM-023 Decision 2).
+- Join-by-code: new tenant-scoped, exact-code-only, ACTIVE-organization-
+  only resolver (`submit_join_request()`/`preview_join_code_organization()`),
+  distinct from the legacy, looser `find_organization_by_code_or_name()`
+  (left untouched for its existing callers).
+- Company-initiated invitation: new `invite_caregiver()`/`accept_invitation()`/
+  `decline_invitation()`/`cancel_invitation()`.
+- Mutual termination: `terminate_membership()` (company-side,
+  permission-gated) and `leave_organization()` (caregiver-side,
+  ownership-authorized) — both funnel into one `_finalize_termination()`
+  helper.
+- 4 new permission keys (`ORGANIZATION_MEMBERSHIP_INVITE`/`_REJECT`/
+  `_TERMINATE`, plus reusing the existing `_APPROVE` for affiliation-request
+  approval), granted to `organization_admin` via the existing
+  `OrganizationRoleSyncService` additive-merge sync.
+- New UI: `organization_portal`'s staff page extended with pending
+  requests/invitations/invite-by-phone/terminate sections;
+  `provider_portal`'s new "company" page (join by code, respond to
+  invitations, leave, history).
+- Concurrency: every activation path locks the caregiver's own
+  `CaregiverProfile` row first (mirroring `CaregiverGalleryService
+  .add_item()`'s/`AvailabilityMutationService`'s existing "lock the
+  owning parent" precedent) — proven by 3 new `TransactionTestCase`
+  tests, including a genuine two-different-organizations race that the
+  lock closes.
+- One migration (`accounts/0008_company_affiliation_termination.py`: 3 new
+  nullable `OrganizationMembership` fields — no new model, no altered
+  financial/order/payment table). **Superseded by the PR #12 remediation
+  below — see that entry for the final migration/constraint state and
+  final test/regression counts.**
+
+51 new tests (32 service-layer + 9 `organization_portal` HTTP-level + 10
+`provider_portal` HTTP-level) landed at this point in the sprint; full
+regression 2145/2145 green at this point (superseded — see the PR #12
+remediation entry below for the final 2150/2150 count). Branch
+`phase3-company-portal-foundation`, PR #12 created — see
+`traceability/IMPLEMENTATION_JOURNAL.md` and `ARCHITECTURE_DECISION_LOG.md`
+ADM-023.
+
+### PR #12 Architecture Review Remediation — Preserve Affiliation Period History (Blocker 1) — IMPLEMENTED (2026-07-16)
+
+An architecture review of PR #12 identified two merge blockers. Blocker 1:
+`approve_affiliation_request()`/`invite_caregiver()` used
+`update_or_create()`, so a caregiver rejoining the same organization after
+a prior termination reactivated that same `OrganizationMembership` row
+instead of getting a new one — each company-caregiver affiliation period
+must be an immutable domain-history record, and `AuditLog` must not be the
+only source of that history. Fixed in place on the same branch/PR (no new
+branch, no new PR):
+
+- Removed `OrganizationMembership.unique_together`; added two conditional
+  `Meta.constraints` (`django.db.models.UniqueConstraint(condition=Q(...))`):
+  `uniq_active_caregiver_membership_per_user` (at most one ACTIVE
+  caregiver-role membership per user, globally) and
+  `uniq_open_membership_per_org_user_role` (at most one open PENDING/ACTIVE
+  membership per organization+user+role_type). Terminal rows are excluded
+  from both, so they accumulate without limit.
+- `approve_affiliation_request()`/`invite_caregiver()` now always
+  `OrganizationMembership.objects.create()` a new row — never reactivate a
+  prior terminal one — wrapped in `IntegrityError`-to-`AccountsError`
+  translation (mirrors `CaregiverSkillService.add_skill()`'s existing
+  precedent) so a duplicate-open-row race fails cleanly and idempotently.
+- New `closure_reason` field (`AffiliationClosureReason` choices:
+  invitation declined by caregiver, invitation cancelled by company,
+  terminated by company, left by caregiver) gives a machine-readable end
+  reason distinct from free-text `termination_reason` and from
+  `CompanyAffiliationRequest.status=REJECTED` (already distinct for
+  "join request rejected by company," unchanged).
+- Added a matching conditional constraint on `CompanyAffiliationRequest`
+  (`uniq_pending_affiliation_request_per_caregiver`) closing the same
+  idempotency gap for duplicate pending join requests.
+- Activation continues to lock the caregiver-owned `CaregiverProfile` row
+  first (unchanged concurrency precedent), now proven against a
+  cross-organization race that uses one join request and one invitation
+  (the old two-simultaneous-pending-requests race technique no longer
+  applies now that pending requests are themselves constrained to one per
+  caregiver).
+- `provider_portal/company.html`/`organization_portal/staff_list.html`
+  updated to display `closure_reason` and each affiliation period's
+  joined/terminated dates; no selector query change needed —
+  `list_membership_history_for_caregiver()`/`list_staff()` already
+  returned every row, so repeated periods with the same company already
+  render as separate list entries.
+
+5 new/rewritten tests in `apps.accounts.tests.test_affiliation_lifecycle`
+prove: terminate → re-invite → accept creates two separate membership
+records; the first remains terminal and unchanged; the second becomes
+active; two concurrent organizations still cannot activate the same
+caregiver; duplicate pending invitations/requests are rejected
+idempotently; historical rows do not grant current company access; two
+periods with the same company render as two separate history rows. One
+migration (`accounts/0009_alter_organizationmembership_unique_together_and_more.py`).
+Full regression 2150/2150 green (2145 + 5 net). See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-023's remediation note.
+Blocker 2 (documentation cleanup) addressed the same session — see the
+9 files listed in `traceability/IMPLEMENTATION_JOURNAL.md`'s PR #12
+remediation entry. **PR #12 not merged — awaiting review.**
 
 ---
 
 ## IMMEDIATE NEXT TASK
 
-### Await review of PR #11; do not start Phase 3 automatically
+### Await review of PR #12 (Sprint 3.1 + its architecture-review remediation); do not start the next Company Portal sprint automatically
 
 Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active implementation
 order).
 
-Phase 1, Phase 2.1 (+ BG-022), Sprint 2.2 (+ PR #7 remediation), Sprint
-2.3, Sprint 2.4 (+ PR #9 concurrency remediation), and Sprint 2.5 (+ PR
-#10) are fully closed and merged to `main`. Sprint 2.6 + its PR #11
-KL-012 remediation (this session's work) completes roadmap Phase 2 —
-remaining, explicitly NOT started by this task:
+Phase 1 and Phase 2 (all sprints, including Sprint 2.6 + its PR #11
+KL-012 remediation) are fully closed and merged to `main`. Sprint 3.1,
+now including the PR #12 architecture-review remediation that preserves
+affiliation-period history (Blocker 1) and cleaned up active documentation
+(Blocker 2), delivers the first Company Portal slice on PR #12 —
+remaining roadmap Phase 3 scope, explicitly NOT started by this task:
 
-1. Phase 3 — Company Portal (staff management, caregiver management,
-   invitation system, approval/removal, company financial overview,
-   company public profile parity) — not started.
-2. ~~Known, recorded during BG-022's remediation~~ — **RESOLVED (PR #11
+1. Company financial overview + reports (extend), company invoicing,
+   company public profile parity with the caregiver profile
+   (gallery/certificates generalized to organizations) — not started,
+   explicitly out of Sprint 3.1's scope.
+2. Company gallery/social feed, messaging, AI verification, payroll/
+   salary, HR leave workflow, caregiver scheduling by company — not
+   started, explicitly out of Sprint 3.1's scope per its own governance.
+3. No flash-message/error-surfacing framework exists for the new
+   POST-action affiliation views (invite/approve/reject/terminate/etc.)
+   — a failed action silently redirects back with no visible feedback,
+   matching this app's own pre-existing convention for action buttons
+   (`staff_approve_view`/`staff_suspend_view` have never surfaced
+   errors either); recorded as a known, minimal-v1 UX gap, not solved
+   this sprint (`quality/DEFECT_AND_RISK_REGISTER.md` KL-022).
+4. ~~Known, recorded during BG-022's remediation~~ — **RESOLVED (PR #11
    remediation, 2026-07-15):** the pre-existing per-candidate query cost
    in directory ranking/card-building (`DiscoveryRankingService.rank()`,
    `SupplierSearchService.filter_suppliers()`'s city filter,
@@ -512,33 +656,36 @@ remaining, explicitly NOT started by this task:
    methods — see `quality/DEFECT_AND_RISK_REGISTER.md` KL-012 (now
    RESOLVED) and `ARCHITECTURE_DECISION_LOG.md` ADM-022's remediation
    note.
-3. Known, recorded during Sprint 2.3: `CaregiverSkill.name` remains
+5. Known, recorded during Sprint 2.3: `CaregiverSkill.name` remains
    free-text with no catalog/normalization — see
    `quality/DEFECT_AND_RISK_REGISTER.md` KL-016, deferred (a future
    modeling decision, not a UI-completion task).
-4. Known, recorded during Sprint 2.2/PR #7: gallery orphan-file cleanup/
+6. Known, recorded during Sprint 2.2/PR #7: gallery orphan-file cleanup/
    retry is not automated (KL-014) and decoded-image dimension/pixel
    limits are fixed, not tenant-configurable (KL-015) — both deliberate,
    not defects.
-5. Known, pre-existing, unchanged: production media storage strategy
+7. Known, pre-existing, unchanged: production media storage strategy
    (currently local `FileField`/`FileSystemStorage`, no S3/CDN) —
    BG-021's original dependency note.
-6. Known, recorded during Sprint 2.4: per-caregiver time zone is not
+8. Known, recorded during Sprint 2.4: per-caregiver time zone is not
    modeled — see `quality/DEFECT_AND_RISK_REGISTER.md` KL-018 /
    `quality/COMPLETION_BACKLOG.md` BG-024, deferred (no evidence of
    multi-time-zone demand).
-7. Known, recorded during Sprint 2.5, unchanged by Sprint 2.6: no
-   canonical bonus/penalty representation exists — see
-   `quality/DEFECT_AND_RISK_REGISTER.md` KL-020 /
-   `quality/COMPLETION_BACKLOG.md` BG-026's "not in scope" note,
-   deferred (no evidence to invent one against). This is the one Phase 2
-   acceptance criterion satisfied only as an explicitly accepted
-   external-domain dependency, not a caregiver-profile defect.
-8. Known, recorded during Sprint 2.6, deferred: identical SEO `page_url`
-   bug on `organization_profile.html` (KL-021/BG-027); the same
-   unassociated-`<label>` accessibility pattern in `organization_portal`/
-   `admin_portal`/`portal` (customer) templates — both out of Sprint
-   2.6's caregiver-only scope.
+9. Known, recorded during Sprint 2.5, unchanged since: no canonical
+   bonus/penalty representation exists — see `quality/DEFECT_AND_RISK_
+   REGISTER.md` KL-020 / `quality/COMPLETION_BACKLOG.md` BG-026's "not
+   in scope" note, deferred (no evidence to invent one against). This
+   was the one Phase 2 acceptance criterion satisfied only as an
+   explicitly accepted external-domain dependency, not a
+   caregiver-profile defect.
+10. Known, recorded during Sprint 2.6, deferred: identical SEO
+    `page_url` bug on `organization_profile.html` (KL-021/BG-027); the
+    same unassociated-`<label>` accessibility pattern in
+    `organization_portal`/`admin_portal`/`portal` (customer) templates
+    — both out of Sprint 2.6's caregiver-only scope.
+11. Known, recorded during Sprint 3.1: no flash-message/error-surfacing
+    framework exists anywhere in this codebase's portals — see item 3
+    above (KL-022).
 
 Note: the previously listed follow-up "Phase 2: OrderOfferService" is now
 scheduled as roadmap Phase 5 (Marketplace Order Workflow) and must not be

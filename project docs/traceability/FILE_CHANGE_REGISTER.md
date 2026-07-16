@@ -468,3 +468,30 @@ The following files would be created or modified if the Offer Marketplace implem
 | `project docs/quality/DEFECT_AND_RISK_REGISTER.md` | Modified | KL-012 marked RESOLVED | git checkout |
 | `project docs/quality/COMPLETION_BACKLOG.md` | Modified | BG-022 entry's KL-012 cross-reference updated | git checkout |
 | `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |
+
+---
+
+## 2026-07-16 — Sprint 3.1: Company Foundation and Caregiver Management (CL-034)
+
+| Path | Change | Purpose | Rollback |
+|------|--------|---------|----------|
+| `src/apps/accounts/migrations/0008_company_affiliation_termination.py` | Added | +terminated_at/terminated_by/termination_reason on OrganizationMembership | `migrate accounts 0007` |
+| `src/apps/accounts/models/profiles.py` | Modified | OrganizationMembership termination fields | git checkout |
+| `src/apps/accounts/services/affiliations.py` | Modified | Extended: join-by-code, invitation, mutual termination, read helpers (11 new functions + 6 read helpers); 3 existing functions permission-checked | git checkout |
+| `src/apps/accounts/permission_keys.py` | Modified | +ORGANIZATION_MEMBERSHIP_INVITE/_REJECT/_TERMINATE re-export | git checkout |
+| `src/apps/kernel/permissions/keys.py` | Modified | +ORGANIZATION_MEMBERSHIP_INVITE/_REJECT/_TERMINATE registration | git checkout |
+| `src/apps/kernel/role_catalog.py` | Modified | New keys added to ORGANIZATION_ADMIN_PERMISSIONS | git checkout |
+| `src/apps/accounts/tests/test_profiles_v2.py` | Modified | 2 assertions: ValueError -> AccountsError | git checkout |
+| `src/apps/accounts/tests/test_affiliation_lifecycle.py` | Added | 32 new tests incl. 3 TransactionTestCase concurrency proofs | git rm |
+| `src/apps/organization_portal/views.py` | Modified | +invite/invitation-cancel/affiliation-request-approve/reject/staff-terminate views | git checkout |
+| `src/apps/organization_portal/urls.py` | Modified | +5 new URLs | git checkout |
+| `src/apps/organization_portal/forms.py` | Modified | +InviteCaregiverForm | git checkout |
+| `src/templates/organization_portal/staff_list.html` | Modified | Pending requests/invitations sections, invite form, terminate button | git checkout |
+| `src/apps/organization_portal/tests/test_affiliation_management.py` | Added | 9 new tests | git rm |
+| `src/apps/provider_portal/views.py` | Modified | +company/company-join/company-request-cancel/company-invitation-accept-decline/company-leave views | git checkout |
+| `src/apps/provider_portal/urls.py` | Modified | +6 new URLs | git checkout |
+| `src/apps/provider_portal/forms.py` | Modified | +JoinCompanyCodeForm | git checkout |
+| `src/apps/provider_portal/services/profile_service.py` | Modified | +"company" nav item | git checkout |
+| `src/templates/provider_portal/company.html` | Added | New company-affiliation self-service page | git rm |
+| `src/apps/provider_portal/tests/test_company_affiliation.py` | Added | 10 new tests | git rm |
+| `project docs/*` (multiple) | Modified | Doc sync — see IMPLEMENTATION_JOURNAL | git checkout |
