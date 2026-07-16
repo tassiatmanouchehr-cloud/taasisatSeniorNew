@@ -1859,15 +1859,21 @@ and `git status`/`git diff --check`/`manage.py check` all clean. Merged via
 fast-forwarded to match `origin/main`. **Sprint 3.3 (Company Public Directory and Discovery)
 is now CLOSED and on `main`.**
 
-## ADM-026 — Phase 3 Formal Closure and Phase 4 Sprint 4.0 Architecture Assessment (2026-07-16)
+## ADM-026 — Phase 3 Closure Approval and Phase 4 Customer Portal Architecture Assessment (2026-07-16)
 
 **Context:** With Sprints 3.1–3.3 merged (PRs #12/#13/#14, `main` @
 `a9a8a1181aa9f91a2f48f4cdbe9ceb104046a38c`), a code-free architecture assessment was
-required to decide (a) whether Phase 3 needs a further bounded sprint or can be formally
-closed, and (b) — if closed — what Phase 4 (Customer Portal) actually needs, verified
-against the repository directly rather than assumed from the roadmap's own prose.
+required to decide (a) whether Phase 3 needs a further bounded sprint or can be closed, and
+(b) — if closable — what Phase 4 (Customer Portal) actually needs, verified against the
+repository directly rather than assumed from the roadmap's own prose. This assessment (a
+governance/readiness activity, not a numbered implementation sprint — see Decision 3's own
+naming correction) is recorded on documentation-only branch
+`docs/phase3-closure-phase4-assessment`, PR #15. **Phase 3's formal closure on canonical
+`main` takes effect only once PR #15 merges — this ADR records the closure decision and its
+rationale; it does not itself constitute the closure.**
 
-**Decision 1 — Phase 3 is formally CLOSED. No Sprint 3.4 is required.** Every Phase 3
+**Decision 1 — Phase 3's implementation scope is complete and its closure is APPROVED. No
+Sprint 3.4 is required.** Every Phase 3
 roadmap acceptance criterion is delivered and merged: company identity/verification (Phase
 1, reused), caregiver affiliation lifecycle (Sprint 3.1), company caregiver management
 (Sprint 3.1), company professional profile (Sprint 3.2), public company profile (Sprint
@@ -1935,10 +1941,11 @@ docstring), predating this repository's Phase 1–5 roadmap renumbering:
 Favorites/saved-suppliers. No `Favorite`, bookmark, shortlist, saved-supplier, or equivalent
 model, service, view, or template exists anywhere in this repository.
 
-**Recommendation:** Sprint 4.0 — Customer Favorites (Saved Providers), a minimum complete
-vertical slice (one new model, reused selectors, a toggle on existing public profile pages,
-a portal list page). The flash-message framework (KL-022) is evaluated as shared portal
-infrastructure to fold into this same sprint's foundation work if the sprint touches
+**Recommendation:** Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers, a minimum
+complete vertical slice (one new model, reused selectors, a toggle on existing public
+profile pages, a portal list page) — the first numbered Phase 4 implementation sprint;
+**not started as of this ADR.** The flash-message framework (KL-022) is evaluated as shared
+portal infrastructure to fold into this same sprint's foundation work if the sprint touches
 mutation views anyway — see the Implementation Journal entry for the exact recommendation
 and rationale, kept separate from this ADR to avoid pre-committing an implementation choice
 inside the architecture-decision record.

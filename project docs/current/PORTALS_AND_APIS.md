@@ -1,17 +1,22 @@
 # PORTALS, APIS, AND ENTRY POINTS
 
-**Last verified HEAD:** main @ a9a8a1181aa9f91a2f48f4cdbe9ceb104046a38c (PR #14 merged — Sprint 3.3 CLOSED; Phase 3 formally CLOSED; Phase 4 Sprint 4.0 assessment complete)
+**Last verified HEAD:** main @ a9a8a1181aa9f91a2f48f4cdbe9ceb104046a38c (PR #14 merged — Sprint 3.3 CLOSED; Phase 3 implementation scope complete, closure APPROVED, formal closure PENDING PR #15 merge; Phase 4 Customer Portal Architecture Assessment complete — Phase 4 implementation has not started)
 **Last verified date:** 2026-07-16
 
-**Phase 4 Sprint 4.0 assessment note (2026-07-16):** the "Public Site" and organization/provider
-portal sections below are unchanged by this note. The Customer Portal (`/portal/`, `apps.portal`,
-listed under "Presentation Services" below) was directly re-verified during Phase 4's Sprint 4.0
-code-free assessment and found already substantially complete — dashboard, profile, settings,
-care recipients, the full order-request wizard, order list/detail/history, per-order financial
-pay/approve/dispute (real `apps.commission` integration), a customer-facing invoices/payments
-page, reviews, notifications, and public order-share links all exist and are tested. The one
-confirmed gap is Favorites/saved-suppliers — no such model exists anywhere in the repository.
-See `traceability/IMPLEMENTATION_JOURNAL.md` for the full assessment.
+**Phase 4 Customer Portal Architecture Assessment note (2026-07-16):** a code-free
+governance/readiness review, not a numbered implementation sprint. The "Public Site" and
+organization/provider portal sections below are unchanged by this note. The Customer Portal
+(`/portal/`, `apps.portal`, listed under "Presentation Services" below) was directly
+re-verified during this assessment and found already substantially complete — dashboard,
+profile, settings, care recipients, the full order-request wizard, order list/detail/history,
+per-order financial pay/approve/dispute (real `apps.commission` integration), a
+customer-facing invoices/payments page, reviews, notifications, and public order-share links
+all exist and are tested. The one confirmed gap is Favorites/saved-suppliers — no such model
+exists anywhere in the repository, recommended as **Phase 4 — Sprint 4.1: Customer Favorites
+and Saved Providers** (not started). See `traceability/IMPLEMENTATION_JOURNAL.md` for the
+full assessment. This note is recorded on the `docs/phase3-closure-phase4-assessment` branch
+(PR #15); Phase 3's formal closure and this note both become canonical on `main` only once
+PR #15 merges.
 
 ---
 

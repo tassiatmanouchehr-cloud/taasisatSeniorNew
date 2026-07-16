@@ -2706,28 +2706,37 @@ recorded 2192/2192 verification and the merge — nothing new to verify).
 **Sprint 3.3 (Company Public Directory and Discovery) is now CLOSED and on `main`.** Sprint
 3.4 has not started.
 
-## Phase 3 Closure and Phase 4 Sprint 4.0 Assessment (2026-07-16, code-free)
+## Phase 3 Closure and Phase 4 Customer Portal Architecture Assessment (2026-07-16, code-free)
 
-Performed on `main` @ `a9a8a1181aa9f91a2f48f4cdbe9ceb104046a38c`, on a documentation-only
-branch (`docs/phase3-closure-phase4-assessment`) per this task's own explicit governance —
-no product code, model, migration, view, form, template, service, selector, or test was
-changed. See `ARCHITECTURE_DECISION_LOG.md` ADM-026 for the decision record this entry
-provides evidence for.
+A governance/readiness activity — not a numbered implementation sprint (see item 2's naming
+note below). Performed on `main` @ `a9a8a1181aa9f91a2f48f4cdbe9ceb104046a38c`, on a
+documentation-only branch (`docs/phase3-closure-phase4-assessment`, PR #15) per this task's
+own explicit governance — no product code, model, migration, view, form, template, service,
+selector, or test was changed. See `ARCHITECTURE_DECISION_LOG.md` ADM-026 for the decision
+record this entry provides evidence for. **PR #15 was still open at the time of this entry
+— Phase 3's formal closure and everything recorded here become canonical on `main` only
+once PR #15 merges.**
 
 ### 1. Confirmed repository state
 
 `main` HEAD `a9a8a1181aa9f91a2f48f4cdbe9ceb104046a38c`; local `main` identical to
 `origin/main`; working tree clean; PR #14 merged; Sprints 3.1/3.2/3.3 complete; full
 regression baseline 2192/2192; no Sprint 3.4 exists; no Phase 4 branch existed before this
-task's own documentation branch.
+task's own documentation branch (PR #15, not yet merged).
 
 ### 2. Phase 3 closure confirmation
 
 Every roadmap acceptance criterion is delivered and merged — see ADM-026 Decision 1 for the
 full capability-by-capability confirmation (identity/verification, affiliation lifecycle,
 caregiver management, professional profile, public profile, public directory, services,
-permissions/tenancy, dashboard/summaries, notifications, visibility/privacy). **Phase 3 is
-FORMALLY CLOSED. No Sprint 3.4 is required.**
+permissions/tenancy, dashboard/summaries, notifications, visibility/privacy). **Phase 3's
+implementation scope is complete and its closure is APPROVED. No Sprint 3.4 is required.
+PR #15 (documentation-only) is the change that records this closure — formal closure on
+canonical `main` is pending PR #15's merge.** (Naming note: the code-free investigation in
+this entry is labeled "Phase 4 Customer Portal Architecture Assessment," deliberately not
+"Sprint 4.0," to avoid colliding with "Sprint 4.1," the first numbered Phase 4
+implementation sprint recommended in item 19 below — a Sprint identifier must refer to
+exactly one bounded implementation unit.)
 
 ### 3. Documentation drift corrected
 
@@ -2927,7 +2936,7 @@ zero hits beyond one unrelated code-comment use of the English word "bookmark" i
   cross-cutting test surface, not a single-app addition.
 
 **Determination: Option B — implement as a separate, cross-cutting infrastructure sprint,
-evaluated for possible bundling into Sprint 4.0's own foundation work only if that sprint
+evaluated for possible bundling into Sprint 4.1's own foundation work only if that sprint
 already touches portal-wide base templates; otherwise scheduled independently.** Rationale:
 it is confirmed to span three portals including two Phase-3-owned apps and one Phase-4-owned
 app — bundling it entirely into a Company-Portal sprint (Option D, rejected in ADM-025/the
@@ -2966,21 +2975,22 @@ domain-model gap).
 
 ### 18. Candidate Phase 4 implementation sprints
 
-- **Sprint 4.0 — Customer Favorites (Saved Providers).** Minimum vertical slice, no
+- **Sprint 4.1 — Customer Favorites and Saved Providers.** Minimum vertical slice, no
   dependency on anything unbuilt. **Recommended first sprint.**
-- **Sprint 4.x — Cross-portal flash-message framework.** Valid, but not Customer-Portal-
-  specific — better scheduled as its own cross-cutting infrastructure sprint, potentially
-  immediately after Sprint 4.0 if no other Phase 4 work is queued, or bundled into whichever
-  future sprint next touches shared base templates.
+- **Sprint 4.x (number TBD at scheduling time) — Cross-portal flash-message framework.**
+  Valid, but not Customer-Portal-specific — better scheduled as its own cross-cutting
+  infrastructure sprint, potentially immediately after Sprint 4.1 if no other Phase 4 work
+  is queued, or bundled into whichever future sprint next touches shared base templates.
   Rejected as the *first* Phase 4 sprint because it delivers no new customer-facing
-  capability on its own and is not what "Customer Portal Sprint 4.0" self-evidently means.
-- **Sprint 4.x — Customer-initiated order cancellation.** A real, minor gap, but not
-  evidenced as urgent (no acceptance criterion, no defect report) — a reasonable future
-  candidate, not the first sprint.
+  capability on its own and is not what "Customer Portal Sprint 4.1" self-evidently means.
+- **Sprint 4.x (number TBD) — Customer-initiated order cancellation.** A real, minor gap,
+  but not evidenced as urgent (no acceptance criterion, no defect report) — a reasonable
+  future candidate, not the first sprint.
 
 ### 19. Recommended first bounded implementation sprint
 
-**Sprint 4.0 — Customer Favorites (Saved Providers).**
+**Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers.** Not started as of this
+assessment.
 
 ### 20. Exact in-scope capabilities
 
@@ -3026,7 +3036,7 @@ ownership, 404-not-403 for another customer's favorite) + a query-budget test mi
 existing directory-service convention. Full regression once, given the toggle touches two
 existing, shared public-profile templates.
 
-### 26. Required documentation updates (at Sprint 4.0 implementation time)
+### 26. Required documentation updates (at Sprint 4.1 implementation time)
 
 New ADR recording the `Favorite` model's exact final shape; `current/IMPLEMENTATION_STATE.md`
 new `accounts`/`portal` rows; `current/PORTALS_AND_APIS.md` new route entry;
@@ -3039,18 +3049,24 @@ new entry; `quality/COMPLETION_BACKLOG.md` new BG item marked RESOLVED at merge.
 
 ### 28. Proposed PR title
 
-`Sprint 4.0: Customer favorites (saved providers)`
+`Sprint 4.1: Customer favorites and saved providers`
 
 ### 29. Complete implementation prompt for the recommended first Phase 4 sprint
 
-> Phase 4 has begun. Current canonical repository state: `main` HEAD
-> `a9a8a1181aa9f91a2f48f4cdbe9ceb104046a38c` (or later, if this documentation PR has since
-> merged — verify first); Phase 3 formally closed; Customer Portal (`apps.portal`) already
-> substantially complete under pre-existing Epic 07 work — do not rebuild dashboard, orders,
-> payments/invoices, reviews, notifications, or the order-request wizard. Create a new branch
-> from the current `main`: `phase4-customer-favorites`. Do not modify `main`.
+> This prompt is to be issued only after PR #15 (documentation-only, Phase 3 closure +
+> Phase 4 Customer Portal Architecture Assessment) has merged to `main` — do not issue it
+> while PR #15 is still open, and do not claim Phase 4 implementation has begun until this
+> prompt itself is acted on.
 >
-> PHASE 4 — SPRINT 4.0: Customer Favorites (Saved Providers). STEP 1 — current-state
+> Phase 3 is formally closed and Phase 4 implementation is beginning. Current canonical
+> repository state: `main` HEAD — verify the actual current HEAD after PR #15's merge (do
+> not assume `a9a8a1181aa9f91a2f48f4cdbe9ceb104046a38c`, which predates that merge); Customer
+> Portal (`apps.portal`) already substantially complete under pre-existing Epic 07 work — do
+> not rebuild dashboard, orders, payments/invoices, reviews, notifications, or the
+> order-request wizard. Create a new branch from the current `main`:
+> `phase4-customer-favorites`. Do not modify `main`.
+>
+> PHASE 4 — SPRINT 4.1: Customer Favorites and Saved Providers. STEP 1 — current-state
 > verification: re-read `apps.portal` in full (already substantially done by this
 > assessment — verify it is still accurate against the actual `main` HEAD you branch from),
 > confirm no `Favorite`/bookmark/saved-supplier model has been added since this assessment,
