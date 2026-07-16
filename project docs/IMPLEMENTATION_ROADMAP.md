@@ -28,6 +28,8 @@
 **PR #13 merge update:** 2026-07-16 — final pre-merge verification confirmed the branch unchanged at `832b51a`, the saved PR description accurate, and `git status`/`git diff --check`/`manage.py check` clean; **MERGED to main via PR #13 (merge commit `49b643e130018b959938907e9a5d1ae491d51f6c`); Sprint 3.2 is CLOSED**
 **Sprint 3.3 update:** 2026-07-16 — company public directory and discovery (see PHASE 3 section's Sprint 3.3 entry) implemented on branch `phase3-company-public-directory` (from main @ `9929da5`); zero new migration; full regression 2192/2192 green; PR #14 created against `main`
 **PR #14 merge update:** 2026-07-16 — final architecture/implementation review approved with no blocking issues (two non-blocking observations recorded, not actioned); pre-merge verification confirmed the branch unchanged at `7c39917` and `git status`/`git diff --check`/`manage.py check` clean; **MERGED to main via PR #14 (merge commit `b78d6a293ab90831c10b2a8ad1d1d49aab06fa86`); Sprint 3.3 is CLOSED**
+**Phase 3 closure update:** 2026-07-16 — code-free architecture assessment confirmed every Phase 3 roadmap acceptance criterion delivered and merged (Sprints 3.1–3.3); remaining company parity items (gallery/certificates, organization review detail, cross-portal flash messages, financial fan-out blocked on BG-008) explicitly deferred, none blocking Phase 4; **Phase 3 is FORMALLY CLOSED, no Sprint 3.4 required**
+**Phase 4 Sprint 4.0 assessment:** 2026-07-16 — code-free current-state inspection of `apps.portal` found the Customer Portal already substantially built under a pre-existing "Epic 07 — Customer Experience and Portal Completion" body of work, contradicting this roadmap's own stale Phase 4 scope-line text (now corrected below); the one confirmed gap across the entire repository is Favorites/saved-suppliers; see `traceability/IMPLEMENTATION_JOURNAL.md` for the full assessment and `03_NEXT_TASK.md` for the immediate next task
 **Branch verified:** main (via claude/taasisat-senior-state-verify-9dzzlm)
 **Authority:** This roadmap replaces every previous implementation order (including
 `project docs/03_NEXT_TASK.md` sequencing and the archived Offer Marketplace phase plans).
@@ -254,14 +256,28 @@ Pre-phase (P0 hygiene, small): ~~fix seed test race (G12)~~ — **DONE, merged i
 - `search()`'s signature deliberately kept parallel to `CaregiverDirectoryService.search()`'s own — composable for a future Supplier-level discovery layer without building that layer now (no `SupplierDirectoryService`, explicitly out of scope).
 - No model, no migration (confirmed by `makemigrations --check --dry-run`). 25 new tests (18 service-level query-budget/visibility/filter/pagination + 7 view-level). Full regression run once (cross-cutting `common.py` refactor): 2192/2192 green (2167 + 25 net). See `ARCHITECTURE_DECISION_LOG.md` ADM-025. Final architecture/implementation review approved with no blocking issues. **MERGED to main via PR #14** (merge commit `b78d6a293ab90831c10b2a8ad1d1d49aab06fa86`, 2026-07-16). **Sprint 3.3 is CLOSED.**
 
-### PHASE 4 — Customer Portal (production complete)
+### PHASE 4 — Customer Portal (production complete except Favorites)
 
-**Scope:** Dashboard (exists), orders (exists), payments (exists per-order), invoices + receipts pages (new, read from `FinancialDocumentService.list_for_payer_party`), notifications (exists), **favorites** (new model + toggle on public profiles + portal list), profile (exists), history.
+**Scope, corrected 2026-07-16 (Sprint 4.0 code-free architecture assessment, performed
+immediately after Phase 3's formal closure):** direct repository inspection found this
+phase's scope-line text stale relative to the code — dashboard, orders (list/detail/history
+with filters), payments (customer-facing invoice/payment summary — **not per-order only**,
+also a tenant-wide list via `CustomerPaymentsPresentationService`), notifications, profile,
+and reviews were already built under a pre-existing "Epic 07 — Customer Experience and
+Portal Completion" body of work (`apps.portal`) predating this roadmap's Phase 1–5
+numbering. **Invoices/receipts are already implemented** (`FinancialDocumentService
+.list_for_payer_party()`, `payments.html`; this domain has no separate "receipt" document
+type — a paid invoice serves that role) — the "(new)" label in the prior scope line was
+incorrect. Per-order financial pay/approve/dispute pages are also real, with genuine
+`apps.commission` engine integration (`PreServicePaymentService`, `ObjectionPeriodService`,
+`DisputeService`), not stubs. **The only confirmed gap is favorites** (new model + toggle on
+public profiles + portal list) — no `Favorite`/bookmark/saved-supplier model or equivalent
+exists anywhere in the repository.
 
-- **Depends on:** Phase 2 (favorites target public caregiver profiles); invoice pages need only existing finance services.
-- **Complexity:** MEDIUM. Mostly additive views over existing services + one small Favorite model.
+- **Depends on:** Phase 2/Phase 3 public profiles (favorites target public caregiver/organization profiles, both of which now exist).
+- **Complexity:** LOW. One small `Favorite` model + additive views/toggle over already-existing supplier/visibility selectors — no other Phase 4 capability needs new work.
 - **Blocking items:** none.
-- **Acceptance criteria:** invoice/receipt list and detail render issued documents with correct totals; favorites add/remove/list with tenant scoping; order history complete; regression green.
+- **Acceptance criteria:** favorites add/remove/list with tenant scoping and ownership checks; regression green. (Invoice/receipt/order-history/payment acceptance criteria are already met by the pre-existing Epic 07 implementation — re-verify, do not rebuild.)
 
 ### PHASE 5 — Marketplace Order Workflow
 
