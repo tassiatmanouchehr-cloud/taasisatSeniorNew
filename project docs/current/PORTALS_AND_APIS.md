@@ -1,6 +1,6 @@
 # PORTALS, APIS, AND ENTRY POINTS
 
-**Last verified HEAD:** phase2-caregiver-public-profile-finalization (from main @ 9a26024, PR #10 merged)
+**Last verified HEAD:** phase3-company-portal-foundation (from main @ 90e608d, PR #11 merged — Phase 2 CLOSED)
 **Last verified date:** 2026-07-15
 
 ---
@@ -27,15 +27,15 @@ Dashboard, profile, care recipients (CRUD), requests (list/detail/financial), sh
 
 Entry: `_guard()` → `require_authenticated()` → `resolve_tenant_id()` → `resolve_customer_profile()`
 
-## Provider Portal (31 views)
+## Provider Portal (37 views)
 
-Dashboard (assignments/visits/notifications — pre-existing; work summary, financial overview, wallet movements, invoice summary, reviews/reputation, professional statistics — Sprint 2.5), assignments (list/detail/confirm/decline), visits (start/complete), availability (working windows — add/edit/toggle-active/remove; blocked periods — add/remove; public-summary preview — Phase 2.1 foundation, completed Sprint 2.4), earnings, profile, documents, skills (list/add/remove/toggle-visibility — Phase 2.1 + Sprint 2.3), experience (list/add/edit/delete, visibility via edit form — Phase 2.1 + Sprint 2.3), gallery (list/upload, edit, remove, move up/down — Sprint 2.2).
+Dashboard (assignments/visits/notifications — pre-existing; work summary, financial overview, wallet movements, invoice summary, reviews/reputation, professional statistics — Sprint 2.5), assignments (list/detail/confirm/decline), visits (start/complete), availability (working windows — add/edit/toggle-active/remove; blocked periods — add/remove; public-summary preview — Phase 2.1 foundation, completed Sprint 2.4), earnings, profile, documents, skills (list/add/remove/toggle-visibility — Phase 2.1 + Sprint 2.3), experience (list/add/edit/delete, visibility via edit form — Phase 2.1 + Sprint 2.3), gallery (list/upload, edit, remove, move up/down — Sprint 2.2), **company (Sprint 3.1): join by code, respond to invitations (accept/decline), leave, history**.
 
-Entry: `_guard()` → `require_authenticated()` → `resolve_tenant_id()` → `resolve_supplier()`. Profile-editing views additionally use `_guard_with_caregiver()`, resolving `request.user.caregiver_profile`.
+Entry: `_guard()` → `require_authenticated()` → `resolve_tenant_id()` → `resolve_supplier()`. Profile-editing and company-affiliation views additionally use `_guard_with_caregiver()`, resolving `request.user.caregiver_profile`.
 
-## Organization Portal (18 views)
+## Organization Portal (23 views)
 
-Dashboard, staff (list/approve/suspend), assignments, capacity, financial, reports, notifications, profile, documents.
+Dashboard, staff (list/approve/suspend, **+terminate, +invite-by-phone, +invitation-cancel, +affiliation-request-approve/reject — Sprint 3.1**), assignments, capacity, financial, reports, notifications, profile, documents.
 
 Entry: `_guard()` → `require_authenticated()` → `resolve_tenant_id()` → `resolve_organization()`
 

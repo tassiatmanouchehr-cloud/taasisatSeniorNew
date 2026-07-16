@@ -23,6 +23,13 @@ class AssignStaffForm(StyledForm):
     membership_id = forms.UUIDField(error_messages={"required": "لطفاً یک نیرو انتخاب کنید."})
 
 
+class InviteCaregiverForm(StyledForm):
+    phone = forms.CharField(
+        max_length=20, label="شماره تلفن مراقب",
+        error_messages={"required": "شماره تلفن مراقب الزامی است."},
+    )
+
+
 class OrganizationProfileForm(StyledForm):
     name = forms.CharField(max_length=255, label="نام سازمان", error_messages={"required": "نام سازمان الزامی است."})
     description = forms.CharField(widget=forms.Textarea, label="توضیحات", required=False, max_length=2000)

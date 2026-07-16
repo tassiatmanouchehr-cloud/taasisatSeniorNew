@@ -1,6 +1,6 @@
 # RUNTIME WORKFLOWS
 
-**Last verified HEAD:** phase2-caregiver-public-profile-finalization (from main @ 9a26024, PR #10 merged)
+**Last verified HEAD:** phase3-company-portal-foundation (from main @ 90e608d, PR #11 merged — Phase 2 CLOSED)
 **Last verified date:** 2026-07-15
 
 ---
@@ -38,7 +38,8 @@
 | 27 | Professional Credibility Layer (badges, highlights, expiring-soon) | IMPLEMENTED (Sprint 2.3) | `public_site/services/profile_service.py:CaregiverPublicProfileService._highlights()/_verification_badges()` |
 | 28 | Caregiver Availability and Working Schedule | IMPLEMENTED (Module 10 foundation; overlap validation, edit/toggle UI, canonical evaluator, public summary completed Sprint 2.4; concurrency-proven PR #9 review) | `availability/services/query_service.py:AvailabilityQueryService.evaluate()` |
 | 29 | Caregiver Professional Dashboard | IMPLEMENTED (Sprint 2.5) | `provider_portal/services/dashboard_service.py:CaregiverDashboardPresentationService` |
-| 30 | Public Profile Finalization and Phase 2 Acceptance | IMPLEMENTED (Sprint 2.6 + PR #11 KL-012 remediation — Phase 2 acceptance criteria satisfied except the accepted bonus/penalty dependency) | `public_site/services/profile_service.py:CaregiverPublicProfileService` (SEO/accessibility/redundant-badge fixes); `public_site/services/directory_service.py:CaregiverDirectoryService` (bulk card-data resolution); `discovery/services/ranking_service.py:DiscoveryRankingService` (bulk capacity check); `apps.public_site.tests.test_phase2_acceptance` (Phase 2 E2E acceptance + query-budget proof) |
+| 30 | Public Profile Finalization and Phase 2 Acceptance | IMPLEMENTED (Sprint 2.6 + PR #11 KL-012 remediation — Phase 2 acceptance criteria satisfied except the accepted bonus/penalty dependency; **PR #11 MERGED, Phase 2 CLOSED**) | `public_site/services/profile_service.py:CaregiverPublicProfileService` (SEO/accessibility/redundant-badge fixes); `public_site/services/directory_service.py:CaregiverDirectoryService` (bulk card-data resolution); `discovery/services/ranking_service.py:DiscoveryRankingService` (bulk capacity check); `apps.public_site.tests.test_phase2_acceptance` (Phase 2 E2E acceptance + query-budget proof) |
+| 31 | Company-Caregiver Affiliation Lifecycle (join-by-code, invitation, approval, termination) | IMPLEMENTED (Sprint 3.1) | `apps.accounts.services.affiliations` (extended) |
 
 ---
 
@@ -356,6 +357,45 @@ proven by the pre-existing `apps.discovery`/`apps.availability`/`apps.reviews` s
 unmodified. Directory/search/home query counts are now fully flat (16/17/17 respectively)
 from 1 through 100+ matching candidates. See `traceability/ARCHITECTURE_DECISION_LOG.md`
 ADM-022's remediation note.
+
+## Company-Caregiver Affiliation Lifecycle (Sprint 3.1)
+
+```
+                     submit_join_request()                approve_affiliation_request()
+  (caregiver)  ───────────────────────────►  PENDING  ─────────────────────────────────►  ACTIVE
+  join by code                             (request)         (company)                  (membership)
+                                                │
+                                                ├──► reject_affiliation_request() (company) ──► REJECTED
+                                                └──► cancel_affiliation_request() (caregiver) ──► CANCELLED
+
+                       invite_caregiver()                    accept_invitation()
+  (company)    ───────────────────────────►  PENDING  ─────────────────────────────────►  ACTIVE
+  invite by phone                          (membership,       (caregiver)                (membership)
+                                            invited_by set)
+                                                │
+                                                ├──► decline_invitation() (caregiver) ──► REMOVED
+                                                └──► cancel_invitation() (company) ──────► REMOVED
+
+  ACTIVE ──► terminate_membership() (company, permission-gated) ──► REMOVED
+  ACTIVE ──► leave_organization() (caregiver, ownership-authorized) ──► REMOVED
+```
+
+Two existing models, extended rather than replaced (see `ARCHITECTURE_DECISION_LOG.md`
+ADM-023): `CompanyAffiliationRequest` is the caregiver-initiated join-by-code intake;
+`OrganizationMembership` (now with `terminated_at`/`terminated_by`/`termination_reason`) is
+the single canonical, historical relationship record for both the request-approval path and
+the new company-invitation path. One active company per caregiver at a time — every
+activation path (`approve_affiliation_request()`, `invite_caregiver()`,
+`accept_invitation()`) locks the caregiver's own `CaregiverProfile` row first, then checks
+for an existing ACTIVE membership anywhere, closing a genuine cross-organization race
+(proven by `apps.accounts.tests.test_affiliation_lifecycle.AffiliationConcurrencyTest`).
+Reactivating a previously-REMOVED row (rejoining the same organization) is a deliberate reuse
+of the same row, not a new one — `unique_together` on `OrganizationMembership` permits at
+most one row per (organization, caregiver, role_type).
+
+`terminate_membership()`/`leave_organization()` both revert `CaregiverProfile.provider_type`
+to `INDEPENDENT` (safe under the one-active-company policy: a caregiver being terminated or
+leaving cannot have had another active membership at the same time).
 
 ## Order Lifecycle (Status Machine)
 

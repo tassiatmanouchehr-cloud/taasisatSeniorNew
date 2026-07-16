@@ -35,12 +35,18 @@ partial update 2026-07-15 (Sprint 2.6 PR #11 review — resolve the KL-012
 query-performance blocker) — only the `public_site` row and grand-total method count
 re-verified (`test_phase2_acceptance.py`'s query-budget test class expanded from 3 to 15
 methods, +12 net; no new test file);
+partial update 2026-07-16 (Sprint 3.1 — Company Foundation and Caregiver Management) —
+only the `accounts`/`organization_portal`/`provider_portal` rows and grand-total file/
+method/class counts re-verified (+3 new test files: `test_affiliation_lifecycle.py` incl.
+3 `TransactionTestCase` concurrency tests, `test_affiliation_management.py`,
+`test_company_affiliation.py`);
 a full re-audit of every app was not performed for any of the incremental changes.
 **Last verified date:** 2026-07-14 / 2026-07-15 (partial) / 2026-07-15 (partial, Phase 2.1) /
 2026-07-15 (partial, BG-022) / 2026-07-15 (partial, Sprint 2.2) / 2026-07-15 (partial,
 PR #7 remediation) / 2026-07-15 (partial, Sprint 2.3) / 2026-07-15 (partial, Sprint 2.4) /
 2026-07-15 (partial, PR #9 concurrency remediation) / 2026-07-15 (partial, Sprint 2.5) /
-2026-07-15 (partial, Sprint 2.6) / 2026-07-15 (partial, Sprint 2.6 PR #11 KL-012 remediation)
+2026-07-15 (partial, Sprint 2.6) / 2026-07-15 (partial, Sprint 2.6 PR #11 KL-012 remediation) /
+2026-07-16 (partial, Sprint 3.1)
 
 ---
 
@@ -48,16 +54,16 @@ PR #7 remediation) / 2026-07-15 (partial, Sprint 2.3) / 2026-07-15 (partial, Spr
 
 | Metric | Count |
 |--------|-------|
-| Total test files | 213 (198 + 10 accumulated through Phase 1.2/1.3/2.1/BG-022/Sprint 2.2 + 1 new in the PR #9 concurrency remediation, `test_concurrency.py` + 3 new in Sprint 2.5, `test_supplier_queries.py`/`test_beneficiary_queries.py`/`test_professional_dashboard.py` + 1 new in Sprint 2.6, `test_phase2_acceptance.py`; PR #7 remediation, Sprint 2.3, and Sprint 2.4 itself added no new file; the Sprint 2.6 PR #11 KL-012 remediation expanded `test_phase2_acceptance.py`'s existing query-budget class, no new file) |
-| Total test classes | ~478 (not re-audited exactly; +3 classes in Sprint 2.4, +5 classes in the PR #9 concurrency remediation, +11 classes in Sprint 2.5, +3 classes in Sprint 2.6) |
-| Total test methods | 2,094 (full regression re-run 2026-07-15, Sprint 2.6 PR #11 — KL-012 query-performance remediation) |
+| Total test files | 216 (198 + 10 accumulated through Phase 1.2/1.3/2.1/BG-022/Sprint 2.2 + 1 new in the PR #9 concurrency remediation, `test_concurrency.py` + 3 new in Sprint 2.5, `test_supplier_queries.py`/`test_beneficiary_queries.py`/`test_professional_dashboard.py` + 1 new in Sprint 2.6, `test_phase2_acceptance.py`; PR #7 remediation, Sprint 2.3, and Sprint 2.4 itself added no new file; the Sprint 2.6 PR #11 KL-012 remediation expanded `test_phase2_acceptance.py`'s existing query-budget class, no new file + 3 new in Sprint 3.1, `test_affiliation_lifecycle.py`/`test_affiliation_management.py`/`test_company_affiliation.py`) |
+| Total test classes | ~487 (not re-audited exactly; +3 classes in Sprint 2.4, +5 classes in the PR #9 concurrency remediation, +11 classes in Sprint 2.5, +3 classes in Sprint 2.6, +9 classes in Sprint 3.1) |
+| Total test methods | 2,145 (full regression re-run 2026-07-16, Sprint 3.1 — Company Foundation and Caregiver Management) |
 
 ## Per-App Confidence
 
 | App | Files | Methods | Auth Tests | Concurrency | Financial | Mock | **Confidence** |
 |-----|-------|---------|------------|-------------|-----------|------|----------------|
 | kernel | 19 | 232 | 7 | - | 5 | 2 | **STRONG** |
-| accounts | 25 | 368 | 6 | 2 | - | 1 | **STRONG** |
+| accounts | 26 | 400 | 6 | 3 | - | 1 | **STRONG** |
 | commission | 22 | 132 | 15 | 1 | 20 | 2 | **STRONG** |
 | orders | 8 | 167 | - | - | - | - | **STRONG** |
 | finance | 18 | 81 | 1 | - | 17 | 1 | **STRONG** |
@@ -69,8 +75,8 @@ PR #7 remediation) / 2026-07-15 (partial, Sprint 2.3) / 2026-07-15 (partial, Spr
 | payments | 7 | 54 | 2 | 1 | 7 | 1 | **HIGH** |
 | execution | 9 | 58 | 1 | - | - | 1 | **MODERATE** |
 | notifications | 4 | 53 | - | - | - | - | **MODERATE** |
-| organization_portal | 5 | 49 | 2 | - | - | - | **MODERATE** |
-| provider_portal | 10 | 131 | 8 | - | 3 | - | **MODERATE** |
+| organization_portal | 6 | 60 | 2 | - | - | - | **MODERATE** |
+| provider_portal | 11 | 141 | 8 | - | 3 | - | **MODERATE** |
 | jobs | 1 | 35 | - | 1 | - | - | **MODERATE** |
 | discovery | 5 | 42 | - | - | - | - | **MODERATE** |
 | availability | 6 | 56 | - | - | - | - | **MODERATE** |

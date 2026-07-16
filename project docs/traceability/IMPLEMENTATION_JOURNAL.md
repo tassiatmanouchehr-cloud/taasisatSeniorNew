@@ -2164,3 +2164,170 @@ the one explicitly accepted external-domain dependency (bonus/penalty, KL-020) t
 L's own governance names as not blocking Phase 2 profile completion when accurately
 documented. See `project docs/PHASE_2_COMPLETION_REPORT.md` for the full 17-section
 acceptance record.
+
+## PR #11 Merge (2026-07-16)
+
+`main` fast-forwarded from `9a26024` to merge commit
+`90e608dc5d14ff4f367abafc022f756819734f6d` (`90e608d`, PR #11, "Finalize caregiver
+professional profile and complete Phase 2", including the KL-012 remediation commit). Final
+pre-merge verification confirmed branch HEAD unchanged at `3e18970`, `git diff --check
+origin/main...HEAD` clean, `git status --short` clean, `python manage.py check` exit 0, and
+all 12 required points confirmed via direct inspection (directory/search/home query counts
+independent of candidate count; bulk capacity evaluation preserves ranking semantics; bulk
+city/entity resolution preserves filtering semantics; bulk reputation/completed-job data
+preserves card values; canonical public visibility unchanged; no private data added to
+cards; the expiry-test correction does not weaken its assertion; no Phase 3 code in the
+diff; documentation and `PHASE_2_COMPLETION_REPORT.md` synchronized; diff contains no
+unrelated code). Full suite not re-run for the merge itself (branch unchanged since the
+2094/2094 verification). Local `main` verified identical to `origin/main` after the merge.
+**Phase 2 (Caregiver Professional Profile) is now CLOSED and on `main`.** See
+`traceability/TEST_EXECUTION_LOG.md` Run 023b.
+
+## Sprint 3.1 — Company Foundation and Caregiver Management (2026-07-16)
+
+Branch `phase3-company-portal-foundation`, created fresh from merged `main` @ `90e608d`
+(not a reuse of the Sprint 2.6 branch, per this sprint's own governance). The first Phase 3
+(Company Portal) slice — no new customer-facing marketplace behavior; strictly the
+company-caregiver affiliation lifecycle and its minimum usable UI.
+
+### Section A — Current-State Findings
+
+Direct inspection of `apps.accounts.models.profiles`, `apps.accounts.services.affiliations`/
+`organization_staff.py`/`organizations.py`, `apps.organization_portal`, and
+`apps.provider_portal` found the model layer already substantially built:
+
+| Capability | Existing | Reusable | Missing |
+|---|---|---|---|
+| Company/caregiver relationship record | `OrganizationMembership` (org, user, role_type, status, invited_by, approved_by, joined_at) | Yes — extended, not replaced | Termination fields (terminated_at/by/reason) |
+| Caregiver-initiated join request | `CompanyAffiliationRequest` (pending/approved/rejected/cancelled) | Yes | A tenant-scoped, exact-code-only, ACTIVE-organization-only resolver for the public join-code flow (the existing `find_organization_by_code_or_name()` is loose — code-or-name, no tenant scope) |
+| Company-initiated invitation | None | — | Everything: `invite_caregiver()`, `accept_invitation()`, `decline_invitation()`, `cancel_invitation()` |
+| Approve/reject a join request | `approve_affiliation_request()`/`reject_affiliation_request()` (`apps.accounts.services.affiliations`) | Yes | Permission enforcement (neither called `PermissionService.require()`); controlled `AccountsError` (both raised bare `ValueError`) |
+| Approve/suspend an existing membership | `OrganizationStaffService.approve_membership()`/`.suspend_membership()` | Yes, unchanged | A path that ever produces a PENDING membership for `approve_membership()` to act on (none existed) |
+| Terminate an active membership | None | — | `terminate_membership()` (company-side), `leave_organization()` (caregiver-side) |
+| Company-side UI | `organization_portal` staff list (active members only, approve/suspend) | Yes, extended | Pending requests/invitations sections, invite-by-phone, terminate |
+| Caregiver-side UI | None | — | A "company" self-service page entirely |
+| Permission keys | `ORGANIZATION_MEMBERSHIP_APPROVE`/`_SUSPEND`/`ORGANIZATION_PROFILE_UPDATE` | `_APPROVE` reused for request approval | `_INVITE`, `_REJECT`, `_TERMINATE` |
+
+Continued directly per this sprint's own governance ("continue directly unless a genuine
+architectural blocker exists") — no blocker found, only extension work.
+
+### Sections B/C — Canonical Model and Lifecycle
+
+See `ARCHITECTURE_DECISION_LOG.md` ADM-023 for the full decision record (7 decisions):
+`OrganizationMembership` is the single canonical relationship record; one active company per
+caregiver at a time (service-layer-enforced, row-locked); reactivation reuses the same row
+after termination (cross-cycle history lives in `AuditLog`); no new `OrgMembershipStatus`
+values (`REMOVED` covers every "ended" case); mutual termination is two separately-authorized
+functions converging on one `_finalize_termination()` helper; company control boundary uses
+4 permission keys (3 new + 1 reused); caregiver-facing company-preview data stays
+public-safe-only (`{id, name, city}`).
+
+### Section D — Join Code
+
+New `submit_join_request()`/`preview_join_code_organization()` in `apps.accounts.services
+.affiliations`: tenant-scoped, exact `code__iexact` match only, requires
+`OrganizationProfile.status == ACTIVE` (an unactivated/suspended/archived company's code is
+silently unusable — identical response to an unknown code, never a distinct error that could
+leak the company's lifecycle state). Refuses a second pending request or an existing active
+membership before creating a new request. The legacy `find_organization_by_code_or_name()`
+(code-or-name, no tenant scope) is untouched — still used by `create_affiliation_request()`
+(registration-time flow) and its existing tests.
+
+### Sections E/F — UI and Control Boundary
+
+`organization_portal/staff_list.html` gained three new sections (pending join requests,
+pending sent invitations, an invite-by-phone mini-form) and a "پایان همکاری" (terminate)
+button alongside the existing suspend button on active members. `provider_portal`'s new
+`company.html` covers the caregiver's own current company, pending invitations
+(accept/decline), a pending own request (cancel) or the join-code form, and history — one
+page, matching this sprint's "minimum usable UI" / "do not redesign portal shells"
+instruction. Data exposed to the company is exactly what Section F allows (display name,
+phone, activation/verification status via the pre-existing `OrganizationStaffService.list_
+staff()`) — no private identity document, review, wallet, or cross-tenant data was added to
+any new read helper or template.
+
+### Sections G/H — Services and Permissions
+
+All new functions live in the existing `apps.accounts.services.affiliations` module
+(plain functions, matching its own pre-existing style) rather than new service classes —
+Section G's "avoid unnecessary class proliferation" taken literally. Every company-side
+mutation: `@transaction.atomic`, row-locks its primary row (`request`/`membership`) via
+`select_for_update()`, calls `PermissionService.require()` with the exact
+`ownership_authorized_by`/`scope` shape `OrganizationStaffService.approve_membership()`
+already established (Epic 05), writes an `AuditService.log()` entry. Caregiver-side
+mutations remain ownership-authorized only (`membership.user_id ==
+caregiver_profile.user_id` / `request.caregiver_profile_id == caregiver_profile.id`),
+matching the unbroken codebase-wide rule that no `OrgMembershipRole.CAREGIVER` membership
+has ever been RBAC-synced.
+
+### Section I — Concurrency
+
+Every activation path (`approve_affiliation_request()`, `invite_caregiver()`,
+`accept_invitation()`) locks the caregiver's own `CaregiverProfile` row *before* checking for
+an existing active membership — mirroring `CaregiverGalleryService.add_item()`'s and
+`AvailabilityMutationService.add_working_window()`'s existing "lock the owning parent, then
+check-then-write" precedent. This was not a defensive-only addition: a genuine race existed
+without it — two different `CompanyAffiliationRequest`/`OrganizationMembership` rows (one per
+organization) share no lockable row of their own, so two concurrent approvals for the same
+caregiver at two different organizations could both pass an unlocked "any active membership?"
+check before either committed. Proven closed by
+`AffiliationConcurrencyTest.test_duplicate_active_membership_not_creatable_under_race` (a
+`TransactionTestCase`, real separately-committed transactions, `threading.Barrier`-
+synchronized) — after the fix, exactly one of the two organizations ends up with an active
+membership.
+
+### Section J — Privacy/Security Acceptance
+
+All 14 points proven directly:
+
+1. Company sees only its own affiliations — `ScopedVisibilityTest.test_company_sees_only_its_own_pending_requests`/`_invitations`.
+2. Caregiver sees only their own — `test_caregiver_sees_only_their_own_requests`.
+3. Other caregiver cannot accept/reject an invitation — `test_other_caregiver_cannot_accept_invitation`/`_decline_invitation`, plus HTTP-level `test_other_caregiver_cannot_accept_someone_elses_invitation`.
+4. Other company cannot approve or terminate — HTTP-level `test_another_organizations_admin_cannot_approve`/`_cannot_terminate` (proves the real boundary: the view's organization-scoped lookup, not the permission check itself — see ADM-023 Decision 6).
+5. Customer cannot access affiliation management — `test_customer_cannot_access_staff_page` (403); provider_portal's equivalent is the pre-existing, unchanged `_guard_with_caregiver()` boundary.
+6. Cross-tenant access denied — `JoinByCodeTest.test_cross_tenant_code_is_denied`.
+7/8. Private verification documents/financial data not exposed — nothing new touches `VerificationDocument`, `WalletTransaction`, or `FinancialDocument`; confirmed by direct inspection of every new read helper and template.
+9. Invalid/inactive join code is safe — `test_invalid_code_is_refused_safely`/`test_inactive_company_code_is_refused_identically_to_invalid` (same message, no distinguishing signal).
+10. Duplicate active affiliation is refused — `test_duplicate_active_membership_refused`, `test_invite_when_already_actively_affiliated_elsewhere_refused`.
+11. Mutual termination works — `TerminationTest.test_company_terminates_active_membership`/`test_caregiver_leaves_own_membership`.
+12. Historical records remain available — `test_history_remains_available_after_termination`.
+13. Unauthorized staff actions are denied — `test_non_admin_cannot_invite` (403, no administered organization).
+14. Public company data separated from internal — `test_preview_shows_only_public_safe_fields` (`{id, name, city}` only).
+
+### Section K — Migration
+
+One migration (`accounts/0008_company_affiliation_termination.py`): 3 new nullable fields on
+`OrganizationMembership`. No new model, no altered financial/order/payment table. Essential
+to Section B's "termination date, termination actor, reason" requirement — could not be
+satisfied by any existing field.
+
+### Test Level Decision
+
+Full regression, run exactly once (models/migration/shared affiliation logic/permissions/
+concurrency all changed, several apps participate — matches this sprint's own explicit "run
+full regression once" trigger list). 51 new tests (32 `apps.accounts` + 9
+`apps.organization_portal` + 10 `apps.provider_portal`). Level 2 (`apps.accounts` +
+`apps.organization_portal` + `apps.provider_portal` + `apps.kernel` combined): 833/833. Full
+regression: 2145/2145 green (2094 baseline + 51 new).
+
+### Deferred (explicitly, recorded)
+
+1. Company financial overview + reports extension, company invoicing — explicitly out of
+   this sprint's mandate, remaining Phase 3 scope.
+2. Company public profile parity with the caregiver profile (gallery/certificates
+   generalized to organizations) — remaining Phase 3 scope.
+3. Multi-company simultaneous affiliation — deliberate, documented minimal policy (ADM-023
+   Decision 2), not a defect.
+4. Flash-message/error-surfacing framework — none exists anywhere in this codebase's
+   portals; Sprint 3.1's new action views match the existing silent-redirect convention
+   rather than introducing one as a one-off. See `quality/DEFECT_AND_RISK_REGISTER.md`
+   KL-022 / `quality/COMPLETION_BACKLOG.md` BG-029.
+5. Company gallery/social feed, messaging, AI verification, payroll/salary, HR leave
+   workflow, caregiver scheduling by company — explicitly out of this sprint's mandate per
+   its own governance.
+
+### BG-028 Status
+
+**RESOLVED.** Company-caregiver affiliation foundation (join-by-code, invitation, approval/
+rejection, mutual termination, history, minimum usable UI in both portals) delivered. See
+`quality/COMPLETION_BACKLOG.md` BG-028.

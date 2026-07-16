@@ -378,6 +378,52 @@ needed.
 **Not in scope:** Any other organization-profile change. See `quality/DEFECT_AND_RISK_REGISTER.md`
 KL-021.
 
+### BG-028: Company-Caregiver Affiliation Foundation — **RESOLVED**
+
+**Original evidence:** Roadmap Phase 3's first slice (`IMPLEMENTATION_ROADMAP.md`) needed a
+complete company-caregiver affiliation lifecycle. Current-state inspection (Sprint 3.1,
+2026-07-16) found the model layer already built (`OrganizationMembership`,
+`CompanyAffiliationRequest`) but no path ever produced a PENDING membership, no invitation
+concept existed, and zero UI/permission enforcement covered either model.
+**Resolution (2026-07-16, Sprint 3.1):** Extended `apps.accounts.services.affiliations`
+(not replaced) with the full lifecycle — join-by-code (tenant-scoped, exact-code,
+ACTIVE-organization-only), company-initiated invitation, approval/rejection,
+mutual termination (company-side permission-gated, caregiver-side ownership-authorized),
+and read helpers for both portals. One migration (3 new nullable `OrganizationMembership`
+termination fields — no new model). 4 new permission keys. New `organization_portal` staff-
+page sections (pending requests/invitations, invite-by-phone, terminate) and a new
+`provider_portal` "company" page. Every activation path locks the caregiver's own profile
+row first, closing a genuine cross-organization race (proven by a new `TransactionTestCase`).
+One active company per caregiver at a time is this sprint's documented minimal policy. 51 new
+tests, full regression 2145/2145 green. See `traceability/ARCHITECTURE_DECISION_LOG.md`
+ADM-023 and `traceability/IMPLEMENTATION_JOURNAL.md`.
+**Affected modules:** accounts, organization_portal, provider_portal, kernel (permission keys).
+**Not in scope (explicitly deferred, not this sprint's mandate):** company financial overview/
+reports extension, company invoicing, company public profile parity with the caregiver
+profile, company gallery/social feed, messaging, AI verification, payroll/salary, HR leave
+workflow, caregiver scheduling by company, multi-company simultaneous affiliation.
+
+### BG-029: No Flash-Message/Error-Surfacing Framework for Portal Action Views
+
+**Current evidence:** `django.contrib.messages` is used nowhere in `apps.organization_portal`/
+`apps.provider_portal`/`apps.portal` — confirmed by repository-wide inspection (Sprint 3.1,
+2026-07-16). Every pure-POST action-button view (existing: `staff_approve_view`/
+`staff_suspend_view`; new this sprint: the affiliation-lifecycle action views) silently
+redirects back on failure with no visible feedback to the user.
+**Why needed:** A caregiver/company admin whose action fails (e.g. a race-lost approval, an
+invalid phone number) currently sees no indication anything went wrong — the page just
+reloads unchanged.
+**Affected modules:** organization_portal, provider_portal, portal (all three would need the
+same framework).
+**Suggested implementation size:** Medium (introduce `django.contrib.messages` framework-wide,
+update every existing and new action view to surface a message, update every base template to
+render them).
+**Required tests:** New coverage for message rendering across all three portals.
+**Risk:** Low — additive, no behavior change to the underlying actions themselves.
+**Not in scope:** Sprint 3.1 deliberately matched the existing silent-redirect convention
+rather than introducing flash messaging as a one-off. See `quality/DEFECT_AND_RISK_REGISTER.md`
+KL-022.
+
 ### BG-003: OrderOfferService (Phase 2)
 
 **Current evidence:** Phase 1 model exists. No service layer.

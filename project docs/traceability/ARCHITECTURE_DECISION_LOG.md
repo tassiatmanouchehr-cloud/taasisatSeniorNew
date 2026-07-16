@@ -1384,3 +1384,118 @@ ranking-order preservation, no added private card fields, and unchanged detail-p
 behavior. Full regression 2094/2094 green (2082 baseline + 12 new). See
 `quality/DEFECT_AND_RISK_REGISTER.md` KL-012 (now marked RESOLVED) and
 `project docs/PHASE_2_COMPLETION_REPORT.md`.
+
+## ADM-023: Company-Caregiver Affiliation Foundation — Canonical Model, Lifecycle, and Control Boundaries (Phase 3 Sprint 3.1)
+
+**Context:** Phase 3's first sprint needed a complete company-caregiver affiliation
+lifecycle (join-by-code, company invitation, approval/rejection, mutual termination,
+history) for the Company Portal. Current-state inspection (this sprint's own Section A)
+found the model layer already substantially built — `OrganizationMembership` (organization,
+user, role_type, status active/pending/suspended/removed, invited_by, approved_by,
+joined_at, `unique_together` on organization+user+role_type) and `CompanyAffiliationRequest`
+(caregiver-initiated join-by-code intake, status pending/approved/rejected/cancelled) — but
+with three real gaps: no path ever produced a PENDING membership (making
+`OrganizationStaffService.approve_membership()`'s PENDING→ACTIVE story unreachable outside
+tests), no invitation concept existed at all, and zero UI/permission enforcement covered
+either model. This sprint closes those gaps by extension, not replacement.
+
+**Decision 1 — `OrganizationMembership` is the single canonical relationship record;
+`CompanyAffiliationRequest` remains the caregiver-initiated intake mechanism that feeds it,
+not a second, competing affiliation system.** A request represents "a caregiver asked to
+join"; a membership represents "this caregiver is/was affiliated with this organization."
+Approving a request (or a caregiver accepting a company-initiated invitation) is the only
+way a membership becomes ACTIVE. This preserves both existing models' current shapes and
+every existing test that already depends on them (`apps.accounts.tests.test_profiles_v2`,
+`test_organization_staff_authorization`, `test_supplier_bridge`, `apps.organization_portal
+.tests.test_staff_management`) — no model was renamed, dropped, or restructured.
+
+**Decision 2 — One active company affiliation per caregiver, at a time (not multiple
+simultaneous companies).** The repository gave no explicit policy either way — `CaregiverProfile
+.provider_type` is a scalar (`INDEPENDENT` / `ORGANIZATION_AFFILIATED`), never a set, and
+`resolve_organization_supplier_for_caregiver()` (Financial Core PR-A) already assumes exactly
+one organization. Per this sprint's own governance ("choose the safest minimal rule and record
+the decision" when policy is absent), a new `_assert_no_active_membership()` check — enforced
+inside `approve_affiliation_request()`, `invite_caregiver()`, and `accept_invitation()`, each
+after locking the caregiver's own `CaregiverProfile` row first — refuses a second ACTIVE
+membership for the same caregiver at a different organization. This is a service-layer
+invariant, not a DB constraint, because `unique_together` on `OrganizationMembership` is scoped
+per-organization and cannot express a cross-organization "at most one active" rule. Multi-company
+simultaneous affiliation is explicitly deferred, not built.
+
+**Decision 3 — Reactivation reuses the same `OrganizationMembership` row; cross-cycle history
+lives in `AuditLog`, not on the row itself.** Because `unique_together = [("organization",
+"user", "role_type")]` permits at most one row per (org, caregiver) pair, a caregiver who
+leaves an organization and later rejoins the *same* one cannot get a second row without either
+loosening that constraint (a bigger, riskier schema change explicitly out of this sprint's
+minimal-migration mandate) or reactivating the existing one. `approve_affiliation_request()`
+and `invite_caregiver()` both use `update_or_create()` (not `get_or_create()`) precisely so a
+prior REMOVED row is reactivated rather than raising `IntegrityError`. The row therefore always
+reflects the *current/latest* cycle only — `terminated_at`/`terminated_by`/`termination_reason`
+from an earlier cycle are overwritten on reactivation. Full historical reconstruction across
+multiple join/leave cycles is available via `AuditService.log()`'s existing audit trail
+(`organization.membership.approved`/`.terminated`/`.invited`/etc.), matching this codebase's
+established "AuditLog is historical evidence, never the primary read-model" convention (see
+ADM-016's remediation note on `ProfileActivationService`).
+
+**Decision 4 — No new `OrgMembershipStatus` values; `REMOVED` covers every "this relationship
+ended" case, distinguished by whether `joined_at` was ever set.** Section C's required lifecycle
+(`INVITED -> REJECTED/CANCELLED`, `ACTIVE -> TERMINATED`) could have been modeled with new enum
+values (`DECLINED`, `CANCELLED_INVITATION`, `TERMINATED`), but `OrgMembershipStatus` already has
+exactly one terminal, non-active state (`REMOVED`) and three new nullable fields
+(`terminated_at`/`terminated_by`/`termination_reason`, this sprint's only schema change) fully
+capture *when*, *by whom*, and *why* a relationship ended — whether it was declined/cancelled
+before ever becoming ACTIVE (`joined_at` stays `None`) or terminated after being ACTIVE
+(`joined_at` was set). Reusing `REMOVED` avoids enum proliferation and keeps every existing
+`status == OrgMembershipStatus.REMOVED` check (there were none yet, but future ones) meaningful
+without a status-value migration.
+
+**Decision 5 — Mutual termination is two explicit, symmetric-but-separately-authorized service
+functions, not one shared function with a role flag.** `terminate_membership()` (company-side,
+`ORGANIZATION_MEMBERSHIP_TERMINATE`-permission-gated, actor is an organization admin) and
+`leave_organization()` (caregiver-side, ownership-authorized only, actor must own the
+membership's `user`) both end in the same `_finalize_termination()` helper (status, termination
+fields, `provider_type` reversion, RBAC sync) but have deliberately different entry
+authorization — matching this codebase's existing convention that a caregiver's own actions are
+always ownership-authorized, never RBAC-gated (no `OrgMembershipRole.CAREGIVER` has ever been
+RBAC-synced — see `OrganizationRoleSyncService`'s own module docstring, unchanged by this
+sprint).
+
+**Decision 6 — Company control boundary: three new, narrowly-scoped permission keys, reusing
+`ORGANIZATION_MEMBERSHIP_APPROVE` for affiliation-request approval.** `ORGANIZATION_MEMBERSHIP_
+INVITE`/`_REJECT`/`_TERMINATE` were added (guarding `invite_caregiver()`, `reject_affiliation_
+request()`/`cancel_invitation()`, and `terminate_membership()` respectively) because each is a
+genuinely new action with no existing enforcement point. Approving a `CompanyAffiliationRequest`
+reuses the existing `ORGANIZATION_MEMBERSHIP_APPROVE` key rather than a new one, since
+semantically it is the same action ("someone becomes an active member") as
+`OrganizationStaffService.approve_membership()`'s existing PENDING→ACTIVE transition, just
+reached via a different intake path. All four keys were added to `ORGANIZATION_ADMIN_
+PERMISSIONS` (`role_catalog.py`), picked up automatically by `OrganizationRoleSyncService`'s
+existing additive-merge sync (no seed-command change needed). As documented in every
+`PermissionService.require()` call site added this sprint (mirroring `OrganizationStaffService`'s
+existing shape exactly), the real cross-organization access boundary is not the permission check
+itself — `ownership_authorized_by` always succeeds for a real, non-None actor, exactly as it
+already did for `approve_membership()`/`suspend_membership()` — it is the *view layer*'s
+organization-scoped lookup (`OrganizationStaffService.get_membership(organization=organization,
+...)` / the new `_get_own_pending_request(organization, request_id)`), which raises `Http404`
+for any membership/request that does not belong to the caller's own resolved organization. This
+is unchanged, established behavior, not a new pattern.
+
+**Decision 7 — Caregiver control-boundary data exposed to the company stays exactly as narrow
+as Section F specifies.** `list_pending_requests_for_organization()`/`list_pending_invitations_
+for_organization()` return the existing `CompanyAffiliationRequest`/`OrganizationMembership`
+querysets (display name, phone, status, dates) — no private identity document, review, wallet,
+or unrelated-tenant data was added to any new read helper or template. `preview_join_code_
+organization()` (the caregiver-facing "which company is this?" confirmation step) returns only
+`{id, name, city}` — never `registration_number`, `address`, `phone`, or `verification_status`.
+
+**Consequences:** One migration (`accounts/0008_company_affiliation_termination.py`) — three
+new nullable fields on `OrganizationMembership`; zero new models, zero altered financial/order/
+payment tables. `apps.accounts.services.affiliations` extended (not replaced) with 11 new
+functions plus 6 read helpers, alongside the 3 pre-existing ones (now permission-checked and
+raising `AccountsError` instead of bare `ValueError`, requiring 2 existing test assertions in
+`test_profiles_v2.py` to be updated to match — no assertion weakened, same pass/fail conditions,
+different exception type). Two new portal pages (`organization_portal`'s extended staff page,
+`provider_portal`'s new "company" page), 8 new URLs across the two portals. 51 new tests (32
+service-layer incl. 3 `TransactionTestCase` concurrency proofs, 9 `organization_portal` HTTP-level,
+10 `provider_portal` HTTP-level). Full regression run once (multiple apps + migration + shared
+affiliation logic + permissions + concurrency all changed, per this sprint's own test policy).

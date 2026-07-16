@@ -215,6 +215,43 @@ availability) were re-confirmed unchanged (ownership-based, not RBAC-based, per 
 service's own docstring — see `ARCHITECTURE_DECISION_LOG.md` ADM-017/ADM-018/ADM-019/
 ADM-020).
 
+### Company-Caregiver Affiliation Authorization (Sprint 3.1)
+
+Four permission keys, all `organization_scope=True`, all granted to `organization_admin` via
+`OrganizationRoleSyncService`'s existing additive-merge sync (no seed-command change):
+`ORGANIZATION_MEMBERSHIP_APPROVE` (reused — also guards affiliation-request approval, not
+only the pre-existing membership-approval path), `ORGANIZATION_MEMBERSHIP_INVITE` (new,
+guards `invite_caregiver()`), `ORGANIZATION_MEMBERSHIP_REJECT` (new, guards
+`reject_affiliation_request()`/`cancel_invitation()`), `ORGANIZATION_MEMBERSHIP_TERMINATE`
+(new, guards `terminate_membership()`). Every guarded function follows the exact
+`PermissionService.require(None, KEY, tenant_id=..., ownership_authorized_by=actor,
+scope={"scope_type": "organization", "scope_id": ...})` shape `OrganizationStaffService
+.approve_membership()`/`.suspend_membership()` already established (Epic 05) — including the
+same property that call sites in `apps.organization_portal.tests.test_organization_staff_
+authorization` already prove for the pre-existing keys: `ownership_authorized_by` always
+succeeds for a real, non-`None` actor (never denies), so the actual cross-organization
+protection is the *view layer*'s organization-scoped lookup (`Http404` for a
+membership/request that does not belong to the caller's own resolved organization), not the
+permission check itself. Proven directly by `apps.organization_portal.tests
+.test_affiliation_management`'s `test_another_organizations_admin_cannot_approve`/
+`test_another_organizations_admin_cannot_terminate`.
+
+Caregiver-side actions (`cancel_affiliation_request()`, `accept_invitation()`,
+`decline_invitation()`, `leave_organization()`, `submit_join_request()`) remain
+ownership-authorized only, matching this codebase's unchanged rule that no
+`OrgMembershipRole.CAREGIVER` membership has ever been RBAC-synced (`OrganizationRoleSyncService`'s
+own module docstring, unchanged by this sprint) — each checks `membership.user_id ==
+caregiver_profile.user_id` / `request.caregiver_profile_id == caregiver_profile.id` directly,
+never a permission key. Proven by `apps.accounts.tests.test_affiliation_lifecycle`'s
+`test_other_caregiver_cannot_accept_invitation`/`test_other_caregiver_cannot_leave_someone_
+elses_membership`/etc., and at the HTTP layer by `apps.provider_portal.tests
+.test_company_affiliation`.
+
+One active company per caregiver at a time is enforced at the service layer
+(`_assert_no_active_membership()`, called after locking the caregiver's own `CaregiverProfile`
+row) — not a DB constraint, since it must hold across different `organization` values. See
+`ARCHITECTURE_DECISION_LOG.md` ADM-023 Decision 2.
+
 ### Unscoped Queries (Known)
 
 | Location | Query | Risk |

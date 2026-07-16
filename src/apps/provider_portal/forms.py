@@ -46,6 +46,12 @@ class DeclineAssignmentForm(StyledForm):
     reason = forms.CharField(widget=forms.Textarea, required=False)
 
 
+class JoinCompanyCodeForm(StyledForm):
+    code = forms.CharField(
+        max_length=50, label="کد سازمان", error_messages={"required": "کد سازمان الزامی است."},
+    )
+
+
 class BasicInfoForm(StyledForm):
     display_name = forms.CharField(
         max_length=255, label="نام نمایشی", error_messages={"required": "نام نمایشی الزامی است."}

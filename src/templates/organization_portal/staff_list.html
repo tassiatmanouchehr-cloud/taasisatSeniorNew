@@ -4,6 +4,70 @@
 {% block page_title %}نیروها{% endblock %}
 
 {% block portal_content %}
+
+<div class="bg-surface border border-border rounded-lg p-5 mb-6">
+  <h2 class="text-sm font-bold text-text mb-3">دعوت مراقب جدید</h2>
+  <form method="post" action="{% url 'organization_portal:staff-invite' %}" class="flex flex-wrap items-end gap-inline-3">
+    {% csrf_token %}
+    <div>
+      <label for="{{ invite_form.phone.id_for_label }}" class="block text-sm font-bold text-text">{{ invite_form.phone.label }}</label>
+      {{ invite_form.phone }}
+    </div>
+    <button type="submit" class="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-700">ارسال دعوت</button>
+  </form>
+</div>
+
+{% if pending_requests %}
+<div class="mb-6">
+  <h2 class="text-sm font-bold text-text mb-3">درخواست‌های عضویت در انتظار</h2>
+  <div class="bg-surface border border-border rounded-lg overflow-hidden">
+    <ul class="divide-y divide-border">
+      {% for req in pending_requests %}
+      <li class="px-5 py-4 flex items-center justify-between gap-inline-3">
+        <div>
+          <p class="text-sm font-bold text-text">{{ req.caregiver_profile.display_name }}</p>
+          <p class="text-xs text-text-muted mt-0.5 ltr-value">{{ req.caregiver_profile.phone }}</p>
+        </div>
+        <div class="flex items-center gap-inline-2">
+          <form method="post" action="{% url 'organization_portal:affiliation-request-approve' request_id=req.id %}">
+            {% csrf_token %}
+            <button type="submit" class="text-sm font-medium text-primary hover:underline">تأیید</button>
+          </form>
+          <form method="post" action="{% url 'organization_portal:affiliation-request-reject' request_id=req.id %}">
+            {% csrf_token %}
+            <button type="submit" class="text-sm font-medium text-danger hover:underline">رد</button>
+          </form>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+{% if pending_invitations %}
+<div class="mb-6">
+  <h2 class="text-sm font-bold text-text mb-3">دعوت‌های ارسال‌شده در انتظار پاسخ</h2>
+  <div class="bg-surface border border-border rounded-lg overflow-hidden">
+    <ul class="divide-y divide-border">
+      {% for invitation in pending_invitations %}
+      <li class="px-5 py-4 flex items-center justify-between gap-inline-3">
+        <div>
+          <p class="text-sm font-bold text-text">{{ invitation.user.caregiver_profile.display_name|default:invitation.user.phone }}</p>
+          <p class="text-xs text-text-muted mt-0.5">در انتظار پاسخ مراقب</p>
+        </div>
+        <form method="post" action="{% url 'organization_portal:invitation-cancel' membership_id=invitation.id %}">
+          {% csrf_token %}
+          <button type="submit" class="text-sm font-medium text-danger hover:underline">لغو دعوت</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+<h2 class="text-sm font-bold text-text mb-3">اعضای فعال و در انتظار تأیید</h2>
 {% if staff %}
 <div class="bg-surface border border-border rounded-lg overflow-hidden">
   <ul class="divide-y divide-border">
@@ -12,9 +76,12 @@
       <div>
         <p class="text-sm font-bold text-text">{{ member.user.caregiver_profile.display_name|default:member.user.person.full_name|default:member.user.phone|default:"—" }}</p>
         <p class="text-xs text-text-muted mt-0.5">{{ member.get_role_type_display }} — {{ member.get_status_display }}</p>
+        {% if member.status == "removed" and member.termination_reason %}
+        <p class="text-xs text-text-muted mt-0.5">{{ member.termination_reason }}</p>
+        {% endif %}
       </div>
       <div class="flex items-center gap-inline-2">
-        {% if member.status == "pending" %}
+        {% if member.status == "pending" and not member.invited_by_id %}
         <form method="post" action="{% url 'organization_portal:staff-approve' membership_id=member.id %}">
           {% csrf_token %}
           <button type="submit" class="text-sm font-medium text-primary hover:underline">تأیید</button>
@@ -23,6 +90,10 @@
         <form method="post" action="{% url 'organization_portal:staff-suspend' membership_id=member.id %}">
           {% csrf_token %}
           <button type="submit" class="text-sm font-medium text-danger hover:underline">تعلیق</button>
+        </form>
+        <form method="post" action="{% url 'organization_portal:staff-terminate' membership_id=member.id %}">
+          {% csrf_token %}
+          <button type="submit" class="text-sm font-medium text-danger hover:underline">پایان همکاری</button>
         </form>
         {% endif %}
       </div>

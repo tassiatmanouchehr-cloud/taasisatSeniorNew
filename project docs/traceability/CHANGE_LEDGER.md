@@ -1276,3 +1276,86 @@ Rollback method: git revert of the remediation commit; no data migration to reve
 Status: Complete — branch phase2-caregiver-public-profile-finalization, PR #11 updated,
   NOT merged
 ```
+
+## Entry 033
+
+```
+Change ID: CL-033
+Date/time: 2026-07-16 — PR #11 final verify and merge
+Task: Final verification (12 required points) and merge of PR #11 into main; local main
+  updated; Phase 2 (Caregiver Professional Profile) formally closed
+Reason: PR #11 passed architecture and final Phase 2 acceptance review (branch unchanged
+  from its recorded 2094/2094 verification)
+Files added/modified: None (merge only — no new commit)
+Database impact: None.
+Migration impact: None beyond what PR #11 already carried (0008_company_affiliation_
+  termination.py belongs to Entry 034 below, on the next branch).
+Tests executed: git diff --check origin/main...HEAD (clean), git status --short (clean),
+  python manage.py check (exit 0). Full suite not re-run — branch HEAD unchanged since the
+  2094/2094 verification recorded in CL-032/Run 023.
+Result: Success — merged via merge_pull_request (merge commit
+  90e608dc5d14ff4f367abafc022f756819734f6d). Local main fast-forwarded to match origin/main;
+  manage.py check exits 0. Phase 2 (Caregiver Professional Profile) is CLOSED.
+Rollback method: git revert of the merge commit (not anticipated)
+Status: Complete — main @ 90e608d
+```
+
+## Entry 034
+
+```
+Change ID: CL-034
+Date/time: 2026-07-16 (Sprint 3.1 — Company Foundation and Caregiver Management; first
+  sprint on a fresh branch after PR #11 merged to main @ 90e608d)
+Task: Build the first coherent Company Portal slice — company-caregiver affiliation
+  lifecycle: join-by-code, company invitation, approval/rejection, mutual termination,
+  history, minimum usable UI in both portals
+Reason: Roadmap Phase 3's first scheduled sprint (IMPLEMENTATION_ROADMAP.md); closes new
+  backlog item BG-028
+Files added:
+  src/apps/accounts/migrations/0008_company_affiliation_termination.py
+  src/apps/accounts/tests/test_affiliation_lifecycle.py (32 new tests incl. 3 concurrency)
+  src/apps/organization_portal/tests/test_affiliation_management.py (9 new tests)
+  src/apps/provider_portal/tests/test_company_affiliation.py (10 new tests)
+  src/templates/provider_portal/company.html
+Files modified:
+  src/apps/accounts/models/profiles.py (+terminated_at/terminated_by/termination_reason on
+    OrganizationMembership)
+  src/apps/accounts/services/affiliations.py (extended: 11 new functions + 6 read helpers,
+    3 existing functions permission-checked and switched from ValueError to AccountsError)
+  src/apps/accounts/permission_keys.py, src/apps/kernel/permissions/keys.py,
+    src/apps/kernel/role_catalog.py (+ORGANIZATION_MEMBERSHIP_INVITE/_REJECT/_TERMINATE)
+  src/apps/accounts/tests/test_profiles_v2.py (2 assertions updated: ValueError ->
+    AccountsError, matching the exception-type change above; same pass/fail conditions)
+  src/apps/organization_portal/views.py, urls.py, forms.py (staff page extended: invite,
+    invitation-cancel, affiliation-request-approve/reject, staff-terminate)
+  src/apps/provider_portal/views.py, urls.py, forms.py,
+    services/profile_service.py (new "company" page: join, request-cancel,
+    invitation-accept/decline, leave; nav item added)
+  src/templates/organization_portal/staff_list.html (pending requests/invitations sections,
+    invite form, terminate button)
+  project docs/* (multiple) — doc sync, see IMPLEMENTATION_JOURNAL
+Files deleted: None
+Database impact: None beyond the 3 new nullable columns on OrganizationMembership.
+Migration impact: One migration, limited to the affiliation/termination requirement — no
+  financial/order/payment table touched. makemigrations --check confirmed only pre-existing,
+  unrelated drift (absorbed into the same migration, matching every prior sprint's
+  convention).
+Security impact: 4 permission keys added (3 new, 1 reused), all organization_scope=True,
+  mirroring OrganizationStaffService's existing PermissionService.require() shape exactly.
+  Caregiver-side actions remain ownership-authorized only (no new RBAC surface for
+  OrgMembershipRole.CAREGIVER). One active company per caregiver at a time enforced via a
+  row-locked service-layer check (CaregiverProfile row locked first), proven concurrency-safe
+  by 3 new TransactionTestCase tests against a genuine cross-organization race.
+Financial impact: None — no financial/order/payment model or service touched.
+Tests executed: check (0), makemigrations --check (pre-existing drift only), focused new
+  files (32+9+10 = 51/51), directly affected apps (apps.accounts + apps.organization_portal
+  + apps.provider_portal + apps.kernel combined) 833/833, full regression 2145/2145 (exit 0,
+  run once — models/migration/shared logic/permissions/concurrency all changed, several apps
+  participate, per this sprint's own test policy)
+Result: Success — company-caregiver affiliation foundation complete; zero regressions; one
+  minimal migration; BG-028 RESOLVED
+Rollback method: git revert of the branch's commit(s); one migration to reverse
+  (`migrate accounts 0007`)
+Status: Complete — branch phase3-company-portal-foundation (from main @ 90e608d), PR to be
+  created, NOT merged
+```

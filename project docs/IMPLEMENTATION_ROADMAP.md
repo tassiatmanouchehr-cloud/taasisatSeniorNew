@@ -203,14 +203,23 @@ Pre-phase (P0 hygiene, small): ~~fix seed test race (G12)~~ — **DONE, merged i
 - Fix: `CapacityService.bulk_is_capacity_exceeded()` (new), the pre-existing `resolve_supplier_entities_bulk()` (already built for exactly this class of problem during Epic 06's M1 remediation), and two new bulk methods (`ReputationService.get_reputation_summaries_bulk()`, `common.completed_jobs_counts_bulk()`) — each a small, fixed number of queries regardless of candidate count. Ranking formula, sort order, filter semantics, and public-visibility policy unchanged.
 - Directory/search/home query counts now fully flat (16/17/17) from 1 through 100+ matching candidates. 12 new tests, zero new migration, full regression 2094/2094 green. **KL-012 is RESOLVED.** See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-022's remediation note and `project docs/PHASE_2_COMPLETION_REPORT.md`. **Phase 2 acceptance criteria satisfied**, except the accepted bonus/penalty dependency (KL-020, unchanged).
 
-### PHASE 3 — Company Portal (inherits caregiver capability)
+### PHASE 3 — Company Portal (inherits caregiver capability; Sprint 3.1 foundation complete, financial/profile-parity slices remain)
 
-**Scope:** Company staff management (exists partially), caregiver management, **invitation system** (company-initiated invite + join-by-code), approval (exists), removal (new), assignment management (exists), company financial overview + reports (extend), company public profile parity with caregiver profile (gallery/certificates from Phase 2 generalized to organizations).
+**Scope:** Company staff management (exists), caregiver management (exists), **invitation system** (company-initiated invite + join-by-code — COMPLETE, Sprint 3.1), approval (exists, extended), removal (COMPLETE, Sprint 3.1 — `terminate_membership()`/`leave_organization()`), assignment management (exists), company financial overview + reports (extend — remains open), company public profile parity with caregiver profile (gallery/certificates from Phase 2 generalized to organizations — remains open).
 
 - **Depends on:** Phases 1–2 (verification + profile media foundations).
 - **Complexity:** HIGH. New invitation model/flows, membership removal with supplier-bridge consistency (`accounts/services/supplier_bridge.py`), profile parity work.
-- **Blocking items:** decision on invitation delivery channel while SMS is fake (in-app code acceptable).
-- **Acceptance criteria:** company can invite by phone/code; caregiver can join by code post-registration; approve/suspend/remove lifecycle fully tested incl. effect on assignments; company financial overview and reports production-complete.
+- **Blocking items:** decision on invitation delivery channel while SMS is fake (in-app code acceptable — Sprint 3.1 confirmed this is sufficient: the caregiver sees the pending invitation directly on their own portal page, no SMS delivery needed for acceptance).
+- **Acceptance criteria:** company can invite by phone/code (COMPLETE); caregiver can join by code post-registration (COMPLETE); approve/reject/accept/decline/terminate/leave lifecycle fully tested incl. concurrency (COMPLETE, Sprint 3.1); company financial overview and reports production-complete (still open).
+
+**Sprint 3.1 (2026-07-16, branch `phase3-company-portal-foundation`, from merged main @ `90e608d`) — Company Foundation and Caregiver Management:**
+- Current-state inspection found `OrganizationMembership`/`CompanyAffiliationRequest` already modeled but no path ever produced a PENDING membership, no invitation concept existed, and zero UI/permission enforcement covered either model.
+- Extended `apps.accounts.services.affiliations` with the full lifecycle: join-by-code (new tenant-scoped, exact-code, ACTIVE-organization-only resolver), company-initiated invitation (`invite_caregiver()`/`accept_invitation()`/`decline_invitation()`/`cancel_invitation()`), mutual termination (`terminate_membership()` company-side permission-gated, `leave_organization()` caregiver-side ownership-authorized), and read helpers for both portals.
+- Canonical model: `OrganizationMembership` (extended with `terminated_at`/`terminated_by`/`termination_reason`) is the single historical relationship record; `CompanyAffiliationRequest` remains the caregiver-initiated intake. One active company per caregiver at a time (documented minimal policy); reactivation reuses the same row; `REMOVED` covers every "ended" case (no new enum values). See `ARCHITECTURE_DECISION_LOG.md` ADM-023.
+- 4 new permission keys (`ORGANIZATION_MEMBERSHIP_INVITE`/`_REJECT`/`_TERMINATE`, reusing existing `_APPROVE`), granted to `organization_admin` via the existing `OrganizationRoleSyncService` sync.
+- New UI: `organization_portal` staff page extended (pending requests/invitations, invite-by-phone, terminate); `provider_portal` new "company" page (join by code, respond to invitations, leave, history).
+- Concurrency: every activation path locks the caregiver's own `CaregiverProfile` row first, closing a genuine cross-organization race — proven by 3 new `TransactionTestCase` tests.
+- One migration (3 new nullable fields, no new model). 51 new tests, full regression 2145/2145 green. **BG-028 is RESOLVED.** Company financial overview/reports and public-profile parity remain open — Phase 3 as a whole is NOT complete.
 
 ### PHASE 4 — Customer Portal (production complete)
 

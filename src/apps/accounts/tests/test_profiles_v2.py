@@ -18,6 +18,7 @@ from apps.accounts.models.profiles import (
     TrustedContact,
 )
 from apps.accounts.services.affiliations import approve_affiliation_request, reject_affiliation_request
+from apps.accounts.services.errors import AccountsError
 from apps.accounts.services.organizations import create_organization_membership, find_organization_by_code_or_name
 from apps.accounts.services.profiles import (
     add_trusted_contact,
@@ -158,14 +159,14 @@ class AffiliationIntegrityTest(BaseTestCase):
         admin_user, org = RegistrationService.create_company_admin(phone="09140000000", admin_name="A", company_name="O")
         _, profile, req = RegistrationService.create_caregiver(phone="09132222222", full_name="CG", company_code=org.code)
         reject_affiliation_request(request_id=req.id, reviewed_by=admin_user)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(AccountsError):
             approve_affiliation_request(request_id=req.id, reviewed_by=admin_user)
 
     def test_cannot_approve_without_org(self):
         _, profile, req = RegistrationService.create_caregiver(phone="09132222222", full_name="CG", company_name="Ghost")
         person = Person.objects.create(tenant=self.tenant, full_name="Reviewer")
         reviewer = UserAccount.objects.create_user(phone="09160000000", person=person, tenant=self.tenant)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(AccountsError):
             approve_affiliation_request(request_id=req.id, reviewed_by=reviewer)
 
     def test_no_duplicate_membership(self):
