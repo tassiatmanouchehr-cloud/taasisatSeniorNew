@@ -838,11 +838,59 @@ check` all clean. Merged via `merge_pull_request` (merge commit
 `origin/main`; `manage.py check` exits 0. **Sprint 3.3 (Company Public Directory and
 Discovery) is now CLOSED and on `main`.**
 
+### Sprint 4.1 — Customer Favorites and Saved Providers — IMPLEMENTED, PR OPEN (2026-07-16)
+
+Branched fresh from merged `main` (`phase4-customer-favorites`, from `d50f83f`) per governance.
+The first Phase 4 implementation sprint, closing the one confirmed gap the Phase 4 Customer
+Portal Architecture Assessment identified (BG-032/G5). Not a greenfield feature — reuses
+`kernel.ServiceSupplier`, both existing public directory services, both existing public
+profile services, and the portal's existing `_guard()`/nav-item schema.
+
+- Fresh, evidence-based decisions on all 4 architectural questions (not auto-accepted from
+  the prior assessment's own leaning recommendation) — see
+  `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-027 for full reasoning: (A) `Favorite`
+  lives in `apps.accounts`, direct FK to `CustomerProfile`/`ServiceSupplier` (both CASCADE),
+  no tenant field; (B) explicit `add_favorite()`/`remove_favorite()`/`is_favorited()`/
+  `list_favorites_for_customer()`, no ambiguous `toggle()`, idempotent under a proven
+  concurrent-race test; (C) no new shared/canonical discovery-card abstraction; (D) a
+  lightweight `FavoriteRowViewModel` wrapper around one existing, unmodified card ViewModel
+  per row, not a third card model.
+- `Favorite` model + one migration (`accounts/0011_favorite.py`); `FavoritesService`
+  (`apps.accounts`); new `apps.public_site.services.customer_context` (`apps.public_site`'s
+  first authenticated surface); a favorite-toggle button on both public caregiver and
+  organization profiles (`POST .../favorite/`, redirect target always server-resolved, never
+  a client-supplied "next"; wrong-tenant/unknown supplier absorbed silently, no existence
+  disclosure); new additive `build_cards_for_supplier_ids()` on both directory services; new
+  `GET /portal/favorites/` "My Favorites" page (paginated, mixed caregiver/organization,
+  bulk-resolved cards, a "no longer publicly listed" state for favorites whose supplier is no
+  longer public — never silently deleted, never a dead link) + `POST
+  /portal/favorites/<supplier_id>/remove/`; new nav item.
+- 54 new tests (20 `apps.accounts.tests.test_favorites`, 14
+  `apps.public_site.tests.test_favorites_public_integration`, 8 `apps.public_site.tests
+  .test_favorites_card_resolution`, 12 `apps.portal.tests.test_favorites_view`) — model
+  constraints, service add/remove/idempotency/concurrency-race, ownership/IDOR, anonymous/
+  non-customer/customer toggle behavior, redirect-target safety, non-disclosure, mixed-type
+  listing, unavailable-supplier presentation, pagination, query-budget bounds at
+  representative sizes (0/1/5/20). Full regression **2246/2246 green** (2192 baseline + 54
+  net). `manage.py check`/`makemigrations --check`/`manage.py migrate`/`git diff --check` all
+  clean.
+- Branch `phase4-customer-favorites`, PR created against `main` — see
+  `traceability/IMPLEMENTATION_JOURNAL.md`'s "Phase 4 — Sprint 4.1" entry for the full
+  implementation record. **Not yet merged.**
+
 ---
 
 ## IMMEDIATE NEXT TASK
 
-### Phase 3 is formally CLOSED (PR #15 merged). The immediate next task is Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers.
+### Phase 4 — Sprint 4.1 (Customer Favorites and Saved Providers) is IMPLEMENTED; the immediate next task is architecture review of the open PR, then merge only when explicitly instructed.
+
+Sprint 4.1's implementation scope is complete: model, service, public-profile toggle, portal
+"My Favorites" page, 54 new tests, full regression 2246/2246 green, and documentation
+synchronized. **PR is open against `main` and has not been merged.** No later Phase 4 sprint
+has started. Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active implementation
+order).
+
+### Phase 3 is formally CLOSED (PR #15 merged). Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers is now IMPLEMENTED (see entry above).
 
 Phase 3's implementation scope is complete and its closure has been approved (2026-07-16);
 **PR #15 (documentation-only) has merged to `main`** (merge commit

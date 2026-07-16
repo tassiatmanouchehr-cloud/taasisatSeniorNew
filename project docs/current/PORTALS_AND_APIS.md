@@ -1,22 +1,14 @@
 # PORTALS, APIS, AND ENTRY POINTS
 
-**Last verified HEAD:** main @ 078e435fee2b2c6350c66be113c4e7e607178763 (PR #14 merged — Sprint 3.3 CLOSED; PR #15 merged — **Phase 3 FORMALLY CLOSED**; Phase 4 Customer Portal Architecture Assessment complete — Phase 4 implementation has not started)
+**Last verified HEAD:** main @ d50f83fb7aa2f71c50bb039c8259397740bc832b (PR #15 merged — **Phase 3 FORMALLY CLOSED**); active branch `phase4-customer-favorites` — **Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers IMPLEMENTED**, PR open, not yet merged
 **Last verified date:** 2026-07-16
 
-**Phase 4 Customer Portal Architecture Assessment note (2026-07-16):** a code-free
-governance/readiness review, not a numbered implementation sprint. The "Public Site" and
-organization/provider portal sections below are unchanged by this note. The Customer Portal
-(`/portal/`, `apps.portal`, listed under "Presentation Services" below) was directly
-re-verified during this assessment and found already substantially complete — dashboard,
-profile, settings, care recipients, the full order-request wizard, order list/detail/history,
-per-order financial pay/approve/dispute (real `apps.commission` integration), a
-customer-facing invoices/payments page, reviews, notifications, and public order-share links
-all exist and are tested. The one confirmed gap is Favorites/saved-suppliers — no such model
-exists anywhere in the repository, recommended as **Phase 4 — Sprint 4.1: Customer Favorites
-and Saved Providers** (not started). See `traceability/IMPLEMENTATION_JOURNAL.md` for the
-full assessment. Recorded via `docs/phase3-closure-phase4-assessment` (PR #15), **MERGED to
-main** (merge commit `078e435fee2b2c6350c66be113c4e7e607178763`) — this note and Phase 3's
-formal closure are both canonical on `main`.
+**Phase 4 — Sprint 4.1 note (2026-07-16):** Customer Favorites and Saved Providers is
+implemented on branch `phase4-customer-favorites`. Closes the one confirmed gap the Phase 4
+Customer Portal Architecture Assessment identified. Two new `public_site` routes (favorite
+toggle on both public profiles) and two new `portal` routes (the "My Favorites" list page +
+removal) — see the "Public Site" and "Customer Portal" sections below for the exact routes.
+**Not yet merged — PR open against `main`.**
 
 ---
 
@@ -36,9 +28,9 @@ Root URL config: `config/urls.py`
 | `/provider/` | provider_portal | Yes (provider) |
 | `/ui/` | showcase | No |
 
-## Customer Portal (30+ views)
+## Customer Portal (32 views)
 
-Dashboard, profile, care recipients (CRUD), requests (list/detail/financial), share links, wizard (7-step order creation), notifications.
+Dashboard, profile, care recipients (CRUD), requests (list/detail/financial), share links, wizard (7-step order creation), notifications, **favorites (Sprint 4.1): `GET /portal/favorites/` (list, paginated, mixed caregiver/organization) + `POST /portal/favorites/<uuid:supplier_id>/remove/`**.
 
 Entry: `_guard()` → `require_authenticated()` → `resolve_tenant_id()` → `resolve_customer_profile()`
 
@@ -77,9 +69,17 @@ Entry: `require_admin_permission()` → `require_authenticated()` → RBAC check
 | `/api/v1/payments/intents/<id>/attempts/` | POST | Payment attempt |
 | `/api/v1/payments/callbacks/fake/` | POST | Fake PSP callback (unauthenticated) |
 
-## Public Site (19 views)
+## Public Site (21 views)
 
-Home, about, services, how-it-work, contact, pricing, trust-safety, caregivers, organizations, find-a-caregiver, caregiver profile (now includes a Sprint 2.4 privacy-safe weekly-availability summary — day labels only, never exact times; Sprint 2.6 — SEO `page_url`/`canonical_url` now the profile's own URL, gallery alt-text fallback, redundant generic verification badge removed), **find-an-organization (Phase 3 Sprint 3.3 — the Company Public Directory: search/city/service-category filters, pagination, organization cards with logo/headline/rating/verification badge/city/service summary/active-caregiver count; route ordered before the existing `find-an-organization/<uuid:supplier_id>/` detail route)**, organization profile, FAQ, privacy, terms, accessibility, support, service-areas.
+Home, about, services, how-it-work, contact, pricing, trust-safety, caregivers, organizations, find-a-caregiver, caregiver profile (now includes a Sprint 2.4 privacy-safe weekly-availability summary — day labels only, never exact times; Sprint 2.6 — SEO `page_url`/`canonical_url` now the profile's own URL, gallery alt-text fallback, redundant generic verification badge removed; **Sprint 4.1 — a favorite-toggle button when viewed by an authenticated customer, `POST find-a-caregiver/<uuid:supplier_id>/favorite/`**), **find-an-organization (Phase 3 Sprint 3.3 — the Company Public Directory: search/city/service-category filters, pagination, organization cards with logo/headline/rating/verification badge/city/service summary/active-caregiver count; route ordered before the existing `find-an-organization/<uuid:supplier_id>/` detail route)**, organization profile (**Sprint 4.1 — same favorite-toggle affordance, `POST find-an-organization/<uuid:supplier_id>/favorite/`**), FAQ, privacy, terms, accessibility, support, service-areas.
+
+Sprint 4.1 (Customer Favorites and Saved Providers, 2026-07-16): both public profile toggle
+views require an authenticated customer (`apps.public_site.services.customer_context
+.require_customer()`, fails with 403 for anonymous/non-customer callers — this is
+`apps.public_site`'s first authenticated, mutating surface); redirect target is always the
+server-resolved profile URL, never a client-supplied "next" parameter; a wrong-tenant/unknown
+supplier is absorbed silently (redirect back unchanged), never disclosing existence. See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-027.
 
 Phase 3 Sprint 3.3 (Company Public Directory and Discovery, 2026-07-16): added the public
 Organization Directory (`OrganizationDirectoryService`, `apps.public_site.services
@@ -124,3 +124,4 @@ Each portal has presentation services that transform domain models into view-rea
 - `CaregiverPublicProfileService._highlights()`/`_verification_badges()` and `ProviderProfilePresentationService._highlights()` (Sprint 2.3 — pure, read-only aggregations over data each service already resolved elsewhere on the same page; the public versions add zero new queries, the provider-portal preview adds two fixed-cost `.count()` queries). **PR #7 remediation:** physical file deletion is deferred to `transaction.on_commit()` rather than performed inline before the row commits, and `apps.accounts.services.image_validation.validate_image()` (called from every route into this service) now also bounds decoded image width/height/pixel count, not just upload byte size.
 - `AvailabilityQueryService.evaluate()`/`get_distinct_active_days()` (availability, Sprint 2.4 — the one canonical, structured, supplier-keyed availability evaluator; `CaregiverPublicProfileService._schedule_summary()` and `provider_portal/views.py::_public_summary_labels()` both call it directly rather than duplicating day-label logic — see `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-020 Decision 1 for why this is not a caregiver-keyed service)
 - `CaregiverDashboardPresentationService` (provider_portal, Sprint 2.5 — assembles the dashboard's work summary/financial overview/invoice summary/reputation/statistics sections; `build_for_supplier()` gathers data via `OrderQueryService`/`FinancialDocumentService`/`WalletService`/`ReputationService`/`PublicCredentialSelector` (all pre-existing, none newly invented), `build()` itself performs no query — see `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-021)
+- `CustomerFavoritesPresentationService` (portal, Sprint 4.1 — assembles the "My Favorites" page; `build_list_view()` paginates (PAGE_SIZE=12), buckets favorites by supplier type, and bulk-resolves cards via `CaregiverDirectoryService.build_cards_for_supplier_ids()`/`OrganizationDirectoryService.build_cards_for_supplier_ids()` (new, additive classmethods on the Sprint 2.6/3.3 directory services) — never a per-row query; a favorited supplier no longer publicly visible renders with both card fields `None`, which the template shows as "no longer publicly listed" rather than a broken link — see `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-027)

@@ -32,7 +32,7 @@ from apps.accounts.services.supplier_bridge import resolve_supplier_entities_bul
 from apps.discovery.services.query_normalizer import normalize_query
 from apps.discovery.services.ranking_service import DiscoveryRankingService
 from apps.discovery.services.search_service import SupplierSearchService
-from apps.kernel.models.supplier import SupplierType
+from apps.kernel.models.supplier import ServiceSupplier, SupplierStatus, SupplierType
 from apps.kernel.services.tenant_service import TenantService
 from apps.orders.services.queries import CatalogQueryService
 
@@ -123,6 +123,35 @@ class OrganizationDirectoryService:
             tenant_id=tenant_id, text="", city=None, service_category_id=None,
         )
         return common.distinct_cities_from_attrs(attrs_by_id.values())
+
+    @classmethod
+    def build_cards_for_supplier_ids(cls, supplier_ids, *, tenant_id=None) -> dict:
+        """Phase 4 Sprint 4.1 (Customer Favorites): resolves an explicit,
+        caller-chosen set of supplier ids into cards — the organization-side
+        sibling of `CaregiverDirectoryService.build_cards_for_supplier_ids()`,
+        same reasoning: reuses `_bulk_card_data()`/`_build_card()` unchanged,
+        no second card-building implementation. Returns
+        {supplier_id: OrganizationCardViewModel}, silently omitting any id
+        that is not currently publicly visible."""
+        tenant_id = tenant_id or TenantService.get_default_tenant_id()
+        if not supplier_ids:
+            return {}
+
+        suppliers = list(
+            ServiceSupplier.objects.filter(
+                id__in=supplier_ids, tenant_id=tenant_id, status=SupplierStatus.ACTIVE,
+                supplier_type=SupplierType.ORGANIZATION,
+            ),
+        )
+        attrs_by_id = common.bulk_supplier_attrs(suppliers)
+        eligible = [supplier for supplier in suppliers if common.is_publicly_visible_attrs(attrs_by_id[supplier.id])]
+
+        categories = tuple(CatalogQueryService.list_active_categories(tenant_id=tenant_id).order_by("sort_order", "name"))
+        card_data = cls._bulk_card_data(suppliers=eligible, categories=categories)
+        return {
+            supplier.id: cls._build_card(supplier, attrs_by_id[supplier.id], card_data=card_data)
+            for supplier in eligible
+        }
 
     # ------------------------------------------------------------------
 

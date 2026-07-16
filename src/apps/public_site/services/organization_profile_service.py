@@ -52,6 +52,7 @@ exposes to the owning admin, just gated behind the same
 `is_publicly_visible_attrs()` check every other field on this ViewModel
 already goes through."""
 
+from apps.accounts.services.favorites import FavoritesService
 from apps.accounts.services.organization_staff import OrganizationStaffService
 from apps.accounts.services.supplier_bridge import resolve_supplier_entity
 from apps.kernel.models.supplier import ServiceSupplier, SupplierStatus, SupplierType
@@ -74,7 +75,10 @@ class OrganizationPublicProfileService:
     into a public organization profile ViewModel."""
 
     @classmethod
-    def get_profile(cls, supplier_id, *, tenant_id=None) -> OrganizationProfileViewModel | None:
+    def get_profile(cls, supplier_id, *, tenant_id=None, customer=None) -> OrganizationProfileViewModel | None:
+        """`customer` (Phase 4 Sprint 4.1, optional): see
+        CaregiverPublicProfileService.get_profile()'s identical
+        docstring/contract."""
         tenant_id = tenant_id or TenantService.get_default_tenant_id()
 
         try:
@@ -109,6 +113,7 @@ class OrganizationPublicProfileService:
             is_verified=attrs["verification_status"] == "verified",
             rating=rating,
             active_provider_count=active_provider_count,
+            is_favorited=FavoritesService.is_favorited(customer, supplier_id=supplier.id) if customer else False,
         )
 
     @staticmethod

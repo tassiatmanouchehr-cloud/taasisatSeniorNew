@@ -57,6 +57,7 @@ from apps.accounts.services.supplier_bridge import resolve_supplier_entity
 from apps.availability.models import PERSIAN_DAY_LABELS
 from apps.availability.services.query_service import AvailabilityQueryService
 from apps.kernel.models.supplier import ServiceSupplier, SupplierStatus
+from apps.accounts.services.favorites import FavoritesService
 from apps.kernel.services.tenant_service import TenantService
 from apps.orders.services.queries import CatalogQueryService
 from apps.reviews.models import Review, ReviewModerationStatus
@@ -82,7 +83,14 @@ class CaregiverPublicProfileService:
     """Read-only: resolves a single supplier_id into a public profile ViewModel."""
 
     @classmethod
-    def get_profile(cls, supplier_id, *, tenant_id=None) -> CaregiverProfileViewModel | None:
+    def get_profile(cls, supplier_id, *, tenant_id=None, customer=None) -> CaregiverProfileViewModel | None:
+        """`customer` (Phase 4 Sprint 4.1, optional, defaults to None):
+        the authenticated visitor's own CustomerProfile, if any — never
+        resolved here, always passed in already-resolved by the view, so
+        this service never touches request/session state. When absent
+        (anonymous visitor, or an authenticated non-customer actor), the
+        returned ViewModel's is_favorited is simply False; no error, no
+        second visibility/resolution path."""
         tenant_id = tenant_id or TenantService.get_default_tenant_id()
 
         try:
@@ -143,6 +151,7 @@ class CaregiverPublicProfileService:
             ),
             verification_badges=cls._verification_badges(attrs, credentials),
             schedule_summary=cls._schedule_summary(supplier),
+            is_favorited=FavoritesService.is_favorited(customer, supplier_id=supplier.id) if customer else False,
         )
 
     # ------------------------------------------------------------------

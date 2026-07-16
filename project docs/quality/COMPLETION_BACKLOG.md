@@ -1,7 +1,7 @@
 # CURRENT GAPS AND COMPLETION BACKLOG
 
-**Last verified HEAD:** phase1-verification-activation-rules (from main @ 278098b)
-**Last verified date:** 2026-07-15
+**Last verified HEAD:** phase4-customer-favorites (from main @ d50f83fb7aa2f71c50bb039c8259397740bc832b)
+**Last verified date:** 2026-07-16 (Sprint 4.1 implementation complete, PR open, not yet merged)
 
 ---
 
@@ -441,6 +441,40 @@ reports extension, company invoicing, gallery/certificates parity with the careg
 a full public company directory/listing page (now **resolved by Sprint 3.3/BG-031**), an
 opt-in public-contact-details toggle, a dedicated service-area/coverage-radius field.
 **Status update (2026-07-16):** **MERGED to main via PR #13** (merge commit `49b643e`).
+
+### BG-032: Customer Favorites and Saved Providers — **IMPLEMENTED, PR OPEN (not yet merged)**
+
+**Original evidence:** The one confirmed, repository-wide-verified gap found by the Phase 4
+Customer Portal Architecture Assessment (2026-07-16, code-free) — no `Favorite`/bookmark/
+shortlist/saved-supplier model or equivalent existed anywhere in the repository (`G5` in
+`IMPLEMENTATION_ROADMAP.md`'s gap inventory).
+**Resolution (2026-07-16, Sprint 4.1, branch `phase4-customer-favorites`):** new `Favorite`
+model (`apps.accounts`, direct FK to `CustomerProfile`/`kernel.ServiceSupplier`, both CASCADE,
+`UniqueConstraint(customer_profile, supplier)`, no tenant field — tenant derives transitively
+via the parent's own user, mirroring `CaregiverSkill`/`CaregiverGalleryItem`'s precedent, not
+`Review`'s tenant-FK-plus-`person_id` shape). `FavoritesService` (`add_favorite`/
+`remove_favorite`/`is_favorited`/`list_favorites_for_customer`, no ambiguous `toggle()`, both
+mutations idempotent). Save/unsave toggle on both public caregiver and organization profiles
+(`apps.public_site`'s first authenticated mutation surface, new narrow
+`customer_context.py`). New `GET /portal/favorites/` "My Favorites" list page (paginated,
+mixed caregiver/organization, bulk-resolved cards via new additive
+`build_cards_for_supplier_ids()` classmethods on both existing directory services — no new
+shared/canonical card model, per ADM-025's own "no abstract base class" decision) +
+`POST /portal/favorites/<supplier_id>/remove/`. One migration
+(`accounts/0011_favorite.py`). 54 new tests, full regression 2246/2246 green. See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-027 and
+`traceability/IMPLEMENTATION_JOURNAL.md`.
+**Affected modules:** accounts (new `Favorite` model + `FavoritesService`), public_site (favorite
+toggle, first authenticated surface), portal (new "My Favorites" page).
+**Not in scope (explicitly deferred, per the Sprint 4.1 implementation instruction):**
+recommendations, ranking changes, personalized discovery, saved searches/filters, recently
+viewed suppliers, supplier comparison, collections/folders, customer notes/labels/pins,
+sharing favorite lists, notifications, mobile-client APIs, financial/order-workflow changes,
+supplier-side favorites analytics, broad public-site authentication redesign, broad Shared
+Discovery refactoring.
+**Status update (2026-07-16):** Implementation and tests complete on branch
+`phase4-customer-favorites`. **PR open against `main` — not yet merged. Do not treat as
+RESOLVED until the PR merges.**
 
 ### BG-031: Company Public Directory and Discovery — **RESOLVED**
 

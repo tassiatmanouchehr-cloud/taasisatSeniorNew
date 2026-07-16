@@ -168,6 +168,11 @@ class CaregiverProfileViewModel:
     highlights: ProfessionalHighlightsViewModel | None = None
     verification_badges: tuple[VerificationBadgeViewModel, ...] = field(default_factory=tuple)
     schedule_summary: AvailabilityScheduleSummaryViewModel | None = None
+    is_favorited: bool = False
+    """Phase 4 Sprint 4.1 (Customer Favorites): True only when the
+    currently authenticated visitor is a customer and has favorited this
+    supplier — False for anonymous visitors and non-customer actors alike
+    (get_profile()'s own `customer=None` default), never raising."""
 
 
 @dataclass(frozen=True)
@@ -253,6 +258,10 @@ class OrganizationProfileViewModel:
     is_verified: bool
     rating: RatingSummaryViewModel
     active_provider_count: int
+    is_favorited: bool = False
+    """Phase 4 Sprint 4.1 (Customer Favorites) — see
+    CaregiverProfileViewModel.is_favorited's own docstring; identical
+    contract for the organization public profile page."""
 
 
 @dataclass(frozen=True)

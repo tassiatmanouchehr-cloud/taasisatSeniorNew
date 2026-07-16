@@ -28,7 +28,7 @@ import math
 from apps.discovery.services.query_normalizer import normalize_query
 from apps.discovery.services.ranking_service import DiscoveryRankingService
 from apps.discovery.services.search_service import SupplierSearchService
-from apps.kernel.models.supplier import AvailabilityStatus, SupplierType
+from apps.kernel.models.supplier import AvailabilityStatus, ServiceSupplier, SupplierStatus, SupplierType
 from apps.kernel.services.tenant_service import TenantService
 from apps.orders.services.queries import CatalogQueryService
 
@@ -155,6 +155,38 @@ class CaregiverDirectoryService:
             cls._build_card(candidates_by_id[supplier_id], attrs_by_id[supplier_id], card_data=card_data)
             for supplier_id in featured_supplier_ids
         )
+
+    @classmethod
+    def build_cards_for_supplier_ids(cls, supplier_ids, *, tenant_id=None) -> dict:
+        """Phase 4 Sprint 4.1 (Customer Favorites): resolves an explicit,
+        caller-chosen set of supplier ids into cards, for surfaces that
+        already know exactly which suppliers they want (a customer's
+        favorites list) rather than running search()'s own ranking/
+        pagination over the full candidate universe. Reuses the exact same
+        KL-012-hardened `_bulk_card_data()`/`_build_card()` machinery
+        search()/featured() already use — no second card-building
+        implementation. Returns {supplier_id: CaregiverCardViewModel},
+        silently omitting any id that is not currently publicly visible
+        (the caller distinguishes "not in this dict" from "favorited but no
+        longer public")."""
+        tenant_id = tenant_id or TenantService.get_default_tenant_id()
+        if not supplier_ids:
+            return {}
+
+        suppliers = list(
+            ServiceSupplier.objects.filter(
+                id__in=supplier_ids, tenant_id=tenant_id, status=SupplierStatus.ACTIVE,
+                supplier_type__in=CAREGIVER_SUPPLIER_TYPES,
+            ),
+        )
+        attrs_by_id = common.bulk_supplier_attrs(suppliers)
+        eligible = [supplier for supplier in suppliers if common.is_publicly_visible_attrs(attrs_by_id[supplier.id])]
+
+        card_data = cls._bulk_card_data(tenant_id=tenant_id, supplier_ids=[supplier.id for supplier in eligible])
+        return {
+            supplier.id: cls._build_card(supplier, attrs_by_id[supplier.id], card_data=card_data)
+            for supplier in eligible
+        }
 
     # ------------------------------------------------------------------
 

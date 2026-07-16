@@ -12,10 +12,14 @@ enforced for apps.portal/apps.provider_portal/apps.organization_portal.
 """
 
 from django.http import Http404
-from django.shortcuts import render
+from django.shortcuts import redirect, render
+from django.views.decorators.http import require_POST
 
+from apps.accounts.services.errors import AccountsError
+from apps.accounts.services.favorites import FavoritesService
 from apps.kernel.services.tenant_service import TenantService
 
+from .services.customer_context import require_customer, resolve_customer_or_none
 from .services.directory_service import CAREGIVER_SUPPLIER_TYPES, CaregiverDirectoryService
 from .services.home_service import HomePageService
 from .services.organization_directory_service import OrganizationDirectoryService
@@ -67,10 +71,35 @@ def find_a_caregiver(request):
 
 def caregiver_profile(request, supplier_id):
     tenant_id = _resolve_optional_tenant_hint(request)
-    profile = CaregiverPublicProfileService.get_profile(supplier_id, tenant_id=tenant_id)
+    customer = resolve_customer_or_none(request)
+    profile = CaregiverPublicProfileService.get_profile(supplier_id, tenant_id=tenant_id, customer=customer)
     if profile is None:
         raise Http404("Caregiver profile not found.")
-    return render(request, "public_site/caregiver_profile.html", {"profile": profile})
+    return render(
+        request, "public_site/caregiver_profile.html", {"profile": profile, "can_favorite": customer is not None},
+    )
+
+
+@require_POST
+def caregiver_favorite_toggle(request, supplier_id):
+    """Phase 4 Sprint 4.1 (Customer Favorites): toggles the caller's own
+    favorite state for this supplier, then redirects back to the same
+    profile page — never a client-supplied "next" URL. 403 for anonymous/
+    non-customer callers (require_customer()'s own convention, matching
+    apps.portal.permissions.require_authenticated() exactly). A
+    wrong-tenant/unknown supplier_id is absorbed silently (redirect back
+    unchanged) rather than disclosed, matching this codebase's established
+    non-disclosure convention for ownership-scoped lookups."""
+    customer, tenant_id = require_customer(request)
+    action = request.POST.get("action")
+    try:
+        if action == "remove":
+            FavoritesService.remove_favorite(customer, supplier_id=supplier_id)
+        else:
+            FavoritesService.add_favorite(customer, supplier_id=supplier_id, tenant_id=tenant_id)
+    except AccountsError:
+        pass
+    return redirect("public_site:caregiver-profile", supplier_id=supplier_id)
 
 
 def find_an_organization(request):
@@ -85,10 +114,29 @@ def find_an_organization(request):
 
 def organization_profile(request, supplier_id):
     tenant_id = _resolve_optional_tenant_hint(request)
-    profile = OrganizationPublicProfileService.get_profile(supplier_id, tenant_id=tenant_id)
+    customer = resolve_customer_or_none(request)
+    profile = OrganizationPublicProfileService.get_profile(supplier_id, tenant_id=tenant_id, customer=customer)
     if profile is None:
         raise Http404("Organization profile not found.")
-    return render(request, "public_site/organization_profile.html", {"profile": profile})
+    return render(
+        request, "public_site/organization_profile.html", {"profile": profile, "can_favorite": customer is not None},
+    )
+
+
+@require_POST
+def organization_favorite_toggle(request, supplier_id):
+    """Organization-side sibling of caregiver_favorite_toggle() — identical
+    contract, see that view's own docstring."""
+    customer, tenant_id = require_customer(request)
+    action = request.POST.get("action")
+    try:
+        if action == "remove":
+            FavoritesService.remove_favorite(customer, supplier_id=supplier_id)
+        else:
+            FavoritesService.add_favorite(customer, supplier_id=supplier_id, tenant_id=tenant_id)
+    except AccountsError:
+        pass
+    return redirect("public_site:organization-profile", supplier_id=supplier_id)
 
 
 def about(request):

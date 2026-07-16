@@ -26,6 +26,12 @@
         {% if profile.headline %}<p class="mt-1 text-sm font-medium text-text">{{ profile.headline }}</p>{% endif %}
         {% if profile.city %}<p class="mt-1 text-sm text-text-muted">{{ profile.city }}</p>{% endif %}
       </div>
+      {% if can_favorite %}
+      <div class="pb-2">
+        {% url 'public_site:organization-favorite-toggle' supplier_id=profile.supplier_id as favorite_toggle_url %}
+        {% include "ui/components/public/favorite_toggle.html" with is_favorited=profile.is_favorited toggle_url=favorite_toggle_url %}
+      </div>
+      {% endif %}
     </div>
 
     <div class="mt-6 flex flex-wrap items-center gap-3">

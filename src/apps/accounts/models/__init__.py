@@ -1,5 +1,6 @@
 """Accounts models."""
 
+from .favorites import Favorite
 from .gallery import CaregiverGalleryItem
 from .media import DocumentStatus, DocumentType, VerificationDocument
 from .otp import OTPChallenge, OTPPurpose
@@ -26,6 +27,7 @@ from .profiles import (
 )
 
 __all__ = [
+    "Favorite",
     "OTPChallenge",
     "OTPPurpose",
     "DocumentType",

@@ -1956,3 +1956,115 @@ changed by this assessment — documentation-only, on branch
 `078e435fee2b2c6350c66be113c4e7e607178763`, 2026-07-16). See
 `traceability/IMPLEMENTATION_JOURNAL.md` for the full 29-point assessment and the "PR #15
 Merge" entry recording final pre-merge verification.
+
+---
+
+## ADM-027 — Customer Favorites and Saved Providers (Phase 4 Sprint 4.1, 2026-07-16)
+
+**Context:** ADM-026 recommended Sprint 4.1 as Phase 4's first bounded implementation sprint
+but deliberately did not pre-commit its 4 architectural decisions. The actual Sprint 4.1
+implementation instruction required a *fresh*, evidence-based decision on each — not an
+automatic acceptance of ADM-026's own leaning recommendation — considering the repository's
+actual bounded contexts, dependency direction, naming conventions, migration ownership, and
+guardrails. Branch `phase4-customer-favorites`, from `main` @
+`d50f83fb7aa2f71c50bb039c8259397740bc832b`.
+
+**Decision A — Model ownership, shape, and `on_delete` policy.** `Favorite` lives in
+`apps.accounts`, not `apps.portal` (which has zero `models.py` — a pure presentation/
+controller app) and not a new app (no compelling evidence justified one for a single small
+model). `apps.accounts` already owns every other customer-profile child record
+(`ElderProfile`, `TrustedContact`, `CaregiverSkill`, `CaregiverGalleryItem`). Direct FK to
+`accounts.CustomerProfile` (matches the dominant "customer-owned record" precedent,
+`orders.Order.customer_profile`) and `kernel.ServiceSupplier` (never `CaregiverProfile`/
+`OrganizationProfile` directly — `ServiceSupplierProfileCouplingTest`), both `on_delete
+=CASCADE`. `CASCADE` was chosen over `apps.reviews.Review`'s own `PROTECT` because (1)
+`ServiceSupplier` rows are never hard-deleted in any production code path (repo-wide grep:
+only a seed/management command does it) and (2) the dominant FK-to-`ServiceSupplier`
+precedent (`apps.availability`, `apps.booking`, `apps.matching`, `apps.orders.OrderOffer`,
+`apps.pricing`) is `CASCADE` — `Review`'s `PROTECT` is explained by its role as a permanent
+historical/reputation record, which does not apply to a pure UI-convenience favorite toggle.
+**No `tenant_id` field:** the closest structural precedent (`CaregiverSkill`/
+`CaregiverGalleryItem`, both customer/caregiver-owned child records) deliberately avoids
+`TenantAwareModel`/any tenant field, deriving tenant transitively via the parent's own
+user→tenant chain — `Review`'s `tenant`-FK-plus-`person_id` shape was judged the wrong
+precedent (a cross-module business-event record, not owned preference data). Minimum fields
+(`id`, `customer_profile`, `supplier`, `created_at`) plus a `UniqueConstraint(customer_profile,
+supplier)` (one customer saves a supplier once) and `Index(customer_profile, -created_at)`
+(list ordering).
+
+**Decision B — Domain API shape and idempotency.** `FavoritesService.add_favorite()`/
+`remove_favorite()`/`is_favorited()`/`list_favorites_for_customer()` — shorter than the task's
+own suggested `add_saved_supplier()` etc., using the explicit "use repository naming
+conventions where appropriate" permission, directly mirroring `CaregiverSkillService
+.add_skill()`/`remove_skill()`'s shape. No `toggle()` is exposed as the domain API — the two
+toggle *views* (public_site and portal) each decide which explicit command to call based on
+the submitted `action` value, keeping the domain layer itself unambiguous. `add_favorite()`
+uses `get_or_create()` guarded by the DB `UniqueConstraint`, with an explicit `IntegrityError`
+fallback re-fetch for a raced concurrent double-add — deliberately more defensive than
+`add_skill()`'s own "duplicate raises" behavior, since Favorites requires idempotent *success*
+on duplicate add. This fallback path is proven under a mocked `IntegrityError`, not merely
+assumed sufficient (`test_add_favorite_survives_integrity_error_race`).
+
+**Decision C — No new shared/canonical discovery-card abstraction.** No canonical
+supplier-card contract exists today; `CaregiverCardViewModel`/`OrganizationCardViewModel`
+remain deliberately distinct per ADM-025's own "structural consistency only, no abstract base
+class" decision. Introducing a shared abstraction now — solely to serve the favorites list,
+one new consumer — would be exactly the "broad Shared Discovery refactoring" the
+implementation instruction explicitly ruled out. Both card ViewModels are reused completely
+unchanged.
+
+**Decision D — Favorites presentation: a lightweight wrapper, not a third card model.**
+Evaluated three options (reuse existing type-specific ViewModels/components directly;
+introduce a genuinely canonical supplier/discovery-card projection; a lightweight
+favorites-row wrapper around one existing card). Chose the third: `FavoriteRowViewModel`
+composes favorite metadata (`favorite_id`, `saved_at_label`, `remove_url`) + a
+`supplier_type` discriminator + exactly one of the two existing, unmodified card ViewModels
+(`caregiver_card`/`organization_card`, the other left `None`). Both fields `None` signals the
+favorited supplier is no longer publicly visible — the portal template renders a "no longer
+publicly listed" state instead of a card, never a link to a now-404 profile. To build these
+cards without duplicating either directory service's private card-building logic, both
+`CaregiverDirectoryService` and `OrganizationDirectoryService` gained a new, purely additive
+`build_cards_for_supplier_ids()` classmethod — zero change to `search()`/`featured()`/
+`available_cities()`, reusing each service's own existing private bulk-resolution helpers.
+
+**`apps.public_site` becomes auth-aware for the first time.** No existing production-code
+precedent has `apps.portal` importing from `apps.public_site` (only cross-portal consistency
+tests did) — reasoned through as architecturally sound and one-directional here: `public_site`
+is the canonical, read-only source of "what does a public supplier card look like," and
+`portal` (a higher, more specific authenticated layer) depending on it avoids exactly the
+"second card model" duplication Decisions C/D forbid. Conversely, `apps.public_site`'s own
+first-ever authenticated surface (the favorite toggle) deliberately does **not** reuse
+`apps.portal.permissions` — wrong dependency direction, and a contract mismatch (portal's
+resolver always raises on failure; a public profile page's read-only favorite-state check
+must degrade silently to `False` rather than 500 a public page). Instead, a small,
+self-contained `apps.public_site.services.customer_context` module provides two functions
+with different failure contracts: `resolve_customer_or_none()` (fail-closed/silent, GET
+profile-page rendering) and `require_customer()` (fail-loud/403, the POST toggle) — explicitly
+narrow and non-precedent-setting, not a general public-site authentication redesign.
+
+**Redirect-target safety and non-disclosure.** Both toggle views hardcode the redirect target
+via Django's `redirect("public_site:...-profile", supplier_id=...)` — never reading a
+"next"/"return_url" request parameter — satisfying "do not trust an arbitrary client-supplied
+return URL." Both wrap the `FavoritesService` call in `try/except AccountsError: pass`, then
+unconditionally redirect to the same profile page, never differentiating success from failure
+in the response — satisfying "must not disclose object existence" for a wrong-tenant/unknown
+supplier id.
+
+**KL-022 (flash-message framework) scope decision:** ADM-026 flagged this as worth folding
+into Sprint 4.1 "if the sprint touches mutation views anyway." The actual Sprint 4.1
+implementation instruction's own explicit scope (Domain/Ownership/Public-Profile/Portal/
+Visibility/Service-Layer/Query requirements, required tests, and an explicit out-of-scope
+list) never named a flash-message framework as in-scope. Per this task's own governance
+("never expand scope — complete only what is approved"), it was **not** added this sprint —
+KL-022 remains open, unchanged, still cross-portal infrastructure, not a Sprint 4.1 blocker.
+
+**Consequences:** New model `Favorite` (`apps/accounts/models/favorites.py`), one migration
+(`accounts/0011_favorite.py`), new service `FavoritesService`
+(`apps/accounts/services/favorites.py`), new `apps.public_site.services.customer_context`,
+two new additive `build_cards_for_supplier_ids()` classmethods, two new public_site toggle
+views/routes, two new portal views/routes, new `CustomerFavoritesPresentationService`
+(portal), new `FavoriteRowViewModel`/`FavoritesListViewModel` ViewModels, new
+`templates/portal/favorites.html` + `ui/components/public/favorite_toggle.html`. 54 new
+tests, full regression 2246/2246 green (2192 baseline + 54 net). Branch
+`phase4-customer-favorites`, PR created against `main` — **not yet merged.** See
+`traceability/IMPLEMENTATION_JOURNAL.md` for the full implementation record.
