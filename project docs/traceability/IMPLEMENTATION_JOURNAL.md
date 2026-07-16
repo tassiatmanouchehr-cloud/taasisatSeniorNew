@@ -2569,4 +2569,16 @@ file-lifecycle, or shared visibility-policy code changed — only ViewModel/serv
 projection — so, per this remediation's own test policy, no full-regression rerun was
 performed; only the directly affected focused suites were run (all green). See
 `ARCHITECTURE_DECISION_LOG.md`'s ADM-024 remediation note for the full design record.
-**PR #13 not merged.**
+**MERGED to main via PR #13** (merge commit `49b643e130018b959938907e9a5d1ae491d51f6c`, 2026-07-16).
+
+## PR #13 Merge (2026-07-16)
+
+Final pre-merge verification confirmed the branch was unchanged at `832b51a`, the saved PR
+description reflected the final logo-rendering behavior, and `git status`/`git diff --check`/
+`manage.py check` were all clean; the accepted full-regression baseline (2160/2160) remained
+valid since no code changed after that run. Merged via `merge_pull_request` (merge commit
+`49b643e130018b959938907e9a5d1ae491d51f6c`). Local `main` fast-forwarded to match
+`origin/main`; confirmed identical (`git rev-parse main` == `git rev-parse origin/main`).
+**Sprint 3.2 (Company Professional Profile and Public Presence, including the PR #13
+architecture-review remediation that renders the public company logo) is now CLOSED and on
+`main`.**

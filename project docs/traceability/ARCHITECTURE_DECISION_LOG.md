@@ -1727,4 +1727,4 @@ already-resolved entity is a zero-query property access). `manage.py check` 0 is
 alone reports no changes); `git diff --check` clean. No model/migration/permission/
 file-lifecycle/shared-visibility-policy code changed, so — per this remediation's own test
 policy — the full regression was not re-run; only the directly affected focused suites were.
-**PR #13 not merged.**
+**MERGED to main via PR #13** (merge commit `49b643e130018b959938907e9a5d1ae491d51f6c`, 2026-07-16). **Sprint 3.2 is CLOSED.**

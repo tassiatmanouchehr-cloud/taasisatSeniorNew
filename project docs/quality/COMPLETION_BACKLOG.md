@@ -438,6 +438,7 @@ permission change; 7 new tests. See ADM-024's remediation note.
 reports extension, company invoicing, gallery/certificates parity with the caregiver profile,
 a full public company directory/listing page, an opt-in public-contact-details toggle, a
 dedicated service-area/coverage-radius field.
+**Status update (2026-07-16):** **MERGED to main via PR #13** (merge commit `49b643e`).
 
 ### BG-029: No Flash-Message/Error-Surfacing Framework for Portal Action Views
 

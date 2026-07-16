@@ -741,13 +741,23 @@ remains hidden; no filesystem path or private media metadata appears in the resp
 existing query-count contract is unaffected (reading `.url` off the already-resolved entity
 adds no query). No model, migration, permission, file-lifecycle, or shared visibility-policy
 code changed — only ViewModel/service/template projection — so no full-regression rerun was
-required per this remediation's own policy. **PR #13 not merged — awaiting review.**
+required per this remediation's own policy.
+
+### PR #13 — MERGED (2026-07-16)
+
+Final pre-merge verification confirmed the branch was unchanged at `832b51a`, the saved PR
+description reflected the final logo-rendering behavior, `git status`/`git diff --check`/
+`manage.py check` were all clean, and the accepted full-regression baseline (2160/2160)
+remained valid (no code changed after the baseline run). Merged via `merge_pull_request`
+(merge commit `49b643e130018b959938907e9a5d1ae491d51f6c`). Local `main` fast-forwarded to
+match `origin/main`. **Sprint 3.2 (Company Professional Profile and Public Presence,
+including the PR #13 architecture-review remediation) is now CLOSED and on `main`.**
 
 ---
 
 ## IMMEDIATE NEXT TASK
 
-### Await review of the Sprint 3.2 PR; do not start the next Company Portal sprint automatically
+### Await the next Phase 3 sprint's scope; do not start Sprint 3.3 automatically
 
 Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active implementation
 order).
@@ -756,17 +766,19 @@ Phase 1 and Phase 2 (all sprints, including Sprint 2.6 + its PR #11
 KL-012 remediation) are fully closed and merged to `main`. Sprint 3.1 is
 also fully closed and merged to `main` via PR #12 (including its
 architecture-review remediation that preserves affiliation-period
-history and cleaned up active documentation). Sprint 3.2 (this session's
-work) delivers the company professional-profile slice —
-remaining roadmap Phase 3 scope, explicitly NOT started by this task:
+history and cleaned up active documentation). Sprint 3.2 is also fully
+closed and merged to `main` via PR #13 (including its architecture-review
+remediation that renders the public company logo). No Sprint 3.3 work has
+started — remaining roadmap Phase 3 scope, explicitly NOT started yet:
 
 1. Company financial overview + reports (extend), company invoicing —
    not started, explicitly out of Sprint 3.2's scope. Company public
    profile parity with the caregiver profile is now **partially
    addressed** by Sprint 3.2 (headline, canonical visibility policy, SEO
-   fix, permission-gated media, transaction-safe media replacement) —
-   gallery/certificates generalized to organizations remains open
-   (explicitly out of Sprint 3.2's minimum-vertical-slice scope).
+   fix, permission-gated media, transaction-safe media replacement,
+   public logo rendering) — gallery/certificates generalized to
+   organizations remains open (explicitly out of Sprint 3.2's
+   minimum-vertical-slice scope).
 2. Company gallery/social feed, messaging, AI verification, payroll/
    salary, HR leave workflow, caregiver scheduling by company — not
    started, explicitly out of Sprint 3.1/3.2's scope per their own
