@@ -616,31 +616,161 @@ Full regression 2150/2150 green (2145 + 5 net). See
 `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-023's remediation note.
 Blocker 2 (documentation cleanup) addressed the same session — see the
 9 files listed in `traceability/IMPLEMENTATION_JOURNAL.md`'s PR #12
-remediation entry. **PR #12 not merged — awaiting review.**
+remediation entry.
+
+### PR #12 — MERGED (2026-07-16)
+
+Final architecture re-review confirmed both blockers resolved and the
+saved PR description accurate. Merged via `merge_pull_request` (merge
+commit `ffb82a4767ba115dc158cb845b92211ccbc30d00`). Local `main`
+fast-forwarded to match `origin/main`. **Sprint 3.1 (Company Foundation
+and Caregiver Management) is now CLOSED and on `main`.**
+
+### Sprint 3.2 — Company Professional Profile and Public Presence — IMPLEMENTED (2026-07-16)
+
+Branched fresh from merged `main` (`phase3-company-professional-profile`,
+from `ffb82a4`) per governance. Current-state inspection (required before
+any implementation) found most target capabilities already built by
+Epic 06 Sprint 2 and Sprint 3.1 — `OrganizationProfile`'s public/contact
+fields, `OrganizationProfileUpdateService` (permission-gated
+profile/services update), logo/cover upload, and the public
+organization-profile page at `/find-an-organization/<supplier_id>/` all
+already existed. No parallel model was introduced; the sprint closed the
+genuinely missing or broken pieces:
+
+- **New field:** `OrganizationProfile.headline` (professional
+  headline/short introduction — the one field Epic 06 Sprint 2 had not
+  built, mirroring `CaregiverProfile.specialty`'s existing role for
+  caregivers). One migration
+  (`accounts/0010_organizationprofile_headline.py`). Wired through
+  `OrganizationProfileUpdateService.update_profile()`, both portal and
+  public ViewModels, the profile-edit form, and both the portal and
+  public profile templates.
+- **Fixed a real canonical-visibility-policy bug:**
+  `OrganizationPublicProfileService.get_profile()` previously
+  re-implemented its own, weaker visibility check (`profile_status !=
+  "active"` only) instead of calling `common.is_publicly_visible_attrs()`
+  — the same function the caregiver public-profile page already used, and
+  the one that function's own docstring already claimed every public
+  entry point called. An ACTIVE-but-UNVERIFIED organization, or one whose
+  admin account had been deactivated, was therefore incorrectly publicly
+  visible. Fixed to call the same canonical function — one visibility
+  policy, no second implementation. Every pre-existing test fixture that
+  exercised "should be visible" now explicitly sets
+  `verification_status=VERIFIED` (previously they happened to pass only
+  because the weaker check didn't look at it).
+- **Fixed the SEO metadata bug on `organization_profile.html`**
+  (KL-021/BG-027, explicitly deferred by Sprint 2.6 as caregiver-only
+  scope, now in Sprint 3.2's own scope): `page_url` was hardcoded to the
+  organization list path instead of the profile's own canonical URL, and
+  `canonical_url` was never passed at all — fixed to match the caregiver
+  profile page's own established `{% url %}`-based pattern exactly.
+- **Permission-gated organization media mutations:** the four
+  `ProfileMediaService` organization logo/cover set/remove methods had no
+  permission check at all — only `resolve_organization()`'s ownership
+  boundary. Now require an `actor` kwarg and check the existing
+  `ORGANIZATION_PROFILE_UPDATE` key (whose own description already
+  claimed to cover "media"), mirroring
+  `OrganizationProfileUpdateService`'s exact `ownership_authorized_by`
+  shape and Sprint 3.1's own permission-key-hardening precedent.
+  `resolve_organization()` remains the real access boundary; this is
+  explicit, audited defense-in-depth, not a behavior change for admins.
+- **Made media file replacement transaction-safe:**
+  `ProfileMediaService._replace()` used to delete the old physical file
+  *before* saving the new field value — unsafe, since storage deletion
+  isn't transactional (the same class of problem Sprint 2.2's gallery
+  remediation already fixed). Fixed identically: save first, delete the
+  old file via `transaction.on_commit()`. Applies to both caregiver and
+  organization media (one shared helper).
+- **Public contact policy** stays "never expose phone/address, route to a
+  generic contact CTA" — the existing, already-privacy-safe default, not
+  a new opt-in toggle (no evidence of demand for one). **Service coverage
+  summary** is `city` + the existing `service_names` (from
+  `service_categories`) — no new service-area model, since none is
+  needed. **Company caregiver aggregation** stays a count only
+  (`active_provider_count`) — already privacy-safe, no caregiver identity
+  exposed. `duplicate company-service records` cannot occur —
+  `service_categories` is a single array field on `ServiceSupplier`, not
+  separate rows.
+
+10 new/rewritten tests (4 `apps.public_site.tests
+.test_organization_profile_service` + 6 `apps.organization_portal.tests
+.test_profile`) prove: unverified/pending-verification/admin-deactivated
+organizations are excluded from the public profile; headline round-trips
+through the edit form and appears on both profile pages; media
+upload/remove is denied for unauthenticated and non-admin-staff callers
+and structurally cannot reach a second organization; a terminated
+(former) caregiver staff member retains no portal access. One migration.
+Full regression 2160/2160 green (2150 + 10 net). Branch
+`phase3-company-professional-profile`, PR #13 created — see
+`traceability/IMPLEMENTATION_JOURNAL.md` and
+`ARCHITECTURE_DECISION_LOG.md` ADM-024.
+
+### PR #13 Architecture Review Remediation — Render the Public Company Logo (2026-07-16)
+
+Architecture review found one remaining scope blocker: Sprint 3.2's own initials-only public
+logo/avatar decision (Decision 6(a) in ADM-024, originally reasoned as "matches the caregiver
+public profile's own established precedent") left the logo capability disconnected from the
+public professional profile Sprint 3.2 exists to build — the organization's already-uploaded,
+already permission-gated, already file-safety-hardened logo was never actually shown to a
+public visitor. **That original reasoning is superseded**, not merely appended past: exposing
+the real logo is the correct minimum-vertical-slice completion, not a redesign.
+
+- Added `logo_url` to the public `OrganizationProfileViewModel`, populated from the existing
+  `OrganizationProfile.logo` field's own `.url` (Django's standard storage-URL abstraction —
+  never a filesystem path), exposed only when `entity.logo` is actually present. No new
+  field, no new model, no new upload path, no second media pipeline.
+  `organization_profile.html` now passes `src=profile.logo_url` to the existing
+  `ui/components/data/avatar.html` include — that component's own pre-existing fallback
+  (initials, when `src` is empty) now serves its originally intended purpose: the fallback
+  for *no logo uploaded*, not a blanket "logo capability is public-facing only", not a
+  substitute for it.
+- Canonical visibility policy (`common.is_publicly_visible_attrs()`) is unchanged and still
+  gates the entire profile, logo included — an unverified, suspended, rejected, or
+  admin-deactivated organization returns `None`/404 exactly as before, regardless of whether
+  it has a logo.
+- The organization-portal admin's own profile page already showed the real logo before this
+  remediation (private, authenticated, unrelated to the public-visibility boundary) — no
+  change was needed there.
+
+7 new tests prove: a publicly eligible organization with a logo exposes/renders it;
+one without a logo falls back to initials; an unverified organization with a logo still
+returns no public profile; an organization with a deactivated admin account and a logo
+remains hidden; no filesystem path or private media metadata appears in the response
+(`logo_url` differs from `logo.path`, no organization internal id appears in the URL); the
+existing query-count contract is unaffected (reading `.url` off the already-resolved entity
+adds no query). No model, migration, permission, file-lifecycle, or shared visibility-policy
+code changed — only ViewModel/service/template projection — so no full-regression rerun was
+required per this remediation's own policy. **PR #13 not merged — awaiting review.**
 
 ---
 
 ## IMMEDIATE NEXT TASK
 
-### Await review of PR #12 (Sprint 3.1 + its architecture-review remediation); do not start the next Company Portal sprint automatically
+### Await review of the Sprint 3.2 PR; do not start the next Company Portal sprint automatically
 
 Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active implementation
 order).
 
 Phase 1 and Phase 2 (all sprints, including Sprint 2.6 + its PR #11
-KL-012 remediation) are fully closed and merged to `main`. Sprint 3.1,
-now including the PR #12 architecture-review remediation that preserves
-affiliation-period history (Blocker 1) and cleaned up active documentation
-(Blocker 2), delivers the first Company Portal slice on PR #12 —
+KL-012 remediation) are fully closed and merged to `main`. Sprint 3.1 is
+also fully closed and merged to `main` via PR #12 (including its
+architecture-review remediation that preserves affiliation-period
+history and cleaned up active documentation). Sprint 3.2 (this session's
+work) delivers the company professional-profile slice —
 remaining roadmap Phase 3 scope, explicitly NOT started by this task:
 
-1. Company financial overview + reports (extend), company invoicing,
-   company public profile parity with the caregiver profile
-   (gallery/certificates generalized to organizations) — not started,
-   explicitly out of Sprint 3.1's scope.
+1. Company financial overview + reports (extend), company invoicing —
+   not started, explicitly out of Sprint 3.2's scope. Company public
+   profile parity with the caregiver profile is now **partially
+   addressed** by Sprint 3.2 (headline, canonical visibility policy, SEO
+   fix, permission-gated media, transaction-safe media replacement) —
+   gallery/certificates generalized to organizations remains open
+   (explicitly out of Sprint 3.2's minimum-vertical-slice scope).
 2. Company gallery/social feed, messaging, AI verification, payroll/
    salary, HR leave workflow, caregiver scheduling by company — not
-   started, explicitly out of Sprint 3.1's scope per its own governance.
+   started, explicitly out of Sprint 3.1/3.2's scope per their own
+   governance.
 3. No flash-message/error-surfacing framework exists for the new
    POST-action affiliation views (invite/approve/reject/terminate/etc.)
    — a failed action silently redirects back with no visible feedback,

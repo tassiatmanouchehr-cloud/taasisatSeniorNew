@@ -47,6 +47,7 @@ class OrganizationProfileUpdateService:
         address: str,
         company_type: str = "",
         team_size: str = "",
+        headline: str = "",
     ):
         PermissionService.require(
             None,
@@ -57,6 +58,7 @@ class OrganizationProfileUpdateService:
         )
 
         organization.name = (name or "").strip()
+        organization.headline = (headline or "").strip()
         organization.description = (description or "").strip()
         organization.city = (city or "").strip()
         organization.phone = (phone or "").strip()
@@ -66,6 +68,7 @@ class OrganizationProfileUpdateService:
         organization.save(
             update_fields=[
                 "name",
+                "headline",
                 "description",
                 "city",
                 "phone",

@@ -415,6 +415,7 @@ def profile_edit_view(request):
         request.POST or None,
         initial={
             "name": current.name,
+            "headline": current.headline,
             "description": current.description,
             "city": current.city,
             "phone": current.phone,
@@ -428,6 +429,7 @@ def profile_edit_view(request):
             organization,
             actor=request.user,
             name=form.cleaned_data["name"],
+            headline=form.cleaned_data["headline"],
             description=form.cleaned_data["description"],
             city=form.cleaned_data["city"],
             phone=form.cleaned_data["phone"],
@@ -481,7 +483,7 @@ def logo_upload_view(request):
     form = OrganizationImageUploadForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
         try:
-            ProfileMediaService.set_organization_logo(organization, form.cleaned_data["image"])
+            ProfileMediaService.set_organization_logo(organization, form.cleaned_data["image"], actor=request.user)
         except AccountsError as exc:
             form.add_error("image", str(exc))
         else:
@@ -500,7 +502,7 @@ def logo_upload_view(request):
 @require_http_methods(["POST"])
 def logo_remove_view(request):
     organization, tenant_id = _guard(request)
-    ProfileMediaService.remove_organization_logo(organization)
+    ProfileMediaService.remove_organization_logo(organization, actor=request.user)
     return redirect("organization_portal:profile")
 
 
@@ -510,7 +512,7 @@ def cover_upload_view(request):
     form = OrganizationImageUploadForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
         try:
-            ProfileMediaService.set_organization_cover(organization, form.cleaned_data["image"])
+            ProfileMediaService.set_organization_cover(organization, form.cleaned_data["image"], actor=request.user)
         except AccountsError as exc:
             form.add_error("image", str(exc))
         else:
@@ -529,7 +531,7 @@ def cover_upload_view(request):
 @require_http_methods(["POST"])
 def cover_remove_view(request):
     organization, tenant_id = _guard(request)
-    ProfileMediaService.remove_organization_cover(organization)
+    ProfileMediaService.remove_organization_cover(organization, actor=request.user)
     return redirect("organization_portal:profile")
 
 

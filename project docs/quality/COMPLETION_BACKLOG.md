@@ -400,8 +400,44 @@ ADM-023 and `traceability/IMPLEMENTATION_JOURNAL.md`.
 **Affected modules:** accounts, organization_portal, provider_portal, kernel (permission keys).
 **Not in scope (explicitly deferred, not this sprint's mandate):** company financial overview/
 reports extension, company invoicing, company public profile parity with the caregiver
-profile, company gallery/social feed, messaging, AI verification, payroll/salary, HR leave
-workflow, caregiver scheduling by company, multi-company simultaneous affiliation.
+profile (now **partially addressed by Sprint 3.2/BG-030** — headline, canonical visibility
+policy, permission-gated media; gallery/certificates parity remains open), company
+gallery/social feed, messaging, AI verification, payroll/salary, HR leave workflow, caregiver
+scheduling by company, multi-company simultaneous affiliation.
+**Status update (2026-07-16):** **MERGED to main via PR #12** (merge commit `ffb82a4`).
+
+### BG-030: Company Professional Profile and Public Presence — **RESOLVED**
+
+**Original evidence:** Roadmap Phase 3's second slice (`IMPLEMENTATION_ROADMAP.md`) needed a
+canonical company professional profile and privacy-safe public presence. Current-state
+inspection (Sprint 3.2, 2026-07-16) found most target capabilities already built by Epic 06
+Sprint 2 — `OrganizationProfile`'s public/contact fields, `OrganizationProfileUpdateService`,
+logo/cover upload, the public organization-profile page — but with a real
+canonical-visibility-policy bug (unverified/admin-deactivated organizations were incorrectly
+publicly visible), the same SEO canonical-URL bug the caregiver profile had before Sprint 2.6
+(KL-021/BG-027, deferred as caregiver-only at the time), no permission check on the 4
+organization media methods, and no professional-headline field.
+**Resolution (2026-07-16, Sprint 3.2):** Added `OrganizationProfile.headline` (one migration,
+no new model). Fixed `OrganizationPublicProfileService.get_profile()` to call the canonical
+`common.is_publicly_visible_attrs()` instead of a weaker local check. Fixed
+`organization_profile.html`'s SEO `page_url`/`canonical_url` to resolve the organization's own
+canonical URL (closing KL-021/BG-027). Permission-gated `ProfileMediaService`'s 4 organization
+logo/cover methods on the existing `ORGANIZATION_PROFILE_UPDATE` key. Made
+`ProfileMediaService._replace()` transaction-safe (shared by caregiver and organization
+media). 10 new/rewritten tests, full regression 2160/2160 green. See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-024 and
+`traceability/IMPLEMENTATION_JOURNAL.md`.
+**PR #13 architecture-review remediation (2026-07-16):** the public profile now renders the
+organization's own already-uploaded logo (`logo_url`, from the existing `logo` field's own
+storage URL; initials fallback only when no logo/no usable URL) — the initial "initials-only"
+decision left the logo capability disconnected from the public presence this backlog item
+exists to deliver. Canonical visibility policy still gates the logo. No model/migration/
+permission change; 7 new tests. See ADM-024's remediation note.
+**Affected modules:** accounts, organization_portal, public_site.
+**Not in scope (explicitly deferred, not this sprint's mandate):** company financial overview/
+reports extension, company invoicing, gallery/certificates parity with the caregiver profile,
+a full public company directory/listing page, an opt-in public-contact-details toggle, a
+dedicated service-area/coverage-radius field.
 
 ### BG-029: No Flash-Message/Error-Surfacing Framework for Portal Action Views
 

@@ -2,7 +2,8 @@
 {% block public_title %}{{ profile.name }}{% endblock %}
 
 {% block page_meta %}
-{% include "ui/components/public/seo_meta.html" with page_title=profile.name|add:" — سالمندیار" page_description=profile.description|default:"پروفایل عمومی سازمان در سالمندیار" page_url="/find-an-organization/" %}
+{% url 'public_site:organization-profile' supplier_id=profile.supplier_id as profile_url %}
+{% include "ui/components/public/seo_meta.html" with page_title=profile.name|add:" — سالمندیار" page_description=profile.headline|default:profile.description|default:"پروفایل عمومی سازمان در سالمندیار" page_url=profile_url canonical_url=profile_url %}
 {% endblock %}
 
 {% block content %}
@@ -13,7 +14,7 @@
   <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
     <div class="-mt-14 flex flex-col items-start gap-4 sm:-mt-16 sm:flex-row sm:items-end sm:gap-6">
       <div class="ring-4 ring-background rounded-2xl">
-        {% include "ui/components/data/avatar.html" with name=profile.name size="xl" type="org" ring=True %}
+        {% include "ui/components/data/avatar.html" with src=profile.logo_url name=profile.name size="xl" type="org" ring=True %}
       </div>
       <div class="flex-1 pb-2">
         <div class="flex flex-wrap items-center gap-2">
@@ -22,6 +23,7 @@
           {% include "ui/components/feedback/badge.html" with label="تأییدشده" variant="info" pill=True %}
           {% endif %}
         </div>
+        {% if profile.headline %}<p class="mt-1 text-sm font-medium text-text">{{ profile.headline }}</p>{% endif %}
         {% if profile.city %}<p class="mt-1 text-sm text-text-muted">{{ profile.city }}</p>{% endif %}
       </div>
     </div>

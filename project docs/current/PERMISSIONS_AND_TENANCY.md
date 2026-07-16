@@ -255,6 +255,42 @@ row) gives a clean `AccountsError` first; the DB layer backs it with a condition
 the PR #12 architecture-review remediation as the concurrency-safe backstop. See
 `ARCHITECTURE_DECISION_LOG.md` ADM-023 Decision 2 and its remediation note.
 
+**Sprint 3.1 (including the PR #12 remediation) is now MERGED to `main`.**
+
+### Company Professional Profile Authorization (Sprint 3.2)
+
+`ORGANIZATION_PROFILE_UPDATE` (pre-existing, Epic 06 Sprint 2, already `organization_scope=
+True` and already granted to `organization_admin`) now also guards the four organization
+logo/cover set/remove methods on `ProfileMediaService` — previously these had *no* permission
+check at all, only `apps.organization_portal.permissions.resolve_organization()`'s ownership
+boundary (unlike `OrganizationProfileUpdateService.update_profile()`/
+`update_service_categories()`, which already checked this key). Fixed by requiring an `actor`
+kwarg and the same `PermissionService.require(None, ORGANIZATION_PROFILE_UPDATE, tenant_id=...,
+ownership_authorized_by=actor, scope={...})` shape every other organization-mutation call site
+uses. As with every other `ownership_authorized_by` call site in this codebase,
+`resolve_organization()` remains the real access boundary (a caller who does not administer
+the organization never reaches `ProfileMediaService` at all — proven by
+`apps.organization_portal.tests.test_profile`'s `test_media_upload_denied_for_unauthenticated`/
+`test_media_upload_denied_for_non_admin_staff`); this is explicit, audited RBAC-readiness
+hardening, not a new behavioral gate. Caregiver-side avatar/cover methods on the same service
+are unchanged — ownership-authorized only, matching the codebase-wide CAREGIVER-role rule.
+
+No new permission key was needed for "view company professional profile" (the entire
+`organization_portal` app is already closed to non-administered callers by
+`resolve_organization()`) or for "preview public profile" (a public GET route, no mutation).
+
+### Cross-Organization Media Isolation (Sprint 3.2)
+
+`logo_upload_view`/`logo_remove_view`/`cover_upload_view`/`cover_remove_view` take no
+organization id at all — they always resolve `organization = resolve_organization(request)`,
+so a second organization is structurally unreachable through these views, not merely
+permission-denied. Proven directly by `apps.organization_portal.tests.test_profile
+.test_media_upload_only_affects_own_organization` (an org A admin's logo upload never touches
+org B's `logo` field) and `test_terminated_caregiver_membership_gets_no_portal_access` (a
+former CAREGIVER-role staff member, membership status REMOVED, gets 403 from the entire
+portal — `resolve_organization()`'s underlying `list_administered_organizations()` query
+already filters on `status=ACTIVE`, so no separate check was needed).
+
 ### Unscoped Queries (Known)
 
 | Location | Query | Risk |
