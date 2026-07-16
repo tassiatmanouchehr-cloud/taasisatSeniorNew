@@ -41,6 +41,7 @@ from .viewmodels import (
     FilterOptionViewModel,
     PaginationLinkViewModel,
     PaginationViewModel,
+    RatingSummaryViewModel,
 )
 
 CAREGIVER_SUPPLIER_TYPES = (SupplierType.INDEPENDENT_PROVIDER, SupplierType.ORGANIZATION_PROVIDER)
@@ -88,11 +89,12 @@ class CaregiverDirectoryService:
         current_page = max(1, min(cls._parse_page(page), total_pages))
         offset = (current_page - 1) * PAGE_SIZE
         page_items = ranked[offset : offset + PAGE_SIZE]
+        page_supplier_ids = [item.supplier_id for item in page_items if item.supplier_id in candidates_by_id]
 
+        card_data = cls._bulk_card_data(tenant_id=tenant_id, supplier_ids=page_supplier_ids)
         cards = tuple(
-            cls._build_card(candidates_by_id[item.supplier_id], attrs_by_id[item.supplier_id], tenant_id=tenant_id)
-            for item in page_items
-            if item.supplier_id in candidates_by_id
+            cls._build_card(candidates_by_id[supplier_id], attrs_by_id[supplier_id], card_data=card_data)
+            for supplier_id in page_supplier_ids
         )
 
         filters = cls._build_filters(
@@ -150,10 +152,11 @@ class CaregiverDirectoryService:
         candidates_by_id = {supplier.id: supplier for supplier in candidates}
         ranked = DiscoveryRankingService.rank(tenant_id=tenant_id, suppliers=candidates)
 
+        featured_supplier_ids = [item.supplier_id for item in ranked[:limit] if item.supplier_id in candidates_by_id]
+        card_data = cls._bulk_card_data(tenant_id=tenant_id, supplier_ids=featured_supplier_ids)
         return tuple(
-            cls._build_card(candidates_by_id[item.supplier_id], attrs_by_id[item.supplier_id], tenant_id=tenant_id)
-            for item in ranked[:limit]
-            if item.supplier_id in candidates_by_id
+            cls._build_card(candidates_by_id[supplier_id], attrs_by_id[supplier_id], card_data=card_data)
+            for supplier_id in featured_supplier_ids
         )
 
     # ------------------------------------------------------------------
@@ -189,9 +192,26 @@ class CaregiverDirectoryService:
         eligible = [supplier for supplier in candidates if common.is_publicly_visible_attrs(attrs_by_id[supplier.id])]
         return eligible, {supplier.id: attrs_by_id[supplier.id] for supplier in eligible}
 
+    @staticmethod
+    def _bulk_card_data(*, tenant_id, supplier_ids) -> dict:
+        """Precomputes, in a small fixed number of queries regardless of
+        how many supplier_ids are passed, the two per-card values that
+        used to be resolved with one query call *per card* inside
+        _build_card() — rating (common.rating_summary()) and completed-
+        jobs count (common.completed_jobs_count()). Only ever called with
+        the already-paginated/limited set of supplier_ids actually being
+        rendered (PAGE_SIZE or `limit`), never the full candidate set —
+        see quality/DEFECT_AND_RISK_REGISTER.md KL-012."""
+        return {
+            "ratings": common.rating_summaries_bulk(supplier_ids),
+            "completed_jobs": common.completed_jobs_counts_bulk(tenant_id=tenant_id, supplier_ids=supplier_ids),
+        }
+
     @classmethod
-    def _build_card(cls, supplier, attrs, *, tenant_id) -> CaregiverCardViewModel:
-        rating = common.rating_summary(supplier)
+    def _build_card(cls, supplier, attrs, *, card_data) -> CaregiverCardViewModel:
+        rating = card_data["ratings"].get(supplier.id) or RatingSummaryViewModel(
+            average=None, review_count=0, stars_rounded=0,
+        )
         return CaregiverCardViewModel(
             supplier_id=supplier.id,
             display_name=supplier.display_name,
@@ -207,7 +227,7 @@ class CaregiverDirectoryService:
             verification_label=common.verification_label(attrs["verification_status"]),
             is_verified=attrs["verification_status"] == "verified",
             rating=rating,
-            completed_jobs=common.completed_jobs_count(tenant_id=tenant_id, supplier_id=supplier.id),
+            completed_jobs=card_data["completed_jobs"].get(supplier.id, 0),
             profile_url=f"/find-a-caregiver/{supplier.id}/",
         )
 

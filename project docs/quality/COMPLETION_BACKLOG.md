@@ -187,6 +187,18 @@ table), full regression 1932/1932 green. See `traceability/IMPLEMENTATION_JOURNA
 certificates-as-gallery presentation (Sprint 2.3), extended financial overview
 (Sprint 2.5), orders + history (Sprint 2.5).
 
+**Update (2026-07-15, Sprint 2.6):** Certificates-as-gallery presentation is superseded by
+Sprint 2.3's precise verification-badge/highlights approach (a deliberate, documented
+alternative to a visual certificate gallery, not an unaddressed gap — see ADM-019).
+Dashboard-level financial overview and work/order summary were delivered by Sprint 2.5 and
+finalized/integration-tested by Sprint 2.6 (`apps.public_site.tests.test_phase2_acceptance`)
+— sufficient for Phase 2's own caregiver-public-profile acceptance criteria. Extended
+financial reporting/exports and full orders-history pages remain genuinely open, but are
+Company/Reporting-Portal-scale features explicitly outside both Sprint 2.5's and Sprint
+2.6's mandates — not a Phase 2 profile-completion blocker. Phase 2 (Caregiver Professional
+Profile) itself is accepted-complete; BG-021's remaining scope is recorded as future
+roadmap work, not a Phase 2 defect.
+
 ### BG-022: Directory/Home-Page Listing Eligibility Does Not Match the Public Profile Page's Stricter Rule — **RESOLVED**
 
 **Original evidence (Phase 2.1):** Phase 2.1 added `verification_status == VERIFIED` and
@@ -221,7 +233,10 @@ note and `traceability/IMPLEMENTATION_JOURNAL.md`.
 **Not in scope (found during remediation, tracked separately):** a pre-existing, unrelated
 per-candidate N+1 in directory ranking/card-building (`DiscoveryRankingService.rank()`,
 `CaregiverDirectoryService._build_card()`) — see `quality/DEFECT_AND_RISK_REGISTER.md`
-KL-012.
+KL-012. **Update (2026-07-15, Sprint 2.6 PR #11 remediation): KL-012 is now RESOLVED** —
+batched via `CapacityService.bulk_is_capacity_exceeded()`, `resolve_supplier_entities_bulk()`
+(reused in `SupplierSearchService`'s city filter), and new bulk rating/completed-jobs
+methods; see `ARCHITECTURE_DECISION_LOG.md` ADM-022's remediation note.
 
 ### BG-023: Professional Credibility Layer — Precise Badges, Skill/Experience Visibility, Highlights — **RESOLVED**
 
@@ -340,6 +355,28 @@ ledger/wallet/invoice/payment/settlement logic (all reused as-is); company dashb
 customer dashboard; marketplace bidding; gallery/social changes; booking calendar changes;
 payouts/withdrawals; accounting exports; bonus/penalty (no canonical model — recorded as a
 new backlog item, see the "Deferred" note in `traceability/IMPLEMENTATION_JOURNAL.md`).
+
+### BG-027: Organization Public Profile — SEO `page_url`/Canonical URL Bug
+
+**Current evidence:** `templates/public_site/organization_profile.html` line 5 passes the
+generic caregiver-directory-style URL `page_url="/find-an-organization/"` to
+`ui/components/public/seo_meta.html` instead of the organization's own detail-page URL —
+identical to the bug found and fixed on `caregiver_profile.html` during Sprint 2.6
+(2026-07-15). This causes `og:url` (and any future `<link rel="canonical">`) for every
+organization profile page to point at the directory listing instead of that organization's
+own page.
+**Why needed:** Correct Open Graph/canonical metadata per organization profile; social-share
+previews and search engines currently cannot distinguish one organization's page from
+another via this metadata.
+**Affected modules:** public_site (organization profile template only).
+**Suggested implementation size:** Trivial (one-line template fix, mirroring the caregiver
+profile's Sprint 2.6 fix — resolve the organization's own detail URL via its named URL
+pattern and pass it as both `page_url` and `canonical_url`).
+**Required tests:** Existing organization-profile rendering tests; no new test infrastructure
+needed.
+**Risk:** Low — template-only, no behavior/privacy impact.
+**Not in scope:** Any other organization-profile change. See `quality/DEFECT_AND_RISK_REGISTER.md`
+KL-021.
 
 ### BG-003: OrderOfferService (Phase 2)
 

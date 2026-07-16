@@ -1917,3 +1917,250 @@ Full regression: 2077/2077 green (2033 baseline + 44 new).
 **RESOLVED.** Caregiver professional dashboard (work summary, financial overview, wallet
 movements, invoice summary, reviews/reputation, professional statistics) delivered. See
 `quality/COMPLETION_BACKLOG.md` BG-026.
+
+## PR #10 Merge (2026-07-15)
+
+`main` fast-forwarded from `125dd3b` to merge commit `9a260241cfd82ef3be997eec152d1aa2a510542b`
+(`9a26024`, PR #10, "Build caregiver professional dashboard"). Final pre-merge verification
+confirmed branch HEAD unchanged at `0682da9`, `git diff --check origin/main...HEAD` clean,
+`git status --short` clean, `python manage.py check` exit 0, and the 12-point pre-merge
+review (dashboard selectors read-only; no direct financial/order calculations in views or
+templates; wallet balance sourced from the canonical `WalletService`; wallet-movement
+`metadata` never referenced in the service or template; invoice queries beneficiary-scoped;
+order summaries supplier-scoped; reviews belong to the current caregiver only; no
+customer-private or platform-internal accounting information exposed; query counts bounded
+(31 empty / 30 populated, proven not to grow); no Sprint 2.6 code present in the diff;
+documentation synchronized; diff contains no unrelated code) all confirmed via direct
+re-inspection of `dashboard_service.py`'s docstring, imports, and every field's source
+(`available_balance_label` traced to `wallet.balance`). Full suite not re-run for the merge
+itself (branch unchanged since its last verified 2077/2077 run). Local `main` verified
+identical to `origin/main` after the merge. See `traceability/TEST_EXECUTION_LOG.md` Run
+021b.
+
+## Sprint 2.6 — Public Profile Finalization and Phase 2 Acceptance (2026-07-15)
+
+Branch `phase2-caregiver-public-profile-finalization`, created fresh from merged `main` @
+`9a26024` (not a reuse of the Sprint 2.5 branch, per this sprint's own governance). An
+integration/quality/privacy/accessibility/performance closeout sprint for the whole
+caregiver public-profile capability delivered across Phase 2.1 and Sprints 2.2-2.5 — no new
+models, views, or routes; explicitly forbidden from redesigning domain engines.
+
+### What Was Inspected and Found Clean (No Fix Needed)
+
+- **Directory/search/home visibility (Section C):** All three surfaces already resolve
+  through the single canonical `common.is_publicly_visible_attrs()` (BG-022) — re-confirmed
+  by re-reading `directory_service.py`/`home_service.py` and the existing
+  `test_public_visibility_policy.py` suite. `caregiver_card.html` exposes only display name,
+  avatar, city/specialty, availability/organization-affiliation badges, a verified checkmark,
+  rating, and completed-jobs count — no full credential detail, private contact, time-off,
+  wallet, or hidden-count data.
+- **Provider-preview consistency (Section J):** `public_preview_url` on the provider-portal
+  profile page is a direct link to the caregiver's real public profile URL (`ProviderProfile
+  PresentationService.get_profile_view()`) — there is no separate "preview" render path to
+  diverge from the real public page. Owner-facing `skills_count`/`experience_count`/
+  `gallery_count` (totals) are clearly distinguished from `highlights.visible_skill_count`/
+  `visible_experience_count` (public-visible subset) both in the ViewModel and the template
+  labels ("ثبت‌شده" vs. "نمایش‌داده‌شده"). `activation_blocking_reasons` explains why an
+  ineligible profile is not yet public.
+- **Privacy/security acceptance (Section F):** Every public ViewModel dataclass
+  (`apps.public_site.services.viewmodels`) structurally carries no phone/private-email/
+  private-address/national-identifier field. `PublicCredentialSelector` (Phase 2.1) already
+  excludes file path, document number, reviewer identity (`VerificationDocument.reviewed_by`,
+  the internal document-moderation reviewer — not to be confused with a customer review's
+  `reviewer_name`, which is an intentional, public, non-private field), and
+  rejection/correction reason by construction, not by filtering at render time.
+- **Cache (Section H):** A real, production-configured cache exists
+  (`config/settings/base.py`, Redis with LocMemCache fallback), but its only usage
+  (`ConfigResolver`, `FeatureFlagService`) is narrow config/feature-flag caching with
+  explicit invalidation — never a page or read-model cache. No proven performance blocker
+  found (see Query/Performance below) that would justify introducing one this sprint.
+- **Public API (Section I):** `/api/v1/discovery/suppliers/` exists but is
+  permission-gated (`DISCOVERY_SUPPLIERS_READ`) and unrelated to the public, canonical-
+  visibility-gated caregiver profile — no new public API created, per this sprint's explicit
+  scope limit.
+
+### What Was Fixed
+
+1. **SEO `page_url`/canonical URL bug** (`caregiver_profile.html`): every other
+   `public_site` template passes its own unique URL to `ui/components/public/seo_meta.html`;
+   the caregiver profile page was passing the generic directory URL
+   (`/find-a-caregiver/`) instead of its own detail URL, so `og:url` pointed at the wrong
+   page. Fixed to resolve and pass the caregiver's own URL as both `page_url` and the
+   newly-added `canonical_url`. The identical bug on `organization_profile.html` was found
+   and deliberately left unfixed (out of this sprint's caregiver-only scope) — recorded as
+   `quality/DEFECT_AND_RISK_REGISTER.md` KL-021 / `quality/COMPLETION_BACKLOG.md` BG-027.
+2. **Accessibility — empty `alt` on non-decorative gallery images** (`caregiver_profile
+   .html`, `profile_gallery.html`, `profile_gallery_item_edit.html`): `CaregiverGalleryItem
+   .alt_text`/`.caption` are both `blank=True`, so a real empty-alt case existed. Added a
+   Persian fallback string ("تصویر گالری").
+3. **Accessibility — unassociated form labels** (`availability.html` x2,
+   `profile_gallery.html`, `profile_gallery_item_edit.html`, `profile_skills.html`): added
+   `for="{{ field.id_for_label }}"`. The same pattern exists in 12 other templates across
+   `organization_portal`, `admin_portal`, and `portal` (customer) — deliberately left
+   unfixed, out of this sprint's caregiver-profile-only scope. `profile_edit_basic.html`,
+   `profile_edit_professional.html`, and `profile_experience_form.html` were inspected and
+   already had the association correctly.
+4. **Contradictory/redundant badge semantics** (`caregiver_profile.html`): removed a second,
+   generic verification badge (`profile.verification_label`/`is_verified`) that always
+   rendered "تأییدشده" with an "info" variant on every publicly-viewable profile — because
+   `is_publicly_visible_attrs()` already requires `verification_status == "verified"` to
+   render the page at all, this badge conveyed zero information beyond the precise Sprint
+   2.3 badge already shown in the header, in different words. See `ARCHITECTURE_DECISION_LOG
+   .md` ADM-022 Decision 1.
+5. **Pre-existing, environment-clock-dependent flaky test**
+   (`apps.accounts.tests.test_caregiver_professional_profile
+   .test_expired_document_does_not_appear`): computed "yesterday" via OS-local
+   `datetime.date.today()` while the code under test compares against UTC-based
+   `timezone.now().date()` — fixed to use the same clock reference. See
+   `ARCHITECTURE_DECISION_LOG.md` ADM-022 Decision 5.
+
+### Query/Performance Review (Section G)
+
+All 7 required pages measured:
+
+| Page | Query count | Notes |
+|------|-------------|-------|
+| Empty public profile | 15 | Bounded, pre-existing test |
+| Populated public profile | 15 | Proven not to grow with skills/experience/credentials/gallery count |
+| Directory (many caregivers) | 28 / 43 / 57 at 5 / 10 / 20 matching candidates | Grows with total matching candidates before pagination — `DiscoveryRankingService.rank()` (KL-012), not this sprint's own code |
+| Search with filters | Same service as directory; correct, bounded page (≤12 cards) | New test proves filtered results are correct at scale |
+| Home featured providers | 27 / 32 / 42 at the same candidate counts | Same KL-012 cause; output capped at 4 cards regardless |
+| Provider dashboard | 30 (populated) / 31 (empty) | Pre-existing (Sprint 2.5), proven not to grow |
+| Provider profile-management page | 15 | Pre-existing, proven not to grow |
+
+KL-012's ranking-engine N+1 was measured and quantified this sprint (previously only
+qualitatively documented) but not fixed — fixing it requires changing `apps.discovery`'s
+shared ranking engine, explicitly out of scope ("do not redesign domain engines"). See
+`ARCHITECTURE_DECISION_LOG.md` ADM-022 Decision 4.
+
+### Test Level Decision
+
+Full regression, run twice: once surfaced a genuinely pre-existing, unrelated flaky failure
+(diagnosed, not a Sprint 2.6 regression); once green after the one-line fix, per this
+sprint's own "if diagnosing a failure" exception. 5 new tests
+(`apps.public_site.tests.test_phase2_acceptance`). Directly affected apps
+(`apps.public_site` + `apps.provider_portal`): 270/270. `apps.accounts` (site of the test
+fix): 368/368. Full regression: 2082/2082 green (2077 baseline + 5 new).
+
+### Deferred (explicitly, recorded)
+
+1. Organization-profile SEO `page_url` bug — `quality/DEFECT_AND_RISK_REGISTER.md` KL-021 /
+   `quality/COMPLETION_BACKLOG.md` BG-027, out of caregiver-only scope.
+2. Directory/home ranking-engine N+1 (KL-012) — measured and quantified, not fixed; a
+   shared-domain-engine change, out of scope.
+3. Bonus/penalty — no canonical representation exists (KL-020, unchanged since Sprint 2.5);
+   still not invented.
+4. Caching — no proven performance blocker; existing cache infra's established pattern
+   (config/feature-flag) does not fit per-request read models without a broader
+   invalidation design; documented as a later operational concern.
+5. Public API for caregiver profiles — not required by any current flow; existing public
+   HTML surfaces already serve the need.
+6. The same unassociated-`<label>` accessibility pattern in `organization_portal`,
+   `admin_portal`, and `portal` (customer) templates — out of this sprint's
+   caregiver-profile-only scope.
+
+### Phase 2 Status (superseded — see the PR #11 remediation entry below)
+
+**Phase 2 (Caregiver Professional Profile) acceptance criteria satisfied**, except the one
+explicitly accepted external-domain dependency (bonus/penalty, KL-020) that Section L's own
+governance names as not blocking Phase 2 profile completion when accurately documented. See
+`project docs/PHASE_2_COMPLETION_REPORT.md` for the full 17-section acceptance record.
+
+## Sprint 2.6 PR #11 Review Remediation — Resolve the KL-012 Query-Performance Blocker (2026-07-15)
+
+A PR #11 architecture review found the Sprint 2.6 entry above internally inconsistent:
+Section G's own measurement showed directory/home query counts growing with total
+matching-candidate count (28/43/57 and 27/32/42), in the same PR that reported Phase 2
+acceptance criterion #17 ("query behavior is bounded") and #21 ("no unresolved Phase 2
+blocker remains") as satisfied. The review required KL-012 resolved inside PR #11 unless
+proven not candidate-count-dependent — it was not: it was proven to be exactly that, and
+fixable without redesigning ranking semantics.
+
+### Root Cause — Three Independent Per-Candidate Query Sources
+
+| Query group | Called from | Once or per candidate | Canonical owner |
+|---|---|---|---|
+| `CapacityRule` lookup + `SupplierAssignment` count | `DiscoveryRankingService._score()` → `_capacity_bonus()` → `CapacityService.is_capacity_exceeded()` | Per candidate, inside `rank()`, before pagination | `apps.availability` |
+| `CaregiverProfile`/`OrganizationProfile` resolution | `SupplierSearchService.filter_suppliers()`'s city filter → `_matches_city()` → `resolve_supplier_entity()` | Per candidate matching the base queryset, only when a `city` filter is applied, before city filtering itself | `apps.accounts` (supplier_bridge) |
+| `ReputationSnapshot` lookup + `Order` completed-count | `CaregiverDirectoryService._build_card()` → `common.rating_summary()` / `common.completed_jobs_count()` | Per *built* card — bounded by `PAGE_SIZE`/`limit`, not total candidates, but still one query pair per card | `apps.public_site` (common.py) / `apps.reviews` |
+
+Sources 1 and 2 caused the unbounded (candidate-count-scaling) growth measured in Section G.
+Source 3 caused the smaller, page-size-bounded growth visible between 1 and `PAGE_SIZE`
+candidates — itself also collapsed to O(1) in this remediation, since the governance's
+stricter invariant ("does not grow from 1 to 5 caregivers") required it.
+
+### Fix — Batched at the Canonical Selector Boundary
+
+- `CapacityService.bulk_is_capacity_exceeded(supplier_ids)` (new,
+  `apps/availability/services/capacity_service.py`) — 2 queries total regardless of
+  candidate count (one `CapacityRule.objects.filter(...).values_list(...)`, one grouped
+  `SupplierAssignment.objects.filter(...).values("supplier_id").annotate(Count("id"))`).
+  `DiscoveryRankingService.rank()` computes this map once via a new `_bulk_capacity_exceeded()`
+  helper and threads it through `_score()`/`_capacity_bonus()`. The single-supplier
+  `is_capacity_exceeded()` is untouched and still backs `provider_portal`'s and
+  `organization_portal`'s own single-caregiver capacity displays.
+- `SupplierSearchService._filter_by_city()` (new, replacing the inline per-candidate
+  `_matches_city()` list comprehension) — calls the pre-existing
+  `resolve_supplier_entities_bulk()` (`apps.accounts.services.supplier_bridge`, built during
+  Epic 06's Architecture Review remediation M1 for exactly this class of problem, and
+  already used by `common.bulk_supplier_attrs()`) instead of the singular resolver.
+- `CaregiverDirectoryService._build_card()` now takes a precomputed `card_data` dict; a new
+  `_bulk_card_data()` builds it once per `search()`/`featured()` call from two new bulk
+  methods — `ReputationService.get_reputation_summaries_bulk()` (`apps.reviews`) and
+  `common.completed_jobs_counts_bulk()` (`apps.public_site`) — each one aggregate query
+  regardless of how many cards are being built.
+
+No ranking weight, scoring formula, tie-break rule, sort order, pagination behavior, filter
+semantics, or public-visibility policy changed. Proven by: the full pre-existing
+`apps.discovery`, `apps.availability`, `apps.reviews`, `apps.booking`,
+`apps.organization_portal` test suites passing unmodified (763 tests across every app whose
+production selector code changed, plus their direct consumers); a new explicit
+`test_ranking_order_unchanged_by_the_query_optimization` test proving a capacity-exceeded
+caregiver still ranks below a non-exceeded one; and a new
+`test_service_category_filter_returns_only_matching_caregivers` /
+`test_rating_summary_remains_correct_at_scale` pair proving card content correctness at
+scale.
+
+### Query/Performance Impact
+
+Directory, filtered search (text + city), and home-featured query counts are now fully flat
+— not merely bounded with a high ceiling — from 1 through 100+ matching candidates, measured
+in the same pass: directory 16, filtered search 17, home featured 17, unchanged from
+candidate count 1 through 100. Public profile detail page (15), provider dashboard (30/31),
+and provider profile-management page (15) are unaffected — none of their underlying
+selectors were touched.
+
+### Test Level Decision
+
+`manage.py check` (0), `makemigrations --check` (pre-existing drift only), focused expanded
+query-budget suite (15/15, up from 3), complete `apps.public_site` (151/151), other affected
+suites whose production selectors changed (`apps.discovery` + `apps.availability` +
+`apps.reviews` + `apps.booking` + `apps.organization_portal` + `apps.provider_portal` +
+`apps.accounts`, 763/763 combined), full regression run exactly once (2094/2094), per this
+remediation's own explicit "run once" policy.
+
+### Reviewed, Not Changed (Section 7 of the remediation governance)
+
+The pre-existing flaky-test fix from Sprint 2.6's initial pass
+(`apps.accounts.tests.test_caregiver_professional_profile
+.test_expired_document_does_not_appear`) was re-reviewed: the only change was the clock
+source used to compute "yesterday" (`timezone.now().date()` instead of
+`datetime.date.today()`) — the assertion itself (`assertEqual(..., ())`) is byte-identical
+before and after, no assertion was weakened, and no production code
+(`apps.accounts.services.verification_policy`) was touched. Kept in PR #11 unchanged: it
+fixes a genuine, reproducible, nondeterministic test-setup bug without weakening any
+behavior, and Phase 2 acceptance explicitly requires "full tests are green."
+
+### KL-012 Status
+
+**RESOLVED.** See `quality/DEFECT_AND_RISK_REGISTER.md` KL-012 and
+`ARCHITECTURE_DECISION_LOG.md` ADM-022's remediation note.
+
+### Phase 2 Status (final)
+
+**Phase 2 (Caregiver Professional Profile) acceptance criteria satisfied**, including the
+query-bounded-behavior criterion (now genuinely satisfied, not merely documented), except
+the one explicitly accepted external-domain dependency (bonus/penalty, KL-020) that Section
+L's own governance names as not blocking Phase 2 profile completion when accurately
+documented. See `project docs/PHASE_2_COMPLETION_REPORT.md` for the full 17-section
+acceptance record.

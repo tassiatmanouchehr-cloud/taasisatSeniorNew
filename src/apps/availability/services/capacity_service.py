@@ -13,6 +13,8 @@ organization-type supplier — ServiceSupplier already unifies both, so there
 is no separate "organization capacity" model or code path.
 """
 
+from django.db.models import Count
+
 from apps.booking.models import SupplierAssignment, SupplierAssignmentStatus
 
 from ..models import CapacityRule
@@ -49,3 +51,39 @@ class CapacityService:
             return False
 
         return cls.get_active_engagement_count(supplier=supplier) >= rule.max_concurrent_assignments
+
+    @classmethod
+    def bulk_is_capacity_exceeded(cls, *, supplier_ids) -> dict:
+        """The batched counterpart of is_capacity_exceeded() — same rule
+        (no active CapacityRule means uncapped, never exceeded), computed
+        in exactly 2 queries regardless of how many supplier_ids are
+        passed, for callers (e.g. DiscoveryRankingService.rank()) that
+        need this for many suppliers in one pass instead of one query per
+        supplier. Single-supplier call sites (provider_portal/
+        organization_portal's own capacity display) keep using
+        is_capacity_exceeded() unchanged — this is an addition, not a
+        replacement."""
+        supplier_ids = list(supplier_ids)
+        if not supplier_ids:
+            return {}
+
+        rules_by_supplier_id = dict(
+            CapacityRule.objects.filter(
+                supplier_id__in=supplier_ids, is_active=True,
+            ).values_list("supplier_id", "max_concurrent_assignments"),
+        )
+        if not rules_by_supplier_id:
+            return dict.fromkeys(supplier_ids, False)
+
+        engagement_counts = dict(
+            SupplierAssignment.objects.filter(
+                supplier_id__in=rules_by_supplier_id, status__in=_ACTIVE_ASSIGNMENT_STATUSES,
+            ).values("supplier_id").annotate(count=Count("id")).values_list("supplier_id", "count"),
+        )
+
+        return {
+            supplier_id: engagement_counts.get(supplier_id, 0) >= rules_by_supplier_id[supplier_id]
+            if supplier_id in rules_by_supplier_id
+            else False
+            for supplier_id in supplier_ids
+        }

@@ -35,6 +35,8 @@ function every public surface already shares, closing that gap without
 introducing a second, parallel eligibility implementation.
 """
 
+from django.db.models import Count
+
 from apps.accounts.models.profiles import OrganizationMembership
 from apps.accounts.services.supplier_bridge import resolve_supplier_entities_bulk
 from apps.kernel.models import Person
@@ -232,6 +234,41 @@ def completed_jobs_count(*, tenant_id, supplier_id) -> int:
         assigned_supplier_id=supplier_id,
         status=OrderStatus.COMPLETED,
     ).count()
+
+
+def completed_jobs_counts_bulk(*, tenant_id, supplier_ids) -> dict:
+    """Batched counterpart of completed_jobs_count() — one aggregate
+    query regardless of how many supplier_ids are passed. Suppliers with
+    zero completed orders are absent from the GROUP BY result and resolve
+    to 0 below, matching completed_jobs_count()'s own behavior for a
+    supplier with no completed orders."""
+    supplier_ids = list(supplier_ids)
+    if not supplier_ids:
+        return {}
+
+    counts = dict(
+        Order.objects.filter(
+            tenant_id=tenant_id, assigned_supplier_id__in=supplier_ids, status=OrderStatus.COMPLETED,
+        ).values("assigned_supplier_id").annotate(count=Count("id")).values_list("assigned_supplier_id", "count"),
+    )
+    return {supplier_id: counts.get(supplier_id, 0) for supplier_id in supplier_ids}
+
+
+def rating_summaries_bulk(supplier_ids) -> dict:
+    """Batched counterpart of rating_summary() — one query via
+    ReputationService.get_reputation_summaries_bulk() regardless of how
+    many supplier_ids are passed."""
+    summaries = ReputationService.get_reputation_summaries_bulk(supplier_ids)
+    result = {}
+    for supplier_id, summary in summaries.items():
+        average = summary["average_score"]
+        stars_rounded = int(round(average)) if average is not None else 0
+        result[supplier_id] = RatingSummaryViewModel(
+            average=average,
+            review_count=summary["review_count"],
+            stars_rounded=max(0, min(5, stars_rounded)),
+        )
+    return result
 
 
 def bio_snippet(bio: str, *, max_length: int = 140) -> str:

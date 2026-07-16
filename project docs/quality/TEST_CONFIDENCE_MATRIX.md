@@ -26,11 +26,21 @@ partial update 2026-07-15 (Sprint 2.5 — Caregiver Professional Dashboard) — 
 `orders`/`finance`/`reviews`/`provider_portal` rows and grand-total file/method counts
 re-verified (+3 new test files: `test_supplier_queries.py`, `test_beneficiary_queries.py`,
 `test_professional_dashboard.py`);
+partial update 2026-07-15 (Sprint 2.6 — Public Profile Finalization and Phase 2
+Acceptance) — only the `public_site` row and grand-total file/method counts re-verified
+(+1 new test file: `test_phase2_acceptance.py`, 5 tests); one pre-existing test in
+`accounts.tests.test_caregiver_professional_profile` fixed (no new test method, existing
+count unchanged);
+partial update 2026-07-15 (Sprint 2.6 PR #11 review — resolve the KL-012
+query-performance blocker) — only the `public_site` row and grand-total method count
+re-verified (`test_phase2_acceptance.py`'s query-budget test class expanded from 3 to 15
+methods, +12 net; no new test file);
 a full re-audit of every app was not performed for any of the incremental changes.
 **Last verified date:** 2026-07-14 / 2026-07-15 (partial) / 2026-07-15 (partial, Phase 2.1) /
 2026-07-15 (partial, BG-022) / 2026-07-15 (partial, Sprint 2.2) / 2026-07-15 (partial,
 PR #7 remediation) / 2026-07-15 (partial, Sprint 2.3) / 2026-07-15 (partial, Sprint 2.4) /
-2026-07-15 (partial, PR #9 concurrency remediation) / 2026-07-15 (partial, Sprint 2.5)
+2026-07-15 (partial, PR #9 concurrency remediation) / 2026-07-15 (partial, Sprint 2.5) /
+2026-07-15 (partial, Sprint 2.6) / 2026-07-15 (partial, Sprint 2.6 PR #11 KL-012 remediation)
 
 ---
 
@@ -38,9 +48,9 @@ PR #7 remediation) / 2026-07-15 (partial, Sprint 2.3) / 2026-07-15 (partial, Spr
 
 | Metric | Count |
 |--------|-------|
-| Total test files | 212 (198 + 10 accumulated through Phase 1.2/1.3/2.1/BG-022/Sprint 2.2 + 1 new in the PR #9 concurrency remediation, `test_concurrency.py` + 3 new in Sprint 2.5, `test_supplier_queries.py`/`test_beneficiary_queries.py`/`test_professional_dashboard.py`; PR #7 remediation, Sprint 2.3, and Sprint 2.4 itself added no new file) |
-| Total test classes | ~475 (not re-audited exactly; +3 classes in Sprint 2.4, +5 classes in the PR #9 concurrency remediation, +11 classes in Sprint 2.5) |
-| Total test methods | 2,077 (full regression re-run 2026-07-15, Sprint 2.5 — Caregiver Professional Dashboard) |
+| Total test files | 213 (198 + 10 accumulated through Phase 1.2/1.3/2.1/BG-022/Sprint 2.2 + 1 new in the PR #9 concurrency remediation, `test_concurrency.py` + 3 new in Sprint 2.5, `test_supplier_queries.py`/`test_beneficiary_queries.py`/`test_professional_dashboard.py` + 1 new in Sprint 2.6, `test_phase2_acceptance.py`; PR #7 remediation, Sprint 2.3, and Sprint 2.4 itself added no new file; the Sprint 2.6 PR #11 KL-012 remediation expanded `test_phase2_acceptance.py`'s existing query-budget class, no new file) |
+| Total test classes | ~478 (not re-audited exactly; +3 classes in Sprint 2.4, +5 classes in the PR #9 concurrency remediation, +11 classes in Sprint 2.5, +3 classes in Sprint 2.6) |
+| Total test methods | 2,094 (full regression re-run 2026-07-15, Sprint 2.6 PR #11 — KL-012 query-performance remediation) |
 
 ## Per-App Confidence
 
@@ -52,7 +62,7 @@ PR #7 remediation) / 2026-07-15 (partial, Sprint 2.3) / 2026-07-15 (partial, Spr
 | orders | 8 | 167 | - | - | - | - | **STRONG** |
 | finance | 18 | 81 | 1 | - | 17 | 1 | **STRONG** |
 | api | 14 | 97 | 7 | - | 4 | - | **HIGH** |
-| public_site | 9 | 134 | 1 | - | - | - | **HIGH** |
+| public_site | 10 | 151 | 1 | - | - | - | **HIGH** |
 | booking | 10 | 67 | 2 | 1 | 1 | 2 | **HIGH** |
 | pricing | 6 | 69 | - | - | - | 1 | **MODERATE-HIGH** |
 | portal | 9 | 74 | 1 | - | 2 | - | **MODERATE-HIGH** |

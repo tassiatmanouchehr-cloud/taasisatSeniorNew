@@ -1227,3 +1227,160 @@ model/ORM references. Dashboard query count newly locked at 31 (empty) / 30 (pop
 baseline existed for this expanded page. 44 new tests across `apps.orders` (8),
 `apps.finance` (6), `apps.reviews` (6), and `apps.provider_portal` (24). Full regression run
 once (multiple domain apps touched), 2077/2077 green (2033 baseline + 44 new).
+
+## ADM-022: Public Profile Finalization and Phase 2 Acceptance — Scope Boundary Decisions (Sprint 2.6)
+
+**Context:** Sprint 2.6 is explicitly an integration/quality/privacy/accessibility/
+performance closeout sprint for the caregiver public-profile slice, not a new-capability
+sprint — its governance repeatedly forbids redesigning domain engines, inventing new public
+APIs, or making caching a prerequisite. Several judgment calls below have lasting
+consequences for how future sprints should treat this surface, so they are recorded here
+rather than left implicit in a diff.
+
+**Decision 1 — Removed the redundant generic verification badge from the public profile
+header, kept only the precise Sprint 2.3 badges.** `templates/public_site/caregiver_profile
+.html` rendered two separate verification indicators: `profile.verification_badges` (Sprint
+2.3's precise per-evidence badges — "نمایه تأییدشده" / "هویت تأییدشده" / "مدرک حرفه‌ای
+تأییدشده") in the header, and a second, generic `profile.verification_label`/`is_verified`
+badge lower on the page. Because `common.is_publicly_visible_attrs()` (BG-022) already
+requires `verification_status == "verified"` for the page to render at all, that second
+badge was **not situationally variable** — it always rendered "تأییدشده" (verified) with an
+"info" variant on every single caregiver whose profile could ever be viewed publicly. It
+conveyed zero information beyond what the header's "نمایه تأییدشده" badge already states,
+in different words, immediately above it. Removed as a genuine contradictory/redundant-claim
+defect under this sprint's own explicit Section B requirement ("no contradictory badge or
+claim semantics") — not a redesign of the verification-badge system itself (`_verification_
+badges()` in `apps/public_site/services/profile_service.py` is untouched). `ReviewViewModel
+.reviewer_name`, `CaregiverCardViewModel.verification_label`/`is_verified`, and
+`ProviderProfileViewModel.verification_status`/`is_verified` are unrelated fields (a
+different ViewModel, or a legitimately-informative directory-card checkmark, or the owner's
+own dashboard) and were deliberately left untouched.
+
+**Decision 2 — No caching introduced.** The repository has a real, production-configured
+cache (`django.core.cache.backends.redis.RedisCache`, falling back to `LocMemCache` when
+`REDIS_URL` is unset — `config/settings/base.py`), but its only existing usage
+(`ConfigResolver`, `FeatureFlagService`) is narrow, explicit-key, explicit-`cache.delete()`
+config/feature-flag caching — never a per-request read-model or page cache. Section G's own
+query-count measurement (below) found every caregiver-profile-related page's query count
+either already bounded and non-growing (empty/populated public profile: 15; provider
+dashboard: 30-31; provider profile-management: 15) or growing with total matching-candidate
+count in a way that is a pre-existing, already-documented, out-of-scope ranking-engine
+limitation (KL-012), not something a page-level cache would appropriately paper over without
+its own invalidation design. No proven performance blocker exists that would justify
+introducing a new caching layer/pattern in a sprint explicitly scoped to avoid broad
+infrastructure work. Documented as a deferred, later operational concern, not attempted.
+
+**Decision 3 — No new public API created.** `/api/v1/discovery/suppliers/`
+(`apps.api.views.discovery.SupplierDiscoveryListView`) already exists but is permission-gated
+(`DISCOVERY_SUPPLIERS_READ`) and calls `apps.discovery.services.DiscoveryService.search()`
+directly — a different, internal/permission-scoped search surface than the public,
+canonical-visibility-gated caregiver profile (`CaregiverPublicProfileService`). No product
+requirement in this sprint's governance calls for a new, unauthenticated public read API for
+caregiver profiles; the existing public HTML surfaces (directory, home, detail page) already
+serve that need. Recorded as reviewed-and-deferred, not built, per the sprint's explicit "do
+not create a broad new API surface merely because the sprint mentions APIs" instruction.
+
+**Decision 4 — `DiscoveryRankingService.rank()`'s per-candidate query cost (KL-012) was
+measured and quantified this sprint, not fixed.** New query-count tests
+(`apps.public_site.tests.test_phase2_acceptance.Phase2QueryBudgetAcceptanceTest`) confirm the
+directory page's query count grows with total matching candidates before pagination (measured:
+28 queries at 5 candidates, 43 at 10, 57 at 20) and the home page's featured-caregivers
+section similarly grows despite its fixed `limit=4` output (measured: 27, 32, 42 queries at
+the same candidate counts), because `CaregiverDirectoryService.search()`/`.featured()` both
+call `DiscoveryRankingService.rank()` on the full candidate queryset before slicing. Fixing
+this requires changing `apps.discovery`'s shared ranking engine (used beyond the caregiver
+directory) — explicitly out of scope for a sprint whose own governance says "do not redesign
+domain engines" and "do not add ranking changes unless required to fix a proven defect." The
+existing eligibility/visibility resolution itself remains genuinely O(1) regardless of
+candidate count (BG-022's own `bulk_supplier_attrs()`, unaffected) — only the ranking/card-
+enrichment layer scales with candidate count. Left as a recorded, quantified, out-of-scope
+performance risk (KL-012, cross-referenced from this ADM entry), not a Phase 2 blocker.
+
+**Decision 5 — One pre-existing, environment-clock-dependent test bug fixed
+(`apps.accounts.tests.test_caregiver_professional_profile
+.PublicCredentialSelectorExpiryTest.test_expired_document_does_not_appear`), unrelated to
+this sprint's own scope.** The test computed "yesterday" via `datetime.date.today()` (OS-local
+naive clock) while the code under test (`RequiredDocumentPolicy.is_effectively_expired()`)
+compares against `timezone.now().date()` (Django's UTC-based clock) — the two disagree
+whenever the OS-local calendar day has already advanced past UTC's, which this sprint's own
+full-regression run happened to hit. Fixed by using the same `timezone.now().date()`
+reference the test is actually exercising — a one-line, test-only correctness fix, not a
+change to `apps.accounts`' verification-expiry logic itself. Included here because Phase 2
+acceptance requires "full tests are green," and this genuinely blocked that claim on the run
+that surfaced it.
+
+**Consequences:** Zero new models, zero new migrations. Five template files touched
+(accessibility/SEO/redundant-badge fixes only — no new views, no new selectors, no new
+routes). One new cross-app acceptance test file
+(`apps/public_site/tests/test_phase2_acceptance.py`, 5 tests) plus one one-line test fix.
+2082/2082 full regression green (2077 baseline + 5 new). See
+`quality/DEFECT_AND_RISK_REGISTER.md` KL-012 and KL-021, `quality/COMPLETION_BACKLOG.md`
+BG-027, and `project docs/PHASE_2_COMPLETION_REPORT.md`.
+
+## ADM-022 Remediation — Resolve the KL-012 Query-Performance Blocker (PR #11 review, 2026-07-15)
+
+**Context:** PR #11 review found Decision 4 above internally inconsistent: it reported
+directory/home query counts that visibly grew with candidate count (28/43/57 and 27/32/42)
+in the same PR that declared Phase 2 acceptance criterion #17 ("query behavior is bounded")
+and #21 ("no unresolved Phase 2 blocker remains") satisfied. Per this repository's own
+Phase 2 acceptance bar, a query cost that scales with total matching-candidate count before
+pagination is not "bounded" merely because it was measured and documented — it had to be
+fixed unless proven not candidate-count-dependent, and it was proven to be exactly that.
+
+**Root cause — three independent per-candidate query sources, not one:**
+
+1. `DiscoveryRankingService._score()` called `CapacityService.is_capacity_exceeded(supplier=
+   supplier)` once per candidate inside `rank()`'s scoring loop — one (or two, if the
+   supplier has an active `CapacityRule`) query per candidate, for every candidate passed to
+   `rank()`, before any pagination/limit slicing.
+2. `SupplierSearchService.filter_suppliers()` — only when a `city` filter was applied —
+   called `resolve_supplier_entity(supplier)` (the *singular* accounts-bridge resolver, not
+   the already-existing `resolve_supplier_entities_bulk()`) once per candidate inside a
+   Python list comprehension, for every candidate matching the base queryset before city
+   filtering.
+3. `CaregiverDirectoryService._build_card()` called `common.rating_summary(supplier)` and
+   `common.completed_jobs_count(...)` once per *built* card — bounded by `PAGE_SIZE`/`limit`,
+   not by total candidate count, but still one query pair per card rather than one query pair
+   per page.
+
+Sources 1 and 2 caused the unbounded (candidate-count-scaling) growth Decision 4 measured.
+Source 3 caused the smaller, page-size-bounded growth visible between 1 and `PAGE_SIZE`
+candidates.
+
+**Fix — batched at the canonical selector boundary, ranking/filtering semantics unchanged:**
+
+- `CapacityService.bulk_is_capacity_exceeded(supplier_ids)` (new, `apps.availability`) —
+  2 queries total regardless of candidate count (one `CapacityRule` lookup, one grouped
+  `SupplierAssignment` count). `DiscoveryRankingService.rank()` now computes this map once
+  and passes it through `_score()`/`_capacity_bonus()`; the single-supplier
+  `is_capacity_exceeded()` is unchanged and still used by `provider_portal`/
+  `organization_portal`'s own single-caregiver capacity display.
+- `SupplierSearchService._filter_by_city()` (new, replacing the inline per-candidate
+  `_matches_city()`) — calls the pre-existing `resolve_supplier_entities_bulk()` (built for
+  exactly this class of problem during Epic 06's Architecture Review remediation M1) instead
+  of the singular resolver.
+- `CaregiverDirectoryService._build_card()` now takes a precomputed `card_data` map, built
+  once per `search()`/`featured()` call by a new `_bulk_card_data()` — backed by two new bulk
+  methods, `ReputationService.get_reputation_summaries_bulk()` (`apps.reviews`) and
+  `common.completed_jobs_counts_bulk()` (`apps.public_site`), each one aggregate query
+  regardless of how many cards are being built.
+
+No ranking weight, scoring formula, sort order, tie-break rule, pagination behavior, filter
+semantics, or public-visibility policy changed — proven by the full pre-existing
+`apps.discovery`/`apps.availability`/`apps.public_site` suites passing unchanged (763 tests
+across the touched apps, plus the complete 151-test `apps.public_site` suite), and by a new
+explicit ranking-order test
+(`Phase2QueryBudgetAcceptanceTest.test_ranking_order_unchanged_by_the_query_optimization`).
+
+**Result:** Directory, filtered search (text + city), and home-featured query counts are now
+fully flat (not merely bounded-with-a-ceiling) from 1 to 100+ matching candidates — measured
+16 (directory), 17 (filtered search), 17 (home featured) at every candidate count from 1
+through 100 in the same measurement pass. KL-012 is RESOLVED, not merely documented. 12 new
+tests (`Phase2QueryBudgetAcceptanceTest`, expanded from 3 to 15 methods) prove the invariant
+directly: no growth 1→5, no material growth 5→20, a stable maximum from 20→100, for
+directory, text search, category filter, city filter, and home-featured independently, plus
+pagination correctness, hidden/ineligible exclusion, rating/service-category correctness,
+ranking-order preservation, no added private card fields, and unchanged detail-page
+behavior. Full regression 2094/2094 green (2082 baseline + 12 new). See
+`quality/DEFECT_AND_RISK_REGISTER.md` KL-012 (now marked RESOLVED) and
+`project docs/PHASE_2_COMPLETION_REPORT.md`.

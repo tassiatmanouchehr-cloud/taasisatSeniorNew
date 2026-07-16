@@ -193,6 +193,28 @@ Verified directly (not just structurally) by `test_customer_cannot_access_dashbo
 `test_cross_tenant_provider_sees_only_their_own_tenant` in
 `apps.provider_portal.tests.test_professional_dashboard`.
 
+### Sprint 2.6 Privacy/Security Acceptance Pass
+
+No new permission key, no new authorization mechanism, no new tenant-scoping pattern — this
+sprint's own Section F required proving the existing boundaries hold, not building new ones.
+Re-confirmed by direct inspection: every public-site ViewModel dataclass
+(`apps.public_site.services.viewmodels`) structurally excludes phone/private-email/
+private-address/national-identifier/document-path/document-number/wallet/order-customer
+fields (there is no field to leak, not merely a filter that could regress);
+`PublicCredentialSelector`/`PublicCredentialSummary` (Phase 2.1) never resolves
+`VerificationDocument.reviewed_by` (the internal document-moderation reviewer) or
+`reviewer_note`/`rejection_reason`; the provider-portal "public preview" link
+(`public_preview_url`) is a direct link to the real public URL, not a separate render path
+that could diverge from the public privacy policy. Added
+`apps.public_site.tests.test_phase2_acceptance.Phase2FullLifecycleAcceptanceTest`, which
+asserts a populated public profile response body never contains the caregiver's own phone
+number, a pending (non-public) credential's file name, an approved credential's UUID, or
+the internal document reviewer's name — a direct content-level proof, not only a
+selector-level one. Owner mutation boundaries (profile/skills/experience/gallery/
+availability) were re-confirmed unchanged (ownership-based, not RBAC-based, per each
+service's own docstring — see `ARCHITECTURE_DECISION_LOG.md` ADM-017/ADM-018/ADM-019/
+ADM-020).
+
 ### Unscoped Queries (Known)
 
 | Location | Query | Risk |

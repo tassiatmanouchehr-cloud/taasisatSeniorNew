@@ -398,31 +398,120 @@ professional dashboard — closes new backlog item BG-026:
 44 new tests, zero new migration, full regression 2077/2077 green.
 Branch `phase2-caregiver-professional-dashboard`, PR created — see
 `traceability/IMPLEMENTATION_JOURNAL.md` and
-`ARCHITECTURE_DECISION_LOG.md` ADM-021. **Not merged — awaiting review.**
+`ARCHITECTURE_DECISION_LOG.md` ADM-021.
+
+### PR #10 — MERGED (2026-07-15)
+
+Final verification confirmed branch HEAD unchanged (`0682da9`), `git diff
+--check origin/main...HEAD` clean, `git status --short` clean, `manage.py
+check` exit 0, and all 12 required pre-merge points (dashboard selectors
+read-only; no direct financial/order calculations in views/templates;
+wallet balance from the canonical `WalletService`; wallet-movement
+`metadata` never rendered; invoice queries beneficiary-scoped; order
+summaries supplier-scoped; reviews belong to the current caregiver;
+no customer-private/platform-internal accounting info exposed; query
+counts bounded; no Sprint 2.6 code present; documentation synchronized;
+diff contains no unrelated code) confirmed via direct code inspection.
+Merged via `merge_pull_request` (merge commit
+`9a260241cfd82ef3be997eec152d1aa2a510542b`). Local `main` fast-forwarded
+to match `origin/main`; `manage.py check` exits 0. **Sprint 2.5 is now
+CLOSED and on `main`.**
+
+### Sprint 2.6 — Public Profile Finalization and Phase 2 Acceptance — IMPLEMENTED (2026-07-15)
+
+Branched fresh from merged `main` (`phase2-caregiver-public-profile-finalization`,
+from `9a26024`) per governance — not a reuse of the Sprint 2.5 branch.
+Integration/quality/privacy/accessibility/performance closeout sprint for
+the whole caregiver public-profile capability — no new models, views, or
+routes; domain engines explicitly not redesigned:
+
+- Confirmed clean (no fix needed): directory/search/home canonical
+  visibility (BG-022, re-verified), provider-preview consistency (the
+  "public preview" link is the exact same public URL/selector, not a
+  separate render path), privacy/security boundaries (every public
+  ViewModel structurally excludes phone/email/address/national-ID/
+  document-path/document-number/reviewer-identity/rejection-reason),
+  existing cache infra (real, but narrowly used for config/feature-flags
+  only — no page/read-model cache added, no proven blocker), and the
+  existing permission-gated internal discovery API (unrelated to the
+  public caregiver profile — no new public API created).
+- Fixed: SEO `page_url`/canonical-URL bug on the caregiver profile page
+  (was pointing at the directory URL, not its own); empty-`alt` gap on
+  non-decorative gallery images (3 templates); unassociated form labels
+  (4 `provider_portal` templates); a redundant, always-true generic
+  verification badge that duplicated the precise Sprint 2.3 badges (see
+  `ARCHITECTURE_DECISION_LOG.md` ADM-022 Decision 1); one pre-existing,
+  unrelated, environment-clock-dependent flaky test
+  (`apps.accounts.tests.test_caregiver_professional_profile`).
+- Measured and documented (Section G): query counts for all 7 required
+  pages — public profile (15, bounded), directory (28/43/57 at 5/10/20
+  candidates — grows with total candidates, KL-012, initially left
+  unfixed), home featured (27/32/42, same cause), provider dashboard
+  (30/31, pre-existing, bounded), provider profile-management (15,
+  pre-existing, bounded).
+- New `apps.public_site.tests.test_phase2_acceptance` (5 tests): a full
+  DRAFT-to-published caregiver lifecycle proving activation, bio edit,
+  skill/experience/gallery visibility, availability, credential approval,
+  public composition, directory/search discovery, dashboard isolation,
+  and private-data non-leakage compose correctly together.
+- Deferred, recorded, not fixed (out of this sprint's caregiver-only
+  scope): identical SEO bug on `organization_profile.html` (KL-021/
+  BG-027); the same unassociated-label pattern in `organization_portal`/
+  `admin_portal`/`portal` templates.
+
+Zero new migration, full regression 2082/2082 green (run twice: once
+surfacing the unrelated flaky test, once green after the fix). Branch
+`phase2-caregiver-public-profile-finalization`, PR #11 created.
+
+**PR #11 review remediation (KL-012, 2026-07-15):** review found the
+directory/home query-count growth reported above inconsistent with the
+"query behavior is bounded" and "no unresolved Phase 2 blocker" acceptance
+criteria it was cited to satisfy. Root cause: three independent
+per-candidate query calls — `DiscoveryRankingService`'s per-candidate
+`CapacityService.is_capacity_exceeded()` inside ranking,
+`SupplierSearchService`'s per-candidate `resolve_supplier_entity()` inside
+its city filter, and `CaregiverDirectoryService._build_card()`'s
+per-card rating/completed-jobs lookups. Fixed by batching all three at
+their own selector boundary (`CapacityService.bulk_is_capacity_exceeded()`,
+the pre-existing `resolve_supplier_entities_bulk()`, and two new bulk
+rating/completed-jobs methods) — zero change to ranking formula, sort
+order, filter semantics, or public-visibility policy. Directory/search/
+home query counts are now fully flat (16/17/17) from 1 through 100+
+matching candidates. 12 new tests, zero new migration, full regression
+2094/2094 green. See `traceability/IMPLEMENTATION_JOURNAL.md`,
+`ARCHITECTURE_DECISION_LOG.md` ADM-022's remediation note, and
+`project docs/PHASE_2_COMPLETION_REPORT.md`. **Phase 2 (Caregiver
+Professional Profile) acceptance criteria satisfied**, except the one
+explicitly accepted external-domain dependency (no canonical
+bonus/penalty representation, KL-020). **PR #11 not merged — awaiting
+review.**
 
 ---
 
 ## IMMEDIATE NEXT TASK
 
-### Await review of the Sprint 2.5 PR; do not start Sprint 2.6 automatically
+### Await review of PR #11; do not start Phase 3 automatically
 
 Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active implementation
 order).
 
 Phase 1, Phase 2.1 (+ BG-022), Sprint 2.2 (+ PR #7 remediation), Sprint
-2.3, and Sprint 2.4 (+ PR #9 concurrency remediation) are fully closed
-and merged to `main`. Sprint 2.5 (this session's work) delivers the
-professional-dashboard slice of roadmap Phase 2 — remaining roadmap
-Phase 2 scope, explicitly NOT started by this task:
+2.3, Sprint 2.4 (+ PR #9 concurrency remediation), and Sprint 2.5 (+ PR
+#10) are fully closed and merged to `main`. Sprint 2.6 + its PR #11
+KL-012 remediation (this session's work) completes roadmap Phase 2 —
+remaining, explicitly NOT started by this task:
 
-1. Sprint 2.6 — Public Profile Finalization (SEO, caching, search, public
-   APIs, accessibility, performance, privacy review, architecture cleanup,
-   final acceptance) — not started.
-2. Known, recorded during BG-022's remediation: a pre-existing, unrelated
-   per-candidate query cost in directory ranking/card-building
-   (`DiscoveryRankingService.rank()`, `CaregiverDirectoryService
-   ._build_card()`) — see `quality/DEFECT_AND_RISK_REGISTER.md` KL-012,
-   not fixed (separate performance task, out of scope).
+1. Phase 3 — Company Portal (staff management, caregiver management,
+   invitation system, approval/removal, company financial overview,
+   company public profile parity) — not started.
+2. ~~Known, recorded during BG-022's remediation~~ — **RESOLVED (PR #11
+   remediation, 2026-07-15):** the pre-existing per-candidate query cost
+   in directory ranking/card-building (`DiscoveryRankingService.rank()`,
+   `SupplierSearchService.filter_suppliers()`'s city filter,
+   `CaregiverDirectoryService._build_card()`) is fixed via bulk selector
+   methods — see `quality/DEFECT_AND_RISK_REGISTER.md` KL-012 (now
+   RESOLVED) and `ARCHITECTURE_DECISION_LOG.md` ADM-022's remediation
+   note.
 3. Known, recorded during Sprint 2.3: `CaregiverSkill.name` remains
    free-text with no catalog/normalization — see
    `quality/DEFECT_AND_RISK_REGISTER.md` KL-016, deferred (a future
@@ -431,18 +520,25 @@ Phase 2 scope, explicitly NOT started by this task:
    retry is not automated (KL-014) and decoded-image dimension/pixel
    limits are fixed, not tenant-configurable (KL-015) — both deliberate,
    not defects.
-5. Known, pre-existing, unchanged by Sprint 2.2: production media storage
-   strategy (currently local `FileField`/`FileSystemStorage`, no S3/CDN) —
-   BG-021's original dependency note; gallery images inherit this exactly
-   as avatar/cover already do.
+5. Known, pre-existing, unchanged: production media storage strategy
+   (currently local `FileField`/`FileSystemStorage`, no S3/CDN) —
+   BG-021's original dependency note.
 6. Known, recorded during Sprint 2.4: per-caregiver time zone is not
    modeled — see `quality/DEFECT_AND_RISK_REGISTER.md` KL-018 /
    `quality/COMPLETION_BACKLOG.md` BG-024, deferred (no evidence of
    multi-time-zone demand).
-7. Known, recorded during Sprint 2.5: no canonical bonus/penalty
-   representation exists — see `quality/DEFECT_AND_RISK_REGISTER.md`
-   KL-020 / `quality/COMPLETION_BACKLOG.md` BG-026's "not in scope" note,
-   deferred (no evidence to invent one against).
+7. Known, recorded during Sprint 2.5, unchanged by Sprint 2.6: no
+   canonical bonus/penalty representation exists — see
+   `quality/DEFECT_AND_RISK_REGISTER.md` KL-020 /
+   `quality/COMPLETION_BACKLOG.md` BG-026's "not in scope" note,
+   deferred (no evidence to invent one against). This is the one Phase 2
+   acceptance criterion satisfied only as an explicitly accepted
+   external-domain dependency, not a caregiver-profile defect.
+8. Known, recorded during Sprint 2.6, deferred: identical SEO `page_url`
+   bug on `organization_profile.html` (KL-021/BG-027); the same
+   unassociated-`<label>` accessibility pattern in `organization_portal`/
+   `admin_portal`/`portal` (customer) templates — both out of Sprint
+   2.6's caregiver-only scope.
 
 Note: the previously listed follow-up "Phase 2: OrderOfferService" is now
 scheduled as roadmap Phase 5 (Marketplace Order Workflow) and must not be

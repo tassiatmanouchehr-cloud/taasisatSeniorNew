@@ -179,6 +179,17 @@ existing FK relationships that had no supplier-scoped query path before:
   `kernel.Person.full_name`, the same resolution `apps.public_site` already does for the
   public profile).
 
+## Sprint 2.6 (Public Profile Finalization) — No Schema Change
+
+Sprint 2.6 added zero models, zero fields, zero migrations — every change was a template
+(SEO/accessibility/redundant-badge fix), test, or documentation change. No new FK
+relationship, no new query path over an existing relationship. `VerificationDocument
+.reviewed_by` (the internal document-moderation reviewer FK) was re-confirmed, by direct
+inspection of `PublicCredentialSelector`/`PublicCredentialSummary`, to never be resolved or
+exposed on any public surface — distinct from `Review.reviewer_person_id` above, which
+*is* intentionally resolved to a public reviewer display name (a customer's own product
+review, not credential-moderation data).
+
 ## Append-Only Immutability
 
 The following models are append-only (never updated after creation):
