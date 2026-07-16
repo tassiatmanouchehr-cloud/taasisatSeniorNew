@@ -23,14 +23,20 @@ still resolves to exactly one row: `get_or_create()`'s own internal
 `IntegrityError` retry (Django >= 4.1) already normalizes this to the
 existing row for us, tested explicitly below.
 
-`supplier_id` is always validated tenant-scoped and active
-(`ServiceSupplier.objects.get(id=..., tenant_id=tenant_id,
-status=SupplierStatus.ACTIVE)`) before a favorite can be created — this
-is what prevents a customer from favoriting a supplier belonging to a
-different tenant; a wrong-tenant or unknown supplier_id raises the same
-`AccountsError`, never disclosing which case occurred (mirrors this
-codebase's established 404-over-403/never-disclose convention for
-ownership-scoped lookups).
+`supplier_id` is always validated tenant-scoped, active, and
+type-scoped (`ServiceSupplier.objects.get(id=..., tenant_id=tenant_id,
+status=SupplierStatus.ACTIVE, supplier_type__in=expected_supplier_types)`)
+before a favorite can be created — this is what prevents a customer from
+favoriting a supplier belonging to a different tenant, and (PR #16
+architecture-review remediation, closing merge-blocker F1) what prevents
+a supplier of the wrong type from being favorited via the wrong route
+(e.g. a caregiver `ServiceSupplier` posted to the organization toggle
+route). `expected_supplier_types` is always supplied by the caller (the
+view, which knows which route it is) — never inferred from
+client-submitted data. A wrong-tenant, wrong-type, or unknown
+supplier_id all raise the same `AccountsError`, never disclosing which
+case occurred (mirrors this codebase's established 404-over-403/
+never-disclose convention for ownership-scoped lookups).
 """
 
 from django.db import IntegrityError
@@ -45,9 +51,12 @@ class FavoritesService:
     """Read-write: a customer's own favorited suppliers only."""
 
     @classmethod
-    def add_favorite(cls, customer, *, supplier_id, tenant_id) -> Favorite:
+    def add_favorite(cls, customer, *, supplier_id, tenant_id, expected_supplier_types) -> Favorite:
         try:
-            supplier = ServiceSupplier.objects.get(id=supplier_id, tenant_id=tenant_id, status=SupplierStatus.ACTIVE)
+            supplier = ServiceSupplier.objects.get(
+                id=supplier_id, tenant_id=tenant_id, status=SupplierStatus.ACTIVE,
+                supplier_type__in=expected_supplier_types,
+            )
         except ServiceSupplier.DoesNotExist:
             raise AccountsError("Supplier not found.") from None
 

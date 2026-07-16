@@ -114,6 +114,17 @@ class CaregiverFavoriteToggleTest(_CustomerMixin, PublicSiteTestCase, TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(Favorite.objects.filter(customer_profile=self.customer).count(), 0)
 
+    def test_organization_supplier_is_rejected_by_the_caregiver_route(self):
+        """PR #16 architecture-review remediation (merge blocker F1): a
+        same-tenant organization supplier posted to the caregiver toggle
+        route must be refused exactly like a wrong-tenant/unknown one —
+        no Favorite row created, same non-disclosing 302 response."""
+        org_supplier, _ = self._create_organization_supplier()
+        self.client.force_login(self.customer.user)
+        response = self.client.post(f"/find-a-caregiver/{org_supplier.id}/favorite/", {"action": "add"})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Favorite.objects.filter(customer_profile=self.customer).count(), 0)
+
     def _create_caregiver_supplier_in_tenant(self, tenant):
         old_tenant = self.tenant
         self.tenant = tenant
@@ -154,3 +165,14 @@ class OrganizationFavoriteToggleTest(_CustomerMixin, PublicSiteTestCase, TestCas
         self.client.force_login(self.customer.user)
         response = self.client.get(self.profile_url)
         self.assertTrue(response.context["profile"].is_favorited)
+
+    def test_caregiver_supplier_is_rejected_by_the_organization_route(self):
+        """PR #16 architecture-review remediation (merge blocker F1): a
+        same-tenant caregiver supplier posted to the organization toggle
+        route must be refused exactly like a wrong-tenant/unknown one —
+        no Favorite row created, same non-disclosing 302 response."""
+        caregiver_supplier, _ = self._create_caregiver_supplier()
+        self.client.force_login(self.customer.user)
+        response = self.client.post(f"/find-an-organization/{caregiver_supplier.id}/favorite/", {"action": "add"})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Favorite.objects.filter(customer_profile=self.customer).count(), 0)

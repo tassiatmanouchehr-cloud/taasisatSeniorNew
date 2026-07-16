@@ -2068,3 +2068,49 @@ views/routes, two new portal views/routes, new `CustomerFavoritesPresentationSer
 tests, full regression 2246/2246 green (2192 baseline + 54 net). Branch
 `phase4-customer-favorites`, PR #16 created against `main` — **not yet merged.** See
 `traceability/IMPLEMENTATION_JOURNAL.md` for the full implementation record.
+
+---
+
+## ADM-027 Remediation — Enforce the Supplier-Type Boundary (PR #16 architecture review, 2026-07-16)
+
+An architecture review of PR #16 found one merge blocker (F1): `FavoritesService
+.add_favorite()` validated tenant and `ACTIVE` status but never validated `supplier_type`,
+so the organization-favorite route could accept a caregiver `ServiceSupplier` id (and the
+caregiver-favorite route could accept an organization one) — the mutation succeeded and
+created a `Favorite` row, then the toggle's own redirect landed on a profile page the wrong
+type could never satisfy. Not a tenant-isolation breach (both routes still correctly
+re-derive the caller's own tenant server-side), but an incomplete route boundary with no test
+coverage. Fixed in place on the same branch/PR (no new branch, no new PR):
+
+- `FavoritesService.add_favorite()` gained a required `expected_supplier_types` keyword
+  parameter, folded into the same single tenant-scoped `ServiceSupplier.objects.get(id=...,
+  tenant_id=..., status=SupplierStatus.ACTIVE, supplier_type__in=expected_supplier_types)`
+  lookup that already enforced tenant and status — one ORM condition, not a second query. A
+  type mismatch raises the identical `AccountsError("Supplier not found.")` already used for
+  wrong-tenant/unknown suppliers, preserving the existing non-disclosure contract exactly (no
+  new response shape, no new status code).
+- `expected_supplier_types` is always supplied by the caller (the view), never accepted from
+  client-submitted data — `apps.public_site.views.caregiver_favorite_toggle()` passes the
+  existing canonical `CAREGIVER_SUPPLIER_TYPES` constant (`apps.public_site.services
+  .directory_service`, already the single source of truth the caregiver directory itself
+  uses — no duplicate type-set definition introduced); `organization_favorite_toggle()`
+  passes `(SupplierType.ORGANIZATION,)`. No ORM logic was added to either view — the type
+  check lives entirely inside `FavoritesService.add_favorite()`, matching this codebase's
+  existing thin-controller discipline.
+- `apps.portal`'s favorite-removal flow (`favorite_remove_view`) was left unchanged — it
+  operates on an already customer-owned `Favorite` row (re-scoped by `customer_profile`), so
+  no supplier-type re-validation applies there; the existing "unavailable/non-public
+  supplier" list presentation is likewise untouched.
+- 3 new regression tests: `apps.accounts.tests.test_favorites
+  .test_add_favorite_for_wrong_supplier_type_raises` (service-level: an organization supplier
+  is refused by a caregiver-scoped call, no row created) and two route-level tests in
+  `apps.public_site.tests.test_favorites_public_integration`
+  (`test_organization_supplier_is_rejected_by_the_caregiver_route`,
+  `test_caregiver_supplier_is_rejected_by_the_organization_route`) — both POST a same-tenant,
+  wrong-type supplier id and assert the same 302/no-row-created response the existing
+  wrong-tenant/unknown-supplier tests already assert.
+
+Full regression re-run once after the fix: **2249/2249 green** (2246 baseline + 3 net). See
+`traceability/IMPLEMENTATION_JOURNAL.md` for the full remediation record.
+**PR #16 remains open, not yet merged, per the review's own instruction not to merge as part
+of this remediation.**

@@ -3292,3 +3292,66 @@ future, explicitly-scoped task).
 **Status:** Implementation and full verification complete on branch
 `phase4-customer-favorites`. PR #16 opened against `main`. **Not merged. Do not treat
 Sprint 4.1 as closed until the PR merges.**
+
+---
+
+## PR #16 Architecture Review Remediation — Enforce the Supplier-Type Boundary (merge blocker F1, 2026-07-16)
+
+Independent architecture review of PR #16 (evidence-based, re-running every test/verification
+command fresh rather than trusting the PR's own claims) found the implementation otherwise
+sound — model shape, migration, ORM discipline, tenant isolation, redirect-target safety,
+non-disclosure, query budgets, and `on_delete=CASCADE` were all confirmed **APPROVED** by
+direct code inspection — but found one **merge blocker (F1)**: `FavoritesService
+.add_favorite()` validated tenant and `ACTIVE` status but never validated `supplier_type`.
+Traced to production code (not inferred from tests): a customer could POST a caregiver
+`ServiceSupplier` id to the *organization* favorite-toggle route (or the symmetric case) and
+successfully create a `Favorite` row, since neither `add_favorite()` nor either toggle view
+checked that the submitted id actually matched the route's own supplier type. The subsequent
+redirect then landed on a profile page that could never resolve for that id. No
+tenant/customer-isolation breach — both routes still correctly re-derived the caller's own
+tenant server-side — but a genuine, untested domain-validation gap.
+
+Fixed in place on the existing branch (no new branch, no new PR, per the review's own
+instruction):
+
+- `FavoritesService.add_favorite()` (`apps/accounts/services/favorites.py`) gained a required
+  `expected_supplier_types` keyword parameter, folded into the same tenant-scoped
+  `ServiceSupplier.objects.get(...)` lookup as an additional `supplier_type__in=...` filter —
+  one ORM condition, not a second query. A type mismatch raises the same
+  `AccountsError("Supplier not found.")` already used for wrong-tenant/unknown suppliers —
+  the non-disclosure contract is unchanged, not weakened or strengthened.
+- `apps/public_site/views.py`: `caregiver_favorite_toggle()` now passes
+  `expected_supplier_types=CAREGIVER_SUPPLIER_TYPES` (the existing canonical constant from
+  `apps.public_site.services.directory_service` — the same one the caregiver directory itself
+  uses; no duplicate type-set definition introduced); `organization_favorite_toggle()` passes
+  `expected_supplier_types=(SupplierType.ORGANIZATION,)`. No ORM logic was added to either
+  view. `apps.portal`'s `favorite_remove_view` was left unchanged (it operates on an
+  already customer-owned row, re-scoped by `customer_profile` — no supplier-type
+  re-validation applies there).
+- 3 new tests: `apps.accounts.tests.test_favorites
+  .test_add_favorite_for_wrong_supplier_type_raises` (service-level — an organization
+  supplier is refused by a caregiver-scoped `add_favorite()` call, zero rows created);
+  `apps.public_site.tests.test_favorites_public_integration
+  .test_organization_supplier_is_rejected_by_the_caregiver_route` and
+  `.test_caregiver_supplier_is_rejected_by_the_organization_route` (route-level — POST a
+  same-tenant, wrong-type supplier id to each toggle route, assert the identical 302/
+  no-row-created response the existing wrong-tenant/unknown-supplier tests already assert).
+  All pre-existing Favorites tests (valid add/remove, wrong-tenant, anonymous, non-customer,
+  duplicate-add idempotency) were retained unchanged and re-run.
+- Verification re-run after the fix: `manage.py check` PASS; `manage.py makemigrations
+  accounts --check --dry-run` — "No changes detected" (the fix touched no model/migration);
+  `manage.py migrate` — no migrations to apply; `git diff --check` clean.
+- Focused suites re-run: `apps.accounts.tests.test_favorites` 21/21 (20 + 1 new);
+  `apps.public_site.tests.test_favorites_public_integration` 16/16 (14 + 2 new);
+  `apps.public_site.tests.test_favorites_card_resolution` 8/8 (unchanged);
+  `apps.portal.tests.test_favorites_view` 12/12 (unchanged);
+  `apps.kernel.tests.test_architecture_guardrails` 13/13 (unchanged). Combined affected-suite
+  run (`apps.accounts apps.portal apps.public_site apps.discovery
+  apps.kernel.tests.test_architecture_guardrails`): 778/778 (775 + 3 net).
+- Full regression re-run once: **2249/2249 green** (2246 baseline + 3 net — 1
+  service-level + 2 route-level new tests, zero pre-existing test weakened or removed).
+
+No model, migration, permission, template, or route was added or removed — this was a
+one-parameter service-signature change plus its two call sites and 3 new tests. **PR #16
+remains open, not yet merged** — this remediation does not close or merge the PR; it prepares
+the branch for re-review only.

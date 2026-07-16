@@ -15,12 +15,16 @@ from django.test import TestCase
 
 from apps.accounts.models import CustomerProfile
 from apps.accounts.models.favorites import Favorite
-from apps.accounts.models.profiles import CaregiverProfile
+from apps.accounts.models.profiles import CaregiverProfile, OrganizationProfile
 from apps.accounts.services.errors import AccountsError
 from apps.accounts.services.favorites import FavoritesService
-from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_caregiver
+from apps.accounts.services.supplier_bridge import (
+    get_or_create_supplier_for_caregiver,
+    get_or_create_supplier_for_organization,
+)
 from apps.kernel.models import Person, Tenant, UserAccount
 from apps.kernel.models.supplier import SupplierStatus
+from apps.public_site.services.directory_service import CAREGIVER_SUPPLIER_TYPES
 
 
 class _FixtureMixin:
@@ -35,6 +39,7 @@ class _FixtureMixin:
         self.other_tenant_supplier, _ = self._create_caregiver_supplier(
             tenant=self.other_tenant, display_name="Cross Tenant Caregiver",
         )
+        self.org_supplier, _ = self._create_organization_supplier(tenant=self.tenant)
 
     def _create_customer(self, *, tenant, display_name) -> CustomerProfile:
         phone = f"0912{uuid.uuid4().hex[:7]}"
@@ -51,6 +56,28 @@ class _FixtureMixin:
         supplier.status = SupplierStatus.ACTIVE
         supplier.save(update_fields=["status"])
         return supplier, caregiver
+
+    def _create_organization_supplier(self, *, tenant, name="Test Organization"):
+        admin_phone = f"0914{uuid.uuid4().hex[:7]}"
+        admin_person = Person.objects.create(tenant=tenant, full_name="Org Admin")
+        admin_user = UserAccount.objects.create_user(phone=admin_phone, person=admin_person, tenant=tenant)
+        organization = OrganizationProfile.objects.create(
+            name=name, code=f"fav-org-{uuid.uuid4().hex[:8]}", admin_user=admin_user, tenant=tenant, status="active",
+        )
+        supplier = get_or_create_supplier_for_organization(organization, tenant_id=tenant.id)
+        supplier.status = SupplierStatus.ACTIVE
+        supplier.save(update_fields=["status"])
+        return supplier, organization
+
+    def _add_favorite(self, customer=None, *, supplier_id=None):
+        """Shorthand for the common case: add_favorite() scoped to a
+        caregiver-type supplier (self.supplier by default)."""
+        return FavoritesService.add_favorite(
+            customer or self.customer,
+            supplier_id=supplier_id or self.supplier.id,
+            tenant_id=self.tenant.id,
+            expected_supplier_types=CAREGIVER_SUPPLIER_TYPES,
+        )
 
 
 class FavoriteModelConstraintTest(_FixtureMixin, TestCase):
@@ -91,13 +118,13 @@ class FavoritesServiceAddTest(_FixtureMixin, TestCase):
         self._build_fixture()
 
     def test_add_favorite_creates_row(self):
-        favorite = FavoritesService.add_favorite(self.customer, supplier_id=self.supplier.id, tenant_id=self.tenant.id)
+        favorite = self._add_favorite()
         self.assertEqual(favorite.customer_profile_id, self.customer.id)
         self.assertEqual(favorite.supplier_id, self.supplier.id)
 
     def test_duplicate_add_is_idempotent(self):
-        first = FavoritesService.add_favorite(self.customer, supplier_id=self.supplier.id, tenant_id=self.tenant.id)
-        second = FavoritesService.add_favorite(self.customer, supplier_id=self.supplier.id, tenant_id=self.tenant.id)
+        first = self._add_favorite()
+        second = self._add_favorite()
         self.assertEqual(first.id, second.id)
         self.assertEqual(Favorite.objects.filter(customer_profile=self.customer).count(), 1)
 
@@ -116,26 +143,34 @@ class FavoritesServiceAddTest(_FixtureMixin, TestCase):
         ):
             favorite = FavoritesService.add_favorite(
                 self.customer, supplier_id=self.supplier.id, tenant_id=self.tenant.id,
+                expected_supplier_types=CAREGIVER_SUPPLIER_TYPES,
             )
         self.assertEqual(Favorite.objects.filter(customer_profile=self.customer).count(), 1)
         self.assertEqual(favorite.supplier_id, self.supplier.id)
 
     def test_add_favorite_for_unknown_supplier_raises(self):
         with self.assertRaises(AccountsError):
-            FavoritesService.add_favorite(self.customer, supplier_id=uuid.uuid4(), tenant_id=self.tenant.id)
+            self._add_favorite(supplier_id=uuid.uuid4())
 
     def test_add_favorite_for_wrong_tenant_supplier_raises(self):
         with self.assertRaises(AccountsError):
-            FavoritesService.add_favorite(
-                self.customer, supplier_id=self.other_tenant_supplier.id, tenant_id=self.tenant.id,
-            )
+            self._add_favorite(supplier_id=self.other_tenant_supplier.id)
+        self.assertEqual(Favorite.objects.filter(customer_profile=self.customer).count(), 0)
+
+    def test_add_favorite_for_wrong_supplier_type_raises(self):
+        """PR #16 architecture-review remediation (merge blocker F1): an
+        organization-type supplier must be refused by the caregiver-scoped
+        add_favorite() call, exactly like a wrong-tenant/unknown supplier —
+        never disclosing which case occurred."""
+        with self.assertRaises(AccountsError):
+            self._add_favorite(supplier_id=self.org_supplier.id)
         self.assertEqual(Favorite.objects.filter(customer_profile=self.customer).count(), 0)
 
     def test_add_favorite_for_inactive_supplier_raises(self):
         self.supplier.status = SupplierStatus.SUSPENDED
         self.supplier.save(update_fields=["status"])
         with self.assertRaises(AccountsError):
-            FavoritesService.add_favorite(self.customer, supplier_id=self.supplier.id, tenant_id=self.tenant.id)
+            self._add_favorite()
 
 
 class FavoritesServiceRemoveTest(_FixtureMixin, TestCase):
@@ -143,12 +178,12 @@ class FavoritesServiceRemoveTest(_FixtureMixin, TestCase):
         self._build_fixture()
 
     def test_remove_favorite_deletes_row(self):
-        FavoritesService.add_favorite(self.customer, supplier_id=self.supplier.id, tenant_id=self.tenant.id)
+        self._add_favorite()
         FavoritesService.remove_favorite(self.customer, supplier_id=self.supplier.id)
         self.assertEqual(Favorite.objects.filter(customer_profile=self.customer).count(), 0)
 
     def test_repeated_remove_is_idempotent(self):
-        FavoritesService.add_favorite(self.customer, supplier_id=self.supplier.id, tenant_id=self.tenant.id)
+        self._add_favorite()
         FavoritesService.remove_favorite(self.customer, supplier_id=self.supplier.id)
         FavoritesService.remove_favorite(self.customer, supplier_id=self.supplier.id)  # must not raise
         self.assertEqual(Favorite.objects.filter(customer_profile=self.customer).count(), 0)
@@ -158,7 +193,7 @@ class FavoritesServiceRemoveTest(_FixtureMixin, TestCase):
         self.assertEqual(Favorite.objects.filter(customer_profile=self.customer).count(), 0)
 
     def test_cannot_remove_another_customers_favorite(self):
-        FavoritesService.add_favorite(self.customer, supplier_id=self.supplier.id, tenant_id=self.tenant.id)
+        self._add_favorite()
         FavoritesService.remove_favorite(self.other_customer, supplier_id=self.supplier.id)
         self.assertEqual(Favorite.objects.filter(customer_profile=self.customer).count(), 1)
 
@@ -168,27 +203,27 @@ class FavoritesServiceReadTest(_FixtureMixin, TestCase):
         self._build_fixture()
 
     def test_is_favorited_true_after_add(self):
-        FavoritesService.add_favorite(self.customer, supplier_id=self.supplier.id, tenant_id=self.tenant.id)
+        self._add_favorite()
         self.assertTrue(FavoritesService.is_favorited(self.customer, supplier_id=self.supplier.id))
 
     def test_is_favorited_false_when_never_added(self):
         self.assertFalse(FavoritesService.is_favorited(self.customer, supplier_id=self.supplier.id))
 
     def test_is_favorited_is_scoped_to_the_caller(self):
-        FavoritesService.add_favorite(self.customer, supplier_id=self.supplier.id, tenant_id=self.tenant.id)
+        self._add_favorite()
         self.assertFalse(FavoritesService.is_favorited(self.other_customer, supplier_id=self.supplier.id))
 
     def test_list_favorites_for_customer_returns_only_own_rows_newest_first(self):
         second_supplier, _ = self._create_caregiver_supplier(tenant=self.tenant, display_name="Second Caregiver")
-        FavoritesService.add_favorite(self.customer, supplier_id=self.supplier.id, tenant_id=self.tenant.id)
-        FavoritesService.add_favorite(self.customer, supplier_id=second_supplier.id, tenant_id=self.tenant.id)
-        FavoritesService.add_favorite(self.other_customer, supplier_id=self.supplier.id, tenant_id=self.tenant.id)
+        self._add_favorite()
+        self._add_favorite(supplier_id=second_supplier.id)
+        self._add_favorite(self.other_customer)
 
         favorites = list(FavoritesService.list_favorites_for_customer(self.customer))
         self.assertEqual([f.supplier_id for f in favorites], [second_supplier.id, self.supplier.id])
 
     def test_list_favorites_select_related_avoids_extra_supplier_query(self):
-        FavoritesService.add_favorite(self.customer, supplier_id=self.supplier.id, tenant_id=self.tenant.id)
+        self._add_favorite()
         favorites = list(FavoritesService.list_favorites_for_customer(self.customer))
         with self.assertNumQueries(0):
             _ = favorites[0].supplier.display_name
