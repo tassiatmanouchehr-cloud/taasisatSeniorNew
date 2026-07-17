@@ -838,7 +838,7 @@ check` all clean. Merged via `merge_pull_request` (merge commit
 `origin/main`; `manage.py check` exits 0. **Sprint 3.3 (Company Public Directory and
 Discovery) is now CLOSED and on `main`.**
 
-### Sprint 4.1 — Customer Favorites and Saved Providers — IMPLEMENTED, PR OPEN (2026-07-16)
+### Sprint 4.1 — Customer Favorites and Saved Providers — IMPLEMENTED, PR #16 APPROVED FOR MERGE (2026-07-16)
 
 Branched fresh from merged `main` (`phase4-customer-favorites`, from `d50f83f`) per governance.
 The first Phase 4 implementation sprint, closing the one confirmed gap the Phase 4 Customer
@@ -865,30 +865,38 @@ profile services, and the portal's existing `_guard()`/nav-item schema.
   bulk-resolved cards, a "no longer publicly listed" state for favorites whose supplier is no
   longer public — never silently deleted, never a dead link) + `POST
   /portal/favorites/<supplier_id>/remove/`; new nav item.
-- 54 new tests (20 `apps.accounts.tests.test_favorites`, 14
+- 57 new tests (21 `apps.accounts.tests.test_favorites`, 16
   `apps.public_site.tests.test_favorites_public_integration`, 8 `apps.public_site.tests
   .test_favorites_card_resolution`, 12 `apps.portal.tests.test_favorites_view`) — model
   constraints, service add/remove/idempotency/concurrency-race, ownership/IDOR, anonymous/
   non-customer/customer toggle behavior, redirect-target safety, non-disclosure, mixed-type
   listing, unavailable-supplier presentation, pagination, query-budget bounds at
-  representative sizes (0/1/5/20). Full regression **2246/2246 green** (2192 baseline + 54
+  representative sizes (0/1/5/20). Full regression **2249/2249 green** (2192 baseline + 57
   net). `manage.py check`/`makemigrations --check`/`manage.py migrate`/`git diff --check` all
   clean.
-- Branch `phase4-customer-favorites`, PR #16 created against `main` — see
-  `traceability/IMPLEMENTATION_JOURNAL.md`'s "Phase 4 — Sprint 4.1" entry for the full
-  implementation record. **Not yet merged.**
+- **Two architecture-review remediations, both applied on the same branch/PR:** (1) enforce
+  the supplier-type boundary on `FavoritesService.add_favorite()` (merge blocker F1 — a
+  wrong-type supplier id could otherwise be favorited via the wrong route); (2) fix the
+  post-rejection redirect destination (a targeted re-review found the first fix stopped row
+  creation but the rejected mutation's redirect still landed on a 404 for a genuinely
+  wrong-type id — both toggle views now redirect to the route's own directory listing on
+  rejection instead). See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-027's two
+  remediation entries for full evidence.
+- Branch `phase4-customer-favorites` @ `f3644da09a68c17bbfa6ef3b54eb74cd2c67702b`, PR #16 —
+  see `traceability/IMPLEMENTATION_JOURNAL.md`'s "Phase 4 — Sprint 4.1" entries for the full
+  implementation and remediation record. **APPROVED FOR MERGE, not yet merged.**
 
 ---
 
 ## IMMEDIATE NEXT TASK
 
-### Phase 4 — Sprint 4.1 (Customer Favorites and Saved Providers) is IMPLEMENTED; the immediate next task is architecture review of the open PR, then merge only when explicitly instructed.
+### Phase 4 — Sprint 4.1 (Customer Favorites and Saved Providers) is IMPLEMENTED and PR #16 is APPROVED FOR MERGE; the immediate next task is executing the merge per explicit instruction.
 
 Sprint 4.1's implementation scope is complete: model, service, public-profile toggle, portal
-"My Favorites" page, 54 new tests, full regression 2246/2246 green, and documentation
-synchronized. **PR is open against `main` and has not been merged.** No later Phase 4 sprint
-has started. Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active implementation
-order).
+"My Favorites" page, 57 new tests, full regression 2249/2249 green, two architecture-review
+remediations applied, and documentation synchronized. **PR #16 is approved for merge and has
+not yet been merged.** No later Phase 4 sprint has started. Defined in
+**`IMPLEMENTATION_ROADMAP.md`** (the single active implementation order).
 
 ### Phase 3 is formally CLOSED (PR #15 merged). Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers is now IMPLEMENTED (see entry above).
 

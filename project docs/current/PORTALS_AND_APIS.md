@@ -1,6 +1,6 @@
 # PORTALS, APIS, AND ENTRY POINTS
 
-**Last verified HEAD:** main @ d50f83fb7aa2f71c50bb039c8259397740bc832b (PR #15 merged — **Phase 3 FORMALLY CLOSED**); active branch `phase4-customer-favorites` — **Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers IMPLEMENTED**, PR open, not yet merged
+**Last verified HEAD:** main @ d50f83fb7aa2f71c50bb039c8259397740bc832b (PR #15 merged — **Phase 3 FORMALLY CLOSED**); active branch `phase4-customer-favorites` @ `f3644da09a68c17bbfa6ef3b54eb74cd2c67702b` — **Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers IMPLEMENTED, PR #16 APPROVED FOR MERGE**, not yet merged
 **Last verified date:** 2026-07-16
 
 **Phase 4 — Sprint 4.1 note (2026-07-16):** Customer Favorites and Saved Providers is

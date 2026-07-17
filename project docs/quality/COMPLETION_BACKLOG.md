@@ -1,7 +1,7 @@
 # CURRENT GAPS AND COMPLETION BACKLOG
 
-**Last verified HEAD:** phase4-customer-favorites (from main @ d50f83fb7aa2f71c50bb039c8259397740bc832b)
-**Last verified date:** 2026-07-16 (Sprint 4.1 implementation complete, PR open, not yet merged)
+**Last verified HEAD:** phase4-customer-favorites @ f3644da09a68c17bbfa6ef3b54eb74cd2c67702b (from main @ d50f83fb7aa2f71c50bb039c8259397740bc832b)
+**Last verified date:** 2026-07-16 (Sprint 4.1 implementation and architecture review complete, PR #16 approved for merge, not yet merged)
 
 ---
 
@@ -442,7 +442,7 @@ a full public company directory/listing page (now **resolved by Sprint 3.3/BG-03
 opt-in public-contact-details toggle, a dedicated service-area/coverage-radius field.
 **Status update (2026-07-16):** **MERGED to main via PR #13** (merge commit `49b643e`).
 
-### BG-032: Customer Favorites and Saved Providers — **IMPLEMENTED, PR OPEN (not yet merged)**
+### BG-032: Customer Favorites and Saved Providers — **IMPLEMENTED, PR #16 APPROVED FOR MERGE (not yet merged)**
 
 **Original evidence:** The one confirmed, repository-wide-verified gap found by the Phase 4
 Customer Portal Architecture Assessment (2026-07-16, code-free) — no `Favorite`/bookmark/
@@ -461,9 +461,14 @@ mixed caregiver/organization, bulk-resolved cards via new additive
 `build_cards_for_supplier_ids()` classmethods on both existing directory services — no new
 shared/canonical card model, per ADM-025's own "no abstract base class" decision) +
 `POST /portal/favorites/<supplier_id>/remove/`. One migration
-(`accounts/0011_favorite.py`). 54 new tests, full regression 2246/2246 green. See
-`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-027 and
-`traceability/IMPLEMENTATION_JOURNAL.md`.
+(`accounts/0011_favorite.py`). 57 new tests (54 original + 3 from the architecture-review
+remediation enforcing the supplier-type boundary), full regression 2249/2249 green. Two
+architecture-review remediations applied on the same branch/PR: (1) enforce the supplier-type
+boundary on `add_favorite()` (merge blocker F1); (2) fix the post-rejection redirect
+destination (a targeted re-review found a rejected wrong-type mutation still redirected to a
+URL that 404s on follow — both toggle views now redirect to the route's own directory listing
+on rejection instead). See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-027 and its two
+remediation entries, and `traceability/IMPLEMENTATION_JOURNAL.md`.
 **Affected modules:** accounts (new `Favorite` model + `FavoritesService`), public_site (favorite
 toggle, first authenticated surface), portal (new "My Favorites" page).
 **Not in scope (explicitly deferred, per the Sprint 4.1 implementation instruction):**
@@ -472,9 +477,10 @@ viewed suppliers, supplier comparison, collections/folders, customer notes/label
 sharing favorite lists, notifications, mobile-client APIs, financial/order-workflow changes,
 supplier-side favorites analytics, broad public-site authentication redesign, broad Shared
 Discovery refactoring.
-**Status update (2026-07-16):** Implementation and tests complete on branch
-`phase4-customer-favorites`. **PR #16 open against `main` — not yet merged. Do not treat as
-RESOLVED until the PR merges.**
+**Status update (2026-07-16):** Implementation, tests, and architecture review complete on
+branch `phase4-customer-favorites` @ `f3644da09a68c17bbfa6ef3b54eb74cd2c67702b`. **PR #16
+APPROVED FOR MERGE against `main` — not yet merged. Do not treat as RESOLVED until the PR
+merges.**
 
 ### BG-031: Company Public Directory and Discovery — **RESOLVED**
 
