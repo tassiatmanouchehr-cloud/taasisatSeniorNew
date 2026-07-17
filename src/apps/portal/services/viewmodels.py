@@ -17,6 +17,12 @@ capability, it does not retroactively rewrite already-working pages.
 
 from dataclasses import dataclass, field
 
+from apps.public_site.services.viewmodels import (
+    CaregiverCardViewModel,
+    OrganizationCardViewModel,
+    PaginationViewModel,
+)
+
 
 @dataclass(frozen=True)
 class NavItemViewModel:
@@ -208,3 +214,37 @@ class CustomerDashboardViewModel:
     unread_notification_count: int
     profile_completion_percent: int
     pending_actions: tuple[str, ...] = field(default_factory=tuple)
+
+
+# ------------------------------------------------------------------
+# Favorites (Phase 4 Sprint 4.1: Customer Favorites and Saved Providers)
+# ------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class FavoriteRowViewModel:
+    """Decision D (Sprint 4.1 ADR): a lightweight wrapper, not a third
+    near-duplicate card model — favorite metadata plus the supplier-type
+    discriminator plus exactly one of the two existing, already-public
+    card ViewModels (`apps.public_site.services.viewmodels
+    .CaregiverCardViewModel` / `OrganizationCardViewModel`), reused
+    unchanged. Exactly one of caregiver_card/organization_card is
+    non-None, selected by supplier_type. card is None (both fields None)
+    when the favorited supplier is no longer publicly visible — the
+    template renders the "no longer publicly listed" state in that case,
+    never a broken link to a 404 profile page."""
+
+    favorite_id: str
+    supplier_id: str
+    supplier_type: str  # "caregiver" | "organization"
+    saved_at_label: str
+    remove_url: str
+    is_currently_public: bool
+    caregiver_card: CaregiverCardViewModel | None = None
+    organization_card: OrganizationCardViewModel | None = None
+
+
+@dataclass(frozen=True)
+class FavoritesListViewModel:
+    rows: tuple[FavoriteRowViewModel, ...] = field(default_factory=tuple)
+    pagination: PaginationViewModel | None = None

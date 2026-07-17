@@ -1,7 +1,7 @@
 # RUNTIME WORKFLOWS
 
-**Last verified HEAD:** main @ 078e435fee2b2c6350c66be113c4e7e607178763 (PR #12 merged — Sprint 3.1 CLOSED; PR #13 merged — Sprint 3.2 CLOSED; PR #14 merged — Sprint 3.3 CLOSED; PR #15 merged — **Phase 3 FORMALLY CLOSED**)
-**Last verified date:** 2026-07-16 (Phase 3 formally closed via PR #15 merge; Phase 4 Customer Portal Architecture Assessment recorded)
+**Last verified HEAD:** main @ d50f83fb7aa2f71c50bb039c8259397740bc832b (PR #15 merged — **Phase 3 FORMALLY CLOSED**); active branch `phase4-customer-favorites` @ `f3644da09a68c17bbfa6ef3b54eb74cd2c67702b` — **Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers IMPLEMENTED, PR #16 APPROVED FOR MERGE**, not yet merged
+**Last verified date:** 2026-07-16 (Sprint 4.1 implementation and architecture review complete, pre-merge)
 
 ---
 
@@ -42,8 +42,39 @@
 | 31 | Company-Caregiver Affiliation Lifecycle (join-by-code, invitation, approval, termination) | IMPLEMENTED (Sprint 3.1) | `apps.accounts.services.affiliations` (extended) |
 | 32 | Company Professional Profile and Public Presence (headline, canonical visibility, public logo) | IMPLEMENTED (Sprint 3.2 + PR #13 remediation) | `public_site/services/organization_profile_service.py:OrganizationPublicProfileService` |
 | 33 | Company Public Directory and Discovery (search, city/service filters, pagination, cards) | IMPLEMENTED (Sprint 3.3) | `public_site/services/organization_directory_service.py:OrganizationDirectoryService` |
+| 34 | Customer Favorites and Saved Providers (save/unsave from public profile, "My Favorites" portal list) | IMPLEMENTED (Sprint 4.1 — **PR #16 APPROVED FOR MERGE, not yet merged**) | `accounts/services/favorites.py:FavoritesService` |
 
 ---
+
+## Customer Favorites and Saved Providers Workflow (Sprint 4.1)
+
+1. An authenticated customer viewing a public caregiver or organization profile sees a
+   save/unsave toggle (`can_favorite` gates the control — resolved server-side via
+   `apps.public_site.services.customer_context.resolve_customer_or_none()`, never trusted
+   from the client).
+2. Toggle submits `POST find-a-caregiver/<uuid:supplier_id>/favorite/` or
+   `POST find-an-organization/<uuid:supplier_id>/favorite/` with `action=add|remove`.
+   `require_customer()` resolves the caller server-side (403 for anonymous/non-customer
+   callers — `apps.public_site`'s first authenticated mutation).
+3. `FavoritesService.add_favorite()`/`remove_favorite()` performs the write — `add_favorite()`
+   validates the supplier is ACTIVE and tenant-scoped to the caller before creating the row
+   (`get_or_create()`, `IntegrityError`-safe under a concurrent race); both mutations are
+   idempotent. A wrong-tenant/unknown supplier fails the same way as a normal duplicate
+   (silently absorbed), never disclosing which case occurred.
+4. The view redirects back to the same profile page — the URL is always server-resolved
+   (`redirect("public_site:...-profile", supplier_id=...)`), never a client-supplied "next".
+5. `GET /portal/favorites/` lists the customer's own saved suppliers
+   (`FavoritesService.list_favorites_for_customer()`, newest first, paginated at 12/page).
+   `CustomerFavoritesPresentationService.build_list_view()` bulk-resolves every visible
+   favorited supplier's card via `CaregiverDirectoryService`/`OrganizationDirectoryService
+   .build_cards_for_supplier_ids()` — a small, fixed number of queries per page regardless of
+   favorite count (KL-012 discipline, measured at 0/1/5/20).
+6. A favorited supplier that later becomes SUSPENDED/DEACTIVATED/non-public is never silently
+   removed from the list (it is the customer's own preference data) — it renders a "no longer
+   publicly listed" state instead of a card, with no link to a (now-404) public profile.
+7. `POST /portal/favorites/<uuid:supplier_id>/remove/` removes the caller's own favorite only
+   — re-scoped by `customer_profile` before any write, mirroring every other
+   ownership-authorized `apps.portal` mutation.
 
 ## Manual Document Verification Workflow (Phase 1.1, extended Phase 1.2)
 

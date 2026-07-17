@@ -1,0 +1,19 @@
+{% comment %} Favorite Toggle Component — Phase 4 Sprint 4.1 (Customer
+   Favorites and Saved Providers)
+   Usage:
+     {% include "ui/components/public/favorite_toggle.html" with is_favorited=profile.is_favorited toggle_url=favorite_toggle_url %}
+
+   Props:
+     is_favorited — bool, current saved state
+     toggle_url   — the POST target, resolved server-side by the view via
+                    {% url %} — never a client-supplied "next" URL
+
+   Only ever included when can_favorite is True (an authenticated customer
+   is viewing the page) — the calling template gates this, this component
+   itself renders unconditionally whatever it is given.
+{% endcomment %}
+<form method="post" action="{{ toggle_url }}" class="inline-block">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="{% if is_favorited %}remove{% else %}add{% endif %}">
+  {% include "ui/components/forms/button.html" with label=is_favorited|yesno:"حذف از علاقه‌مندی‌ها,ذخیره در علاقه‌مندی‌ها" variant=is_favorited|yesno:"outline,primary" type="submit" icon_start="♥" size="sm" %}
+</form>

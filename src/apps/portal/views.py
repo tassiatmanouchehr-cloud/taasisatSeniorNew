@@ -25,6 +25,7 @@ from django.views.decorators.http import require_http_methods
 
 from apps.accounts.services.care_recipients import CareRecipientService
 from apps.accounts.services.errors import AccountsError
+from apps.accounts.services.favorites import FavoritesService
 from apps.accounts.services.profiles import CustomerProfileUpdateService
 from apps.commission.services.dispute_service import DisputeService
 from apps.commission.services.errors import CommissionError
@@ -62,6 +63,7 @@ from .forms import (
 from .permissions import require_authenticated, resolve_customer_profile, resolve_tenant_id
 from .services.care_recipient_service import CareRecipientPresentationService
 from .services.dashboard_service import CustomerDashboardPresentationService
+from .services.favorites_service import CustomerFavoritesPresentationService
 from .services.payments_service import CustomerPaymentsPresentationService
 from .services.profile_service import CustomerProfilePresentationService
 from .services.reviews_service import CustomerReviewsPresentationService
@@ -228,6 +230,35 @@ def reviews_view(request):
             "nav_items": CustomerProfilePresentationService.build_nav_items(active="reviews"),
         },
     )
+
+
+# ============================================================
+# Favorites — Phase 4 Sprint 4.1 (Customer Favorites and Saved Providers)
+# ============================================================
+
+
+@require_http_methods(["GET"])
+def favorites_view(request):
+    customer, tenant_id = _guard(request)
+    favorites = FavoritesService.list_favorites_for_customer(customer)
+    page = CustomerFavoritesPresentationService.build_list_view(
+        favorites=favorites, tenant_id=tenant_id, page=request.GET.get("page", 1),
+    )
+    return render(
+        request,
+        "portal/favorites.html",
+        {
+            "page": page,
+            "nav_items": CustomerProfilePresentationService.build_nav_items(active="favorites"),
+        },
+    )
+
+
+@require_http_methods(["POST"])
+def favorite_remove_view(request, supplier_id):
+    customer, _tenant_id = _guard(request)
+    FavoritesService.remove_favorite(customer, supplier_id=supplier_id)
+    return redirect("portal:favorites")
 
 
 @require_http_methods(["POST"])

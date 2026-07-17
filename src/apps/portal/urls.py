@@ -51,4 +51,6 @@ urlpatterns = [
     path("requests/new/submit/", views.wizard_submit_view, name="request-wizard-submit"),
     path("notifications/", views.notifications_view, name="notifications"),
     path("share/<str:token>/", views.shared_order_view, name="shared-order"),
+    path("favorites/", views.favorites_view, name="favorites"),
+    path("favorites/<uuid:supplier_id>/remove/", views.favorite_remove_view, name="favorite-remove"),
 ]

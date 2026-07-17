@@ -86,6 +86,7 @@ class CustomerProfilePresentationService:
             ("dashboard", "داشبورد", "/portal/"),
             ("requests", "درخواست‌های من", "/portal/requests/"),
             ("care-recipients", "گیرندگان خدمت", "/portal/care-recipients/"),
+            ("favorites", "ارائه‌دهندگان ذخیره‌شده", "/portal/favorites/"),
             ("payments", "پرداخت‌ها و فاکتورها", "/portal/payments/"),
             ("reviews", "نظرات من", "/portal/reviews/"),
             ("notifications", "اعلان‌ها", "/portal/notifications/"),

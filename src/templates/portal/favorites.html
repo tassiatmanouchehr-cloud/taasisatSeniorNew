@@ -1,0 +1,61 @@
+{% extends "portal/base.html" %}
+
+{% block portal_title %}ارائه‌دهندگان ذخیره‌شده{% endblock %}
+{% block page_title %}ارائه‌دهندگان ذخیره‌شده{% endblock %}
+{% block page_description %}
+<p class="mt-1 text-sm text-text-muted">مراقبان و سازمان‌هایی که ذخیره کرده‌اید.</p>
+{% endblock %}
+
+{% block portal_content %}
+{% if page.rows %}
+<div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+  {% for row in page.rows %}
+  <div class="flex flex-col gap-3">
+    {% if row.is_currently_public and row.supplier_type == "caregiver" %}
+    {% include "ui/components/public/caregiver_card.html" with caregiver=row.caregiver_card %}
+    {% elif row.is_currently_public and row.supplier_type == "organization" %}
+    {% include "ui/components/public/organization_card.html" with organization=row.organization_card %}
+    {% else %}
+    <div class="flex min-w-0 flex-col rounded-3xl border border-border bg-background-alt p-6 text-text-muted">
+      <p class="text-sm font-bold text-text">این ارائه‌دهنده دیگر در فهرست عمومی نمایش داده نمی‌شود</p>
+      <p class="mt-2 text-xs">پروفایل این ارائه‌دهنده در حال حاضر در دسترس نیست. می‌توانید آن را از فهرست علاقه‌مندی‌های خود حذف کنید.</p>
+    </div>
+    {% endif %}
+    <div class="flex items-center justify-between px-1">
+      <span class="text-xs text-text-muted">ذخیره‌شده در {{ row.saved_at_label }}</span>
+      <form method="post" action="{{ row.remove_url }}">
+        {% csrf_token %}
+        {% include "ui/components/forms/button.html" with label="حذف" variant="outline" size="xs" type="submit" %}
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% if page.pagination.total_pages > 1 %}
+<nav aria-label="صفحه‌بندی نتایج" class="mt-10 flex items-center justify-center gap-2">
+  {% if page.pagination.previous_url %}
+  <a href="{{ page.pagination.previous_url }}" class="inline-flex items-center justify-center rounded-lg border border-border w-9 h-9 text-sm text-text-muted hover:bg-background-alt hover:text-text transition-colors no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2" aria-label="صفحه قبل">
+    <svg class="h-4 w-4 icon-directional" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+  </a>
+  {% endif %}
+  {% for link in page.pagination.page_links %}
+  <a href="{{ link.url }}"
+     class="inline-flex items-center justify-center rounded-lg w-9 h-9 text-sm transition-colors no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2
+            {% if link.is_current %}bg-primary text-white font-bold{% else %}text-text-muted hover:bg-background-alt hover:text-text{% endif %}"
+     {% if link.is_current %}aria-current="page"{% endif %}>
+    <span class="ltr-value">{{ link.number }}</span>
+  </a>
+  {% endfor %}
+  {% if page.pagination.next_url %}
+  <a href="{{ page.pagination.next_url }}" class="inline-flex items-center justify-center rounded-lg border border-border w-9 h-9 text-sm text-text-muted hover:bg-background-alt hover:text-text transition-colors no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2" aria-label="صفحه بعد">
+    <svg class="h-4 w-4 icon-directional" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+  </a>
+  {% endif %}
+</nav>
+{% endif %}
+
+{% else %}
+{% include "ui/components/data/empty_state.html" with icon="♥" title="هنوز چیزی ذخیره نکرده‌اید" description="هنگام مشاهده پروفایل مراقبان یا سازمان‌ها، می‌توانید آن‌ها را در فهرست علاقه‌مندی‌های خود ذخیره کنید." action_label="پیدا کردن مراقب" action_href="/find-a-caregiver/" %}
+{% endif %}
+{% endblock %}
