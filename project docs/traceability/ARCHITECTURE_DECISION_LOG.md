@@ -2181,3 +2181,99 @@ branch content). **Phase 4 — Sprint 4.1 (Customer Favorites and Saved Provider
 both architecture-review remediations) is now CLOSED and canonical on `main`. BG-032 is
 RESOLVED.** No Sprint 4.2 scope is canonically defined in this repository — the next task is
 a fresh Architecture Assessment, not implementation.
+
+---
+
+## ADM-028 — Phase 4 Formal Closure (Customer Portal, 2026-07-17)
+
+**Context:** Following PR #16's merge and post-merge documentation synchronization (`main` @
+`756c14dc25d9446eff73b209bfd85b3e0f4c6648`), two sequential code-free assessments were
+performed: a "Phase 4 — Next Sprint Architecture Assessment" and, after it was found to
+contain canonical-state and governance inaccuracies (most notably citing the PR #16 merge
+commit `544de34684cf89ee28c1c4144cd5d82035e58e4e` as the current `main` HEAD instead of the
+later, correct `756c14dc...` post-merge documentation-sync commit, and prematurely declaring
+"Phase 4 is closed" when no canonical document had yet said so), a corrected "Phase 4 Closure
+Assessment" re-verified the repository directly and produced a closure matrix. This ADM
+entry records the resulting governance decision, performed on documentation-only branch
+`docs/phase4-canonical-closure`.
+
+**Decision:**
+
+```
+Phase 4 — Customer Portal is formally closed.
+```
+
+**Evidence reviewed:** direct re-verification of `git status`/`git rev-parse HEAD`/`git
+rev-parse origin/main` (confirmed `756c14dc25d9446eff73b209bfd85b3e0f4c6648`, local == origin,
+clean tree, no intervening commits); `project docs/00_START_HERE.md`,
+`01_PROJECT_RULES.md`, `02_PROJECT_CONTINUATION.md`, `03_NEXT_TASK.md`,
+`IMPLEMENTATION_ROADMAP.md`, `current/IMPLEMENTATION_STATE.md`,
+`current/PORTALS_AND_APIS.md`, `current/RUNTIME_WORKFLOWS.md`,
+`quality/COMPLETION_BACKLOG.md`, `quality/DEFECT_AND_RISK_REGISTER.md`, this file
+(ADM-025/026/027 and both ADM-027 remediation entries), and `traceability
+/IMPLEMENTATION_JOURNAL.md`; direct re-inspection of `apps/portal/services
+/favorites_service.py`, `apps/accounts/services/favorites.py`, `apps/accounts/tests
+/test_favorites.py`, and `apps/portal/tests/test_favorites_view.py`.
+
+**Completed capabilities:** every roadmap-defined Phase 4 capability — dashboard, orders
+(list/detail/history with filters), payments (per-order and tenant-wide invoice list via
+`CustomerPaymentsPresentationService`), notifications, profile/settings, reviews (all
+pre-existing, Epic 07), and Favorites/saved providers (Sprint 4.1, the one confirmed gap) —
+is implemented, tested, and merged to `main`. No Phase-4-specific backlog item or known
+limitation remains open (`quality/COMPLETION_BACKLOG.md` shows only the RESOLVED BG-032;
+`quality/DEFECT_AND_RISK_REGISTER.md` shows no open Phase-4-specific KL entry — KL-022 is
+explicitly cross-portal, not Phase-4-specific).
+
+**Sprint 4.1 and PR #16:** Customer Favorites and Saved Providers (new `Favorite` model,
+`FavoritesService`, public-profile favorite toggle, `/portal/favorites/` list page, two
+architecture-review remediations enforcing the supplier-type boundary and fixing the
+post-rejection redirect destination) closed the final confirmed Phase 4 functional gap.
+Merged via PR #16, merge commit `544de34684cf89ee28c1c4144cd5d82035e58e4e`, 2026-07-17.
+
+**Regression baseline:** **2249/2249 PASS**, confirmed both pre-merge and post-merge,
+unchanged since — this closure task made no code, test, or migration change and did not
+re-run the suite (no production-affecting change occurred to invalidate the existing
+baseline).
+
+**BG-032 resolution:** confirmed RESOLVED in `quality/COMPLETION_BACKLOG.md` — the Favorites
+gap identified by the Phase 4 Customer Portal Architecture Assessment (ADM-026) is closed.
+
+**Decision not to create Sprint 4.2:** no repository evidence — no backlog item, no known
+limitation, no roadmap scope line — defines a Sprint 4.2. Per this repository's own
+governance ("do not invent scope that is not canonically defined"), none is created. Phase 4
+closes with Sprint 4.1 as its only implementation sprint.
+
+**The two Sprint 4.1 advisories — evaluated and deferred, not treated as product gaps:**
+
+1. **Favorites list fully materialized before Python-side pagination**
+   (`CustomerFavoritesPresentationService.build_list_view()`, `favorites = list(favorites)`)
+   — query count bounded (`≤ 8` growth measured 0→20 favorites), only row
+   materialization/slicing scales with favorite count. Recorded as `quality
+   /DEFECT_AND_RISK_REGISTER.md` KL-023 (Known Limitation, not a defect). **Deferred — not a
+   Phase 4 closure blocker, not a Phase 5 prerequisite.**
+2. **Favorites concurrency test uses a mocked `IntegrityError` recovery path, not a true
+   parallel-transaction test** (`test_add_favorite_survives_integrity_error_race`) — a
+   test-rigor gap, not a production defect; the production code path (`get_or_create()` + the
+   DB `UniqueConstraint`) is the same pattern already proven safe elsewhere in this codebase.
+   Recorded as `quality/DEFECT_AND_RISK_REGISTER.md` KL-024 (Known Limitation, not a defect).
+   **Deferred — not a Phase 4 closure blocker, not a Phase 5 prerequisite.**
+
+**KL-022/BG-029 (flash-message framework):** re-confirmed still open, still explicitly scoped
+as cross-portal infrastructure spanning `organization_portal`/`provider_portal`/`portal`
+(first identified Sprint 3.1, evaluated for Phase 4 scope at ADM-026, not adopted into
+Sprint 4.1 at ADM-027). **Does not block Phase 4 closure** — it was never a Phase-4-specific
+capability gap, and closing Phase 3 and Phase 2 both proceeded with it open under the same
+reasoning.
+
+**Next roadmap-ordered target:** Phase 5 — Marketplace Order Workflow, per
+`IMPLEMENTATION_ROADMAP.md`'s own phase order and Phase 5's stated dependency on Phase 4
+customer surfaces (now complete) and Phase 2 provider surfaces (already complete). **This ADM
+entry does not approve Phase 5 architecture** — Phase 5 requires its own dedicated,
+independently-performed Architecture Assessment before any implementation may begin.
+
+**Consequences:** documentation-only. No model, migration, view, template, service, selector,
+or test changed by this closure task. Ten canonical documents corrected for closure status
+and stale SHA references, two new `quality/DEFECT_AND_RISK_REGISTER.md` entries (KL-023,
+KL-024) added, this ADM-028 entry and a matching `traceability/IMPLEMENTATION_JOURNAL.md`
+closure-review entry added. Branch `docs/phase4-canonical-closure`. **Phase 4 — Customer
+Portal is now FORMALLY CLOSED.**

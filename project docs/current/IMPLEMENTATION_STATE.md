@@ -1,7 +1,7 @@
 # CURRENT IMPLEMENTATION STATE
 
-**Last verified HEAD:** main @ 544de34684cf89ee28c1c4144cd5d82035e58e4e (PR #16 merged — **Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers is MERGED and canonically CLOSED** — new `Favorite` model, `FavoritesService`, public-profile favorite toggle, `/portal/favorites/` list page, two architecture-review remediations included). 57 new tests, full regression 2249/2249 PASS is the current post-merge baseline. No Sprint 4.2 has started.
-**Last verified date:** 2026-07-17 (post-merge synchronization)
+**Last verified HEAD:** main @ 756c14dc25d9446eff73b209bfd85b3e0f4c6648 (post-merge documentation synchronization following PR #16 — **Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers is MERGED and canonically CLOSED** — new `Favorite` model, `FavoritesService`, public-profile favorite toggle, `/portal/favorites/` list page, two architecture-review remediations included). 57 new tests, full regression 2249/2249 PASS is the current baseline. **Phase 4 — Customer Portal: FORMALLY CLOSED (2026-07-17, code-free Closure Review). Phase 5 — Marketplace Order Workflow: NOT STARTED. Next action: a dedicated Phase 5 Architecture Assessment, not implementation.** No Sprint 4.2 was required.
+**Last verified date:** 2026-07-17 (Phase 4 Closure Review, documentation-only)
 
 ---
 
