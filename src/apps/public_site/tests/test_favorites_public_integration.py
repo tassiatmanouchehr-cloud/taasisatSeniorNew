@@ -115,14 +115,24 @@ class CaregiverFavoriteToggleTest(_CustomerMixin, PublicSiteTestCase, TestCase):
         self.assertEqual(Favorite.objects.filter(customer_profile=self.customer).count(), 0)
 
     def test_organization_supplier_is_rejected_by_the_caregiver_route(self):
-        """PR #16 architecture-review remediation (merge blocker F1): a
-        same-tenant organization supplier posted to the caregiver toggle
-        route must be refused exactly like a wrong-tenant/unknown one —
-        no Favorite row created, same non-disclosing 302 response."""
+        """PR #16 architecture-review remediation (merge blocker F1, second
+        pass): a same-tenant organization supplier posted to the caregiver
+        toggle route must be refused exactly like a wrong-tenant/unknown
+        one — no Favorite row created — and, critically, following the
+        redirect must never land on a 404: the first pass fixed row
+        creation but still redirected using the client-supplied (wrong-
+        type) supplier_id to caregiver-profile, which 404s for an
+        organization id. The rejected mutation now redirects to the
+        caregiver directory listing instead."""
         org_supplier, _ = self._create_organization_supplier()
         self.client.force_login(self.customer.user)
-        response = self.client.post(f"/find-a-caregiver/{org_supplier.id}/favorite/", {"action": "add"})
-        self.assertEqual(response.status_code, 302)
+        response = self.client.post(
+            f"/find-a-caregiver/{org_supplier.id}/favorite/", {"action": "add"}, follow=True,
+        )
+        self.assertEqual(response.redirect_chain[0][1], 302)
+        self.assertNotEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.resolver_match.view_name, "public_site:find-a-caregiver")
         self.assertEqual(Favorite.objects.filter(customer_profile=self.customer).count(), 0)
 
     def _create_caregiver_supplier_in_tenant(self, tenant):
@@ -167,12 +177,19 @@ class OrganizationFavoriteToggleTest(_CustomerMixin, PublicSiteTestCase, TestCas
         self.assertTrue(response.context["profile"].is_favorited)
 
     def test_caregiver_supplier_is_rejected_by_the_organization_route(self):
-        """PR #16 architecture-review remediation (merge blocker F1): a
-        same-tenant caregiver supplier posted to the organization toggle
-        route must be refused exactly like a wrong-tenant/unknown one —
-        no Favorite row created, same non-disclosing 302 response."""
+        """PR #16 architecture-review remediation (merge blocker F1, second
+        pass): a same-tenant caregiver supplier posted to the organization
+        toggle route must be refused exactly like a wrong-tenant/unknown
+        one — no Favorite row created — and following the redirect must
+        never land on a 404 (see the caregiver-route sibling test for the
+        full defect history)."""
         caregiver_supplier, _ = self._create_caregiver_supplier()
         self.client.force_login(self.customer.user)
-        response = self.client.post(f"/find-an-organization/{caregiver_supplier.id}/favorite/", {"action": "add"})
-        self.assertEqual(response.status_code, 302)
+        response = self.client.post(
+            f"/find-an-organization/{caregiver_supplier.id}/favorite/", {"action": "add"}, follow=True,
+        )
+        self.assertEqual(response.redirect_chain[0][1], 302)
+        self.assertNotEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.resolver_match.view_name, "public_site:organization-directory")
         self.assertEqual(Favorite.objects.filter(customer_profile=self.customer).count(), 0)

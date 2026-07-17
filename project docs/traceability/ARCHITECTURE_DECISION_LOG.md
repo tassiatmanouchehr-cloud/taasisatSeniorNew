@@ -2114,3 +2114,51 @@ Full regression re-run once after the fix: **2249/2249 green** (2246 baseline + 
 `traceability/IMPLEMENTATION_JOURNAL.md` for the full remediation record.
 **PR #16 remains open, not yet merged, per the review's own instruction not to merge as part
 of this remediation.**
+
+---
+
+## ADM-027 Remediation, Second Pass — Fix the Post-Rejection Redirect Destination (PR #16 targeted re-review, 2026-07-16)
+
+The first remediation pass (above) correctly stopped a wrong-type request from creating a
+`Favorite` row, but a targeted re-review found the fix was incomplete: both toggle views'
+`except AccountsError: pass` branch fell through to the same unconditional `return
+redirect(<same route>, supplier_id=supplier_id)` used on success — reusing the raw,
+client-supplied `supplier_id` regardless of whether the mutation actually succeeded. For a
+genuinely wrong-type id, that destination is a route whose own `get_profile()` filters
+by the *other* type, so it can never resolve. Traced end-to-end with the Django test client
+(`follow=True`) against the pre-fix code, confirmed exactly as suspected:
+
+- **Scenario A** (caregiver id → organization route): `POST
+  /find-an-organization/<caregiver_id>/favorite/` → `302` to
+  `/find-an-organization/<caregiver_id>/` → follow → **404** at
+  `public_site:organization-profile`. No `Favorite` row created (the first pass's own fix
+  held), but the redirect chain terminated in a 404.
+- **Scenario B** (organization id → caregiver route): symmetric — `302` to
+  `/find-a-caregiver/<org_id>/` → follow → **404** at `public_site:caregiver-profile`.
+
+**Fix (same branch, same PR, no redesign):** both toggle views now return a *different*
+redirect on the `AccountsError` path than on success — `redirect("public_site:find-a-caregiver")`
+(the caregiver directory listing) for `caregiver_favorite_toggle()`, and
+`redirect("public_site:organization-directory")` (the organization directory listing) for
+`organization_favorite_toggle()`. `remove_favorite()` never raises `AccountsError` (it is a
+plain re-scoped filter+delete, always a no-op on a non-matching id), so this branch is
+reachable only from a rejected `add_favorite()` call — the success path's own redirect to the
+supplier's own profile page is unchanged and is now provably safe (existence, tenant, type,
+and status were all just confirmed by the `add_favorite()` call that preceded it).
+Re-verified against the fixed code with the same `follow=True` trace:
+
+- **Scenario A (fixed):** `302` to `/find-an-organization/` → follow → **200** at
+  `public_site:organization-directory`. No `Favorite` row created.
+- **Scenario B (fixed):** `302` to `/find-a-caregiver/` → follow → **200** at
+  `public_site:find-a-caregiver`. No `Favorite` row created.
+
+The two existing wrong-type route-level tests
+(`test_organization_supplier_is_rejected_by_the_caregiver_route`,
+`test_caregiver_supplier_is_rejected_by_the_organization_route`) were strengthened in place —
+both now POST with `follow=True` and assert `response.status_code != 404` (and, more
+specifically, `== 200` resolving to the expected directory view), not merely the initial
+302 and database state. No test was added or removed; both were already the correct test
+names, just insufficiently assertive. Full regression re-run: **2249/2249 green**
+(unchanged count — 2 tests strengthened, not added). See
+`traceability/IMPLEMENTATION_JOURNAL.md` for the full record. **PR #16 remains open, not yet
+merged.**

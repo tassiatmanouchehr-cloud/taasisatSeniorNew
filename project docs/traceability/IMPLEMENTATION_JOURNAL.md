@@ -3355,3 +3355,80 @@ No model, migration, permission, template, or route was added or removed — thi
 one-parameter service-signature change plus its two call sites and 3 new tests. **PR #16
 remains open, not yet merged** — this remediation does not close or merge the PR; it prepares
 the branch for re-review only.
+
+---
+
+## PR #16 Targeted Re-Review — Fix the Post-Rejection Redirect Destination (2026-07-16)
+
+A follow-up, targeted re-review of the first remediation found its own final report contained
+a self-contradiction: it stated the wrong-type request is handled by "`AccountsError` caught,
+unconditional 302 redirect" — but never verified where that redirect actually *lands* if
+followed. Instructed to re-verify with the Django test client, `follow=True`, before changing
+anything.
+
+**Production-code trace (pre-fix):** both `caregiver_favorite_toggle()`/
+`organization_favorite_toggle()` wrapped `add_favorite()` in `try/except AccountsError: pass`,
+then — regardless of whether the `except` fired — executed the *same* `return redirect(<same
+route>, supplier_id=supplier_id)` using the raw, client-supplied `supplier_id`. The redirect
+target was therefore computed identically whether the mutation succeeded or failed, and was
+never conditioned on the validation outcome.
+
+**Live evidence, captured against the dev database (transaction rolled back, zero residual
+rows), using `django.test.Client` with `setup_test_environment()` (so `ALLOWED_HOSTS`
+correctly permits the test client's host) and `follow=True`:**
+
+- Scenario A — caregiver UUID posted to the organization route:
+  - `POST /find-an-organization/<caregiver_id>/favorite/` → **302**, `Location:
+    /find-an-organization/<caregiver_id>/`
+  - `redirect_chain = [('/find-an-organization/<caregiver_id>/', 302)]`
+  - Final response: **404**, resolved view `public_site:organization-profile`
+  - `Favorite` row created: **No**
+- Scenario B — organization UUID posted to the caregiver route (symmetric):
+  - `POST /find-a-caregiver/<org_id>/favorite/` → **302**, `Location:
+    /find-a-caregiver/<org_id>/`
+  - `redirect_chain = [('/find-a-caregiver/<org_id>/', 302)]`
+  - Final response: **404**, resolved view `public_site:caregiver-profile`
+  - `Favorite` row created: **No**
+
+**Defect confirmed**: the first remediation pass correctly closed the row-creation gap but
+left the redirect-destination half of the original defect (F1) unfixed — a rejected mutation
+still 302'd toward a URL that 404s on follow, which is exactly the "302 redirect that
+ultimately lands on a 404" the re-review's own acceptance rule forbids.
+
+**Fix applied (same branch, no redesign, no new files):**
+`apps/public_site/views.py` — both toggle views now redirect to the appropriate directory
+listing (`public_site:find-a-caregiver` / `public_site:organization-directory`) on the
+`AccountsError` path, instead of reusing the same profile-page redirect the success path
+uses. Since `FavoritesService.remove_favorite()` never raises `AccountsError` (a pure
+re-scoped filter+delete, silently a no-op on a non-matching row), this `except` branch is
+reachable only from a rejected `add_favorite()` call — the success-path redirect to the
+supplier's own profile page is unchanged and remains provably safe, since `add_favorite()`
+itself already confirmed the supplier's existence, tenant, type, and status before that
+redirect is ever reached.
+
+**Re-verified against the fixed code, identical trace methodology:**
+- Scenario A (fixed): `302` → `/find-an-organization/` → follow → **200**, resolved view
+  `public_site:organization-directory`. `Favorite` row created: **No**.
+- Scenario B (fixed): `302` → `/find-a-caregiver/` → follow → **200**, resolved view
+  `public_site:find-a-caregiver`. `Favorite` row created: **No**.
+
+**Tests strengthened (not added):** `apps.public_site.tests.test_favorites_public_integration
+.test_organization_supplier_is_rejected_by_the_caregiver_route` and
+`.test_caregiver_supplier_is_rejected_by_the_organization_route` — both previously asserted
+only the initial `302` status and database state (the insufficient pattern the re-review
+flagged); both now POST with `follow=True` and assert `response.status_code != 404`
+(specifically `== 200`, resolving to the expected directory view), on top of the unchanged
+"no `Favorite` row created" assertion.
+
+**Verification re-run:** `manage.py check` PASS; `manage.py makemigrations accounts --check`
+— "No changes detected" (view-only fix, no model/migration touched); `git diff --check`
+clean. Focused: `test_favorites_public_integration` 16/16; `test_favorites` (accounts) 21/21
+(unchanged — the service layer was not touched this pass);
+`test_architecture_guardrails` 13/13. Affected suites (`apps.accounts apps.portal
+apps.public_site apps.discovery apps.kernel.tests.test_architecture_guardrails`): 778/778
+(unchanged count — no test added this pass). **Full regression: 2249/2249 green** (same
+total as the first remediation pass, since this pass strengthened 2 existing tests rather
+than adding new ones).
+
+**PR #16 remains open, not yet merged.** This targeted re-review does not close or merge the
+PR.

@@ -89,12 +89,18 @@ def caregiver_favorite_toggle(request, supplier_id):
     non-customer callers (require_customer()'s own convention, matching
     apps.portal.permissions.require_authenticated() exactly). A
     wrong-tenant/unknown/wrong-type supplier_id is absorbed silently
-    (redirect back unchanged) rather than disclosed, matching this
-    codebase's established non-disclosure convention for ownership-scoped
-    lookups. PR #16 architecture-review remediation: expected_supplier_types
-    pins this route to CAREGIVER_SUPPLIER_TYPES only — a supplier UUID of
-    the wrong type (e.g. an organization) is rejected exactly like a
-    wrong-tenant/unknown one, never creating a Favorite row."""
+    (no Favorite row created, no distinguishing error) rather than
+    disclosed, matching this codebase's established non-disclosure
+    convention for ownership-scoped lookups. PR #16 architecture-review
+    remediation (second pass): expected_supplier_types pins this route to
+    CAREGIVER_SUPPLIER_TYPES only, and — since remove_favorite() never
+    raises AccountsError, this except branch is only ever reached from a
+    failed add_favorite() — an invalid id now redirects to the caregiver
+    directory listing instead of the (possibly nonexistent-for-this-route)
+    supplier's own profile URL, so a rejected mutation never lands the
+    caller on a 404. A successful mutation still redirects to the
+    supplier's own profile page, which is now guaranteed to resolve
+    (existence/tenant/type/status were all just proven by add_favorite())."""
     customer, tenant_id = require_customer(request)
     action = request.POST.get("action")
     try:
@@ -106,7 +112,7 @@ def caregiver_favorite_toggle(request, supplier_id):
                 expected_supplier_types=CAREGIVER_SUPPLIER_TYPES,
             )
     except AccountsError:
-        pass
+        return redirect("public_site:find-a-caregiver")
     return redirect("public_site:caregiver-profile", supplier_id=supplier_id)
 
 
@@ -134,10 +140,10 @@ def organization_profile(request, supplier_id):
 @require_POST
 def organization_favorite_toggle(request, supplier_id):
     """Organization-side sibling of caregiver_favorite_toggle() — identical
-    contract, see that view's own docstring. Pinned to
-    SupplierType.ORGANIZATION only (PR #16 architecture-review
-    remediation) — a caregiver supplier UUID is rejected exactly like a
-    wrong-tenant/unknown one."""
+    contract, see that view's own docstring, including the second-pass
+    remediation redirecting a rejected mutation to the organization
+    directory listing rather than the (possibly wrong-type) supplier's
+    own profile URL."""
     customer, tenant_id = require_customer(request)
     action = request.POST.get("action")
     try:
@@ -149,7 +155,7 @@ def organization_favorite_toggle(request, supplier_id):
                 expected_supplier_types=(SupplierType.ORGANIZATION,),
             )
     except AccountsError:
-        pass
+        return redirect("public_site:organization-directory")
     return redirect("public_site:organization-profile", supplier_id=supplier_id)
 
 
