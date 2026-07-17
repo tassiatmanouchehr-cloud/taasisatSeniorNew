@@ -2160,5 +2160,24 @@ specifically, `== 200` resolving to the expected directory view), not merely the
 302 and database state. No test was added or removed; both were already the correct test
 names, just insufficiently assertive. Full regression re-run: **2249/2249 green**
 (unchanged count — 2 tests strengthened, not added). See
-`traceability/IMPLEMENTATION_JOURNAL.md` for the full record. **PR #16 remains open, not yet
-merged.**
+`traceability/IMPLEMENTATION_JOURNAL.md` for the full record.
+
+---
+
+## ADM-027 Merge — PR #16 (2026-07-17)
+
+Final pre-merge verification confirmed the branch was unchanged at its own final pre-merge
+documentation-sync commit (`3c0374d7fb84ce5b0f615040be150deafefb3e2f`), `mergeable_state:
+clean`, `manage.py check`/`makemigrations accounts --check`/`manage.py migrate`/`git diff
+--check` all clean, and the full pre-merge regression re-run green at **2249/2249**. Focused
+suites (`test_favorites` 21/21, `test_favorites_public_integration` 16/16,
+`test_favorites_card_resolution` 8/8, `test_favorites_view` 12/12,
+`test_architecture_guardrails` 13/13) and the combined affected-suite run (778/778) were all
+re-run clean immediately before merge. Merged via `merge_pull_request` (merge commit
+`544de34684cf89ee28c1c4144cd5d82035e58e4e`, 2026-07-17T07:56:10Z). Local `main`
+fast-forwarded to match `origin/main`; post-merge full regression re-confirmed at
+**2249/2249** (unchanged — the merge itself introduced no code, only the already-verified
+branch content). **Phase 4 — Sprint 4.1 (Customer Favorites and Saved Providers, including
+both architecture-review remediations) is now CLOSED and canonical on `main`. BG-032 is
+RESOLVED.** No Sprint 4.2 scope is canonically defined in this repository — the next task is
+a fresh Architecture Assessment, not implementation.

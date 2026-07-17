@@ -1,14 +1,14 @@
 # PORTALS, APIS, AND ENTRY POINTS
 
-**Last verified HEAD:** main @ d50f83fb7aa2f71c50bb039c8259397740bc832b (PR #15 merged — **Phase 3 FORMALLY CLOSED**); active branch `phase4-customer-favorites` @ `f3644da09a68c17bbfa6ef3b54eb74cd2c67702b` — **Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers IMPLEMENTED, PR #16 APPROVED FOR MERGE**, not yet merged
-**Last verified date:** 2026-07-16
+**Last verified HEAD:** main @ 544de34684cf89ee28c1c4144cd5d82035e58e4e (PR #16 merged — **Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers MERGED and canonically CLOSED**)
+**Last verified date:** 2026-07-17 (post-merge synchronization)
 
-**Phase 4 — Sprint 4.1 note (2026-07-16):** Customer Favorites and Saved Providers is
-implemented on branch `phase4-customer-favorites`. Closes the one confirmed gap the Phase 4
+**Phase 4 — Sprint 4.1 note (2026-07-16, merged 2026-07-17):** Customer Favorites and Saved
+Providers is implemented and merged to `main`. Closed the one confirmed gap the Phase 4
 Customer Portal Architecture Assessment identified. Two new `public_site` routes (favorite
 toggle on both public profiles) and two new `portal` routes (the "My Favorites" list page +
 removal) — see the "Public Site" and "Customer Portal" sections below for the exact routes.
-**Not yet merged — PR open against `main`.**
+**MERGED to `main` via PR #16** (merge commit `544de34684cf89ee28c1c4144cd5d82035e58e4e`).
 
 ---
 

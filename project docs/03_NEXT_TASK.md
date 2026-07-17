@@ -838,7 +838,7 @@ check` all clean. Merged via `merge_pull_request` (merge commit
 `origin/main`; `manage.py check` exits 0. **Sprint 3.3 (Company Public Directory and
 Discovery) is now CLOSED and on `main`.**
 
-### Sprint 4.1 — Customer Favorites and Saved Providers — IMPLEMENTED, PR #16 APPROVED FOR MERGE (2026-07-16)
+### Sprint 4.1 — Customer Favorites and Saved Providers — IMPLEMENTED and MERGED (2026-07-16/17)
 
 Branched fresh from merged `main` (`phase4-customer-favorites`, from `d50f83f`) per governance.
 The first Phase 4 implementation sprint, closing the one confirmed gap the Phase 4 Customer
@@ -882,23 +882,31 @@ profile services, and the portal's existing `_guard()`/nav-item schema.
   wrong-type id — both toggle views now redirect to the route's own directory listing on
   rejection instead). See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-027's two
   remediation entries for full evidence.
-- Branch `phase4-customer-favorites` @ `f3644da09a68c17bbfa6ef3b54eb74cd2c67702b`, PR #16 —
-  see `traceability/IMPLEMENTATION_JOURNAL.md`'s "Phase 4 — Sprint 4.1" entries for the full
-  implementation and remediation record. **APPROVED FOR MERGE, not yet merged.**
+- Branch `phase4-customer-favorites` (final pre-merge HEAD
+  `3c0374d7fb84ce5b0f615040be150deafefb3e2f`), **MERGED to main via PR #16** (merge commit
+  `544de34684cf89ee28c1c4144cd5d82035e58e4e`, 2026-07-17) — see
+  `traceability/IMPLEMENTATION_JOURNAL.md`'s "Phase 4 — Sprint 4.1" entries for the full
+  implementation and remediation record. **Sprint 4.1 (Customer Favorites and Saved
+  Providers) is now CLOSED and canonically complete on `main`.**
 
 ---
 
 ## IMMEDIATE NEXT TASK
 
-### Phase 4 — Sprint 4.1 (Customer Favorites and Saved Providers) is IMPLEMENTED and PR #16 is APPROVED FOR MERGE; the immediate next task is executing the merge per explicit instruction.
+### Phase 4 — Sprint 4.1 (Customer Favorites and Saved Providers) is MERGED and CLOSED; the immediate next task is a fresh Architecture Assessment for the next Phase 4 sprint, not implementation.
 
-Sprint 4.1's implementation scope is complete: model, service, public-profile toggle, portal
-"My Favorites" page, 57 new tests, full regression 2249/2249 green, two architecture-review
-remediations applied, and documentation synchronized. **PR #16 is approved for merge and has
-not yet been merged.** No later Phase 4 sprint has started. Defined in
-**`IMPLEMENTATION_ROADMAP.md`** (the single active implementation order).
+Sprint 4.1's implementation is complete and canonical on `main`: model, service,
+public-profile toggle, portal "My Favorites" page, 57 new tests, full regression 2249/2249
+PASS as the current post-merge baseline, two architecture-review remediations applied, and
+documentation synchronized. **PR #16 merged 2026-07-17 (merge commit
+`544de34684cf89ee28c1c4144cd5d82035e58e4e`).** No Sprint 4.2 scope is canonically defined in
+this repository yet — **do not begin implementation.** The next task begins with a fresh
+Architecture Assessment (mirroring the Phase 4 Customer Portal Architecture Assessment's own
+code-free, governance-first approach) to determine what, if anything, Phase 4's next bounded
+sprint should cover. Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active
+implementation order).
 
-### Phase 3 is formally CLOSED (PR #15 merged). Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers is now IMPLEMENTED (see entry above).
+### Phase 3 is formally CLOSED (PR #15 merged). Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers is now MERGED and CLOSED (see entry above).
 
 Phase 3's implementation scope is complete and its closure has been approved (2026-07-16);
 **PR #15 (documentation-only) has merged to `main`** (merge commit

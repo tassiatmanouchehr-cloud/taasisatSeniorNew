@@ -3432,3 +3432,44 @@ than adding new ones).
 
 **PR #16 remains open, not yet merged.** This targeted re-review does not close or merge the
 PR.
+
+---
+
+## PR #16 Final Approval, Pre-Merge Documentation Sync, and Merge (2026-07-17)
+
+Architecture re-review concluded: **APPROVE FOR MERGE.** Pre-merge state verification
+confirmed `origin/main` unchanged at `d50f83fb7aa2f71c50bb039c8259397740bc832b`,
+`origin/phase4-customer-favorites` at the approved `f3644da09a68c17bbfa6ef3b54eb74cd2c67702b`
+(matching exactly), `mergeable_state: clean`, 0 formal GitHub reviews (approval given
+directly by the user in this session), and a clean local working tree. Pre-merge
+verification re-run fresh: `manage.py check` PASS; `makemigrations accounts --check` — "No
+changes detected" (the only drift reported is the pre-existing, unrelated `kernel` cosmetic
+field-alter/index-rename set, distinguished explicitly from Sprint 4.1); `manage.py migrate`
+— no operations to apply; `git diff --check` clean. Focused suites re-run: `test_favorites`
+21/21, `test_favorites_public_integration` 16/16, `test_favorites_card_resolution` 8/8,
+`test_favorites_view` 12/12, `test_architecture_guardrails` 13/13 (70/70 combined). Affected
+suite: 778/778. **Full regression: 2249/2249 green**, matching the reviewed result exactly.
+
+Repository Maintenance SOP (pre-merge) found the doc set stale in two ways carried over from
+the two remediation passes: (1) the recorded "Feature branch HEAD" still pointed at the
+*original* implementation commit (`0beae647b61e8cec9c2f5785f5e8cf900f41f7f7`), not either
+remediation's final commit; (2) every test-count reference still read "54 new tests /
+2246/2246", the pre-remediation figures, rather than "57 new tests / 2249/2249". Corrected
+across `02_PROJECT_CONTINUATION.md`, `03_NEXT_TASK.md`, `IMPLEMENTATION_ROADMAP.md`,
+`current/IMPLEMENTATION_STATE.md`, `current/PORTALS_AND_APIS.md`,
+`current/RUNTIME_WORKFLOWS.md`, `quality/COMPLETION_BACKLOG.md` — a documentation-only commit
+(`3c0374d7fb84ce5b0f615040be150deafefb3e2f`), pushed, `git diff --check` clean, `manage.py
+check` re-confirmed clean, PR #16's head SHA updated automatically to match, `mergeable_state`
+re-confirmed `clean` after GitHub finished recomputing it.
+
+**Merged PR #16** via `merge_pull_request` (merge method: `merge`, matching this
+repository's own established precedent for every prior PR in this session), merge commit
+`544de34684cf89ee28c1c4144cd5d82035e58e4e`, merged at `2026-07-17T07:56:10Z`. Local `main`
+fast-forwarded from `d50f83f` to `544de34` cleanly (`git pull --ff-only`); `local main ==
+origin/main`, working tree clean.
+
+**Phase 4 — Sprint 4.1 (Customer Favorites and Saved Providers) is now MERGED and
+canonically CLOSED on `main`.** BG-032 is RESOLVED. ADM-027 (including both
+architecture-review remediations) is canonical. Phase 4 remains active; no Sprint 4.2 scope
+is canonically defined in this repository. Post-merge Repository Maintenance SOP and
+verification are recorded in the entry immediately below.

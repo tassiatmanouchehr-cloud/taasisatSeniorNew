@@ -1,7 +1,7 @@
 # CURRENT GAPS AND COMPLETION BACKLOG
 
-**Last verified HEAD:** phase4-customer-favorites @ f3644da09a68c17bbfa6ef3b54eb74cd2c67702b (from main @ d50f83fb7aa2f71c50bb039c8259397740bc832b)
-**Last verified date:** 2026-07-16 (Sprint 4.1 implementation and architecture review complete, PR #16 approved for merge, not yet merged)
+**Last verified HEAD:** main @ 544de34684cf89ee28c1c4144cd5d82035e58e4e (PR #16 merged)
+**Last verified date:** 2026-07-17 (post-merge synchronization; Sprint 4.1 canonically complete)
 
 ---
 
@@ -442,7 +442,7 @@ a full public company directory/listing page (now **resolved by Sprint 3.3/BG-03
 opt-in public-contact-details toggle, a dedicated service-area/coverage-radius field.
 **Status update (2026-07-16):** **MERGED to main via PR #13** (merge commit `49b643e`).
 
-### BG-032: Customer Favorites and Saved Providers — **IMPLEMENTED, PR #16 APPROVED FOR MERGE (not yet merged)**
+### BG-032: Customer Favorites and Saved Providers — **RESOLVED**
 
 **Original evidence:** The one confirmed, repository-wide-verified gap found by the Phase 4
 Customer Portal Architecture Assessment (2026-07-16, code-free) — no `Favorite`/bookmark/
@@ -477,10 +477,8 @@ viewed suppliers, supplier comparison, collections/folders, customer notes/label
 sharing favorite lists, notifications, mobile-client APIs, financial/order-workflow changes,
 supplier-side favorites analytics, broad public-site authentication redesign, broad Shared
 Discovery refactoring.
-**Status update (2026-07-16):** Implementation, tests, and architecture review complete on
-branch `phase4-customer-favorites` @ `f3644da09a68c17bbfa6ef3b54eb74cd2c67702b`. **PR #16
-APPROVED FOR MERGE against `main` — not yet merged. Do not treat as RESOLVED until the PR
-merges.**
+**Status update (2026-07-17):** **MERGED to `main` via PR #16** (merge commit
+`544de34684cf89ee28c1c4144cd5d82035e58e4e`). **BG-032 is now RESOLVED.**
 
 ### BG-031: Company Public Directory and Discovery — **RESOLVED**
 

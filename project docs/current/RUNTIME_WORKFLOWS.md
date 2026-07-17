@@ -1,7 +1,7 @@
 # RUNTIME WORKFLOWS
 
-**Last verified HEAD:** main @ d50f83fb7aa2f71c50bb039c8259397740bc832b (PR #15 merged — **Phase 3 FORMALLY CLOSED**); active branch `phase4-customer-favorites` @ `f3644da09a68c17bbfa6ef3b54eb74cd2c67702b` — **Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers IMPLEMENTED, PR #16 APPROVED FOR MERGE**, not yet merged
-**Last verified date:** 2026-07-16 (Sprint 4.1 implementation and architecture review complete, pre-merge)
+**Last verified HEAD:** main @ 544de34684cf89ee28c1c4144cd5d82035e58e4e (PR #16 merged — **Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers MERGED and canonically CLOSED**)
+**Last verified date:** 2026-07-17 (post-merge synchronization)
 
 ---
 
@@ -42,7 +42,7 @@
 | 31 | Company-Caregiver Affiliation Lifecycle (join-by-code, invitation, approval, termination) | IMPLEMENTED (Sprint 3.1) | `apps.accounts.services.affiliations` (extended) |
 | 32 | Company Professional Profile and Public Presence (headline, canonical visibility, public logo) | IMPLEMENTED (Sprint 3.2 + PR #13 remediation) | `public_site/services/organization_profile_service.py:OrganizationPublicProfileService` |
 | 33 | Company Public Directory and Discovery (search, city/service filters, pagination, cards) | IMPLEMENTED (Sprint 3.3) | `public_site/services/organization_directory_service.py:OrganizationDirectoryService` |
-| 34 | Customer Favorites and Saved Providers (save/unsave from public profile, "My Favorites" portal list) | IMPLEMENTED (Sprint 4.1 — **PR #16 APPROVED FOR MERGE, not yet merged**) | `accounts/services/favorites.py:FavoritesService` |
+| 34 | Customer Favorites and Saved Providers (save/unsave from public profile, "My Favorites" portal list) | IMPLEMENTED (Sprint 4.1 — **MERGED to main via PR #16**) | `accounts/services/favorites.py:FavoritesService` |
 
 ---
 
