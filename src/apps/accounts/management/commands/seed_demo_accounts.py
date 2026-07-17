@@ -30,6 +30,7 @@ from apps.accounts.models.profiles import (
 )
 from apps.accounts.services.profiles import ensure_caregiver_profile, ensure_customer_profile
 from apps.accounts.services.registration import assign_role
+from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_organization
 from apps.kernel.models import Person, UserAccount
 from apps.kernel.services.tenant_service import TenantService
 
@@ -99,6 +100,12 @@ class Command(BaseCommand):
                 organization=org, user=admin_user, role_type=OrgMembershipRole.ADMIN,
                 defaults={"person": admin_user.person, "status": OrgMembershipStatus.ACTIVE},
             )
+        # Core Profile-ServiceSupplier Invariant Remediation, Phase 9: this
+        # organization is created ACTIVE (the model default) directly, not
+        # through ProfileActivationService — a direct ACTIVE write must not
+        # bypass supplier synchronization. Sanctioned-bridge call only,
+        # idempotent, mirrors seed_product_walkthrough.py's own pattern.
+        get_or_create_supplier_for_organization(org, tenant_id=tenant.id)
         return org
 
     def _ensure_org_caregiver_profile(self, user, organization) -> CaregiverProfile:

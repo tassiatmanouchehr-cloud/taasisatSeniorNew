@@ -17,6 +17,10 @@ from apps.accounts.models.profiles import (
     OrgMembershipStatus,
     TrustedContact,
 )
+from apps.accounts.services.supplier_bridge import (
+    get_or_create_supplier_for_caregiver,
+    get_or_create_supplier_for_organization,
+)
 from apps.kernel.models import Person, Role, RoleAssignment, Tenant, UserAccount
 
 
@@ -55,11 +59,16 @@ class Command(BaseCommand):
         # 4. Independent caregiver
         cg_user, cg_created = self._get_or_create_user(tenant, "09133333333", "مریم احمدی")
         if cg_created:
-            CaregiverProfile.objects.create(
+            cg_profile = CaregiverProfile.objects.create(
                 user=cg_user, person=cg_user.person, phone="09133333333",
                 display_name="مریم احمدی", specialty="nurse", city="tehran",
             )
             self._assign_role(tenant, cg_user, "independent_caregiver")
+            # Core Profile-ServiceSupplier Invariant Remediation, Phase 9:
+            # created ACTIVE (the model default) directly, not through
+            # ProfileActivationService — a direct ACTIVE write must not
+            # bypass supplier synchronization.
+            get_or_create_supplier_for_caregiver(cg_profile, tenant_id=tenant.id)
 
         # 5. Company admin + organization
         admin_user, admin_created = self._get_or_create_user(tenant, "09144444444", "محمد کریمی")
@@ -74,6 +83,7 @@ class Command(BaseCommand):
                 defaults={"person": admin_user.person, "status": OrgMembershipStatus.ACTIVE, "joined_at": timezone.now()},
             )
             self._assign_role(tenant, admin_user, "organization_admin")
+            get_or_create_supplier_for_organization(org, tenant_id=tenant.id)
 
         # 6. Caregiver with pending affiliation
         aff_user, aff_created = self._get_or_create_user(tenant, "09155555555", "زهرا موسوی")
@@ -88,6 +98,7 @@ class Command(BaseCommand):
                 defaults={"organization": org},
             )
             self._assign_role(tenant, aff_user, "independent_caregiver")
+            get_or_create_supplier_for_caregiver(aff_profile, tenant_id=tenant.id)
 
         self.stdout.write(self.style.SUCCESS("Demo people seeded."))
 

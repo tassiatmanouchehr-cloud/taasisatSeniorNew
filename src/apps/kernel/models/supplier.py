@@ -191,9 +191,16 @@ class ServiceSupplier(models.Model):
                 fields=["tenant", "status", "availability_status"],
                 name="idx_supplier_availability",
             ),
-            models.Index(
+        ]
+        constraints = [
+            # Core Profile-ServiceSupplier Invariant Remediation, Phase 7:
+            # one ServiceSupplier per identity entity. Replaces the former
+            # plain idx_supplier_linked_entity index — PostgreSQL backs a
+            # UniqueConstraint with its own unique index over the same
+            # columns, so keeping both would be redundant.
+            models.UniqueConstraint(
                 fields=["linked_entity_id", "linked_entity_type"],
-                name="idx_supplier_linked_entity",
+                name="uniq_supplier_linked_entity",
             ),
         ]
 

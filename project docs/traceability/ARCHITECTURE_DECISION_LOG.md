@@ -2277,3 +2277,183 @@ and stale SHA references, two new `quality/DEFECT_AND_RISK_REGISTER.md` entries 
 KL-024) added, this ADM-028 entry and a matching `traceability/IMPLEMENTATION_JOURNAL.md`
 closure-review entry added. Branch `docs/phase4-canonical-closure`. **Phase 4 — Customer
 Portal is now FORMALLY CLOSED.**
+
+---
+
+## ADM-029 — Core Profile-ServiceSupplier Invariant Remediation (2026-07-17/18)
+
+**Context:** During Phase 5 investigation of a live bug report ("public directory pages
+render successfully but show no providers or organizations despite seeded data"), a
+code-free architecture investigation traced the root cause to two compounding gaps:
+`ProfileActivationService` (ADM-016) never created or synchronized a `kernel.ServiceSupplier`
+row at activation time, and `ServiceSupplier.linked_entity_id`/`linked_entity_type` carried
+only a plain index (`idx_supplier_linked_entity`), never a database-level uniqueness
+constraint. A formal Architecture Decision Proposal and two follow-up addenda (walkthrough
+tenant policy re-challenge; complete ServiceSupplier lifecycle model; demo-preview route
+namespace; profile/supplier lifecycle ownership) resolved every open question before any
+code was written. This entry records the final approved architecture and its implementation.
+Implemented on branch `fix/profile-supplier-invariant`.
+
+**Decision — the invariant:**
+
+```
+A CaregiverProfile/OrganizationProfile in ProfileStatus.ACTIVE must, at all times,
+be backed by exactly one kernel.ServiceSupplier row (linked_entity_id/linked_entity_type),
+and that row must itself be SupplierStatus.ACTIVE.
+```
+
+**1. Activation-time ownership (same-transaction invariant).** `ProfileActivationService`
+remains the sole owner of the `DRAFT -> ACTIVE` transition (unchanged public API, permission
+checks, tenant validation, `select_for_update()` behavior, idempotency semantics). Its
+private `_activate()` now invokes a new `supplier_bridge
+.sync_supplier_for_profile_activation(profile, tenant_id=tenant_id)` helper **inside the
+same transaction** as the `profile.status = ACTIVE` write, immediately after it and before
+the `AuditLog` write. `profile.status = ACTIVE` and "the corresponding ServiceSupplier exists
+and is ACTIVE" are now one atomic fact — never observable as true for one and false for the
+other. A synchronization failure is never caught or suppressed: it propagates, rolling back
+the profile transition, any partial supplier mutation, and the (not-yet-written) audit
+record together.
+
+**2. The canonical synchronization helper.** `apps.accounts.services.supplier_bridge
+.sync_supplier_for_profile_activation()` (new): accepts a locked profile + tenant context,
+dispatches to the existing sanctioned `get_or_create_supplier_for_caregiver()`/
+`_organization()` bridge functions (never `ServiceSupplier.objects` directly), then
+reconciles status via the new `SupplierRegistry.set_status()`. No permission check (the
+caller already authorized), no transaction boundary of its own (the caller already holds
+one), no audit write (the caller's own activation audit record is the single audit entry).
+Idempotent by construction. `ProfileStatus.ACTIVE -> SupplierStatus.ACTIVE` is the only
+mapping implemented — suspension/reactivation/archival mappings are explicitly out of scope
+(see BG-019 below).
+
+**3. `SupplierRegistry.set_status()`** (new): mirrors `set_supplier_type()`'s exact
+direct/unconditional/idempotent shape (a no-op when the value is already correct). Does not
+reuse `ServiceSupplier`'s own dead-code `activate()`/`suspend()`/`restore()`/`deactivate()`
+model methods (confirmed, by repository-wide search, to have zero production callers before
+this remediation and to encode narrower business-transition semantics than a pure
+reconciliation operation needs).
+
+**4. Database uniqueness constraint.** `UniqueConstraint(fields=["linked_entity_id",
+"linked_entity_type"], name="uniq_supplier_linked_entity")` added on `ServiceSupplier`,
+replacing the former plain `idx_supplier_linked_entity` index (redundant once the
+constraint's own backing unique index covers the same columns). `get_or_create()` alone
+cannot guarantee this under concurrent writes — the constraint is the real guarantee; a
+`TransactionTestCase` with two real threads racing `SupplierRegistry.get_or_create_supplier()`
+against the same identity pair proves exactly one row survives (not a mocked exception).
+Migration `kernel/0013_servicesupplier_unique_linked_entity.py`, depending on
+`kernel/0012_reconcile_profile_supplier_data.py` (data cleanup) — the constraint is never
+added before existing duplicates are resolved.
+
+**5. INV-10 — closing lazy-creation loopholes, and its evidence-driven revision.** The
+invariant: *"a profile that has never reached ACTIVE must not obtain a ServiceSupplier
+through an incidental portal, profile-edit, or identity-resolution action."* The original
+architecture proposal's literal instruction was to raise a domain-appropriate structured
+error at every lazy supplier-bridge call site for a non-ACTIVE profile. The **mandatory
+pre-implementation verification this task required** (re-reading every call site and its
+existing tests fresh, not from memory) proved this would break two real, currently-passing
+tests: `apps.organization_portal.tests.test_activation_presentation.OwnerActivationStatusTest
+.test_owner_sees_not_yet_eligible_before_documents_reviewed` and its `provider_portal` mirror
+— both require a DRAFT owner's own status page to return `200`, not `403`. Guarding
+`resolve_supplier_for_user()` (used by `provider_portal.permissions.resolve_supplier()`,
+itself used by every `provider_portal` view via `_guard()`) or `OrganizationProfilePresentationService
+.get_profile_view()` would turn that `200` into a `403`. Additionally, `CaregiverProfileUpdateService`'s
+editable fields are exactly the fields `ProfileCompletionService` uses to compute activation
+eligibility — blocking those edits for a DRAFT caregiver would create an activation deadlock
+(a caregiver could never complete their profile to become eligible for activation).
+
+**Revised, implemented design:**
+- `resolve_supplier_for_user()` and `OrganizationProfilePresentationService.get_profile_view()`
+  are **left completely unguarded** — proven unsafe to guard by the tests above.
+- `CaregiverProfileUpdateService.update_basic_info()`/`update_professional_info()` and
+  `OrganizationProfileUpdateService.update_service_categories()`: the underlying field
+  save/permission check always proceeds unconditionally (the user's own legitimate action
+  must always succeed); only the incidental supplier-sync side effect is **silently skipped**
+  (not a raised error) when the profile is not ACTIVE, via one shared guard
+  (`ProfileActivationService.is_activated(profile)`) rather than duplicating raw status
+  comparisons at each call site.
+- `organization_portal.views.financial_view` and `OrganizationProfilePresentationService
+  .get_services_form()` (two additional lazy call sites found during this task's own fresh
+  verification, not previously named) received the same treatment — a non-ACTIVE
+  organization has no assignments/no supplier to show, so these safely render an empty state
+  instead of creating a supplier.
+
+This is a deliberate, evidence-grounded narrowing of the original proposal's literal wording,
+not an oversight — "if unsafe duplicates or ambiguous ownership conflicts exist, stop
+implementation and report them rather than guessing" is exactly the governance this revision
+follows. Full citations live in `apps.accounts.tests.test_inv10_lazy_supplier_creation`'s own
+module docstring.
+
+**6. Existing-data remediation.** `kernel/0012_reconcile_profile_supplier_data.py` (data
+migration, historical `apps.get_model()` only — never a live model/service import): for every
+ACTIVE `CaregiverProfile`/`OrganizationProfile`, creates a missing `ServiceSupplier` or
+reconciles an existing one's status, deriving tenant strictly from the profile's own
+authoritative relation (never a hint/default) and never crossing a tenant boundary; on any
+duplicate `(linked_entity_id, linked_entity_type)` pair or tenant mismatch it does not guess
+— it raises, aborting the migration cleanly for manual pre-migration correction. A standalone
+`reconcile_profile_supplier_invariant` management command (idempotent, tenant-safe, dry-run
+capable, transactional per-repaired-profile) provides the same repair repeatably in
+production, plus detection-only reporting (never automatic repair) for duplicate pairs,
+orphan suppliers, and tenant mismatches — the *"detection and reporting are mandatory even
+when automatic repair is unsafe"* requirement. This sandbox's own database was found empty at
+Phase 1 preflight (a fresh ephemeral container, not the environment where the bug was
+originally observed) — the remediation code paths were validated via deliberately constructed
+test fixtures, not observed production drift.
+
+**7. No `ProfileLifecycleService` facade.** Confirmed absent by design, as approved:
+`ProfileActivationService` governs only `DRAFT -> ACTIVE`; the supplier-sync helper is a
+narrow, stateless utility, not a lifecycle facade; no new umbrella service was introduced.
+
+**8. Explicitly deferred, not implemented in this task:**
+- **INV-11a** — `AssignmentService` is untouched.
+- **INV-11b** — organization-suspension visibility behavior is untouched.
+- **BG-019** — suspend/reactivate/archive profile-lifecycle services remain future work; the
+  new `sync_supplier_for_profile_activation()`/`SupplierRegistry.set_status()` shapes are
+  deliberately minimal and reusable for that future work, not preemptively built out for it.
+- **Demo-preview route namespace** — explored during the same investigation's addenda, but
+  explicitly sequenced *after* this remediation is reviewed, merged, and documented, per this
+  task's own authorization. Not implemented here.
+
+**9. Seed command contract (Phase 9).** `seed_demo_accounts.py`/`seed_demo_people.py` were
+found to create ACTIVE-by-default `CaregiverProfile`/`OrganizationProfile` rows (via the model
+default, no explicit `status=`) into the **default tenant** with **zero** `ServiceSupplier`
+sync — precisely the bug class under investigation, now fixed by calling the sanctioned
+bridge immediately after creation (idempotent, matching `seed_product_walkthrough.py`'s own
+pre-existing, already-correct pattern). `seed_product_walkthrough.py` itself required no
+change — its dedicated `demo-senior-platform` tenant, `--reset-demo` safety boundary, and
+existing bridge calls were confirmed already compliant and are explicitly preserved
+unmodified, per this task's authorization not to redesign the walkthrough tenant.
+
+**Evidence reviewed:** fresh full reads (not from memory) of `profile_activation_service.py`,
+`supplier_bridge.py`, `supplier_registry.py`, `kernel/models/supplier.py`,
+`caregiver_profile_service.py`, `organization_profile_service.py`, `provider_identity.py`,
+`organization_portal/views.py`, `organization_portal/services/profile_service.py`,
+`provider_portal/views.py`, `provider_portal/permissions.py`,
+`organization_portal/tests/test_activation_presentation.py`,
+`provider_portal/tests/test_activation_presentation.py`, `activation_eligibility_service.py`,
+`profiles.py`, `seed_demo_accounts.py`, `seed_demo_people.py`,
+`seed_product_walkthrough.py`, `registration.py`; repository-wide search for every production
+call to `get_or_create_supplier_for_caregiver`/`_for_organization`,
+`SupplierRegistry.get_or_create_supplier`, `ServiceSupplier.objects.create`,
+`CaregiverProfile.objects.create`, `OrganizationProfile.objects.create`.
+
+**Tests:** 35 new (`apps.kernel.tests.test_supplier_registry` +3,
+`apps.kernel.tests.test_supplier` +3 — including one real `TransactionTestCase` concurrency
+proof, `apps.accounts.tests.test_profile_supplier_invariant` — new file, 15,
+`apps.accounts.tests.test_inv10_lazy_supplier_creation` — new file, 6,
+`apps.accounts.tests.test_reconcile_profile_supplier_invariant` — new file, 6,
+`apps.kernel.tests.test_architecture_guardrails` +2 — a `ProfileStatusTransitionSoleWriterTest`
+modeled structurally on `OrderOrganizationEligibilitySoleWriterTest`, and a
+`ServiceSupplierSoleWriterTest`). Full regression **2249 -> 2284/2284 PASS**. `manage.py
+check`/`makemigrations --check` (only the pre-existing, separately documented RISK-009
+cosmetic drift, unchanged)/`manage.py migrate`/`git diff --check` all clean.
+
+**Consequences:** `apps/accounts/services/profile_activation_service.py`,
+`apps/accounts/services/supplier_bridge.py`, `apps/kernel/services/supplier_registry.py`,
+`apps/kernel/models/supplier.py`, `apps/accounts/services/caregiver_profile_service.py`,
+`apps/accounts/services/organization_profile_service.py`,
+`apps/organization_portal/views.py`, `apps/organization_portal/services/profile_service.py`,
+`apps/accounts/management/commands/seed_demo_accounts.py`,
+`apps/accounts/management/commands/seed_demo_people.py` all modified. Two new migrations
+(`kernel/0012_...`, `kernel/0013_...`), one new management command
+(`reconcile_profile_supplier_invariant`), three new test files. Branch
+`fix/profile-supplier-invariant`. **PR not yet opened as of this entry — see the final
+implementation report for the PR link. Not merged, not reviewed.**

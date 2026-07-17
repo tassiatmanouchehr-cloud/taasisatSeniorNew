@@ -361,3 +361,87 @@ class OrderOrganizationEligibilitySoleWriterTest(SimpleTestCase):
             "OrderOrganizationEligibility must only be written by "
             f"OrderEligibilityService — found direct writes in: {offenders}",
         )
+
+
+class ProfileStatusTransitionSoleWriterTest(SimpleTestCase):
+    """
+    Core Profile-ServiceSupplier Invariant Remediation, approved decision 1:
+    ProfileActivationService remains the sole owner of the
+    CaregiverProfile/OrganizationProfile DRAFT -> ACTIVE transition.
+    Modeled structurally on OrderOrganizationEligibilitySoleWriterTest.
+
+    ProfileStatus is also used (independently, out of scope for this
+    remediation) by CustomerProfile/ElderProfile/TrustedContact — a plain
+    `.status = ProfileStatus.X` pattern can't distinguish which model a
+    given assignment targets from source text alone. Rather than a
+    fragile heuristic, this test's allowlist explicitly names every
+    current real production match for the pattern repository-wide
+    (confirmed by direct search at the time this guardrail was written) —
+    `profile_activation_service.py` is the one sanctioned CaregiverProfile/
+    OrganizationProfile writer; `care_recipients.py` writes an unrelated
+    ElderProfile's own `status` field, sharing only the enum, not the model.
+    Any new match anywhere else in the repository fails this test.
+    """
+
+    ALLOWED_DIR_PARTS = ("tests", "migrations")
+    ALLOWED_FILES = {
+        APPS_DIR / "accounts" / "services" / "profile_activation_service.py",
+        APPS_DIR / "accounts" / "services" / "care_recipients.py",
+    }
+
+    def test_no_writes_outside_the_activation_service(self):
+        pattern = re.compile(r"\.status\s*=\s*ProfileStatus\.")
+        offenders = []
+
+        for path in _python_files(under=APPS_DIR):
+            relative_parts = path.relative_to(APPS_DIR).parts
+            if any(part in self.ALLOWED_DIR_PARTS for part in relative_parts):
+                continue
+            if path in self.ALLOWED_FILES:
+                continue
+            if pattern.search(_read(path)):
+                offenders.append(str(path.relative_to(APPS_DIR)))
+
+        self.assertEqual(
+            offenders,
+            [],
+            "CaregiverProfile/OrganizationProfile.status must only transition through "
+            f"ProfileActivationService — found direct writes in: {offenders}",
+        )
+
+
+class ServiceSupplierSoleWriterTest(SimpleTestCase):
+    """
+    Core Profile-ServiceSupplier Invariant Remediation: ServiceSupplier
+    rows must only ever be created through
+    apps.kernel.services.supplier_registry.SupplierRegistry — never
+    directly. Modeled structurally on
+    OrderOrganizationEligibilitySoleWriterTest. Allowlist covers the
+    registry itself, migrations (schema/data operations legitimately use
+    the historical model manager), and test files (which legitimately
+    construct fixture rows directly).
+    """
+
+    ALLOWED_DIR_PARTS = ("tests", "migrations")
+    ALLOWED_FILES = {
+        APPS_DIR / "kernel" / "services" / "supplier_registry.py",
+    }
+
+    def test_no_writes_outside_the_supplier_registry(self):
+        pattern = re.compile(r"ServiceSupplier\.objects\.(create|get_or_create|update_or_create|bulk_create)\(")
+        offenders = []
+
+        for path in _python_files(under=APPS_DIR):
+            relative_parts = path.relative_to(APPS_DIR).parts
+            if any(part in self.ALLOWED_DIR_PARTS for part in relative_parts):
+                continue
+            if path in self.ALLOWED_FILES:
+                continue
+            if pattern.search(_read(path)):
+                offenders.append(str(path.relative_to(APPS_DIR)))
+
+        self.assertEqual(
+            offenders,
+            [],
+            f"ServiceSupplier must only be written by SupplierRegistry — found direct writes in: {offenders}",
+        )

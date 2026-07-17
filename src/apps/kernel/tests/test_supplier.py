@@ -10,9 +10,12 @@ Covers:
 - Version auto-increment on save
 """
 
+import threading
 import uuid
 
-from django.test import TestCase
+from django.apps import apps as django_apps
+from django.db import IntegrityError, connection, transaction
+from django.test import TestCase, TransactionTestCase
 
 from apps.kernel.models.configuration import ConfigurationKey, ConfigurationValue, ScopeLevel, ValueType
 from apps.kernel.models.supplier import (
@@ -22,6 +25,7 @@ from apps.kernel.models.supplier import (
     SupplierType,
 )
 from apps.kernel.models.tenant import Tenant
+from apps.kernel.services.supplier_registry import SupplierRegistry
 from apps.kernel.services.supplier_resolver import SupplierResolver
 
 
@@ -187,3 +191,86 @@ class SupplierResolverTest(TestCase):
         other_tenant = uuid.uuid4()
         with self.assertRaises(ServiceSupplier.DoesNotExist):
             SupplierResolver.resolve(supplier.id, tenant_id=other_tenant)
+
+
+class ServiceSupplierUniqueConstraintTest(TestCase):
+    """Core Profile-ServiceSupplier Invariant Remediation, Phase 7/8:
+    proves the database itself — not just get_or_create()'s own
+    check-then-act logic — rejects a duplicate (linked_entity_id,
+    linked_entity_type) pair."""
+
+    def setUp(self):
+        self.tenant = Tenant.objects.create(slug="test-supplier-unique", name="Test Tenant")
+        self.linked_entity_id = uuid.uuid4()
+
+    def _create(self, **overrides):
+        defaults = {
+            "tenant_id": self.tenant.id,
+            "supplier_type": SupplierType.INDEPENDENT_PROVIDER,
+            "linked_entity_id": self.linked_entity_id,
+            "linked_entity_type": "TestProfile",
+            "display_name": "Test Supplier",
+            "status": SupplierStatus.ACTIVE,
+        }
+        defaults.update(overrides)
+        return ServiceSupplier.objects.create(**defaults)
+
+    def test_duplicate_linked_entity_pair_rejected_by_database(self):
+        self._create()
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self._create(display_name="Second Row")
+
+    def test_same_id_different_linked_type_is_allowed(self):
+        """The constraint is on the (id, type) pair together — the same
+        UUID legitimately reused across two different linked entity types
+        is not a violation."""
+        self._create(linked_entity_type="TestProfile")
+        other = self._create(linked_entity_type="OtherProfile")
+        self.assertIsNotNone(other.id)
+
+
+class ServiceSupplierUniqueConstraintConcurrencyTest(TransactionTestCase):
+    """Real concurrency, not a mocked exception: two threads racing to
+    get_or_create the ServiceSupplier for the same (linked_entity_id,
+    linked_entity_type) must leave exactly one row — proven against real
+    PostgreSQL connections, mirroring
+    apps.accounts.tests.test_profile_activation.ConcurrentActivationTest's
+    own threading.Barrier pattern."""
+
+    available_apps = [app_config.name for app_config in django_apps.get_app_configs()]
+
+    def setUp(self):
+        self.tenant = Tenant.objects.create(slug="test-supplier-concurrency", name="Test Tenant")
+        self.linked_entity_id = uuid.uuid4()
+
+    def test_concurrent_get_or_create_produces_exactly_one_row(self):
+        barrier = threading.Barrier(2)
+        errors = []
+
+        def _race():
+            try:
+                barrier.wait(timeout=10)
+                SupplierRegistry.get_or_create_supplier(
+                    tenant_id=self.tenant.id,
+                    linked_entity_id=self.linked_entity_id,
+                    linked_entity_type="RaceProfile",
+                    supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+                    display_name="Race Supplier",
+                )
+            except Exception as exc:  # noqa: BLE001
+                errors.append(exc)
+            finally:
+                connection.close()
+
+        threads = [threading.Thread(target=_race) for _ in range(2)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=30)
+
+        self.assertEqual(errors, [], f"neither racing call should raise unhandled: {errors}")
+        count = ServiceSupplier.objects.filter(
+            linked_entity_id=self.linked_entity_id, linked_entity_type="RaceProfile",
+        ).count()
+        self.assertEqual(count, 1, "concurrent get_or_create must produce exactly one ServiceSupplier row")

@@ -889,11 +889,78 @@ profile services, and the portal's existing `_guard()`/nav-item schema.
   implementation and remediation record. **Sprint 4.1 (Customer Favorites and Saved
   Providers) is now CLOSED and canonically complete on `main`.**
 
+### Core Profile-ServiceSupplier Invariant Remediation — IMPLEMENTED, PR PENDING (2026-07-17/18)
+
+Bug-fix/architecture remediation, sequenced ahead of Phase 5 implementation — not a
+roadmap phase itself. Triggered by an investigation into a live bug report ("public
+directory pages render but show no providers/organizations despite seeded data"),
+which traced to two compounding gaps: `ProfileActivationService` never created or
+synchronized a `ServiceSupplier` at activation time, and `ServiceSupplier.linked_entity_id`/
+`linked_entity_type` had no database-level uniqueness constraint (only a plain index).
+A full Architecture Decision Proposal and two follow-up addenda (see
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-029) resolved the invariant, enforcement
+mechanism, tenant-hint behavior, seed-command contract, and existing-data remediation
+strategy before any code was written.
+
+- **Phase 4 (activation-time enforcement):** `ProfileActivationService._activate()` now
+  invokes a new `supplier_bridge.sync_supplier_for_profile_activation()` helper inside its
+  existing transaction — a real DRAFT -> ACTIVE transition and ServiceSupplier
+  existence+ACTIVE status are now one atomic invariant; a sync failure rolls back the
+  profile transition, any partial supplier mutation, and the activation audit record
+  together (never caught/suppressed).
+- **Phase 3:** new `SupplierRegistry.set_status()`, mirroring `set_supplier_type()`'s
+  direct/idempotent shape.
+- **Phase 5 (INV-10, revised during mandatory pre-implementation verification):** the
+  original architecture proposal's literal instruction — raise a structured error for
+  every lazy supplier-bridge call site on a non-ACTIVE profile — was found to conflict
+  with two real, currently-passing tests
+  (`organization_portal`/`provider_portal .tests.test_activation_presentation
+  .OwnerActivationStatusTest.test_owner_sees_not_yet_eligible_before_documents_reviewed`,
+  both requiring a DRAFT owner's own status page to return 200). Revised, evidence-backed
+  design: `CaregiverProfileUpdateService`/`OrganizationProfileUpdateService
+  .update_service_categories()`/the `organization_portal` financial and service-category
+  edit paths now **silently skip** the incidental supplier-sync side effect for a
+  non-ACTIVE profile (the underlying field save/permission check still always succeeds);
+  `resolve_supplier_for_user()` and `OrganizationProfilePresentationService.get_profile_view()`
+  are **deliberately left unguarded** (guarding either breaks the cited real test — see the
+  new `apps.accounts.tests.test_inv10_lazy_supplier_creation` module's own docstring for
+  the full citation).
+- **Phase 6/7 (data remediation + constraint):** one data migration
+  (`kernel/migrations/0012_reconcile_profile_supplier_data.py`, historical-model-only,
+  fails loudly rather than guessing on any duplicate/tenant-mismatched row) followed by a
+  `UniqueConstraint(linked_entity_id, linked_entity_type)` migration
+  (`kernel/migrations/0013_servicesupplier_unique_linked_entity.py`, replacing the old
+  plain index); plus a standalone, idempotent, dry-run-capable
+  `reconcile_profile_supplier_invariant` management command for repeatable production
+  reconciliation (detects but never auto-repairs duplicates/orphans/tenant mismatches).
+- **Phase 9 (seed contract):** `seed_demo_accounts`/`seed_demo_people` created
+  ACTIVE-by-default organizations/caregivers with **zero** `ServiceSupplier` sync — the
+  exact bug class under investigation. Both now call the sanctioned bridge right after
+  creation, idempotently. `seed_product_walkthrough.py` was already compliant (unchanged);
+  its dedicated tenant and `--reset-demo` boundary are untouched.
+- **Explicitly out of scope (per the approved architecture):** INV-11a
+  (`AssignmentService`), INV-11b (organization-suspension visibility), BG-019
+  (suspend/reactivate/archive lifecycle services), and the demo-preview namespace (a
+  separate future implementation, not started here).
+- 35 new tests (`apps.kernel.tests.test_supplier_registry` +3,
+  `apps.kernel.tests.test_supplier` +3 including one real `TransactionTestCase`
+  concurrency proof, `apps.accounts.tests.test_profile_supplier_invariant` new file, 15
+  tests, `apps.accounts.tests.test_inv10_lazy_supplier_creation` new file, 6 tests,
+  `apps.accounts.tests.test_reconcile_profile_supplier_invariant` new file, 6 tests,
+  `apps.kernel.tests.test_architecture_guardrails` +2 sole-writer guardrails). Full
+  regression **2249 -> 2284/2284 green** (2249 baseline + 35 net). `manage.py check`/
+  `makemigrations --check` (only the pre-existing documented RISK-009 cosmetic drift,
+  unchanged)/`manage.py migrate`/`git diff --check` all clean.
+- Branch `fix/profile-supplier-invariant`. **PR not yet opened as of this doc update —
+  see the final implementation report for the PR link once opened. Not merged.**
+
 ---
 
 ## IMMEDIATE NEXT TASK
 
-### Phase 4 — Customer Portal is FORMALLY CLOSED (2026-07-17). The immediate next task is a dedicated Phase 5 — Marketplace Order Workflow Architecture Assessment only — not implementation.
+### The Core Profile-ServiceSupplier Invariant Remediation above is implemented and awaiting architectural review/merge. After it merges, the next task remains a dedicated Phase 5 — Marketplace Order Workflow Architecture Assessment only — not implementation.
+
+### Phase 4 — Customer Portal is FORMALLY CLOSED (2026-07-17).
 
 Sprint 4.1's implementation is complete and canonical on `main`: model, service,
 public-profile toggle, portal "My Favorites" page, 57 new tests, full regression 2249/2249

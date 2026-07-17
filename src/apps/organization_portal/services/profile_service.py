@@ -128,9 +128,18 @@ class OrganizationProfilePresentationService:
 
     @classmethod
     def get_services_form(cls, organization, *, tenant_id) -> OrganizationServicesFormViewModel:
-        supplier = get_or_create_supplier_for_organization(organization, tenant_id=tenant_id)
+        from apps.accounts.services.profile_activation_service import ProfileActivationService
+
+        # Core Profile-ServiceSupplier Invariant Remediation (INV-10): an
+        # organization that has never reached ACTIVE has no ServiceSupplier
+        # to read from — merely visiting this edit-services page must not
+        # incidentally create one. Its selection is simply empty until
+        # activation.
+        selected_ids: set[str] = set()
+        if ProfileActivationService.is_activated(organization):
+            supplier = get_or_create_supplier_for_organization(organization, tenant_id=tenant_id)
+            selected_ids = {str(cid) for cid in (supplier.service_categories or [])}
         categories = CatalogQueryService.list_active_categories(tenant_id=tenant_id).order_by("sort_order", "name")
-        selected_ids = {str(cid) for cid in (supplier.service_categories or [])}
         options = tuple(
             ServiceCategoryOptionViewModel(value=str(cat.id), label=cat.name, selected=str(cat.id) in selected_ids)
             for cat in categories

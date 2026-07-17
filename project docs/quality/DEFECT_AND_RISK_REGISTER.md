@@ -11,8 +11,11 @@ for the Phase 4 Closure Review (documentation-only, `main` @
 `756c14dc25d9446eff73b209bfd85b3e0f4c6648`, 2026-07-17) — KL-022 remains open and does not
 block Phase 4 closure; two new non-defect Sprint 4.1 engineering-improvement entries added
 (KL-023, KL-024, see below), neither a Phase 4 closure blocker nor a Phase 5 prerequisite
-(see `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-028)
-**Last verified date:** 2026-07-14 (full sweep); 2026-07-16 (targeted re-evaluation); 2026-07-17 (Phase 4 Closure Review)
+(see `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-028); re-evaluated 2026-07-18 for the
+Core Profile-ServiceSupplier Invariant Remediation — new FR-014 finding added and marked
+RESOLVED in the same entry (root cause of a live "empty public directory" bug report; see
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-029), branch `fix/profile-supplier-invariant`, PR pending
+**Last verified date:** 2026-07-14 (full sweep); 2026-07-16 (targeted re-evaluation); 2026-07-17 (Phase 4 Closure Review); 2026-07-18 (Core Profile-ServiceSupplier Invariant Remediation)
 
 ---
 
@@ -68,6 +71,15 @@ block Phase 4 closure; two new non-defect Sprint 4.1 engineering-improvement ent
 **Evidence:** 2026-07-14 verification at ce3b30e: failed 1/10 runs **in isolation** (duplicate `ORD-20260714-1003` within a single seed run) and 2 test classes in full regression (distinct colliding keys). The 4-digit random suffix collides randomly among same-day orders created by the seed walkthrough — an in-run birthday-problem collision, NOT an inter-test race as previously recorded.
 **Runtime impact (historical):** Full regression exit code 1 intermittently; when `SeedProductWalkthroughDatasetTest.setUpClass` hit the collision, its 10 tests were skipped (e.g., 1662 of 1672 ran on 2026-07-14).
 **Resolution:** BG-002 fix — bounded savepoint-wrapped retry in `Order.save()` (5 attempts, DB constraint remains the arbiter) + suffix widened to 6 digits. Regression tests in `orders/tests/test_order_number_generation.py`. Evidence: CHANGE_LEDGER CL-017, TEST_EXECUTION_LOG Run 009.
+
+### FR-014: Missing ServiceSupplier Synchronization at Profile Activation — **RESOLVED 2026-07-18**
+
+**Severity:** HIGH (historical)
+**Confidence:** HIGH (root-caused via direct code inspection, confirmed by a live bug report)
+**Affected:** `apps/accounts/services/profile_activation_service.py`, `apps/kernel/models/supplier.py`, seed commands
+**Evidence:** `ProfileActivationService._activate()` set `profile.status = ProfileStatus.ACTIVE` but never called the supplier bridge — an activated caregiver/organization could have zero `kernel.ServiceSupplier` row, making them invisible to the public directory/home page/discovery ranking (all of which query `ServiceSupplier`, never `CaregiverProfile`/`OrganizationProfile` directly). `ServiceSupplier.linked_entity_id`/`linked_entity_type` also carried only a plain index, not a database uniqueness constraint, so even `get_or_create()`-based creation elsewhere in the codebase could not guarantee exactly one supplier per identity under concurrent writes. `seed_demo_accounts.py`/`seed_demo_people.py` were confirmed to reproduce this exact condition — both create ACTIVE-by-default profiles into the default tenant with zero supplier sync.
+**Runtime impact (historical):** "Public directory pages render successfully but show no providers/organizations despite seeded data" — the live bug report that triggered this remediation's investigation.
+**Resolution:** Core Profile-ServiceSupplier Invariant Remediation (ADM-029) — `ProfileActivationService` now synchronously guarantees ServiceSupplier existence+ACTIVE status inside the same activation transaction; a new `UniqueConstraint(linked_entity_id, linked_entity_type)` on `ServiceSupplier`; a one-time data migration + idempotent `reconcile_profile_supplier_invariant` management command for existing drift; `seed_demo_accounts`/`seed_demo_people` now sync suppliers for their ACTIVE-by-default profiles. 35 new tests, full regression 2249 -> 2284/2284 green. Branch `fix/profile-supplier-invariant`, PR pending as of this entry.
 
 ### FR-006: UserAccount Queries Not Tenant-Scoped
 

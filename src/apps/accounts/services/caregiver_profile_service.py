@@ -15,10 +15,23 @@ controlled exclusively by a future platform-admin workflow (not built
 this Sprint), account status/type transitions remain controlled by their
 own existing sanctioned services, and identity fields are not
 self-editable at all.
+
+Core Profile-ServiceSupplier Invariant Remediation (INV-10): the field
+save below always proceeds unconditionally — a DRAFT caregiver must still
+be able to edit these fields, since profile completion (calculated from
+exactly this field set) is itself a hard prerequisite for activation
+eligibility; blocking the edit here would deadlock activation. Only the
+incidental ServiceSupplier-sync side effect is skipped for a profile that
+has never reached ACTIVE — a DRAFT/SUSPENDED/ARCHIVED caregiver must not
+obtain a ServiceSupplier through this incidental edit action. Once the
+profile is later actually activated, `ProfileActivationService` itself
+establishes/reconciles the supplier synchronously — this method only ever
+repairs/mirrors an already-ACTIVE caregiver's existing supplier.
 """
 
 from apps.kernel.services.supplier_registry import SupplierRegistry
 
+from .profile_activation_service import ProfileActivationService
 from .supplier_bridge import get_or_create_supplier_for_caregiver
 
 
@@ -30,6 +43,9 @@ class CaregiverProfileUpdateService:
         caregiver.display_name = (display_name or "").strip()
         caregiver.city = (city or "").strip()
         caregiver.save(update_fields=["display_name", "city", "updated_at"])
+
+        if not ProfileActivationService.is_activated(caregiver):
+            return caregiver
 
         # ServiceSupplier.display_name mirrors the profile's own — kept in
         # sync through the sanctioned bridge/registry, never written to
@@ -59,7 +75,7 @@ class CaregiverProfileUpdateService:
             update_fields=["bio", "specialty", "years_experience", "service_radius_km", "updated_at"],
         )
 
-        if service_category_ids is not None:
+        if service_category_ids is not None and ProfileActivationService.is_activated(caregiver):
             supplier = get_or_create_supplier_for_caregiver(caregiver)
             SupplierRegistry.set_service_categories(supplier, service_category_ids=service_category_ids)
 

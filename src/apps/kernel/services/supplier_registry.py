@@ -93,6 +93,27 @@ class SupplierRegistry:
         return supplier
 
     @classmethod
+    def set_status(cls, supplier: ServiceSupplier, *, status: str) -> ServiceSupplier:
+        """
+        Reconcile an existing supplier's status in place — the generic
+        counterpart to get_or_create_supplier()'s "create with this status"
+        (whose `defaults` never apply to an already-existing row), mirroring
+        set_supplier_type()'s own direct/unconditional/idempotent shape. A
+        no-op if the supplier already has the requested status.
+
+        Generic by the same rule as the rest of this module: this method
+        knows nothing about *why* a caller wants a status change (the
+        Profile-ServiceSupplier activation invariant is one reason; it is
+        not the only one this method need ever serve). It does not validate
+        transitions — that is a vertical-app concern, if one ever exists.
+        """
+        if supplier.status == status:
+            return supplier
+        supplier.status = status
+        supplier.save(update_fields=["status", "updated_at", "version"])
+        return supplier
+
+    @classmethod
     def set_service_categories(cls, supplier: ServiceSupplier, *, service_category_ids: list[str]) -> ServiceSupplier:
         """Reconcile an existing supplier's offered service categories in
         place — generic by the same rule as set_supplier_type() (this

@@ -34,6 +34,15 @@ profile is already `ACTIVE`, `activate_*()` returns immediately with
 must not be re-blocked by, say, a document that expired after it was
 activated — that is the same deferred deactivation concern) and no
 second "effective" `AuditLog` entry.
+
+Core Profile-ServiceSupplier Invariant Remediation: a real DRAFT -> ACTIVE
+transition also synchronously guarantees, in this same transaction, that
+the profile's ServiceSupplier exists and is itself ACTIVE (via
+`supplier_bridge.sync_supplier_for_profile_activation()`) — this is now
+the sole code path that establishes that invariant. `ProfileActivationService`
+remains the sole owner of `DRAFT -> ACTIVE`; it is not a general profile-
+lifecycle facade — suspension/reactivation/archival remain out of scope
+(deferred, see `project docs/quality/COMPLETION_BACKLOG.md` BG-019).
 """
 
 from dataclasses import dataclass
@@ -47,6 +56,7 @@ from apps.kernel.services.permission_service import PermissionService
 from ..models.profiles import CaregiverProfile, OrganizationProfile, ProfileStatus
 from .activation_eligibility_service import ActivationEligibilityResult, ActivationEligibilityService
 from .errors import AccountsError
+from .supplier_bridge import sync_supplier_for_profile_activation
 
 MODULE_ID = "M08"
 ACTIVATION_AUDIT_ACTION = "accounts.profile.activated"
@@ -162,6 +172,15 @@ class ProfileActivationService:
 
         profile.status = ProfileStatus.ACTIVE
         profile.save(update_fields=["status", "updated_at"])
+
+        # Core Profile-ServiceSupplier Invariant Remediation: activation must
+        # synchronously guarantee ServiceSupplier existence + ACTIVE status in
+        # this same transaction. Uncaught on failure by design — the
+        # surrounding @transaction.atomic (activate_caregiver/
+        # activate_organization) then rolls back the profile transition above
+        # together with any partial supplier change and the audit record
+        # below, which is written only after this succeeds.
+        sync_supplier_for_profile_activation(profile, tenant_id=tenant_id)
 
         AuditService.log(
             tenant_id=tenant_id,

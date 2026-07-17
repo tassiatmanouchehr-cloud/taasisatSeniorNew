@@ -311,6 +311,23 @@ Architecture Assessment before any implementation begins.** See
 - Query budget (KL-012 discipline): the portal favorites page and both `build_cards_for_supplier_ids()` methods measured at 0/1/5/20 favorites — bounded, not linear in favorite count.
 - 57 new tests (21 `apps.accounts.tests.test_favorites` — model constraints, service add/remove/idempotency/concurrency-race/ownership, wrong-supplier-type rejection; 16 `apps.public_site.tests.test_favorites_public_integration` — anonymous/non-customer/customer toggle behavior, IDOR, redirect-target safety, non-disclosure, cross-type rejection with redirect-chain verification; 8 `apps.public_site.tests.test_favorites_card_resolution` — card resolution + query budget; 12 `apps.portal.tests.test_favorites_view` — listing, mixed supplier types, unavailable-supplier state, pagination, removal ownership, nav, query budget). Zero forbidden ORM calls introduced in `apps.portal.views`/`apps.public_site.views` (verified against `PortalOrmDisciplineTest`/`PublicSiteOrmDisciplineTest`). Full regression 2249/2249 green (2192 baseline + 57 net). Includes two architecture-review remediations (supplier-type boundary enforcement; post-rejection redirect-destination fix). **MERGED to main via PR #16** (merge commit `544de34684cf89ee28c1c4144cd5d82035e58e4e`, 2026-07-17). **Sprint 4.1 (Customer Favorites and Saved Providers) is now CLOSED and on `main`.** See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-027 and its two remediation entries.
 
+### CROSS-CUTTING — Core Profile-ServiceSupplier Invariant Remediation — **IMPLEMENTED, PR PENDING** (not a numbered phase; a data-integrity/architecture bug-fix sequenced ahead of Phase 5 implementation)
+
+`ProfileActivationService` now synchronously guarantees `ServiceSupplier` existence and
+ACTIVE status inside the same activation transaction; a new
+`UniqueConstraint(linked_entity_id, linked_entity_type)` closes the race window
+`get_or_create()` alone could not close; INV-10 lazy-creation loopholes closed at the
+`CaregiverProfileUpdateService`/`OrganizationProfileUpdateService`/`organization_portal`
+call sites (silent-skip for non-ACTIVE profiles); a one-time data migration + idempotent
+`reconcile_profile_supplier_invariant` command remediate any pre-existing drift;
+`seed_demo_accounts`/`seed_demo_people` now sync suppliers for their ACTIVE-by-default
+profiles. Full detail, rationale, and the deliberate INV-10 design revision (evidence-based
+narrowing of the original architecture proposal) are in `03_NEXT_TASK.md`'s own entry and
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-029. Branch `fix/profile-supplier-invariant`,
+35 new tests, full regression 2249 -> 2284/2284 green. The demo-preview namespace explored
+during the same investigation is explicitly a separate, not-yet-started future
+implementation — not part of this remediation.
+
 ### PHASE 5 — Marketplace Order Workflow
 
 **Scope:** Job publication (PUBLIC order visibility exists in `Order.PUBLIC`), offer submission marketplace, OrderOfferService (submit/edit/withdraw/select per ADM-001..013), reservation hold via SELECTED status + PaymentDeadline reuse (ADM-011), payment timeout + retry, escrow hold, assignment-after-payment (ADM-002/Option B), execution, completion, cancellation, disputes (exists).
