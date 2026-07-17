@@ -1,7 +1,7 @@
 # RUNTIME WORKFLOWS
 
-**Last verified HEAD:** main @ 544de34684cf89ee28c1c4144cd5d82035e58e4e (PR #16 merged — **Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers MERGED and canonically CLOSED**)
-**Last verified date:** 2026-07-17 (post-merge synchronization)
+**Last verified HEAD:** main @ 756c14dc25d9446eff73b209bfd85b3e0f4c6648 (post-merge documentation synchronization following PR #16 — **Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers MERGED and canonically CLOSED**). **Phase 4 — Customer Portal: FORMALLY CLOSED (2026-07-17) — all Phase 4 workflows below, including the Customer Favorites and Saved Providers workflow (#34), are canonical and implemented.**
+**Last verified date:** 2026-07-17 (Phase 4 Closure Review, documentation-only)
 
 ---
 

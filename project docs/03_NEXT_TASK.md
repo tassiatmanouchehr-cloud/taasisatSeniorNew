@@ -893,18 +893,30 @@ profile services, and the portal's existing `_guard()`/nav-item schema.
 
 ## IMMEDIATE NEXT TASK
 
-### Phase 4 — Sprint 4.1 (Customer Favorites and Saved Providers) is MERGED and CLOSED; the immediate next task is a fresh Architecture Assessment for the next Phase 4 sprint, not implementation.
+### Phase 4 — Customer Portal is FORMALLY CLOSED (2026-07-17). The immediate next task is a dedicated Phase 5 — Marketplace Order Workflow Architecture Assessment only — not implementation.
 
 Sprint 4.1's implementation is complete and canonical on `main`: model, service,
 public-profile toggle, portal "My Favorites" page, 57 new tests, full regression 2249/2249
 PASS as the current post-merge baseline, two architecture-review remediations applied, and
 documentation synchronized. **PR #16 merged 2026-07-17 (merge commit
-`544de34684cf89ee28c1c4144cd5d82035e58e4e`).** No Sprint 4.2 scope is canonically defined in
-this repository yet — **do not begin implementation.** The next task begins with a fresh
-Architecture Assessment (mirroring the Phase 4 Customer Portal Architecture Assessment's own
-code-free, governance-first approach) to determine what, if anything, Phase 4's next bounded
-sprint should cover. Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active
-implementation order).
+`544de34684cf89ee28c1c4144cd5d82035e58e4e`).** A dedicated code-free Phase 4 Closure Review
+(2026-07-17) subsequently confirmed every roadmap-defined Phase 4 capability is implemented,
+found no remaining Phase-4-specific blocking gap, and formally closed Phase 4 — no Sprint 4.2
+was required or is canonically defined. See `traceability/ARCHITECTURE_DECISION_LOG.md`
+ADM-028 and `traceability/IMPLEMENTATION_JOURNAL.md` for the full closure record.
+
+**The next task is a dedicated, code-free Phase 5 — Marketplace Order Workflow Architecture
+Assessment** (mirroring the Phase 3 closure / Phase 4 assessment's own governance-first
+approach), determining Phase 5's actual bounded first-sprint scope from direct repository
+evidence. Until that assessment is performed and approved:
+
+- **Do not begin Phase 5 implementation.**
+- **Do not create a branch for production work.**
+- **Do not design any schema, model, or migration without direct repository evidence
+  supporting it.**
+- **Do not start a Phase 5 sprint before its architecture assessment is approved.**
+
+Defined in **`IMPLEMENTATION_ROADMAP.md`** (the single active implementation order).
 
 ### Phase 3 is formally CLOSED (PR #15 merged). Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers is now MERGED and CLOSED (see entry above).
 

@@ -33,6 +33,7 @@
 **Phase 4 Customer Portal Architecture Assessment:** 2026-07-16 — code-free current-state inspection of `apps.portal` (a governance/readiness activity, not a numbered implementation sprint) found the Customer Portal already substantially built under a pre-existing "Epic 07 — Customer Experience and Portal Completion" body of work, contradicting this roadmap's own stale Phase 4 scope-line text (now corrected below); the one confirmed gap across the entire repository is Favorites/saved-suppliers; recommended as **Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers**, not yet started. See `traceability/IMPLEMENTATION_JOURNAL.md` for the full assessment and `03_NEXT_TASK.md` for the immediate next task
 **Sprint 4.1 update:** 2026-07-16 — Customer Favorites and Saved Providers (see PHASE 4 section's Sprint 4.1 entry) implemented on branch `phase4-customer-favorites` (from main @ `d50f83f`); 1 new migration (`accounts/0011_favorite.py`); 57 new tests (54 original + 3 from the first architecture-review remediation); two architecture-review remediations applied (supplier-type boundary enforcement, post-rejection redirect-destination fix); full regression 2249/2249 green
 **PR #16 merge update:** 2026-07-17 — final pre-merge verification confirmed the branch HEAD `3c0374d7fb84ce5b0f615040be150deafefb3e2f`, `mergeable_state: clean`, and `git status`/`git diff --check`/`manage.py check` all clean; **MERGED to main via PR #16 (merge commit `544de34684cf89ee28c1c4144cd5d82035e58e4e`); Sprint 4.1 is CLOSED**
+**Phase 4 closure update:** 2026-07-17 — a dedicated code-free Phase 4 Closure Review (post-merge, `main` @ `756c14dc25d9446eff73b209bfd85b3e0f4c6648`) confirmed every roadmap-defined Phase 4 capability is implemented, Sprint 4.1/PR #16 closed the final confirmed functional gap (Favorites), the post-closure regression baseline is 2249/2249 PASS, and no Sprint 4.2 is required; **Phase 4 — Customer Portal is now FORMALLY CLOSED.** Two non-blocking Sprint 4.1 engineering advisories (favorites list materialization before pagination; mocked-vs-true-concurrency test coverage) were evaluated and deferred as non-blocking technical debt, not product gaps — see `quality/DEFECT_AND_RISK_REGISTER.md` and `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-028. **Phase 5 — Marketplace Order Workflow is next in roadmap order; not started; requires its own Architecture Assessment before implementation.**
 **Branch verified:** main (via claude/taasisat-senior-state-verify-9dzzlm)
 **Authority:** This roadmap replaces every previous implementation order (including
 `project docs/03_NEXT_TASK.md` sequencing and the archived Offer Marketplace phase plans).
@@ -259,7 +260,7 @@ Pre-phase (P0 hygiene, small): ~~fix seed test race (G12)~~ — **DONE, merged i
 - `search()`'s signature deliberately kept parallel to `CaregiverDirectoryService.search()`'s own — composable for a future Supplier-level discovery layer without building that layer now (no `SupplierDirectoryService`, explicitly out of scope).
 - No model, no migration (confirmed by `makemigrations --check --dry-run`). 25 new tests (18 service-level query-budget/visibility/filter/pagination + 7 view-level). Full regression run once (cross-cutting `common.py` refactor): 2192/2192 green (2167 + 25 net). See `ARCHITECTURE_DECISION_LOG.md` ADM-025. Final architecture/implementation review approved with no blocking issues. **MERGED to main via PR #14** (merge commit `b78d6a293ab90831c10b2a8ad1d1d49aab06fa86`, 2026-07-16). **Sprint 3.3 is CLOSED.**
 
-### PHASE 4 — Customer Portal (production complete, including Favorites — Sprint 4.1 MERGED, gap closed)
+### PHASE 4 — Customer Portal — **FORMALLY CLOSED** (production complete, including Favorites — Sprint 4.1 MERGED, gap closed)
 
 **Scope, corrected 2026-07-16 (Phase 4 Customer Portal Architecture Assessment, a
 code-free governance/readiness review, performed as part of Phase 3's closure, recorded and
@@ -279,14 +280,23 @@ incorrect. Per-order financial pay/approve/dispute pages are also real, with gen
 `Favorite`/bookmark/saved-supplier model or equivalent existed anywhere in the repository at
 that time. **RESOLVED (2026-07-17):** Sprint 4.1 closed this gap and is merged to `main` via
 PR #16 (merge commit `544de34684cf89ee28c1c4144cd5d82035e58e4e`) — see the Sprint 4.1 entry
-below. Phase 4 is now production-complete with no known gaps; the next Phase 4 sprint (if
-any) requires a fresh Architecture Assessment, since none is canonically defined yet.
+below.
+
+**Phase 4 closure (2026-07-17):** a dedicated code-free Phase 4 Closure Review confirmed
+Phase 4 is production-complete with no known Phase-4-specific gap and formally closed the
+phase — no Sprint 4.2 was required. The final Phase 4 functional gap was Customer Favorites;
+Sprint 4.1 and PR #16 closed it; the post-closure regression baseline is 2249/2249 PASS. Two
+non-blocking Sprint 4.1 engineering advisories were evaluated and deferred as technical debt
+(see `quality/DEFECT_AND_RISK_REGISTER.md`), not as product gaps. **Phase 5 — Marketplace
+Order Workflow is next in roadmap order and has not started; it requires its own dedicated
+Architecture Assessment before any implementation begins.** See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-028.
 
 - **Depends on:** Phase 2/Phase 3 public profiles (favorites target public caregiver/organization profiles, both of which now exist).
 - **Complexity:** LOW. One small `Favorite` model + additive views/toggle over already-existing supplier/visibility selectors — no other Phase 4 capability needs new work.
 - **Blocking items:** none.
-- **Acceptance criteria:** favorites add/remove/list with tenant scoping and ownership checks; regression green. (Invoice/receipt/order-history/payment acceptance criteria are already met by the pre-existing Epic 07 implementation — re-verify, do not rebuild.)
-- **First bounded implementation sprint: Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers.** See the Sprint 4.1 entry immediately below — **IMPLEMENTED and MERGED to main via PR #16. Sprint 4.1 is CLOSED.** No Sprint 4.2 scope is canonically defined yet — the next task is a fresh Architecture Assessment, not implementation.
+- **Acceptance criteria:** favorites add/remove/list with tenant scoping and ownership checks; regression green. (Invoice/receipt/order-history/payment acceptance criteria are already met by the pre-existing Epic 07 implementation — re-verify, do not rebuild.) **All criteria MET.**
+- **First bounded implementation sprint: Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers.** See the Sprint 4.1 entry immediately below — **IMPLEMENTED and MERGED to main via PR #16. Sprint 4.1 is CLOSED. Phase 4 — Customer Portal is FORMALLY CLOSED (2026-07-17).** No Sprint 4.2 was required.
 
 **Sprint 4.1 (2026-07-16, branch `phase4-customer-favorites`, from merged main @ `d50f83f`) — Customer Favorites and Saved Providers:**
 - Fresh evidence-based re-decision on all 4 architectural questions the prior code-free assessment only recommended (never auto-accepted):

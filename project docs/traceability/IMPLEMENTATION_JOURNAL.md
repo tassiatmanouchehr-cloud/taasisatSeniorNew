@@ -3473,3 +3473,70 @@ canonically CLOSED on `main`.** BG-032 is RESOLVED. ADM-027 (including both
 architecture-review remediations) is canonical. Phase 4 remains active; no Sprint 4.2 scope
 is canonically defined in this repository. Post-merge Repository Maintenance SOP and
 verification are recorded in the entry immediately below.
+
+---
+
+## Phase 4 Closure Review (documentation-only, 2026-07-17)
+
+**Corrected assessment date:** 2026-07-17. This entry supersedes an earlier same-day "Phase
+4 — Next Sprint Architecture Assessment" that was found to contain two canonical-state/
+governance inaccuracies: it cited the PR #16 *merge* commit
+(`544de34684cf89ee28c1c4144cd5d82035e58e4e`) as the current `main` HEAD instead of the later,
+correct post-merge documentation-synchronization commit; and it stated "Phase 4 is closed" as
+verified fact when no canonical document had yet declared that. A corrected "Phase 4 Closure
+Assessment" re-verified the repository directly and is the basis for this closure.
+
+**Verified `main` HEAD before the closure branch:** `756c14dc25d9446eff73b209bfd85b3e0f4c6648`
+— confirmed directly via `git checkout main && git pull --ff-only origin main && git status
+&& git rev-parse HEAD && git rev-parse origin/main`: local `main` == `origin/main`, working
+tree clean, no intervening commits since the last recorded post-merge documentation-sync.
+Branch `docs/phase4-canonical-closure` created from this exact commit.
+
+**Closure evidence:** every roadmap-defined Phase 4 capability (dashboard, orders, payments,
+notifications, profile, reviews, favorites) confirmed implemented and merged; no open
+Phase-4-specific `quality/COMPLETION_BACKLOG.md` item (BG-032 RESOLVED, no other Phase-4-
+specific entry); no open Phase-4-specific `quality/DEFECT_AND_RISK_REGISTER.md` item
+(KL-022 is cross-portal, not Phase-4-specific); route/workflow completeness confirmed via
+`current/PORTALS_AND_APIS.md`/`current/RUNTIME_WORKFLOWS.md`; `FavoritesService`
+authorization/tenant-scoping re-verified directly against `apps/accounts/services
+/favorites.py`; test/query-budget coverage re-verified directly against `apps/portal/tests
+/test_favorites_view.py` (query-count growth `≤ 8` across 0→20 favorites). Full closure
+matrix and reasoning recorded in this session's "Corrected Phase 4 Closure Assessment"
+response and in `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-028.
+
+**Documentation-only nature of this task; no code or test changes:** this closure task
+created zero commits under `src/`, `apps/`, `tests/`, `migrations/`, `templates/`, or
+`static/`. `git diff --name-only` against `main` before committing was limited to files under
+`project docs/`. No migration was created. No test was added, removed, or modified. The
+existing 2249/2249 regression baseline is unchanged and was not re-run, since no
+production-affecting change occurred that could invalidate it.
+
+**Documents corrected:** `02_PROJECT_CONTINUATION.md` (canonical `main` HEAD SHA corrected
+from the stale `544de346...` merge-commit reference to `756c14dc...`; "Phase 4 — Customer
+Portal is ACTIVE" replaced with "FORMALLY CLOSED"; "Active work branch" row updated),
+`03_NEXT_TASK.md` (IMMEDIATE NEXT TASK header replaced with the Phase 4 closure statement and
+the Phase 5 Architecture-Assessment-only next task, with explicit prohibitions against
+implementation/branch-creation/schema-design/sprint-start before approval),
+`IMPLEMENTATION_ROADMAP.md` (Phase 4 section header marked "FORMALLY CLOSED," a new closure
+changelog line added, acceptance criteria marked MET — historical Sprint 4.1 narrative
+preserved unchanged), `current/IMPLEMENTATION_STATE.md`/`current/PORTALS_AND_APIS.md`/
+`current/RUNTIME_WORKFLOWS.md` (stale `544de346...` "Last verified HEAD" references corrected
+to `756c14dc...`, closure status added), `quality/COMPLETION_BACKLOG.md` (header HEAD
+reference corrected, closure status noted; BG-032 entry itself unchanged — already RESOLVED),
+`quality/DEFECT_AND_RISK_REGISTER.md` (two new Known-Limitation entries, KL-023 and KL-024,
+added for the two Sprint 4.1 advisories — explicitly not classified as defects or product
+gaps), `traceability/ARCHITECTURE_DECISION_LOG.md` (new ADM-028 entry recording formal Phase
+4 closure), this file (this entry).
+
+**Two advisories — handling:** both re-verified directly against current source
+(`apps/portal/services/favorites_service.py`, `apps/accounts/tests/test_favorites.py`) before
+being classified. Neither was treated as an active product defect or a missing capability;
+both were recorded as `quality/DEFECT_AND_RISK_REGISTER.md` Known Limitations (KL-023:
+favorites-list materialization before pagination; KL-024: mocked- rather than
+true-parallel-transaction concurrency test coverage), each with current behavior, why it is
+non-blocking, impact, a trigger for reconsideration, and an explicit "deferred, not a Phase 5
+prerequisite" disposition. No standalone remediation sprint was created for either.
+
+**Next governance action:** a dedicated, code-free Phase 5 — Marketplace Order Workflow
+Architecture Assessment. Not started by this task. No Phase 5 implementation, branch, schema,
+or migration may begin before that assessment is performed and approved.
