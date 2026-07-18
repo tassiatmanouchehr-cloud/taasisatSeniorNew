@@ -1,7 +1,7 @@
 # CURRENT GAPS AND COMPLETION BACKLOG
 
-**Last verified HEAD:** main @ 5d77de61181d643930ccb93b77d6a4b3bdcb8499 (PR #17 merge — Phase 4 canonical closure documentation). **Branch `fix/profile-supplier-invariant` (not yet merged) implements BG-033 — see below, including its independent-pre-merge-review remediation.**
-**Last verified date:** 2026-07-18 (Core Profile-ServiceSupplier Invariant Remediation + independent pre-merge review remediation, PR #18 open, not merged; Phase 4 — Customer Portal remains FORMALLY CLOSED; BG-032 RESOLVED; BG-033 IMPLEMENTED, PR #18 open)
+**Last verified HEAD:** main @ 096d7c50d2b912b52ae60468653cc2ce0df8798a (PR #18 merge — Core Profile-ServiceSupplier Invariant Remediation, including the independent pre-merge review remediation). **Branch `fix/profile-supplier-invariant` implements BG-033 — see below, including its independent-pre-merge-review remediation. Merged and closed.**
+**Last verified date:** 2026-07-18 (Core Profile-ServiceSupplier Invariant Remediation + independent pre-merge review remediation + independent focused review (APPROVE) + PR #18 merged to `main`; Phase 4 — Customer Portal remains FORMALLY CLOSED; BG-032 RESOLVED; BG-033 RESOLVED, PR #18 merged)
 
 ---
 
@@ -480,7 +480,7 @@ Discovery refactoring.
 **Status update (2026-07-17):** **MERGED to `main` via PR #16** (merge commit
 `544de34684cf89ee28c1c4144cd5d82035e58e4e`). **BG-032 is now RESOLVED.**
 
-### BG-033: Core Profile-ServiceSupplier Invariant Remediation — **IMPLEMENTED, PR PENDING**
+### BG-033: Core Profile-ServiceSupplier Invariant Remediation — **RESOLVED, MERGED (PR #18)**
 
 **Original evidence:** A live bug report ("public directory pages render successfully but
 show no providers/organizations despite seeded data") investigated code-free, root-caused to
@@ -541,8 +541,11 @@ INV-11b (organization-suspension visibility), any BG-019 suspend/reactivate/arch
 lifecycle service, and the demo-preview route namespace explored during the same
 investigation (a separate future implementation, not started here).
 **Status update (2026-07-18):** Implementation complete, including the independent
-pre-merge review remediation, on branch `fix/profile-supplier-invariant`. **PR #18 open,
-updated — not merged.**
+pre-merge review remediation, on branch `fix/profile-supplier-invariant`. A second
+independent focused review returned `APPROVE` (independently re-running the full regression
+at 2321/2321 and 7 fresh adversarial checks). **PR #18 merged to `main`** (merge commit
+`096d7c50d2b912b52ae60468653cc2ce0df8798a`, final PR head
+`3d723cbcd1237aa2ba24a151aabc9b9cff80bb20`, 2026-07-18). BG-033 is closed.
 
 ### BG-031: Company Public Directory and Discovery — **RESOLVED**
 

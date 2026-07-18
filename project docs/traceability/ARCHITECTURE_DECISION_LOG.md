@@ -2457,6 +2457,9 @@ cosmetic drift, unchanged)/`manage.py migrate`/`git diff --check` all clean.
 (`reconcile_profile_supplier_invariant`), three new test files. Branch
 `fix/profile-supplier-invariant`. **PR not yet opened as of this entry — see the final
 implementation report for the PR link. Not merged, not reviewed.**
+(Post-merge update, 2026-07-18: this became PR #18. See the ADM-029 Remediation entry below
+for the independent pre-merge review and its fix, and the Post-Merge Closure entry further
+below for the final merge record.)
 
 ---
 
@@ -2643,4 +2646,68 @@ entirely inside `provider_identity.py`), `apps/provider_portal/views.py`,
 `test_profile_supplier_invariant.py` substantially extended;
 `test_inv10_lazy_supplier_creation.py`'s dashboard-redirect test corrected to a
 dashboard-renders-pending-state test to match the corrected (non-redirecting) fix. Same
-branch `fix/profile-supplier-invariant`, PR #18 updated (not a new PR). **Not merged.**
+branch `fix/profile-supplier-invariant`, PR #18 updated (not a new PR). **Not merged as of
+this entry — see the Post-Merge Closure entry below for the independent focused review
+verdict and final merge record.**
+
+---
+
+## ADM-029 Post-Merge Closure — PR #18 (2026-07-18)
+
+**Independent focused review:** a second independent review, scoped to the previously-blocking
+findings and the newly-added remediation paths (not a repeat of the full original review),
+re-verified every claim from source rather than reusing the implementer's output: traced
+`resolve_supplier_for_user`/`resolve_provider_context_for_user`/`_guard`/`_guard_with_caregiver`
+and all 25 `_guard_with_caregiver()` view functions directly; ran a fresh adversarial script
+(not the implementer's `scenario_verify.py`) covering DRAFT/ACTIVE caregiver and organization
+navigation and missing/drifted-supplier repair for both profile types — all 7 checks passed;
+ran the AST guardrail detector directly against the current `seed_product_walkthrough.py` and
+confirmed exactly one flagged line (the pre-existing, already-allowlisted organization
+`get_or_create`) with no new/hidden allowlist reliance introduced by the caregiver-side fix;
+independently re-ran the full regression suite fresh, reproducing **2321/2321, 0 failures, 0
+errors, no warnings** exactly. One non-blocking note recorded: the `seed_product_walkthrough.py`
+guardrail-allowlist docstring (written for the original single organization match) does not
+mention the later caregiver-side `status=ProfileStatus.ACTIVE` convention; purely descriptive,
+no functional impact. **Final verdict: `APPROVE`.**
+
+**Merge:** PR #18 merged to `main` via a true merge commit (the repository's established
+strategy — confirmed by inspecting the last 7 merge commits on `main`, all 2-parent merges),
+merge method `merge`, at **2026-07-18T06:21:51Z**. Merge commit
+`096d7c50d2b912b52ae60468653cc2ce0df8798a`. Final PR head (unchanged from the approved review):
+`3d723cbcd1237aa2ba24a151aabc9b9cff80bb20`. Base branch `main` (pre-merge base
+`3cf238c8391c6c23282bf5b358ab596fda553772`, the post-PR-#17 documentation sync). Local `main`
+fast-forwarded to the merge commit; `main` and `fix/profile-supplier-invariant` both contain
+the approved head.
+
+**Post-merge lightweight re-verification (Phase 2 of the merge task, run again independently
+against the final merged state):** `git diff --check`, `python manage.py check`,
+`python manage.py migrate --check` all clean; focused suites (provider identity, profile
+activation, provider/organization portal DRAFT/ACTIVE navigation, supplier bridge/registry,
+architecture guardrails, seed-command supplier sync, public-directory integration) —
+527/527 pass; full PostgreSQL regression — **2321/2321 pass, 0 failures, 0 errors, no
+warnings**, matching the pre-merge run exactly. `makemigrations --check --dry-run`: 80 lines,
+same shape as the documented RISK-009 cosmetic drift — confirmed unchanged, no new drift
+introduced by the merge.
+
+**Corrected invariant, now on `main`:**
+
+```
+A never-ACTIVE caregiver or organization profile cannot acquire a ServiceSupplier through
+normal navigation or render-only profile access.
+
+An already-ACTIVE profile with a missing or drifted supplier can be repaired through the
+canonical activation path without a duplicate transition or activation audit.
+
+A DRAFT caregiver's dashboard/profile pages still render (supplier=None); supplier-required
+actions correctly reject access; no supplier row is ever created for a DRAFT profile.
+```
+
+**Still explicitly deferred, unchanged:** INV-11a (`AssignmentService`), INV-11b
+(organization-suspension visibility), BG-019 (suspend/reactivate/archive lifecycle services),
+the demo-preview route namespace, and the organization suspension lifecycle.
+
+**Next task:** manual end-to-end runtime and UI validation of caregiver and company
+visibility in the public marketplace directory — not a new implementation phase, not the
+start of Phase 5. Phase 5 — Marketplace Order Workflow remains NOT STARTED; its own
+dedicated, code-free Architecture Assessment remains the next roadmap-ordered milestone
+after this manual validation.

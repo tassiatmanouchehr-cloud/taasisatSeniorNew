@@ -3726,3 +3726,60 @@ branch `fix/profile-supplier-invariant`, PR #18 updated in place (no second PR o
 **Next governance action (unchanged):** architectural re-review and merge of PR #18, after
 which the standing next task remains a dedicated, code-free Phase 5 — Marketplace Order
 Workflow Architecture Assessment — not implementation.
+
+---
+
+## PR #18 — Independent Focused Review and Merge and Post-Merge Closure (2026-07-18)
+
+**Independent focused review:** scoped to the previously-blocking findings and the newly-added
+remediation paths only (not a repeat of the full original review). Re-verified from source,
+not by reusing the implementer's own output: read `resolve_supplier_for_user()`,
+`resolve_provider_context_for_user()`, `provider_portal.permissions._guard`/
+`_guard_with_caregiver`, and every `_guard_with_caregiver()`-gated view directly; ran a fresh
+adversarial script (independent of `scenario_verify.py`) covering DRAFT/ACTIVE caregiver and
+organization navigation plus missing/drifted-supplier repair for both profile types — 7/7
+checks passed; independently ran the AST guardrail detector against the current
+`seed_product_walkthrough.py`, confirming exactly one flagged line and no hidden new
+allowlist reliance; independently re-ran the full regression suite, reproducing
+**2321/2321, 0 failures, 0 errors, no warnings** exactly. **Verdict: `APPROVE`.**
+
+**Merge:** PR #18 merged to `main` via a true merge commit (the repository's established
+2-parent-merge strategy, confirmed against the last 7 merges), at 2026-07-18T06:21:51Z.
+Merge commit `096d7c50d2b912b52ae60468653cc2ce0df8798a`. Final PR head (unchanged from the
+approved review): `3d723cbcd1237aa2ba24a151aabc9b9cff80bb20`. Local `main` fast-forwarded
+cleanly to the merge commit; working tree clean; `main` and `fix/profile-supplier-invariant`
+both contain the approved head.
+
+**Post-merge lightweight re-verification** (run again, independently, against the final
+merged state before this documentation pass): `git diff --check` / `manage.py check` /
+`manage.py migrate --check` all clean; focused suites 527/527 pass; full PostgreSQL
+regression **2321/2321 pass, 0 failures, 0 errors, no warnings**, matching the pre-merge run
+exactly; `makemigrations --check --dry-run` unchanged (80 lines, same RISK-009 cosmetic
+drift, no new drift).
+
+**Documentation synchronized:** `02_PROJECT_CONTINUATION.md`, `03_NEXT_TASK.md`,
+`IMPLEMENTATION_ROADMAP.md`, `current/IMPLEMENTATION_STATE.md`, `quality/COMPLETION_BACKLOG.md`
+(BG-033 now RESOLVED/merged), `quality/DEFECT_AND_RISK_REGISTER.md` (FR-014 merged and
+closed), `traceability/ARCHITECTURE_DECISION_LOG.md` (ADM-029 Post-Merge Closure entry
+added) all updated to replace pending/open/pre-merge language with the canonical merged
+state — PR number, final head, merge commit, merge date, and final verification totals
+recorded in each. `current/RUNTIME_WORKFLOWS.md` and `current/PORTALS_AND_APIS.md` inspected
+— no route/URL or runtime-workflow-narrative changes needed (their existing PR #18
+references are historical narration, not pending-state claims).
+
+**FR-014 / BG-033 status:** merged and closed. The corrected invariant (a never-ACTIVE
+profile cannot acquire a `ServiceSupplier` through any navigation or render-only access; an
+already-ACTIVE profile with a missing/drifted supplier is repairable through the canonical
+activation path without a duplicate transition or audit; a DRAFT caregiver's dashboard/
+profile pages still render with `supplier=None` while supplier-required actions correctly
+reject) is now the documented, merged, canonical behavior on `main`.
+
+**Still explicitly deferred, unchanged:** INV-11a (`AssignmentService`), INV-11b
+(organization-suspension visibility), BG-019 (suspend/reactivate/archive lifecycle
+services), the demo-preview route namespace, and the organization suspension lifecycle.
+
+**Next governance action:** manual end-to-end runtime and UI validation of caregiver and
+company visibility in the public marketplace directory — not a new implementation phase.
+Phase 5 — Marketplace Order Workflow remains NOT STARTED; its own dedicated, code-free
+Architecture Assessment remains the next roadmap-ordered milestone after that manual
+validation.

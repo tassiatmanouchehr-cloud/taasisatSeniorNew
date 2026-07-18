@@ -966,12 +966,26 @@ strategy before any code was written.
   unchanged)/`manage.py migrate`/`git diff --check` all clean.
 - Branch `fix/profile-supplier-invariant`. **PR not yet opened as of this doc update —
   see the final implementation report for the PR link once opened. Not merged.**
+  (Post-merge update, 2026-07-18: this became PR #18, which — after the independent
+  pre-merge review remediation below and a second independent focused review returning
+  `APPROVE` — **merged to `main`** at merge commit `096d7c50d2b912b52ae60468653cc2ce0df8798a`,
+  final PR head `3d723cbcd1237aa2ba24a151aabc9b9cff80bb20`. See the IMMEDIATE NEXT TASK
+  section below for current state.)
 
 ---
 
 ## IMMEDIATE NEXT TASK
 
-### The Core Profile-ServiceSupplier Invariant Remediation above is implemented and awaiting architectural review/merge. After it merges, the next task remains a dedicated Phase 5 — Marketplace Order Workflow Architecture Assessment only — not implementation.
+### The Core Profile-ServiceSupplier Invariant Remediation is complete, independently reviewed twice, and merged to `main` via PR #18 (merge commit `096d7c50d2b912b52ae60468653cc2ce0df8798a`, final PR head `3d723cbcd1237aa2ba24a151aabc9b9cff80bb20`, 2026-07-18). The immediate next task is **manual end-to-end runtime and UI validation of caregiver and company visibility in the public marketplace directory** — confirming, through the real running application (not just tests), that ACTIVE caregivers and companies are actually visible and usable through the website UI, and that DRAFT ones correctly are not. This is not a new implementation phase and does not begin Phase 5. A dedicated, code-free Phase 5 — Marketplace Order Workflow Architecture Assessment remains the next roadmap-ordered milestone after this manual validation — not implementation.
+
+**PR #18 summary:** two blocking/high-priority findings from an independent pre-merge review (DRAFT caregivers could acquire an ACTIVE `ServiceSupplier` through ordinary portal navigation; the idempotent already-ACTIVE activation path did not repair a missing/drifted supplier) were fixed on the same branch, along with two further non-ACTIVE creation paths found during the required call-graph recheck and the full regression run itself (`seed_demo_orders.py`, `seed_product_walkthrough.py`). A second independent focused review re-verified all of it from source (not reusing the implementer's output) and returned `APPROVE`. Full regression: **2321/2321 green, 0 failures, 0 errors, no warnings** (independently reproduced twice, matching exactly). See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-029 for the complete record.
+
+**The corrected invariant, now on `main`:**
+- A never-ACTIVE caregiver or organization profile cannot acquire a `ServiceSupplier` through normal navigation or render-only profile access.
+- An already-ACTIVE profile with a missing or drifted supplier can be repaired through the canonical activation path without a duplicate transition or activation audit.
+- A DRAFT caregiver's dashboard/profile pages still render (`supplier=None`); supplier-required actions correctly reject access; no supplier row is ever created for a DRAFT profile.
+
+**Still explicitly deferred, unchanged:** INV-11a (`AssignmentService`), INV-11b (organization-suspension visibility), BG-019 (suspend/reactivate/archive lifecycle services), the demo-preview route namespace, and the organization suspension lifecycle.
 
 ### Phase 4 — Customer Portal is FORMALLY CLOSED (2026-07-17).
 
