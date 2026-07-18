@@ -1,7 +1,7 @@
 # CURRENT GAPS AND COMPLETION BACKLOG
 
-**Last verified HEAD:** main @ 5d77de61181d643930ccb93b77d6a4b3bdcb8499 (PR #17 merge — Phase 4 canonical closure documentation). **Branch `fix/profile-supplier-invariant` (not yet merged) implements BG-033 — see below.**
-**Last verified date:** 2026-07-18 (Core Profile-ServiceSupplier Invariant Remediation, implementation complete, PR pending; Phase 4 — Customer Portal remains FORMALLY CLOSED; BG-032 RESOLVED; BG-033 IMPLEMENTED, PR PENDING)
+**Last verified HEAD:** main @ 5d77de61181d643930ccb93b77d6a4b3bdcb8499 (PR #17 merge — Phase 4 canonical closure documentation). **Branch `fix/profile-supplier-invariant` (not yet merged) implements BG-033 — see below, including its independent-pre-merge-review remediation.**
+**Last verified date:** 2026-07-18 (Core Profile-ServiceSupplier Invariant Remediation + independent pre-merge review remediation, PR #18 open, not merged; Phase 4 — Customer Portal remains FORMALLY CLOSED; BG-032 RESOLVED; BG-033 IMPLEMENTED, PR #18 open)
 
 ---
 
@@ -502,27 +502,47 @@ real two-thread `TransactionTestCase`, not a mocked exception. INV-10 lazy-creat
 closed at `CaregiverProfileUpdateService`/`OrganizationProfileUpdateService
 .update_service_categories()`/`organization_portal`'s financial and service-category views
 (silent-skip for non-ACTIVE profiles — the underlying field save/permission check always
-still succeeds); `resolve_supplier_for_user()`/`OrganizationProfilePresentationService
-.get_profile_view()` deliberately left unguarded (proven unsafe to guard by two real,
-currently-passing tests — see ADM-029 point 5 for the full evidence-driven design revision).
-One data migration (`kernel/0012_...`, fails loudly rather than guessing on any duplicate/
-tenant-mismatched row) + one constraint migration (`kernel/0013_...`) + a standalone,
-idempotent, dry-run-capable `reconcile_profile_supplier_invariant` management command.
-`seed_demo_accounts.py`/`seed_demo_people.py` now sync suppliers for their ACTIVE-by-default
-profiles — confirmed by manual double-run to eliminate the exact missing-supplier condition
-that motivated this remediation. `seed_product_walkthrough.py` required no change (already
-compliant); its dedicated tenant and `--reset-demo` boundary are explicitly preserved.
-35 new tests, full regression 2249 -> 2284/2284 green.
+still succeeds). One data migration (`kernel/0012_...`, fails loudly rather than guessing on
+any duplicate/tenant-mismatched row) + one constraint migration (`kernel/0013_...`) + a
+standalone, idempotent, dry-run-capable `reconcile_profile_supplier_invariant` management
+command. `seed_demo_accounts.py`/`seed_demo_people.py` now sync suppliers for their
+ACTIVE-by-default profiles. `seed_product_walkthrough.py` was believed to require no change
+at the time this line was first written; the independent pre-merge review remediation below
+found that was incorrect for its independent/organization-affiliated demo caregivers (fixed,
+see the remediation paragraph). Its dedicated tenant and `--reset-demo` boundary remain
+explicitly preserved.
+**Remediation (independent pre-merge review of PR #18, same day):** the first pass had left
+`resolve_supplier_for_user()`/`OrganizationProfilePresentationService.get_profile_view()`
+completely unguarded, and direct execution proved this let a DRAFT caregiver acquire a fully
+ACTIVE supplier through ordinary `provider_portal` navigation — a real invariant violation,
+not an approved exception. Fixed by splitting identity resolution
+(`resolve_supplier_for_user()` now raises for non-ACTIVE; a new, non-creating
+`resolve_provider_context_for_user()` serves self-view pages) and applying the same fix to
+the organization side. The idempotent already-ACTIVE activation path was also found not to
+repair a missing/drifted supplier and now does. A third non-ACTIVE creation path
+(`seed_demo_orders.py`'s unfiltered `.first()`) was found and fixed during the required
+call-graph recheck, and a fourth was found by the full regression run itself:
+`seed_product_walkthrough.py`'s independent/organization-affiliated demo caregivers were
+created DRAFT (the earlier "required no change, already compliant" note above was wrong —
+this had never actually been checked end-to-end) with a `ServiceSupplier` created for them
+regardless; fixed by passing `status=ProfileStatus.ACTIVE` explicitly to
+`ensure_caregiver_profile()` for both, mirroring the explicit-ACTIVE convention already used
+for `OrganizationProfile` two methods above. See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-029's remediation addendum for the full
+caller matrix and evidence. Full regression: 2284 -> 2321/2321 green, 0 failures, 0 errors.
 **Affected modules:** accounts (`supplier_bridge.py`, `profile_activation_service.py`,
-`caregiver_profile_service.py`, `organization_profile_service.py`, two seed commands, one new
-management command), kernel (`supplier_registry.py`, `models/supplier.py`, two new
-migrations), organization_portal (`views.py`, `services/profile_service.py`).
+`caregiver_profile_service.py`, `organization_profile_service.py`, `provider_identity.py`,
+three seed commands, one new management command), kernel (`supplier_registry.py`,
+`models/supplier.py`, `tests/test_architecture_guardrails.py`, two new migrations),
+provider_portal (`views.py`, `services/profile_service.py`), organization_portal (`views.py`,
+`services/profile_service.py`).
 **Explicitly not in scope (per the approved architecture):** INV-11a (`AssignmentService`),
 INV-11b (organization-suspension visibility), any BG-019 suspend/reactivate/archive
 lifecycle service, and the demo-preview route namespace explored during the same
 investigation (a separate future implementation, not started here).
-**Status update (2026-07-18):** Implementation complete on branch
-`fix/profile-supplier-invariant`. **PR not yet opened as of this entry — not merged.**
+**Status update (2026-07-18):** Implementation complete, including the independent
+pre-merge review remediation, on branch `fix/profile-supplier-invariant`. **PR #18 open,
+updated — not merged.**
 
 ### BG-031: Company Public Directory and Discovery — **RESOLVED**
 

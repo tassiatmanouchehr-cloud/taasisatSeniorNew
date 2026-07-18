@@ -19,11 +19,16 @@ failure on one profile never rolls back an earlier repair):
     itself ACTIVE                                        -> reconciled
   - ACTIVE profile whose supplier already matches         -> already_correct
 
-`supplier_type` reconciliation (e.g. INDEPENDENT_PROVIDER vs
+`supplier_type` *repair* (e.g. INDEPENDENT_PROVIDER vs
 ORGANIZATION_PROVIDER for an organization-affiliated caregiver) is a
 separate, already-existing concern —
 `apps.accounts.management.commands.reconcile_organization_provider_suppliers`
-— and out of scope here.
+owns fixing it — and this command never writes `supplier_type`. It does,
+however, still *detect and report* a supplier_type mismatch (independent
+pre-merge review of PR #18, Required Fix 7: an operator running only this
+command must not be left with zero visibility into type drift) under
+"invalid", with an explicit message naming
+`reconcile_organization_provider_suppliers` as the command that repairs it.
 
 Detected and reported only — never auto-repaired, because no
 unambiguous, repository-backed survivor/cleanup rule exists for these
@@ -52,20 +57,29 @@ from django.db import transaction
 
 
 class Command(BaseCommand):
-    help = "Reconcile the ACTIVE-profile <-> ACTIVE-ServiceSupplier invariant (idempotent, dry-run capable)."
+    help = (
+        "Reconcile the ACTIVE-profile <-> ACTIVE-ServiceSupplier invariant (idempotent, dry-run capable). "
+        "Detects (never repairs) supplier_type mismatches too — reconciled by "
+        "'manage.py reconcile_organization_provider_suppliers'."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument("--dry-run", action="store_true", help="Report what would happen, write nothing.")
 
     def handle(self, *args, **options):
-        from apps.accounts.models.profiles import CaregiverProfile, OrganizationProfile, ProfileStatus
+        from apps.accounts.models.profiles import (
+            CaregiverProfile,
+            CaregiverProviderType,
+            OrganizationProfile,
+            ProfileStatus,
+        )
         from apps.accounts.services.profile_activation_service import ProfileActivationService
         from apps.accounts.services.supplier_bridge import (
             CAREGIVER_LINKED_TYPE,
             ORGANIZATION_LINKED_TYPE,
             sync_supplier_for_profile_activation,
         )
-        from apps.kernel.models.supplier import ServiceSupplier, SupplierStatus
+        from apps.kernel.models.supplier import ServiceSupplier, SupplierStatus, SupplierType
         from apps.kernel.services.supplier_registry import SupplierRegistry
 
         dry_run = options["dry_run"]
@@ -79,6 +93,26 @@ class Command(BaseCommand):
 
         def _linked_type_for(profile) -> str:
             return CAREGIVER_LINKED_TYPE if isinstance(profile, CaregiverProfile) else ORGANIZATION_LINKED_TYPE
+
+        def _expected_supplier_type_for(profile) -> str:
+            if isinstance(profile, CaregiverProfile):
+                if profile.provider_type == CaregiverProviderType.ORGANIZATION_AFFILIATED:
+                    return SupplierType.ORGANIZATION_PROVIDER
+                return SupplierType.INDEPENDENT_PROVIDER
+            return SupplierType.ORGANIZATION
+
+        def _report_type_mismatch_if_any(*, profile, linked_type, supplier) -> None:
+            """Detection only — supplier_type repair is owned by
+            reconcile_organization_provider_suppliers, never written here."""
+            expected = _expected_supplier_type_for(profile)
+            if supplier.supplier_type == expected:
+                return
+            counts["invalid"] += 1
+            invalid_details.append(
+                f"SUPPLIER_TYPE MISMATCH: supplier {supplier.id} ({linked_type} {profile.id}) has "
+                f"supplier_type={supplier.supplier_type}, expected {expected} — not repaired by this command; "
+                f"run 'manage.py reconcile_organization_provider_suppliers' to reconcile supplier_type.",
+            )
 
         def _process_active_profile(profile):
             linked_type = _linked_type_for(profile)
@@ -108,6 +142,8 @@ class Command(BaseCommand):
                     f"!= {linked_type} {profile.id} tenant={profile_tenant_id} — skipped, not auto-repaired.",
                 )
                 return
+
+            _report_type_mismatch_if_any(profile=profile, linked_type=linked_type, supplier=supplier)
 
             if supplier.status == SupplierStatus.ACTIVE:
                 counts["already_correct"] += 1

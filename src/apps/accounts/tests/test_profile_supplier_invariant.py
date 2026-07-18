@@ -186,6 +186,134 @@ class ActivationSupplierSyncFailureTest(_ActivationFixtureMixin, TestCase):
         self.assertFalse(exists)
 
 
+class IdempotentActivationSupplierRepairTest(_ActivationFixtureMixin, TestCase):
+    """Independent pre-merge review of PR #18 (Required Fix 3): the
+    already-ACTIVE idempotent path in ProfileActivationService must still
+    enforce the Profile-ServiceSupplier invariant — no second status
+    transition, no duplicate activation audit entry, but a missing or
+    drifted supplier for an already-ACTIVE profile IS repaired."""
+
+    def setUp(self):
+        self._build_fixture()
+
+    def _activation_audit_count(self, *, resource_type, resource_id):
+        return AuditLog.objects.filter(
+            tenant_id=self.tenant.id, resource_type=resource_type, resource_id=resource_id,
+            action="accounts.profile.activated",
+        ).count()
+
+    def test_missing_supplier_is_created_for_already_active_caregiver(self):
+        caregiver = self._create_caregiver(tenant=self.tenant, status=ProfileStatus.ACTIVE)
+        self.assertFalse(
+            ServiceSupplier.objects.filter(
+                linked_entity_id=caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+            ).exists(),
+        )
+
+        result = ProfileActivationService.activate_caregiver(
+            caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer,
+        )
+
+        self.assertFalse(result.transitioned)
+        supplier = ServiceSupplier.objects.get(
+            linked_entity_id=caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+        )
+        self.assertEqual(supplier.status, SupplierStatus.ACTIVE)
+        self.assertEqual(self._activation_audit_count(resource_type="CaregiverProfile", resource_id=caregiver.id), 0)
+
+    def test_drifted_supplier_is_reconciled_for_already_active_caregiver(self):
+        caregiver = self._create_caregiver(tenant=self.tenant, status=ProfileStatus.ACTIVE)
+        supplier = SupplierRegistry.get_or_create_supplier(
+            tenant_id=self.tenant.id, linked_entity_id=caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER, display_name=caregiver.display_name,
+            status=SupplierStatus.SUSPENDED,
+        )
+
+        result = ProfileActivationService.activate_caregiver(
+            caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer,
+        )
+
+        self.assertFalse(result.transitioned)
+        supplier.refresh_from_db()
+        self.assertEqual(supplier.status, SupplierStatus.ACTIVE)
+        self.assertEqual(self._activation_audit_count(resource_type="CaregiverProfile", resource_id=caregiver.id), 0)
+
+    def test_missing_supplier_is_created_for_already_active_organization(self):
+        organization = self._create_organization(tenant=self.tenant, status=ProfileStatus.ACTIVE)
+        self.assertFalse(
+            ServiceSupplier.objects.filter(
+                linked_entity_id=organization.id, linked_entity_type=ORGANIZATION_LINKED_TYPE,
+            ).exists(),
+        )
+
+        result = ProfileActivationService.activate_organization(
+            organization.id, tenant_id=self.tenant.id, actor=self.reviewer,
+        )
+
+        self.assertFalse(result.transitioned)
+        supplier = ServiceSupplier.objects.get(
+            linked_entity_id=organization.id, linked_entity_type=ORGANIZATION_LINKED_TYPE,
+        )
+        self.assertEqual(supplier.status, SupplierStatus.ACTIVE)
+        self.assertEqual(
+            self._activation_audit_count(resource_type="OrganizationProfile", resource_id=organization.id), 0,
+        )
+
+    def test_drifted_supplier_is_reconciled_for_already_active_organization(self):
+        organization = self._create_organization(tenant=self.tenant, status=ProfileStatus.ACTIVE)
+        supplier = SupplierRegistry.get_or_create_supplier(
+            tenant_id=self.tenant.id, linked_entity_id=organization.id, linked_entity_type=ORGANIZATION_LINKED_TYPE,
+            supplier_type=SupplierType.ORGANIZATION, display_name=organization.name,
+            status=SupplierStatus.PENDING,
+        )
+
+        result = ProfileActivationService.activate_organization(
+            organization.id, tenant_id=self.tenant.id, actor=self.reviewer,
+        )
+
+        self.assertFalse(result.transitioned)
+        supplier.refresh_from_db()
+        self.assertEqual(supplier.status, SupplierStatus.ACTIVE)
+        self.assertEqual(
+            self._activation_audit_count(resource_type="OrganizationProfile", resource_id=organization.id), 0,
+        )
+
+    def test_already_correct_supplier_is_not_rewritten_on_idempotent_call(self):
+        caregiver = self._create_caregiver(tenant=self.tenant, status=ProfileStatus.ACTIVE)
+        supplier = SupplierRegistry.get_or_create_supplier(
+            tenant_id=self.tenant.id, linked_entity_id=caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER, display_name=caregiver.display_name,
+            status=SupplierStatus.ACTIVE,
+        )
+        version_before = supplier.version
+
+        ProfileActivationService.activate_caregiver(caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer)
+
+        supplier.refresh_from_db()
+        self.assertEqual(supplier.version, version_before)
+
+    def test_sync_failure_on_idempotent_path_rolls_back_and_leaves_no_audit(self):
+        caregiver = self._create_caregiver(tenant=self.tenant, status=ProfileStatus.ACTIVE)
+
+        with patch(
+            "apps.accounts.services.profile_activation_service.sync_supplier_for_profile_activation",
+            side_effect=RuntimeError("simulated supplier sync failure"),
+        ):
+            with self.assertRaises(RuntimeError):
+                ProfileActivationService.activate_caregiver(
+                    caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer,
+                )
+
+        self.assertFalse(
+            ServiceSupplier.objects.filter(
+                linked_entity_id=caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+            ).exists(),
+        )
+        self.assertEqual(self._activation_audit_count(resource_type="CaregiverProfile", resource_id=caregiver.id), 0)
+        caregiver.refresh_from_db()
+        self.assertEqual(caregiver.status, ProfileStatus.ACTIVE, "the profile's own status must be untouched")
+
+
 class ActivationToPublicDirectoryIntegrationTest(_ActivationFixtureMixin, TestCase):
     """The real activation path (not a direct status='active' write) must
     be sufficient, by itself, to make a verified profile appear on the

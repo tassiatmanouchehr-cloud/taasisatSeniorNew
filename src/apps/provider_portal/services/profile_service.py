@@ -97,39 +97,64 @@ class ProviderProfilePresentationService:
 
     @classmethod
     def get_profile_view(cls, *, supplier, caregiver, tenant_id) -> ProviderProfileViewModel:
-        rating = cls._rating_summary(supplier)
-        organization_name = cls._organization_name(caregiver) if cls._is_org_affiliated(supplier) else ""
-        badges = cls._badges(caregiver, is_org_affiliated=cls._is_org_affiliated(supplier))
         documents = cls._document_rows(caregiver)
         completion_percent, missing = cls._completion(caregiver, documents)
         is_activated, eligibility = cls._activation_status(caregiver)
         public_credential_labels = cls._public_credential_labels(caregiver)
 
+        if supplier is None:
+            # Core Profile-ServiceSupplier Invariant Remediation: a
+            # caregiver who has never reached ACTIVE has no ServiceSupplier
+            # to read from — merely viewing this own-profile page must not
+            # incidentally create one. Every supplier-derived field below
+            # takes its not-yet-activated default instead.
+            rating = RatingSummaryViewModel(average=None, review_count=0, stars_rounded=0)
+            is_org_affiliated = False
+            organization_name = ""
+            badges = cls._badges(caregiver, is_org_affiliated=False)
+            supplier_id = ""
+            avatar_status_dot = AVATAR_STATUS_DOTS["offline"]
+            availability_label = AVAILABILITY_LABELS["offline"]
+            completed_jobs = 0
+            service_names: tuple[str, ...] = ()
+            public_preview_url = ""
+        else:
+            rating = cls._rating_summary(supplier)
+            is_org_affiliated = cls._is_org_affiliated(supplier)
+            organization_name = cls._organization_name(caregiver) if is_org_affiliated else ""
+            badges = cls._badges(caregiver, is_org_affiliated=is_org_affiliated)
+            supplier_id = str(supplier.id)
+            avatar_status_dot = AVATAR_STATUS_DOTS.get(supplier.availability_status, "offline")
+            availability_label = AVAILABILITY_LABELS.get(supplier.availability_status, supplier.availability_status)
+            completed_jobs = cls._completed_jobs_count(tenant_id=tenant_id, supplier_id=supplier.id)
+            service_names = cls._service_names(supplier, tenant_id=tenant_id)
+            public_preview_url = f"/find-a-caregiver/{supplier.id}/"
+
         return ProviderProfileViewModel(
-            supplier_id=str(supplier.id),
+            supplier_id=supplier_id,
             display_name=caregiver.display_name,
             avatar_url=caregiver.avatar.url if caregiver.avatar else "",
             cover_url=caregiver.cover_image.url if caregiver.cover_image else "",
-            avatar_status_dot=AVATAR_STATUS_DOTS.get(supplier.availability_status, "offline"),
+            avatar_status_dot=avatar_status_dot,
             city=caregiver.city,
             specialty=caregiver.specialty,
             bio=caregiver.bio,
             years_experience=caregiver.years_experience,
             service_radius_km=caregiver.service_radius_km,
-            is_organization_affiliated=cls._is_org_affiliated(supplier),
+            is_organization_affiliated=is_org_affiliated,
             organization_name=organization_name,
-            availability_label=AVAILABILITY_LABELS.get(supplier.availability_status, supplier.availability_status),
+            availability_label=availability_label,
             verification_status=caregiver.verification_status,
             is_verified=caregiver.verification_status == "verified",
             rating=rating,
-            completed_jobs=cls._completed_jobs_count(tenant_id=tenant_id, supplier_id=supplier.id),
-            service_names=cls._service_names(supplier, tenant_id=tenant_id),
+            completed_jobs=completed_jobs,
+            service_names=service_names,
             badges=badges,
             documents=documents,
             summary_items=cls._summary_items(caregiver),
             completion_percent=completion_percent,
             completion_missing_labels=missing,
-            public_preview_url=f"/find-a-caregiver/{supplier.id}/",
+            public_preview_url=public_preview_url,
             is_activated=is_activated,
             activation_eligible=eligibility.eligible,
             activation_blocking_reasons=eligibility.reasons,
@@ -193,8 +218,12 @@ class ProviderProfilePresentationService:
 
     @classmethod
     def get_professional_info_form(cls, *, caregiver, supplier, tenant_id) -> ProviderProfessionalInfoFormViewModel:
+        # Core Profile-ServiceSupplier Invariant Remediation: a caregiver
+        # who has never reached ACTIVE has no ServiceSupplier to read
+        # from — merely visiting this edit page must not incidentally
+        # create one. Its selection is simply empty until activation.
+        selected_ids: set[str] = set() if supplier is None else {str(cid) for cid in (supplier.service_categories or [])}
         categories = CatalogQueryService.list_active_categories(tenant_id=tenant_id).order_by("sort_order", "name")
-        selected_ids = {str(cid) for cid in (supplier.service_categories or [])}
         options = tuple(
             ServiceCategoryOptionViewModel(value=str(cat.id), label=cat.name, selected=str(cat.id) in selected_ids)
             for cat in categories

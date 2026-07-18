@@ -59,12 +59,29 @@ class OrganizationProfilePresentationService:
 
     @classmethod
     def get_profile_view(cls, *, organization, tenant_id) -> OrganizationProfileViewModel:
-        supplier = get_or_create_supplier_for_organization(organization, tenant_id=tenant_id)
-        rating = cls._rating_summary(supplier)
+        from apps.accounts.services.profile_activation_service import ProfileActivationService
+
         documents = cls._document_rows(organization)
         active_provider_count = OrganizationStaffService.list_active_caregivers(organization).count()
         completion_percent, missing = cls._completion(organization, documents)
         is_activated, eligibility = cls._activation_status(organization)
+
+        if ProfileActivationService.is_activated(organization):
+            # Resolved/repaired through the sanctioned bridge only for an
+            # already-ACTIVE organization — see the else branch below for
+            # why a non-ACTIVE one must never reach this call.
+            supplier = get_or_create_supplier_for_organization(organization, tenant_id=tenant_id)
+            rating = cls._rating_summary(supplier)
+            service_names = cls._service_names(supplier, tenant_id=tenant_id)
+            public_preview_url = f"/find-an-organization/{supplier.id}/"
+        else:
+            # Core Profile-ServiceSupplier Invariant Remediation: an
+            # organization that has never reached ACTIVE has no
+            # ServiceSupplier to read from — merely viewing this own
+            # profile page must not incidentally create one.
+            rating = RatingSummaryViewModel(average=None, review_count=0)
+            service_names: tuple[str, ...] = ()
+            public_preview_url = ""
 
         return OrganizationProfileViewModel(
             organization_id=str(organization.id),
@@ -80,7 +97,7 @@ class OrganizationProfilePresentationService:
             is_verified=organization.verification_status == "verified",
             active_provider_count=active_provider_count,
             rating=rating,
-            service_names=cls._service_names(supplier, tenant_id=tenant_id),
+            service_names=service_names,
             badges=(
                 BadgeViewModel(
                     label=VERIFICATION_LABELS.get(organization.verification_status, organization.verification_status),
@@ -91,7 +108,7 @@ class OrganizationProfilePresentationService:
             summary_items=cls._summary_items(organization, active_provider_count),
             completion_percent=completion_percent,
             completion_missing_labels=missing,
-            public_preview_url=f"/find-an-organization/{supplier.id}/",
+            public_preview_url=public_preview_url,
             is_activated=is_activated,
             activation_eligible=eligibility.eligible,
             activation_blocking_reasons=eligibility.reasons,

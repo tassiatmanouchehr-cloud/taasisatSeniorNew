@@ -1,17 +1,30 @@
 """
 Architecture guardrails — Module 18 (Architecture Consolidation).
 
-Lightweight, source-inspection-based checks (no AST, no import-time
-side effects) enforcing the rules documented under docs/architecture/.
-Deliberately conservative — broad allowlists, simple substring/regex
-matching — to avoid false positives per the Module 18 brief. These are
-structural checks, not a replacement for code review.
+Lightweight, source-inspection-based checks (no import-time side
+effects) enforcing the rules documented under docs/architecture/.
+Deliberately conservative — broad allowlists — to avoid false
+positives per the Module 18 brief. These are structural checks, not a
+replacement for code review.
 
 Mirrors the existing structural-test precedent in this file's sibling
 test_rbac_structural.py (Module 08), which already imports across
 several apps to verify a cross-cutting architectural property.
+
+Most checks here are simple substring/regex matching (no AST), per the
+Module 18 brief. `ProfileStatusTransitionSoleWriterTest` is a deliberate
+exception (independent pre-merge review of PR #18, Required Fix 6): a
+plain regex on `.status = ProfileStatus.X` cannot see a status write
+passed as a keyword argument (`.create(status=...)`, `.update(status=...)`,
+`.update_or_create(defaults={"status": ...})`), so that one guardrail
+walks the AST instead — mirroring the AST-based import-detection already
+used by apps.kernel.tests.test_supplier_registry
+._module_imports_accounts()/apps.accounts.tests.test_supplier_bridge's
+own copy of it, so AST-based structural inspection is not a new pattern
+in this codebase, only new to this file.
 """
 
+import ast
 import re
 from pathlib import Path
 
@@ -363,34 +376,124 @@ class OrderOrganizationEligibilitySoleWriterTest(SimpleTestCase):
         )
 
 
+# CaregiverProfile/OrganizationProfile ACTIVE/SUSPENDED/ARCHIVED are the
+# lifecycle-significant transitions ProfileActivationService (and,
+# eventually, its future BG-019 siblings) must exclusively own. DRAFT is
+# deliberately excluded: RegistrationService/ensure_caregiver_profile()
+# legitimately create DRAFT profiles directly, and that must stay a
+# non-event for this guardrail rather than requiring a blanket file
+# allowlist that could just as easily hide an unauthorized ACTIVE write.
+_GUARDED_PROFILE_STATUS_VALUES = {"ACTIVE", "SUSPENDED", "ARCHIVED"}
+_PROFILE_STATUS_WRITE_METHODS = {"create", "update", "update_or_create", "get_or_create", "bulk_create", "bulk_update"}
+
+
+def _is_profile_status_value(node: ast.AST) -> bool:
+    """True for an AST node shaped like `ProfileStatus.ACTIVE` (or any of
+    its other guarded sibling values)."""
+    return (
+        isinstance(node, ast.Attribute)
+        and node.attr in _GUARDED_PROFILE_STATUS_VALUES
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "ProfileStatus"
+    )
+
+
+def _find_profile_status_writes(source: str) -> list[int]:
+    """Line numbers of every AST-detected `status` write to a guarded
+    ProfileStatus value: a direct attribute assignment
+    (`x.status = ProfileStatus.ACTIVE`), a `status=` keyword argument to
+    `.create()`/`.update()`/`.get_or_create()`/`.bulk_create()`/
+    `.bulk_update()`, or a `"status"` key inside a `defaults={...}` dict
+    literal passed to `.update_or_create()`/`.get_or_create()` — every
+    shape that could set `CaregiverProfile`/`OrganizationProfile.status`
+    to ACTIVE/SUSPENDED/ARCHIVED without going through
+    ProfileActivationService. Returns [] on a syntax error (never crashes
+    the suite on an unparseable file — that is a different problem)."""
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return []
+
+    offenders = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if (
+                    isinstance(target, ast.Attribute)
+                    and target.attr == "status"
+                    and _is_profile_status_value(node.value)
+                ):
+                    offenders.append(node.lineno)
+        elif isinstance(node, ast.Call):
+            func = node.func
+            method_name = func.attr if isinstance(func, ast.Attribute) else None
+            if method_name not in _PROFILE_STATUS_WRITE_METHODS:
+                continue
+            for kw in node.keywords:
+                if kw.arg == "status" and _is_profile_status_value(kw.value):
+                    offenders.append(node.lineno)
+                elif kw.arg == "defaults" and isinstance(kw.value, ast.Dict):
+                    for key, value in zip(kw.value.keys, kw.value.values):
+                        if (
+                            isinstance(key, ast.Constant)
+                            and key.value == "status"
+                            and _is_profile_status_value(value)
+                        ):
+                            offenders.append(node.lineno)
+    return offenders
+
+
 class ProfileStatusTransitionSoleWriterTest(SimpleTestCase):
     """
     Core Profile-ServiceSupplier Invariant Remediation, approved decision 1:
     ProfileActivationService remains the sole owner of the
-    CaregiverProfile/OrganizationProfile DRAFT -> ACTIVE transition.
-    Modeled structurally on OrderOrganizationEligibilitySoleWriterTest.
+    CaregiverProfile/OrganizationProfile DRAFT -> ACTIVE transition (and,
+    symmetrically, the only place ACTIVE/SUSPENDED/ARCHIVED may be
+    written at all — see `_GUARDED_PROFILE_STATUS_VALUES`). Modeled
+    structurally on OrderOrganizationEligibilitySoleWriterTest; strengthened
+    (independent pre-merge review of PR #18, Required Fix 6) from a plain
+    `.status = ProfileStatus.X` regex — which could not see a status
+    write passed as a keyword argument — to the AST walk in
+    `_find_profile_status_writes()`.
 
     ProfileStatus is also used (independently, out of scope for this
-    remediation) by CustomerProfile/ElderProfile/TrustedContact — a plain
-    `.status = ProfileStatus.X` pattern can't distinguish which model a
-    given assignment targets from source text alone. Rather than a
-    fragile heuristic, this test's allowlist explicitly names every
-    current real production match for the pattern repository-wide
-    (confirmed by direct search at the time this guardrail was written) —
-    `profile_activation_service.py` is the one sanctioned CaregiverProfile/
-    OrganizationProfile writer; `care_recipients.py` writes an unrelated
-    ElderProfile's own `status` field, sharing only the enum, not the model.
-    Any new match anywhere else in the repository fails this test.
+    remediation) by CustomerProfile/ElderProfile/TrustedContact — an AST
+    walk still can't distinguish which *model* a given `.status = ` or
+    `status=` write targets from source alone. Rather than a fragile
+    heuristic, this test's allowlist explicitly names every current real
+    production match repository-wide (confirmed by direct search at the
+    time this guardrail was written) — `profile_activation_service.py` is
+    the one sanctioned CaregiverProfile/OrganizationProfile writer;
+    `care_recipients.py` writes an unrelated ElderProfile's own `status`
+    field, sharing only the enum, not the model. Any new match anywhere
+    else in the repository fails this test.
+
+    `seed_product_walkthrough.py` was added to the allowlist when this
+    guardrail was strengthened to AST (independent pre-merge review of
+    PR #18, Required Fix 6) — the old regex never saw its
+    `OrganizationProfile.objects.get_or_create(..., defaults={"status":
+    ProfileStatus.ACTIVE, ...})` because the key/value pair sits inside a
+    multi-line dict literal, not a `status=` keyword on one line. This is
+    not a newly-introduced violation: the command already, unconditionally,
+    calls `get_or_create_supplier_for_organization()` right after this
+    creation regardless of whether the row was just created (verified by
+    direct inspection) — the ACTIVE-profile/ACTIVE-supplier invariant
+    already holds for this seed command's output, it just establishes
+    ACTIVE directly (a deliberate, already-reviewed demo-data shortcut,
+    the same pattern `seed_demo_accounts.py`/`seed_demo_people.py` use via
+    the model's own default rather than an explicit keyword) instead of
+    through a real reviewer-driven activation workflow, which a demo/
+    walkthrough dataset has no use for.
     """
 
     ALLOWED_DIR_PARTS = ("tests", "migrations")
     ALLOWED_FILES = {
         APPS_DIR / "accounts" / "services" / "profile_activation_service.py",
         APPS_DIR / "accounts" / "services" / "care_recipients.py",
+        APPS_DIR / "kernel" / "management" / "commands" / "seed_product_walkthrough.py",
     }
 
     def test_no_writes_outside_the_activation_service(self):
-        pattern = re.compile(r"\.status\s*=\s*ProfileStatus\.")
         offenders = []
 
         for path in _python_files(under=APPS_DIR):
@@ -399,15 +502,62 @@ class ProfileStatusTransitionSoleWriterTest(SimpleTestCase):
                 continue
             if path in self.ALLOWED_FILES:
                 continue
-            if pattern.search(_read(path)):
+            if _find_profile_status_writes(_read(path)):
                 offenders.append(str(path.relative_to(APPS_DIR)))
 
         self.assertEqual(
             offenders,
             [],
-            "CaregiverProfile/OrganizationProfile.status must only transition through "
-            f"ProfileActivationService — found direct writes in: {offenders}",
+            "CaregiverProfile/OrganizationProfile.status (ACTIVE/SUSPENDED/ARCHIVED) must only be "
+            f"written by ProfileActivationService — found writes in: {offenders}",
         )
+
+
+class ProfileStatusGuardrailDetectorSelfTest(SimpleTestCase):
+    """Proves `_find_profile_status_writes()` actually catches the shapes
+    ProfileStatusTransitionSoleWriterTest is supposed to guard against —
+    the exact three patterns the independent pre-merge review of PR #18
+    named (direct assignment, `.create(status=ACTIVE)`,
+    `.update(status=ACTIVE)`), plus `update_or_create(defaults={...})`,
+    and proves it correctly leaves legitimate DRAFT writes and unrelated
+    calls alone (so this guardrail's allowlist stays minimal, not a
+    blanket exemption for every ORM write)."""
+
+    def test_detects_direct_attribute_assignment(self):
+        source = "profile.status = ProfileStatus.ACTIVE\n"
+        self.assertEqual(_find_profile_status_writes(source), [1])
+
+    def test_detects_create_with_status_keyword(self):
+        source = "CaregiverProfile.objects.create(status=ProfileStatus.ACTIVE, phone=phone)\n"
+        self.assertEqual(_find_profile_status_writes(source), [1])
+
+    def test_detects_queryset_update_with_status_keyword(self):
+        source = "CaregiverProfile.objects.filter(id=x).update(status=ProfileStatus.ACTIVE)\n"
+        self.assertEqual(_find_profile_status_writes(source), [1])
+
+    def test_detects_update_or_create_defaults_dict(self):
+        source = (
+            "OrganizationProfile.objects.update_or_create(\n"
+            "    code=code, defaults={'status': ProfileStatus.ACTIVE}\n"
+            ")\n"
+        )
+        self.assertEqual(_find_profile_status_writes(source), [1])
+
+    def test_detects_suspended_and_archived_too(self):
+        source = "profile.status = ProfileStatus.SUSPENDED\nprofile.status = ProfileStatus.ARCHIVED\n"
+        self.assertEqual(_find_profile_status_writes(source), [1, 2])
+
+    def test_does_not_flag_draft_writes(self):
+        source = "CaregiverProfile.objects.create(status=ProfileStatus.DRAFT)\n"
+        self.assertEqual(_find_profile_status_writes(source), [])
+
+    def test_does_not_flag_unrelated_status_reads_or_comparisons(self):
+        source = "if profile.status == ProfileStatus.ACTIVE:\n    pass\n"
+        self.assertEqual(_find_profile_status_writes(source), [])
+
+    def test_does_not_flag_unrelated_create_calls(self):
+        source = "Order.objects.create(status=OrderStatus.ACTIVE)\n"
+        self.assertEqual(_find_profile_status_writes(source), [])
 
 
 class ServiceSupplierSoleWriterTest(SimpleTestCase):

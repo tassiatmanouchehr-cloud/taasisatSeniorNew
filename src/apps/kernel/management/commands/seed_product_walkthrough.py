@@ -637,6 +637,15 @@ class Command(BaseCommand):
                 years_experience=6,
                 service_radius_km=15,
                 verification_status="verified",
+                # Core Profile-ServiceSupplier Invariant Remediation: this
+                # deterministic demo provider gets a ServiceSupplier a few
+                # lines below (walkthrough needs a bookable supplier for
+                # the assignment/availability sections), so its profile
+                # must be ACTIVE too — exactly the same explicit-ACTIVE
+                # seed convention `_ensure_organizations()` already uses
+                # above, never a bypass of the real activation *decision*,
+                # just deterministic demo fixture data.
+                status=ProfileStatus.ACTIVE,
             )
             supplier = get_or_create_supplier_for_caregiver(profile, tenant_id=tenant.id)
             self._ensure_supplier_financials(supplier)
@@ -783,6 +792,14 @@ class Command(BaseCommand):
                     bio=f"{spec['name']} عضو تیم مراقبتی {org.name} است.",
                     years_experience=4,
                     verification_status="verified",
+                    # Core Profile-ServiceSupplier Invariant Remediation:
+                    # this deterministic demo caregiver gets a
+                    # ServiceSupplier a few lines below, so its own profile
+                    # must be ACTIVE too — the "suspended example" below is
+                    # an OrganizationMembership suspension only (per the
+                    # approved architecture note above it), never a
+                    # CaregiverProfile status change.
+                    status=ProfileStatus.ACTIVE,
                 )
 
                 # Last affiliated caregiver of the first organization is

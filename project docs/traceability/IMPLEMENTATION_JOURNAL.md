@@ -3621,3 +3621,108 @@ branch/PR), `seed_product_walkthrough.py`'s dedicated tenant and `--reset-demo` 
 **Next governance action:** architectural review and merge of this remediation, after which
 the standing next task remains a dedicated, code-free Phase 5 — Marketplace Order Workflow
 Architecture Assessment (unchanged from ADM-028) — not implementation.
+
+---
+
+## Independent Pre-Merge Review Remediation for PR #18 (2026-07-18)
+
+**Trigger:** an independent, adversarial pre-merge review of PR #18 returned `CHANGES
+REQUIRED`, identifying two blocking/high-priority findings and requiring a full call-graph
+recheck before re-review. This entry records the remediation performed on the same branch.
+
+**Verified before writing any fix:** both findings were reproduced by direct execution, not
+accepted on the review's word alone.
+- `resolve_supplier_for_user()` on a fresh DRAFT `CaregiverProfile` created a `ServiceSupplier`
+  with `status="active"` — confirmed by a standalone script constructing the exact scenario
+  and printing the resulting row.
+- `activate_caregiver()` called on an already-ACTIVE profile with no supplier returned
+  `transitioned=False` with the supplier still absent afterward — confirmed the same way.
+
+**Fixes applied, each re-verified after implementation:**
+1. `apps/accounts/services/provider_identity.py`: `resolve_supplier_for_user()` now raises
+   `AccountsError` for a non-ACTIVE profile; new `resolve_provider_context_for_user()` +
+   `ProviderIdentityContext` dataclass never creates a supplier for a non-ACTIVE profile.
+2. `apps/provider_portal/views.py`: `_guard_with_caregiver()` rewritten to resolve identity
+   through the new context function instead of building on `_guard()` (which now correctly
+   requires ACTIVE). `dashboard_view` renders a pending-activation state directly (200) when
+   `supplier is None`, instead of redirecting elsewhere — an initial redirect-based version
+   broke `test_verify_redirect.py`'s pre-existing login-redirect tests (a DRAFT provider must
+   land on `/provider/` itself, rendered, not be bounced again), caught by the full
+   regression run and corrected; see point 9 below. `profile_gallery_view`'s public-preview
+   link is empty instead of crashing on `None`.
+3. `apps/provider_portal/services/profile_service.py`: `get_profile_view()` and
+   `get_professional_info_form()` reworked to produce a complete not-yet-activated
+   `ViewModel` (zero rating, empty service names, generic offline availability label, no
+   public preview URL) instead of dereferencing a `None` supplier.
+4. `apps/organization_portal/services/profile_service.py`: `get_profile_view()` now only
+   resolves/repairs a supplier for an actually-ACTIVE organization (via
+   `ProfileActivationService.is_activated()`), with the same zero-value fallback shape.
+5. `apps/accounts/services/profile_activation_service.py`: the idempotent already-ACTIVE
+   branch of `_activate()` now also calls `sync_supplier_for_profile_activation()` before
+   returning — no second status write, no duplicate audit entry, but a missing/drifted
+   supplier for an already-ACTIVE profile is now repaired by the same call that would have
+   activated it.
+6. `apps/kernel/tests/test_architecture_guardrails.py`: `ProfileStatusTransitionSoleWriterTest`
+   rewritten from a regex to an AST walk (`_find_profile_status_writes()`), scoped to
+   ACTIVE/SUSPENDED/ARCHIVED only (DRAFT deliberately excluded, so `RegistrationService`
+   needs no allowlist entry). This immediately caught a real, previously-invisible match in
+   `seed_product_walkthrough.py` (`get_or_create(..., defaults={"status":
+   ProfileStatus.ACTIVE, ...})`, inside a multi-line dict the old regex could not see) —
+   verified not a regression (its supplier sync was already unconditional and correct) and
+   allowlisted with that rationale, documented inline.
+7. `apps/accounts/management/commands/reconcile_profile_supplier_invariant.py`: now detects
+   (never repairs) `supplier_type` mismatches, naming
+   `reconcile_organization_provider_suppliers` as the command that repairs them.
+8. `apps/orders/management/commands/seed_demo_orders.py`: a third non-ACTIVE creation path
+   found during the required call-graph recheck (not part of the original review) —
+   `CaregiverProfile.objects.first()` had no status filter or guaranteed ordering, and could
+   non-deterministically hand a DRAFT caregiver to `get_or_create_supplier_for_caregiver()`
+   on a database also seeded via `seed_demo_accounts`. Filtered to `status=ProfileStatus.ACTIVE`.
+9. `apps/kernel/management/commands/seed_product_walkthrough.py`: a fourth non-ACTIVE
+   creation path, found by the full regression run itself (13 `test_seed_product_walkthrough`
+   errors) rather than by the call-graph recheck. `_ensure_independent_providers()`/
+   `_ensure_affiliated_providers()` created their demo caregivers DRAFT (no `status=`
+   override to `ensure_caregiver_profile()`) and then unconditionally created a
+   `ServiceSupplier` for them — invisible before this remediation because nothing downstream
+   re-checked `caregiver.status`, until `resolve_supplier_for_user()`'s stricter guard (fix 1
+   above) made `_ensure_assignments()`'s `OrganizationAssignmentService.assign_manual()` ->
+   `resolve_staff_supplier()` call correctly reject the still-DRAFT affiliated organizer.
+   Fixed by passing `status=ProfileStatus.ACTIVE` explicitly to both `ensure_caregiver_profile()`
+   calls, mirroring the same explicit-ACTIVE convention `_ensure_organizations()` already used
+   for `OrganizationProfile` — no change to `AssignmentService`/`OrganizationAssignmentService`,
+   and no architecture-guardrail allowlist entry needed (the guardrail's AST walk only matches
+   `.create()`/`.update()`/`.update_or_create()`/`.get_or_create()`/`.bulk_create()`/
+   `.bulk_update()` method calls, not a keyword argument to a plain service function).
+
+**New/extended tests:** `test_inv10_lazy_supplier_creation.py` rewritten with view-level
+`Client()`-based navigation tests for both DRAFT and ACTIVE caregivers/organizations across
+both `_guard()` (supplier-required, must reject) and `_guard_with_caregiver()` (self-view,
+must render without creating) routes; `test_profile_supplier_invariant.py` gained
+`IdempotentActivationSupplierRepairTest` (missing/drifted supplier repair + rollback, both
+profile types); `test_architecture_guardrails.py` gained
+`ProfileStatusGuardrailDetectorSelfTest` (proves the AST detector catches direct assignment,
+`.create(status=...)`, `.update(status=...)`, `update_or_create(defaults={...})`, and
+correctly ignores DRAFT/unrelated writes); `test_reconcile_profile_supplier_invariant.py`
+gained a supplier_type-mismatch-detection test; new `test_seed_command_supplier_sync.py`
+covers double-run stability for `seed_demo_accounts`/`seed_demo_people` and the
+`seed_demo_orders.py` DRAFT-exclusion fix. 37 net new tests across these files.
+
+**Required call-graph recheck:** every production caller of `resolve_supplier_for_user`,
+`resolve_provider_context_for_user`, `get_or_create_supplier_for_caregiver`,
+`get_or_create_supplier_for_organization`, `sync_supplier_for_profile_activation`, and
+`SupplierRegistry.get_or_create_supplier` was traced and classified. Full matrix recorded in
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-029's remediation addendum. Both required
+questions answered with code-and-test evidence: a never-ACTIVE profile can no longer acquire
+a `ServiceSupplier` through any production path (No); an already-ACTIVE profile with a
+missing/drifted supplier is now repairable through the canonical activation/idempotency path
+(Yes).
+
+**Verification:** `git diff --check`, `manage.py check`, `makemigrations --check` (only the
+pre-existing RISK-009 drift, unchanged), `manage.py migrate --check` all clean; full
+regression **2284 -> 2321/2321 PASS**, 0 failures, 0 errors, no warnings. Both adversarial
+Scenario A/B checks re-run standalone (real DB, rolled-back transaction) and passing. Same
+branch `fix/profile-supplier-invariant`, PR #18 updated in place (no second PR opened).
+
+**Next governance action (unchanged):** architectural re-review and merge of PR #18, after
+which the standing next task remains a dedicated, code-free Phase 5 — Marketplace Order
+Workflow Architecture Assessment — not implementation.

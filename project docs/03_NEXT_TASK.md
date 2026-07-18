@@ -910,21 +910,29 @@ strategy before any code was written.
   together (never caught/suppressed).
 - **Phase 3:** new `SupplierRegistry.set_status()`, mirroring `set_supplier_type()`'s
   direct/idempotent shape.
-- **Phase 5 (INV-10, revised during mandatory pre-implementation verification):** the
-  original architecture proposal's literal instruction — raise a structured error for
-  every lazy supplier-bridge call site on a non-ACTIVE profile — was found to conflict
-  with two real, currently-passing tests
+- **Phase 5 (INV-10, revised during mandatory pre-implementation verification, then
+  corrected by an independent pre-merge review):** the original architecture proposal's
+  literal instruction — raise a structured error for every lazy supplier-bridge call site
+  on a non-ACTIVE profile — was found to conflict with two real, currently-passing tests
   (`organization_portal`/`provider_portal .tests.test_activation_presentation
   .OwnerActivationStatusTest.test_owner_sees_not_yet_eligible_before_documents_reviewed`,
-  both requiring a DRAFT owner's own status page to return 200). Revised, evidence-backed
-  design: `CaregiverProfileUpdateService`/`OrganizationProfileUpdateService
-  .update_service_categories()`/the `organization_portal` financial and service-category
-  edit paths now **silently skip** the incidental supplier-sync side effect for a
-  non-ACTIVE profile (the underlying field save/permission check still always succeeds);
-  `resolve_supplier_for_user()` and `OrganizationProfilePresentationService.get_profile_view()`
-  are **deliberately left unguarded** (guarding either breaks the cited real test — see the
-  new `apps.accounts.tests.test_inv10_lazy_supplier_creation` module's own docstring for
-  the full citation).
+  both requiring a DRAFT owner's own status page to return 200). `CaregiverProfileUpdateService`/
+  `OrganizationProfileUpdateService.update_service_categories()`/the `organization_portal`
+  financial and service-category edit paths **silently skip** the incidental supplier-sync
+  side effect for a non-ACTIVE profile (the underlying field save/permission check still
+  always succeeds). The first pass additionally left `resolve_supplier_for_user()` and
+  `OrganizationProfilePresentationService.get_profile_view()` completely unguarded — an
+  independent pre-merge review of PR #18 proved, by direct execution, that this let a DRAFT
+  caregiver acquire a fully **ACTIVE** `ServiceSupplier` through ordinary `provider_portal`
+  navigation (not only the cited status page), a genuine invariant violation, not an
+  approved exception. **Corrected:** identity resolution is now split —
+  `resolve_supplier_for_user()` raises for a non-ACTIVE profile (supplier-required actions);
+  a new, non-creating `resolve_provider_context_for_user()` serves self-view pages, which
+  were reworked to render a not-yet-activated state instead of depending on a real supplier.
+  The organization-side `get_profile_view()` received the same treatment. See
+  `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-029's remediation addendum and the
+  `apps.accounts.tests.test_inv10_lazy_supplier_creation` module's own current docstring for
+  the full record.
 - **Phase 6/7 (data remediation + constraint):** one data migration
   (`kernel/migrations/0012_reconcile_profile_supplier_data.py`, historical-model-only,
   fails loudly rather than guessing on any duplicate/tenant-mismatched row) followed by a
@@ -936,8 +944,13 @@ strategy before any code was written.
 - **Phase 9 (seed contract):** `seed_demo_accounts`/`seed_demo_people` created
   ACTIVE-by-default organizations/caregivers with **zero** `ServiceSupplier` sync — the
   exact bug class under investigation. Both now call the sanctioned bridge right after
-  creation, idempotently. `seed_product_walkthrough.py` was already compliant (unchanged);
-  its dedicated tenant and `--reset-demo` boundary are untouched.
+  creation, idempotently. `seed_product_walkthrough.py` was believed already compliant at
+  the time this line was first written; the independent pre-merge review remediation found
+  that was wrong for its independent/organization-affiliated demo caregivers (they were
+  created DRAFT with a `ServiceSupplier` regardless) and fixed it by passing
+  `status=ProfileStatus.ACTIVE` explicitly to `ensure_caregiver_profile()` for both — see
+  `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-029's remediation addendum, Finding 4. Its
+  dedicated tenant and `--reset-demo` boundary remain untouched.
 - **Explicitly out of scope (per the approved architecture):** INV-11a
   (`AssignmentService`), INV-11b (organization-suspension visibility), BG-019
   (suspend/reactivate/archive lifecycle services), and the demo-preview namespace (a

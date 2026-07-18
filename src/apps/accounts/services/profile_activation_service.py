@@ -162,6 +162,22 @@ class ProfileActivationService:
         previous_status = profile.status
 
         if profile.status == ProfileStatus.ACTIVE:
+            # Core Profile-ServiceSupplier Invariant Remediation
+            # (independent pre-merge review finding): this idempotent
+            # no-transition path must still enforce the invariant — an
+            # already-ACTIVE profile with a missing or drifted supplier
+            # (exactly the historical-drift case this remediation exists
+            # to repair) is reconciled here too, inside this same
+            # transaction, uncaught on failure exactly like the
+            # fresh-transition path below. No second status write and no
+            # duplicate activation audit entry are introduced — the
+            # eligibility re-check is still skipped (an already-active
+            # profile must not be re-blocked by a later-invalidated
+            # eligibility state) and `transitioned` stays False. When the
+            # supplier already exists and is already ACTIVE, this is a
+            # pure read — sync_supplier_for_profile_activation()'s own
+            # idempotent helpers perform no write.
+            sync_supplier_for_profile_activation(profile, tenant_id=tenant_id)
             return ProfileActivationResult(
                 profile=profile, previous_status=previous_status, status=profile.status, transitioned=False,
             )

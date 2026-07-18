@@ -1,12 +1,19 @@
 {% extends "provider_portal/base.html" %}
 
 {% block portal_title %}داشبورد{% endblock %}
-{% block page_title %}سلام، {{ supplier.display_name }}{% endblock %}
+{% block page_title %}سلام، {{ display_name }}{% endblock %}
 {% block page_description %}
 <p class="mt-1 text-sm text-text-muted">خلاصه‌ای از تخصیص‌ها، ویزیت‌ها و امتیاز شما.</p>
 {% endblock %}
 
 {% block portal_content %}
+{% if not supplier %}
+<div class="max-w-2xl mx-auto">
+  {% include "ui/components/portal/activation_status.html" with is_activated=profile.is_activated eligible=profile.activation_eligible blocking_reasons=profile.activation_blocking_reasons profile_status=profile.activation_profile_status %}
+  <p class="mt-4 text-sm text-text-muted">پس از فعال‌سازی پروفایل شما توسط پلتفرم، تخصیص‌ها، ویزیت‌ها و آمار کاری در این صفحه نمایش داده می‌شود.</p>
+  <a href="{% url 'provider_portal:profile' %}" class="mt-4 inline-block text-sm font-medium text-primary hover:underline">مشاهده و تکمیل پروفایل</a>
+</div>
+{% else %}
 <div class="grid gap-4 grid-cols-1 lg:grid-cols-3">
 
   <div class="lg:col-span-2 bg-surface border border-border rounded-lg p-5">
@@ -184,4 +191,5 @@
   </div>
 
 </div>
+{% endif %}
 {% endblock %}

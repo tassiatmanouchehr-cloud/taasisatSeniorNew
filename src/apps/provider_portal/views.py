@@ -87,14 +87,31 @@ def _guard(request):
 
 
 def _guard_with_caregiver(request):
-    """Same as _guard(), plus the caller's own CaregiverProfile — needed
-    by the profile pages, which edit CaregiverProfile fields directly
-    (not reachable through the generic-by-design ServiceSupplier)."""
-    supplier, tenant_id = _guard(request)
-    caregiver = getattr(request.user, "caregiver_profile", None)
-    if caregiver is None:
+    """Resolves the caller's own CaregiverProfile — needed by the
+    self-profile/self-management pages (dashboard, profile, skills,
+    experience, gallery, avatar/cover, documents, company affiliation),
+    which must remain viewable/usable for a DRAFT caregiver (profile
+    completion, itself required for activation eligibility, is edited
+    through exactly these pages).
+
+    Core Profile-ServiceSupplier Invariant Remediation: deliberately does
+    NOT build on _guard() (which now requires a genuinely ACTIVE
+    supplier and rejects otherwise) — resolves identity through
+    resolve_provider_context_for_user() instead, which never creates a
+    ServiceSupplier for a non-ACTIVE profile. `supplier` is None for a
+    DRAFT/SUSPENDED/ARCHIVED caregiver; every caller of this guard must
+    handle that instead of assuming a real ServiceSupplier."""
+    require_authenticated(request)
+    tenant_id = resolve_tenant_id(request)
+
+    from apps.accounts.services.errors import AccountsError
+    from apps.accounts.services.provider_identity import resolve_provider_context_for_user
+
+    try:
+        context = resolve_provider_context_for_user(request.user)
+    except AccountsError:
         raise PermissionDenied("This account has no provider profile.")
-    return supplier, tenant_id, caregiver
+    return context.supplier, tenant_id, context.caregiver
 
 
 # ============================================================
@@ -105,6 +122,22 @@ def _guard_with_caregiver(request):
 @require_http_methods(["GET"])
 def dashboard_view(request):
     supplier, tenant_id, caregiver = _guard_with_caregiver(request)
+    if supplier is None:
+        # Core Profile-ServiceSupplier Invariant Remediation: a caregiver
+        # who has never reached ACTIVE has no assignments/visits/earnings
+        # to show (those all require a real supplier), but the dashboard
+        # is still a page they may land on and view — it renders a
+        # pending-activation state instead of creating/faking a supplier.
+        profile = ProviderProfilePresentationService.get_profile_view(
+            supplier=None, caregiver=caregiver, tenant_id=tenant_id,
+        )
+        context = {
+            "supplier": None,
+            "display_name": caregiver.display_name,
+            "profile": profile,
+            "nav_items": ProviderProfilePresentationService.build_nav_items(active="dashboard"),
+        }
+        return render(request, "provider_portal/dashboard.html", context)
 
     pending_assignments = ProviderAssignmentQueryService.list_for_supplier(
         supplier=supplier,
@@ -137,6 +170,7 @@ def dashboard_view(request):
 
     context = {
         "supplier": supplier,
+        "display_name": caregiver.display_name,
         "pending_assignments": pending_assignments,
         "active_visits": active_visits,
         "completed_visits": completed_visits,
@@ -834,7 +868,10 @@ def profile_gallery_view(request):
             "gallery_items": ProviderProfilePresentationService.get_gallery_view(caregiver),
             "gallery_count": caregiver.gallery_items.count(),
             "gallery_limit": MAX_GALLERY_ITEMS_PER_CAREGIVER,
-            "public_preview_url": f"/find-a-caregiver/{supplier.id}/",
+            # Core Profile-ServiceSupplier Invariant Remediation: no
+            # supplier yet for a non-ACTIVE caregiver — no public preview
+            # exists to link to (they aren't publicly listed either).
+            "public_preview_url": f"/find-a-caregiver/{supplier.id}/" if supplier is not None else "",
             "nav_items": ProviderProfilePresentationService.build_nav_items(active="profile"),
         },
     )

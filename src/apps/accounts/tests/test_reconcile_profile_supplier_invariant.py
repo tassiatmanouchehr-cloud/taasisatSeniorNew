@@ -119,6 +119,33 @@ class ReconcileProfileSupplierInvariantCommandTest(TestCase):
         self.assertEqual(supplier.tenant_id, mismatched_tenant.id, "must not silently rewrite either side")
         self.assertEqual(supplier.status, SupplierStatus.PENDING, "must not repair a tenant-mismatched row")
 
+    def test_supplier_type_mismatch_is_reported_but_not_repaired(self):
+        """Independent pre-merge review of PR #18, Required Fix 7: an
+        operator running only this command must still learn about
+        supplier_type drift, even though repairing it is
+        reconcile_organization_provider_suppliers's job, not this
+        command's."""
+        from apps.accounts.models.profiles import CaregiverProviderType
+
+        caregiver = self._create_caregiver(status=ProfileStatus.ACTIVE)
+        caregiver.provider_type = CaregiverProviderType.ORGANIZATION_AFFILIATED
+        caregiver.save(update_fields=["provider_type"])
+        supplier = SupplierRegistry.get_or_create_supplier(
+            tenant_id=self.tenant.id, linked_entity_id=caregiver.id,
+            linked_entity_type=CAREGIVER_LINKED_TYPE, supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+            display_name=caregiver.display_name, status=SupplierStatus.ACTIVE,
+        )
+
+        output = self._call()
+
+        self.assertIn("SUPPLIER_TYPE MISMATCH", output)
+        self.assertIn("reconcile_organization_provider_suppliers", output)
+        self.assertIn("invalid=", output)
+        supplier.refresh_from_db()
+        self.assertEqual(
+            supplier.supplier_type, SupplierType.INDEPENDENT_PROVIDER, "must not repair supplier_type itself",
+        )
+
     def test_repeated_execution_is_idempotent(self):
         caregiver = self._create_caregiver(status=ProfileStatus.ACTIVE)
         self._call()

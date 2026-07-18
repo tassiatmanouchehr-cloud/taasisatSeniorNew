@@ -2457,3 +2457,190 @@ cosmetic drift, unchanged)/`manage.py migrate`/`git diff --check` all clean.
 (`reconcile_profile_supplier_invariant`), three new test files. Branch
 `fix/profile-supplier-invariant`. **PR not yet opened as of this entry — see the final
 implementation report for the PR link. Not merged, not reviewed.**
+
+---
+
+## ADM-029 Remediation — Independent Pre-Merge Review of PR #18 (2026-07-18)
+
+**Context:** Before merge, PR #18 was reviewed independently and adversarially against the
+approved invariant. Verdict: `CHANGES REQUIRED`. Two blocking/high-priority findings were
+reproduced empirically (not by inference) on the PR branch before any fix was applied, and a
+third was found during this remediation's own required call-graph recheck.
+
+**Finding 1 (BLOCKER) — `resolve_supplier_for_user()` granted an ACTIVE supplier to a DRAFT
+profile.** The original design left `apps.accounts.services.provider_identity
+.resolve_supplier_for_user()` completely unguarded, justified against exactly one test
+(a DRAFT owner's own status page must return 200). Direct execution proved the function is
+reachable from every `provider_portal` view (via `_guard()`, gating dashboard/assignments/
+visits/availability/earnings/notifications/profile/skills/experience/gallery/company —
+literally every view in that app, not only the status page), and that it creates a fully
+**ACTIVE** `ServiceSupplier`, not merely *a* supplier — indistinguishable from a genuinely
+activated one to `apps.matching`/`apps.discovery`, both of which filter on
+`SupplierStatus.ACTIVE` directly. This directly violated INV-A ("a never-activated DRAFT
+profile must not have a ServiceSupplier").
+
+**Fix:** identity resolution is now split into two distinct needs, both in
+`provider_identity.py`:
+- `resolve_supplier_for_user()` — for callers that need a real, working supplier to act on
+  (confirm/decline an assignment, start/complete a visit, read availability/earnings/
+  capacity, and everything `_guard()` gates) — now **raises `AccountsError`** for a
+  non-ACTIVE profile instead of creating one. Not a regression for any existing caller: a
+  genuine `SupplierAssignment`/booking/execution action can only exist for a profile that
+  was already ACTIVE when it was created, and `provider_portal.permissions.resolve_supplier()`
+  already converts `AccountsError` into `PermissionDenied`; `organization_staff.py`'s two
+  callers and `organization_portal.views.capacity_view` already tolerated `AccountsError`
+  (`continue`/skip) before this change.
+- New `resolve_provider_context_for_user()` — for callers that only need to render the
+  caller's own identity (`_guard_with_caregiver()`, gating the self-view/self-management
+  pages) — never creates a supplier for a non-ACTIVE profile; returns `supplier=None`
+  instead. `ProviderProfilePresentationService.get_profile_view()`/
+  `get_professional_info_form()` were reworked to render a complete not-yet-activated state
+  (zero-value rating, no public preview URL, generic offline availability label) instead of
+  depending on a real `ServiceSupplier`; `dashboard_view` renders the same pending-activation
+  state directly (200, no redirect — a login-redirect regression test caught an earlier
+  redirect-based version of this fix, since a DRAFT caregiver must land on `/provider/`
+  itself, not be bounced elsewhere) instead of depending on a real `ServiceSupplier`;
+  `profile_gallery_view`'s public preview link is empty instead of crashing.
+- The organization-side equivalent, `OrganizationProfilePresentationService.get_profile_view()`,
+  received the identical treatment: resolves/repairs a supplier only for an actually-ACTIVE
+  organization, otherwise renders zero-value rating/service-names/no preview URL.
+
+**Finding 2 (HIGH) — the idempotent already-ACTIVE activation path did not repair a missing
+or drifted supplier.** `ProfileActivationService._activate()`'s `if profile.status ==
+ProfileStatus.ACTIVE: return ...` branch returned before ever reaching the supplier-sync
+call, so re-activating an already-ACTIVE profile with a missing/drifted supplier — precisely
+the historical-drift case this whole remediation exists to repair — left it unrepaired;
+only the separate `reconcile_profile_supplier_invariant` command could fix it. Reproduced
+empirically: `activate_caregiver()` on an ACTIVE profile with no supplier returned
+`transitioned=False` with the supplier still absent afterward.
+
+**Fix:** the idempotent branch now also invokes `sync_supplier_for_profile_activation()`,
+inside the same transaction, uncaught on failure exactly like the fresh-transition path.
+No second status write, no duplicate activation audit entry (`transitioned` stays `False`,
+the eligibility re-check remains skipped), and no write at all when the supplier is already
+correct (`SupplierRegistry.set_status()`'s own idempotence).
+
+**Finding 3 (found during the required call-graph recheck, not part of the original
+review) — `seed_demo_orders.py`'s unfiltered `CaregiverProfile.objects.first()`.** No status
+filter and no guaranteed row ordering meant that, on a database also seeded with
+`seed_demo_accounts` (which creates a DRAFT caregiver), this could non-deterministically hand
+a DRAFT caregiver to `get_or_create_supplier_for_caregiver()`, creating an ACTIVE supplier for
+it. Fixed: filtered to `CaregiverProfile.objects.filter(status=ProfileStatus.ACTIVE).first()`
+— an order assignment needs a genuinely active provider anyway.
+
+**Finding 4 (surfaced by the full regression run, not the original review or the
+call-graph recheck) — `seed_product_walkthrough.py`'s independent and organization-affiliated
+demo caregivers.** `_ensure_independent_providers()`/`_ensure_affiliated_providers()` called
+`ensure_caregiver_profile()` with no `status=` override (defaulting to DRAFT, per that
+function's own registration-mirroring contract) and then unconditionally called
+`get_or_create_supplier_for_caregiver()` a few lines later — a real instance of the exact
+defect class this whole remediation exists to close: a `ServiceSupplier` row for a profile
+that was never ACTIVE. It stayed invisible before this remediation because nothing downstream
+in the walkthrough ever re-checked `caregiver.status`; it surfaced only once
+`resolve_supplier_for_user()` was tightened (Finding 1's fix), because
+`_ensure_assignments()`'s `OrganizationAssignmentService.assign_manual()` ->
+`OrganizationStaffService.resolve_staff_supplier()` path resolves the affiliated organizer's
+membership through `resolve_supplier_for_user()`, which correctly began rejecting it —
+13 `test_seed_product_walkthrough` tests failed at `setUpClass`/`setUpTestData` as a result.
+**Fix:** both methods now pass `status=ProfileStatus.ACTIVE` explicitly to
+`ensure_caregiver_profile()`, mirroring the same explicit-ACTIVE seed convention
+`_ensure_organizations()` already used for `OrganizationProfile` two methods above — not a new
+pattern, not a change to `AssignmentService`/`OrganizationAssignmentService`, and not an
+architecture-guardrail exception (the guardrail's AST walk only matches `.create()`/
+`.update()`/`.update_or_create()`/`.get_or_create()`/`.bulk_create()`/`.bulk_update()` method
+calls, not a plain keyword argument to a service function, so no allowlist entry was needed).
+`resolve_staff_supplier()`'s own docstring already correctly documented that it raises for a
+non-ACTIVE membership's provider profile — the seed data was wrong, not the guard.
+
+The same full regression run also caught a second, template-level regression in the dashboard
+fix above: an initial version redirected a non-ACTIVE caregiver from `/provider/` to
+`/provider/profile/`, which broke `test_verify_redirect.py`'s pre-existing
+`AffiliatedProviderLoginRedirectTest`/`IndependentProviderLoginRedirectTest` (both DRAFT by
+construction — `ensure_caregiver_profile()`'s test-fixture usage there intentionally takes no
+`status=` override) — those tests assert that the post-login destination for an independent/
+affiliated provider is `/provider/` itself, rendered (200), not a second redirect. Fixed by
+rendering the pending-activation state directly on `/provider/` instead of redirecting (see
+Finding 1's fix above).
+
+**Guardrail strengthened (Required Fix 6):** `ProfileStatusTransitionSoleWriterTest`'s regex
+(`\.status\s*=\s*ProfileStatus\.`) could not see a status write passed as a keyword argument.
+Replaced with an AST walk (`_find_profile_status_writes()`, scoped to ACTIVE/SUSPENDED/
+ARCHIVED only — DRAFT writes are deliberately never matched, so `RegistrationService`'s
+legitimate DRAFT creation needs no allowlist entry) that also catches `.create(status=...)`,
+`.update(status=...)`, and `update_or_create(defaults={"status": ...})`. This immediately
+caught one previously-invisible, already-safe production match —
+`seed_product_walkthrough.py`'s `OrganizationProfile.objects.get_or_create(...,
+defaults={"status": ProfileStatus.ACTIVE, ...})` (a multi-line dict literal the old regex
+could not see) — verified not a regression (the command already, unconditionally, calls
+`get_or_create_supplier_for_organization()` right after) and added to the guardrail's
+allowlist with that rationale.
+
+**Reconciliation command (Required Fix 7):** `reconcile_profile_supplier_invariant` now also
+detects (never repairs) `supplier_type` mismatches, reporting them under `invalid` with an
+explicit message naming `reconcile_organization_provider_suppliers` as the command that
+repairs them — an operator running only the new command no longer has zero visibility into
+type drift.
+
+**Seed-command regression coverage (Required Fix 8):** the original `seed_demo_accounts`/
+`seed_demo_people` supplier-sync fix had only been verified once, manually, during
+implementation — no committed test. New `test_seed_command_supplier_sync.py` covers supplier
+creation/status/tenant/type and double-run stability for both commands, plus the
+`seed_demo_orders.py` fix above.
+
+**Required call-graph recheck — full caller matrix:**
+
+| Caller | Required profile state | Can create supplier? | Non-ACTIVE behavior |
+| --- | --- | --- | --- |
+| `provider_portal._guard()` (assignments/visits/availability/earnings/notifications/dashboard data) via `resolve_supplier()`/`resolve_supplier_for_user()` | ACTIVE only | Yes, only if ACTIVE | Raises `AccountsError` -> `PermissionDenied` (403); no creation |
+| `provider_portal._guard_with_caregiver()` (profile/dashboard/skills/experience/gallery/avatar/cover/documents/company) via `resolve_provider_context_for_user()` | Any | Yes, only if ACTIVE | Returns `supplier=None`; page renders |
+| `booking.services.provider_actions` / `execution.services.provider_actions` via `resolve_supplier_for_user()` | ACTIVE only | Yes, only if ACTIVE | Raises `AccountsError`; no creation |
+| `organization_staff.resolve_staff_supplier()` via `resolve_supplier_for_user()`, called by `OrganizationAssignmentService.assign_manual()` | ACTIVE only | Yes, only if ACTIVE | Raises `AccountsError`; **not** tolerated — `assign_manual()` re-raises as `OrganizationAssignmentError` (correct: an order cannot be manually assigned to a non-activated caregiver). Corrected from the original matrix draft, which wrongly assumed this caller tolerated the exception; `seed_product_walkthrough.py`'s demo caregivers were fixed to be ACTIVE (Finding 4) rather than loosening this caller. |
+| `organization_staff.list_active_caregiver_supplier_ids()` via `resolve_supplier_for_user()` (best-effort dashboards/reports) | ACTIVE only | Yes, only if ACTIVE | Raises `AccountsError`; caller explicitly catches and skips (`continue`) — genuinely tolerant, unlike the row above |
+| `organization_portal.views.capacity_view` via `resolve_supplier_for_user()` | ACTIVE only | Yes, only if ACTIVE | Raises `AccountsError`; caught, skipped |
+| `ProfileActivationService._activate()` (fresh + idempotent) via `sync_supplier_for_profile_activation()` | ACTIVE (the profile at this exact point) | Yes | N/A — the sole legitimate creator/reconciler |
+| `CaregiverProfileUpdateService`/`OrganizationProfileUpdateService.update_service_categories` | Gated by `ProfileActivationService.is_activated()` | Yes, only if ACTIVE | Field save/permission check proceeds; sync silently skipped |
+| `organization_portal.views.financial_view` / `profile_service.get_profile_view()`/`get_services_form()` | Gated by `is_activated()` | Yes, only if ACTIVE | Renders empty/zero-value state; no creation |
+| `reconcile_profile_supplier_invariant` command | Queryset filtered to `status=ACTIVE` | Yes | N/A — never iterates non-ACTIVE profiles for creation |
+| `seed_demo_accounts.py` / `seed_demo_people.py` | Rows created ACTIVE by construction (model default) | Yes | N/A — always ACTIVE by construction |
+| `seed_product_walkthrough.py` (`_ensure_organizations`, `_ensure_independent_providers`, `_ensure_affiliated_providers`) | Rows created ACTIVE by construction — explicit `defaults={"status": ACTIVE}` for `OrganizationProfile.objects.get_or_create()`; explicit `status=ProfileStatus.ACTIVE` keyword argument to `ensure_caregiver_profile()` for both caregiver kinds (Finding 4 fix) | Yes | N/A — always ACTIVE by construction |
+| `seed_demo_orders.py` (fixed) | Filtered to `status=ACTIVE` | Yes | `if caregiver:` guard — none found, no creation |
+
+**Required answers, with evidence:**
+- *Can any profile that has never reached ACTIVE still acquire a ServiceSupplier?* **No** —
+  proven by direct execution (`resolve_supplier_for_user()` now raises;
+  `resolve_provider_context_for_user()` returns `supplier=None`; a live `Client()` GET to
+  `/provider/profile/` and `/provider/` for a DRAFT caregiver creates zero `ServiceSupplier`
+  rows) and by the caller matrix above.
+- *Can an already-ACTIVE profile with a missing or drifted supplier be repaired through the
+  canonical activation/idempotency path?* **Yes** — proven by direct execution:
+  `activate_caregiver()`/`activate_organization()` on an ACTIVE profile with no supplier
+  creates one (ACTIVE), and on one with a drifted (`SUSPENDED`/`PENDING`) supplier reconciles
+  it to ACTIVE, in both cases with `transitioned=False` and zero new `AuditLog` rows.
+
+**Tests:** 37 additional (service-layer + view-level DRAFT/ACTIVE navigation tests for both
+portals, idempotent-path repair + rollback tests for both profile types, AST-detector
+self-tests, reconciliation-command type-mismatch test, a new seed-command supplier-sync
+regression module covering `seed_demo_accounts`/`seed_demo_people`/`seed_demo_orders`).
+Full regression re-run after this remediation: **2284 -> 2321/2321 green, 0 failures, 0
+errors, no warnings.** Both adversarial Scenario A/B checks re-run standalone against a real
+(rolled-back) transaction and passing. `python manage.py check`, `makemigrations --check`,
+and `migrate --check` all re-run: no new drift, only the pre-existing documented RISK-009
+cosmetic accounts/kernel field-alteration drift (unrelated model fields, present before this
+branch, `migrate` always reports nothing to apply).
+
+**Consequences:** `apps/accounts/services/provider_identity.py`,
+`apps/provider_portal/permissions.py` (unchanged — `resolve_supplier()` behavior change is
+entirely inside `provider_identity.py`), `apps/provider_portal/views.py`,
+`apps/provider_portal/services/profile_service.py`,
+`apps/organization_portal/services/profile_service.py`,
+`apps/accounts/services/profile_activation_service.py`,
+`apps/kernel/tests/test_architecture_guardrails.py`,
+`apps/accounts/management/commands/reconcile_profile_supplier_invariant.py`,
+`apps/orders/management/commands/seed_demo_orders.py`,
+`apps/kernel/management/commands/seed_product_walkthrough.py` (Finding 4 fix),
+`templates/provider_portal/dashboard.html` modified; one new test file
+(`test_seed_command_supplier_sync.py`); `test_inv10_lazy_supplier_creation.py` and
+`test_profile_supplier_invariant.py` substantially extended;
+`test_inv10_lazy_supplier_creation.py`'s dashboard-redirect test corrected to a
+dashboard-renders-pending-state test to match the corrected (non-redirecting) fix. Same
+branch `fix/profile-supplier-invariant`, PR #18 updated (not a new PR). **Not merged.**
