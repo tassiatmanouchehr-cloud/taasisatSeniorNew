@@ -34,6 +34,15 @@ profile is already `ACTIVE`, `activate_*()` returns immediately with
 must not be re-blocked by, say, a document that expired after it was
 activated — that is the same deferred deactivation concern) and no
 second "effective" `AuditLog` entry.
+
+Core Profile-ServiceSupplier Invariant Remediation: a real DRAFT -> ACTIVE
+transition also synchronously guarantees, in this same transaction, that
+the profile's ServiceSupplier exists and is itself ACTIVE (via
+`supplier_bridge.sync_supplier_for_profile_activation()`) — this is now
+the sole code path that establishes that invariant. `ProfileActivationService`
+remains the sole owner of `DRAFT -> ACTIVE`; it is not a general profile-
+lifecycle facade — suspension/reactivation/archival remain out of scope
+(deferred, see `project docs/quality/COMPLETION_BACKLOG.md` BG-019).
 """
 
 from dataclasses import dataclass
@@ -47,6 +56,7 @@ from apps.kernel.services.permission_service import PermissionService
 from ..models.profiles import CaregiverProfile, OrganizationProfile, ProfileStatus
 from .activation_eligibility_service import ActivationEligibilityResult, ActivationEligibilityService
 from .errors import AccountsError
+from .supplier_bridge import sync_supplier_for_profile_activation
 
 MODULE_ID = "M08"
 ACTIVATION_AUDIT_ACTION = "accounts.profile.activated"
@@ -152,6 +162,22 @@ class ProfileActivationService:
         previous_status = profile.status
 
         if profile.status == ProfileStatus.ACTIVE:
+            # Core Profile-ServiceSupplier Invariant Remediation
+            # (independent pre-merge review finding): this idempotent
+            # no-transition path must still enforce the invariant — an
+            # already-ACTIVE profile with a missing or drifted supplier
+            # (exactly the historical-drift case this remediation exists
+            # to repair) is reconciled here too, inside this same
+            # transaction, uncaught on failure exactly like the
+            # fresh-transition path below. No second status write and no
+            # duplicate activation audit entry are introduced — the
+            # eligibility re-check is still skipped (an already-active
+            # profile must not be re-blocked by a later-invalidated
+            # eligibility state) and `transitioned` stays False. When the
+            # supplier already exists and is already ACTIVE, this is a
+            # pure read — sync_supplier_for_profile_activation()'s own
+            # idempotent helpers perform no write.
+            sync_supplier_for_profile_activation(profile, tenant_id=tenant_id)
             return ProfileActivationResult(
                 profile=profile, previous_status=previous_status, status=profile.status, transitioned=False,
             )
@@ -162,6 +188,15 @@ class ProfileActivationService:
 
         profile.status = ProfileStatus.ACTIVE
         profile.save(update_fields=["status", "updated_at"])
+
+        # Core Profile-ServiceSupplier Invariant Remediation: activation must
+        # synchronously guarantee ServiceSupplier existence + ACTIVE status in
+        # this same transaction. Uncaught on failure by design — the
+        # surrounding @transaction.atomic (activate_caregiver/
+        # activate_organization) then rolls back the profile transition above
+        # together with any partial supplier change and the audit record
+        # below, which is written only after this succeeds.
+        sync_supplier_for_profile_activation(profile, tenant_id=tenant_id)
 
         AuditService.log(
             tenant_id=tenant_id,

@@ -1,7 +1,7 @@
 # CURRENT GAPS AND COMPLETION BACKLOG
 
-**Last verified HEAD:** main @ 756c14dc25d9446eff73b209bfd85b3e0f4c6648 (post-merge documentation synchronization following PR #16)
-**Last verified date:** 2026-07-17 (Phase 4 Closure Review, documentation-only; Sprint 4.1 canonically complete; **Phase 4 — Customer Portal FORMALLY CLOSED**; BG-032 RESOLVED)
+**Last verified HEAD:** main @ 5d77de61181d643930ccb93b77d6a4b3bdcb8499 (PR #17 merge — Phase 4 canonical closure documentation). **Branch `fix/profile-supplier-invariant` (not yet merged) implements BG-033 — see below, including its independent-pre-merge-review remediation.**
+**Last verified date:** 2026-07-18 (Core Profile-ServiceSupplier Invariant Remediation + independent pre-merge review remediation, PR #18 open, not merged; Phase 4 — Customer Portal remains FORMALLY CLOSED; BG-032 RESOLVED; BG-033 IMPLEMENTED, PR #18 open)
 
 ---
 
@@ -479,6 +479,70 @@ supplier-side favorites analytics, broad public-site authentication redesign, br
 Discovery refactoring.
 **Status update (2026-07-17):** **MERGED to `main` via PR #16** (merge commit
 `544de34684cf89ee28c1c4144cd5d82035e58e4e`). **BG-032 is now RESOLVED.**
+
+### BG-033: Core Profile-ServiceSupplier Invariant Remediation — **IMPLEMENTED, PR PENDING**
+
+**Original evidence:** A live bug report ("public directory pages render successfully but
+show no providers/organizations despite seeded data") investigated code-free, root-caused to
+two compounding gaps: `ProfileActivationService` never created or synchronized a
+`kernel.ServiceSupplier` at activation time, and `ServiceSupplier.linked_entity_id`/
+`linked_entity_type` had no database uniqueness constraint. `seed_demo_accounts.py`/
+`seed_demo_people.py` were confirmed to reproduce the exact condition (ACTIVE-by-default
+profiles into the default tenant, zero supplier sync). Not a roadmap-phase gap — a
+cross-cutting data-integrity/architecture defect, sequenced ahead of Phase 5 implementation.
+See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-029 for the full Architecture Decision
+Proposal and its two addenda.
+**Resolution (2026-07-17/18, branch `fix/profile-supplier-invariant`):**
+`ProfileActivationService._activate()` now invokes a new `supplier_bridge
+.sync_supplier_for_profile_activation()` helper inside its existing transaction — activation
+and supplier existence+ACTIVE status are now one atomic invariant, never caught/suppressed on
+failure. New `SupplierRegistry.set_status()`. New `UniqueConstraint(linked_entity_id,
+linked_entity_type)` on `ServiceSupplier`, replacing the former plain index — proven via a
+real two-thread `TransactionTestCase`, not a mocked exception. INV-10 lazy-creation loopholes
+closed at `CaregiverProfileUpdateService`/`OrganizationProfileUpdateService
+.update_service_categories()`/`organization_portal`'s financial and service-category views
+(silent-skip for non-ACTIVE profiles — the underlying field save/permission check always
+still succeeds). One data migration (`kernel/0012_...`, fails loudly rather than guessing on
+any duplicate/tenant-mismatched row) + one constraint migration (`kernel/0013_...`) + a
+standalone, idempotent, dry-run-capable `reconcile_profile_supplier_invariant` management
+command. `seed_demo_accounts.py`/`seed_demo_people.py` now sync suppliers for their
+ACTIVE-by-default profiles. `seed_product_walkthrough.py` was believed to require no change
+at the time this line was first written; the independent pre-merge review remediation below
+found that was incorrect for its independent/organization-affiliated demo caregivers (fixed,
+see the remediation paragraph). Its dedicated tenant and `--reset-demo` boundary remain
+explicitly preserved.
+**Remediation (independent pre-merge review of PR #18, same day):** the first pass had left
+`resolve_supplier_for_user()`/`OrganizationProfilePresentationService.get_profile_view()`
+completely unguarded, and direct execution proved this let a DRAFT caregiver acquire a fully
+ACTIVE supplier through ordinary `provider_portal` navigation — a real invariant violation,
+not an approved exception. Fixed by splitting identity resolution
+(`resolve_supplier_for_user()` now raises for non-ACTIVE; a new, non-creating
+`resolve_provider_context_for_user()` serves self-view pages) and applying the same fix to
+the organization side. The idempotent already-ACTIVE activation path was also found not to
+repair a missing/drifted supplier and now does. A third non-ACTIVE creation path
+(`seed_demo_orders.py`'s unfiltered `.first()`) was found and fixed during the required
+call-graph recheck, and a fourth was found by the full regression run itself:
+`seed_product_walkthrough.py`'s independent/organization-affiliated demo caregivers were
+created DRAFT (the earlier "required no change, already compliant" note above was wrong —
+this had never actually been checked end-to-end) with a `ServiceSupplier` created for them
+regardless; fixed by passing `status=ProfileStatus.ACTIVE` explicitly to
+`ensure_caregiver_profile()` for both, mirroring the explicit-ACTIVE convention already used
+for `OrganizationProfile` two methods above. See
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-029's remediation addendum for the full
+caller matrix and evidence. Full regression: 2284 -> 2321/2321 green, 0 failures, 0 errors.
+**Affected modules:** accounts (`supplier_bridge.py`, `profile_activation_service.py`,
+`caregiver_profile_service.py`, `organization_profile_service.py`, `provider_identity.py`,
+three seed commands, one new management command), kernel (`supplier_registry.py`,
+`models/supplier.py`, `tests/test_architecture_guardrails.py`, two new migrations),
+provider_portal (`views.py`, `services/profile_service.py`), organization_portal (`views.py`,
+`services/profile_service.py`).
+**Explicitly not in scope (per the approved architecture):** INV-11a (`AssignmentService`),
+INV-11b (organization-suspension visibility), any BG-019 suspend/reactivate/archive
+lifecycle service, and the demo-preview route namespace explored during the same
+investigation (a separate future implementation, not started here).
+**Status update (2026-07-18):** Implementation complete, including the independent
+pre-merge review remediation, on branch `fix/profile-supplier-invariant`. **PR #18 open,
+updated — not merged.**
 
 ### BG-031: Company Public Directory and Discovery — **RESOLVED**
 

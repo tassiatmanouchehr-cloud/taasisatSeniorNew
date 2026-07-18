@@ -17,6 +17,7 @@ from apps.accounts.services.errors import AccountsError
 from apps.accounts.services.organization_profile_service import OrganizationProfileUpdateService
 from apps.accounts.services.organization_staff import OrganizationStaffService
 from apps.accounts.services.profile_media_service import ProfileMediaService
+from apps.accounts.services.profile_activation_service import ProfileActivationService
 from apps.accounts.services.provider_identity import resolve_supplier_for_user
 from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_organization
 from apps.availability.services.capacity_service import CapacityService
@@ -332,11 +333,19 @@ def financial_view(request):
     orders assigned directly to this organization's own ServiceSupplier.
     Read-only; does not cover orders assigned to individually-affiliated
     caregivers (a full affiliated-caregiver fan-out is out of scope for
-    this minimal PR-B view)."""
+    this minimal PR-B view).
+
+    Core Profile-ServiceSupplier Invariant Remediation (INV-10): an
+    organization that has never reached ACTIVE cannot have received any
+    order assignments (assignment requires an ACTIVE supplier), so this
+    incidental read never needs to — and must not — create a supplier for
+    it; it simply has nothing to show."""
     organization, tenant_id = _guard(request)
 
-    org_supplier = get_or_create_supplier_for_organization(organization, tenant_id=tenant_id)
-    assignments = ProviderAssignmentQueryService.list_for_supplier(supplier=org_supplier, tenant_id=tenant_id)
+    assignments = []
+    if ProfileActivationService.is_activated(organization):
+        org_supplier = get_or_create_supplier_for_organization(organization, tenant_id=tenant_id)
+        assignments = ProviderAssignmentQueryService.list_for_supplier(supplier=org_supplier, tenant_id=tenant_id)
 
     rows = [
         {

@@ -19,6 +19,16 @@ Field-whitelisted for the same reason `CaregiverProfileUpdateService` is:
 one fixed field set, no generic `**kwargs` mass-assignment path. Never
 touches `verification_status`, `status`, `code`, `admin_user`, or
 `tenant`.
+
+Core Profile-ServiceSupplier Invariant Remediation (INV-10):
+`update_service_categories()`'s entire body (after the permission check)
+is a ServiceSupplier-sync side effect — for a profile that has never
+reached ACTIVE, that side effect is silently skipped (not raised as an
+error) so this permitted, authenticated action never obtains a supplier
+through an incidental portal edit. Once actually activated,
+`ProfileActivationService` establishes/reconciles the supplier
+synchronously — this method only ever repairs/mirrors an already-ACTIVE
+organization's existing supplier.
 """
 
 from django.db import transaction
@@ -27,6 +37,7 @@ from apps.kernel.permissions.keys import ORGANIZATION_PROFILE_UPDATE
 from apps.kernel.services.permission_service import PermissionService
 from apps.kernel.services.supplier_registry import SupplierRegistry
 
+from .profile_activation_service import ProfileActivationService
 from .supplier_bridge import get_or_create_supplier_for_organization
 
 
@@ -90,6 +101,8 @@ class OrganizationProfileUpdateService:
             ownership_authorized_by=actor,
             scope={"scope_type": "organization", "scope_id": str(organization.id)},
         )
+        if not ProfileActivationService.is_activated(organization):
+            return organization
         supplier = get_or_create_supplier_for_organization(organization, tenant_id=organization.tenant_id)
         SupplierRegistry.set_service_categories(supplier, service_category_ids=service_category_ids)
         return organization

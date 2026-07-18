@@ -15,7 +15,7 @@ import uuid
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 
-from apps.kernel.models.supplier import ServiceSupplier, SupplierType
+from apps.kernel.models.supplier import ServiceSupplier, SupplierStatus, SupplierType
 from apps.kernel.models.tenant import Tenant
 from apps.kernel.services import supplier_registry as supplier_registry_module
 from apps.kernel.services.supplier_registry import SupplierRegistry
@@ -111,3 +111,32 @@ class SupplierRegistryTest(TestCase):
     def test_registry_module_stays_generic(self):
         """The registry must never import apps.accounts or vertical models."""
         self.assertFalse(_module_imports_accounts(supplier_registry_module))
+
+    def test_set_status_updates_when_different(self):
+        supplier = SupplierRegistry.get_or_create_supplier(
+            tenant_id=self.tenant.id, linked_entity_id=uuid.uuid4(), linked_entity_type="GenericProfile",
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER, display_name="X", status=SupplierStatus.PENDING,
+        )
+        updated = SupplierRegistry.set_status(supplier, status=SupplierStatus.ACTIVE)
+        self.assertEqual(updated.status, SupplierStatus.ACTIVE)
+        supplier.refresh_from_db()
+        self.assertEqual(supplier.status, SupplierStatus.ACTIVE)
+
+    def test_set_status_is_idempotent_noop_when_unchanged(self):
+        supplier = SupplierRegistry.get_or_create_supplier(
+            tenant_id=self.tenant.id, linked_entity_id=uuid.uuid4(), linked_entity_type="GenericProfile",
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER, display_name="X", status=SupplierStatus.ACTIVE,
+        )
+        original_version = supplier.version
+        updated = SupplierRegistry.set_status(supplier, status=SupplierStatus.ACTIVE)
+        self.assertEqual(updated.version, original_version)
+
+    def test_set_status_only_updates_status_field(self):
+        supplier = SupplierRegistry.get_or_create_supplier(
+            tenant_id=self.tenant.id, linked_entity_id=uuid.uuid4(), linked_entity_type="GenericProfile",
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER, display_name="X", status=SupplierStatus.PENDING,
+        )
+        SupplierRegistry.set_status(supplier, status=SupplierStatus.SUSPENDED)
+        supplier.refresh_from_db()
+        self.assertEqual(supplier.display_name, "X")
+        self.assertEqual(supplier.supplier_type, SupplierType.INDEPENDENT_PROVIDER)

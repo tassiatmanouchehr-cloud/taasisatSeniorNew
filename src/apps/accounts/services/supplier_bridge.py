@@ -37,7 +37,7 @@ settle to their own FinancialParty/wallet, never the organization's — see
 that service's own docstring, untouched by this Epic.
 """
 
-from apps.kernel.models.supplier import ServiceSupplier, SupplierType
+from apps.kernel.models.supplier import ServiceSupplier, SupplierStatus, SupplierType
 from apps.kernel.services.supplier_registry import SupplierRegistry
 
 from ..models.profiles import (
@@ -51,6 +51,12 @@ from ..models.profiles import (
 
 CAREGIVER_LINKED_TYPE = "CaregiverProfile"
 ORGANIZATION_LINKED_TYPE = "OrganizationProfile"
+
+# Core Profile-ServiceSupplier Invariant Remediation: the only mapping this
+# task authorizes. Suspension/reactivation/archival mappings are explicitly
+# out of scope (future BG-019) — see sync_supplier_for_profile_activation()'s
+# own docstring.
+_ACTIVATION_SUPPLIER_STATUS = SupplierStatus.ACTIVE
 
 
 def _supplier_type_for_caregiver(caregiver: CaregiverProfile) -> str:
@@ -81,6 +87,42 @@ def get_or_create_supplier_for_organization(organization: OrganizationProfile, *
         supplier_type=SupplierType.ORGANIZATION,
         display_name=organization.name,
     )
+
+
+def sync_supplier_for_profile_activation(
+    profile: CaregiverProfile | OrganizationProfile, *, tenant_id=None
+) -> ServiceSupplier:
+    """Canonical Profile -> ServiceSupplier synchronization for the
+    activation-time invariant (Core Profile-ServiceSupplier Invariant
+    Remediation): a profile that transitions to ProfileStatus.ACTIVE must,
+    in the same instant, be backed by a ServiceSupplier row that is itself
+    SupplierStatus.ACTIVE.
+
+    Called exclusively by ProfileActivationService, inside the same
+    transaction it already holds around the profile's row-locked status
+    write — this function does not open or manage a transaction of its
+    own, does not perform any permission check (the caller has already
+    authorized the activation), and does not write an audit event (the
+    caller's own activation audit record is the single audit entry for
+    the whole operation).
+
+    Idempotent: creation goes through get_or_create_supplier_for_caregiver/
+    _organization (the sanctioned bridge — never the ServiceSupplier model's
+    manager directly), and the status reconciliation goes through
+    SupplierRegistry.set_status(), itself a no-op when already correct.
+
+    ProfileStatus.ACTIVE -> SupplierStatus.ACTIVE is the only mapping this
+    function implements. Suspension/reactivation/archival mappings are
+    deliberately not modeled here — out of scope for this task (future
+    BG-019 lifecycle services)."""
+    if isinstance(profile, CaregiverProfile):
+        supplier = get_or_create_supplier_for_caregiver(profile, tenant_id=tenant_id)
+    elif isinstance(profile, OrganizationProfile):
+        supplier = get_or_create_supplier_for_organization(profile, tenant_id=tenant_id)
+    else:
+        raise TypeError(f"sync_supplier_for_profile_activation: unsupported profile type {type(profile)!r}")
+
+    return SupplierRegistry.set_status(supplier, status=_ACTIVATION_SUPPLIER_STATUS)
 
 
 def resolve_supplier_entity(supplier: ServiceSupplier | None):

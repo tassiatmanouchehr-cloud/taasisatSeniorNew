@@ -3,6 +3,7 @@
 from django.core.management.base import BaseCommand
 
 from apps.accounts.models import CaregiverProfile, CustomerProfile
+from apps.accounts.models.profiles import ProfileStatus
 from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_caregiver
 from apps.orders.models import Order, ServiceCategory
 from apps.orders.services import create_operator_order, create_public_order
@@ -24,7 +25,16 @@ class Command(BaseCommand):
             return
 
         customer = CustomerProfile.objects.first()
-        caregiver = CaregiverProfile.objects.first()
+        # Core Profile-ServiceSupplier Invariant Remediation (independent
+        # pre-merge review of PR #18, call-graph recheck): unfiltered
+        # .first() had no guaranteed ordering and no status filter — on a
+        # database also seeded with seed_demo_accounts (which creates a
+        # DRAFT caregiver), this could non-deterministically resolve to a
+        # non-ACTIVE caregiver and hand it to get_or_create_supplier_for_
+        # caregiver() below, creating a supplier for a profile that has
+        # never reached ACTIVE. An order assignment needs a genuinely
+        # active provider anyway.
+        caregiver = CaregiverProfile.objects.filter(status=ProfileStatus.ACTIVE).first()
 
         # Public order
         order1 = create_public_order(

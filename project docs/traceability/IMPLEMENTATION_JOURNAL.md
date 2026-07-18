@@ -3540,3 +3540,189 @@ prerequisite" disposition. No standalone remediation sprint was created for eith
 **Next governance action:** a dedicated, code-free Phase 5 — Marketplace Order Workflow
 Architecture Assessment. Not started by this task. No Phase 5 implementation, branch, schema,
 or migration may begin before that assessment is performed and approved.
+
+---
+
+## Core Profile-ServiceSupplier Invariant Remediation (2026-07-17/18)
+
+**Trigger:** a live bug report investigated code-free first ("public directory renders but
+shows no providers/organizations despite seeded data"), followed by a formal Architecture
+Decision Proposal and two follow-up addenda, all performed before this implementation task
+was authorized. See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-029 for the complete
+approved architecture and root-cause analysis.
+
+**Mandatory pre-implementation verification (this task's own required first step):**
+re-verified branch/HEAD/cleanliness (clean `main` @ `3cf238c8391c6c23282bf5b358ab596fda553772`
+at start), re-read every named canonical doc and production file fresh (not from memory), and
+searched for every production call to the six named creation/mutation functions. This fresh
+verification **discovered two conflicts with the original architecture proposal's literal
+INV-10 wording** that had not surfaced during the prior architecture-decision review turns —
+see ADM-029 point 5 for the full detail and the resulting evidence-driven design revision
+(silent-skip instead of raise; `resolve_supplier_for_user()`/`get_profile_view()` left
+unguarded). This is disclosed prominently here and in the PR description, per this task's own
+governance: report conflicts rather than guess.
+
+**Phase 1 — data integrity preflight:** this sandbox's database was completely empty (0
+`CaregiverProfile`/`OrganizationProfile`/`ServiceSupplier` rows) — a fresh ephemeral
+container, not the persistent environment where the original bug was observed. No duplicates,
+orphans, drift, or tenant mismatches existed to remediate here; the migration/reconciliation
+command were validated through deliberately constructed test fixtures instead.
+
+**Implementation summary (Phases 2-9, all on branch `fix/profile-supplier-invariant`):**
+
+- `apps/accounts/services/supplier_bridge.py`: new `sync_supplier_for_profile_activation()`.
+- `apps/kernel/services/supplier_registry.py`: new `set_status()`.
+- `apps/accounts/services/profile_activation_service.py`: `_activate()` now invokes the sync
+  helper inside its existing transaction, before the audit write.
+- `apps/accounts/services/caregiver_profile_service.py`,
+  `apps/accounts/services/organization_profile_service.py`,
+  `apps/organization_portal/views.py` (`financial_view`),
+  `apps/organization_portal/services/profile_service.py` (`get_services_form`): INV-10
+  silent-skip guard added via `ProfileActivationService.is_activated()`.
+- `apps/kernel/models/supplier.py`: `UniqueConstraint(linked_entity_id, linked_entity_type)`
+  replaces the former plain index.
+- `apps/kernel/migrations/0012_reconcile_profile_supplier_data.py` (data),
+  `apps/kernel/migrations/0013_servicesupplier_unique_linked_entity.py` (constraint) — hand-
+  written, not accepted verbatim from `makemigrations` (which bundles this repository's
+  pre-existing, separately documented RISK-009 cosmetic drift into any kernel-app migration).
+- `apps/accounts/management/commands/reconcile_profile_supplier_invariant.py` (new).
+- `apps/accounts/management/commands/seed_demo_accounts.py`,
+  `apps/accounts/management/commands/seed_demo_people.py`: now sync suppliers for their
+  ACTIVE-by-default profiles — confirmed via manual double-run that this eliminates the exact
+  missing-supplier condition that motivated this remediation (0 missing suppliers for 2 active
+  caregivers + 2 active organizations after running both commands twice).
+
+**Tests added:** 35, across `apps.kernel.tests.test_supplier_registry`,
+`apps.kernel.tests.test_supplier` (including a real two-thread `TransactionTestCase`
+concurrency proof — not a mocked exception), three new `apps.accounts.tests` files
+(`test_profile_supplier_invariant`, `test_inv10_lazy_supplier_creation`,
+`test_reconcile_profile_supplier_invariant`), and two new `apps.kernel.tests
+.test_architecture_guardrails` sole-writer guardrails (`ProfileStatusTransitionSoleWriterTest`,
+modeled structurally on the existing `OrderOrganizationEligibilitySoleWriterTest`, and
+`ServiceSupplierSoleWriterTest`). One pre-existing guardrail
+(`test_bridge_never_touches_serviceSupplier_objects_directly`) caught an incidental literal
+substring match in an early draft docstring, confirming it still functions correctly against
+new code.
+
+**Verification (Phase 10):** `git diff --check` clean; `manage.py check` clean;
+`makemigrations --check --dry-run` shows only the pre-existing, separately documented
+RISK-009 cosmetic drift (confirmed identical in kind/scope to the pre-change baseline — no new
+drift from this remediation's own model change). Full regression **2249 -> 2284/2284 PASS**
+(35 net). No unrelated pre-existing failures encountered. PostgreSQL 16 used throughout
+(migration application, concurrency test) — cluster was found stopped in this sandbox at
+session start and started via `pg_ctlcluster 16 main start`.
+
+**Explicitly out of scope, confirmed untouched:** `AssignmentService` (INV-11a),
+organization-suspension visibility behavior (INV-11b), any BG-019 suspend/reactivate/archive
+lifecycle service, the demo-preview route namespace (deferred to a separate future
+branch/PR), `seed_product_walkthrough.py`'s dedicated tenant and `--reset-demo` boundary
+(confirmed already compliant, left unmodified).
+
+**Next governance action:** architectural review and merge of this remediation, after which
+the standing next task remains a dedicated, code-free Phase 5 — Marketplace Order Workflow
+Architecture Assessment (unchanged from ADM-028) — not implementation.
+
+---
+
+## Independent Pre-Merge Review Remediation for PR #18 (2026-07-18)
+
+**Trigger:** an independent, adversarial pre-merge review of PR #18 returned `CHANGES
+REQUIRED`, identifying two blocking/high-priority findings and requiring a full call-graph
+recheck before re-review. This entry records the remediation performed on the same branch.
+
+**Verified before writing any fix:** both findings were reproduced by direct execution, not
+accepted on the review's word alone.
+- `resolve_supplier_for_user()` on a fresh DRAFT `CaregiverProfile` created a `ServiceSupplier`
+  with `status="active"` — confirmed by a standalone script constructing the exact scenario
+  and printing the resulting row.
+- `activate_caregiver()` called on an already-ACTIVE profile with no supplier returned
+  `transitioned=False` with the supplier still absent afterward — confirmed the same way.
+
+**Fixes applied, each re-verified after implementation:**
+1. `apps/accounts/services/provider_identity.py`: `resolve_supplier_for_user()` now raises
+   `AccountsError` for a non-ACTIVE profile; new `resolve_provider_context_for_user()` +
+   `ProviderIdentityContext` dataclass never creates a supplier for a non-ACTIVE profile.
+2. `apps/provider_portal/views.py`: `_guard_with_caregiver()` rewritten to resolve identity
+   through the new context function instead of building on `_guard()` (which now correctly
+   requires ACTIVE). `dashboard_view` renders a pending-activation state directly (200) when
+   `supplier is None`, instead of redirecting elsewhere — an initial redirect-based version
+   broke `test_verify_redirect.py`'s pre-existing login-redirect tests (a DRAFT provider must
+   land on `/provider/` itself, rendered, not be bounced again), caught by the full
+   regression run and corrected; see point 9 below. `profile_gallery_view`'s public-preview
+   link is empty instead of crashing on `None`.
+3. `apps/provider_portal/services/profile_service.py`: `get_profile_view()` and
+   `get_professional_info_form()` reworked to produce a complete not-yet-activated
+   `ViewModel` (zero rating, empty service names, generic offline availability label, no
+   public preview URL) instead of dereferencing a `None` supplier.
+4. `apps/organization_portal/services/profile_service.py`: `get_profile_view()` now only
+   resolves/repairs a supplier for an actually-ACTIVE organization (via
+   `ProfileActivationService.is_activated()`), with the same zero-value fallback shape.
+5. `apps/accounts/services/profile_activation_service.py`: the idempotent already-ACTIVE
+   branch of `_activate()` now also calls `sync_supplier_for_profile_activation()` before
+   returning — no second status write, no duplicate audit entry, but a missing/drifted
+   supplier for an already-ACTIVE profile is now repaired by the same call that would have
+   activated it.
+6. `apps/kernel/tests/test_architecture_guardrails.py`: `ProfileStatusTransitionSoleWriterTest`
+   rewritten from a regex to an AST walk (`_find_profile_status_writes()`), scoped to
+   ACTIVE/SUSPENDED/ARCHIVED only (DRAFT deliberately excluded, so `RegistrationService`
+   needs no allowlist entry). This immediately caught a real, previously-invisible match in
+   `seed_product_walkthrough.py` (`get_or_create(..., defaults={"status":
+   ProfileStatus.ACTIVE, ...})`, inside a multi-line dict the old regex could not see) —
+   verified not a regression (its supplier sync was already unconditional and correct) and
+   allowlisted with that rationale, documented inline.
+7. `apps/accounts/management/commands/reconcile_profile_supplier_invariant.py`: now detects
+   (never repairs) `supplier_type` mismatches, naming
+   `reconcile_organization_provider_suppliers` as the command that repairs them.
+8. `apps/orders/management/commands/seed_demo_orders.py`: a third non-ACTIVE creation path
+   found during the required call-graph recheck (not part of the original review) —
+   `CaregiverProfile.objects.first()` had no status filter or guaranteed ordering, and could
+   non-deterministically hand a DRAFT caregiver to `get_or_create_supplier_for_caregiver()`
+   on a database also seeded via `seed_demo_accounts`. Filtered to `status=ProfileStatus.ACTIVE`.
+9. `apps/kernel/management/commands/seed_product_walkthrough.py`: a fourth non-ACTIVE
+   creation path, found by the full regression run itself (13 `test_seed_product_walkthrough`
+   errors) rather than by the call-graph recheck. `_ensure_independent_providers()`/
+   `_ensure_affiliated_providers()` created their demo caregivers DRAFT (no `status=`
+   override to `ensure_caregiver_profile()`) and then unconditionally created a
+   `ServiceSupplier` for them — invisible before this remediation because nothing downstream
+   re-checked `caregiver.status`, until `resolve_supplier_for_user()`'s stricter guard (fix 1
+   above) made `_ensure_assignments()`'s `OrganizationAssignmentService.assign_manual()` ->
+   `resolve_staff_supplier()` call correctly reject the still-DRAFT affiliated organizer.
+   Fixed by passing `status=ProfileStatus.ACTIVE` explicitly to both `ensure_caregiver_profile()`
+   calls, mirroring the same explicit-ACTIVE convention `_ensure_organizations()` already used
+   for `OrganizationProfile` — no change to `AssignmentService`/`OrganizationAssignmentService`,
+   and no architecture-guardrail allowlist entry needed (the guardrail's AST walk only matches
+   `.create()`/`.update()`/`.update_or_create()`/`.get_or_create()`/`.bulk_create()`/
+   `.bulk_update()` method calls, not a keyword argument to a plain service function).
+
+**New/extended tests:** `test_inv10_lazy_supplier_creation.py` rewritten with view-level
+`Client()`-based navigation tests for both DRAFT and ACTIVE caregivers/organizations across
+both `_guard()` (supplier-required, must reject) and `_guard_with_caregiver()` (self-view,
+must render without creating) routes; `test_profile_supplier_invariant.py` gained
+`IdempotentActivationSupplierRepairTest` (missing/drifted supplier repair + rollback, both
+profile types); `test_architecture_guardrails.py` gained
+`ProfileStatusGuardrailDetectorSelfTest` (proves the AST detector catches direct assignment,
+`.create(status=...)`, `.update(status=...)`, `update_or_create(defaults={...})`, and
+correctly ignores DRAFT/unrelated writes); `test_reconcile_profile_supplier_invariant.py`
+gained a supplier_type-mismatch-detection test; new `test_seed_command_supplier_sync.py`
+covers double-run stability for `seed_demo_accounts`/`seed_demo_people` and the
+`seed_demo_orders.py` DRAFT-exclusion fix. 37 net new tests across these files.
+
+**Required call-graph recheck:** every production caller of `resolve_supplier_for_user`,
+`resolve_provider_context_for_user`, `get_or_create_supplier_for_caregiver`,
+`get_or_create_supplier_for_organization`, `sync_supplier_for_profile_activation`, and
+`SupplierRegistry.get_or_create_supplier` was traced and classified. Full matrix recorded in
+`traceability/ARCHITECTURE_DECISION_LOG.md` ADM-029's remediation addendum. Both required
+questions answered with code-and-test evidence: a never-ACTIVE profile can no longer acquire
+a `ServiceSupplier` through any production path (No); an already-ACTIVE profile with a
+missing/drifted supplier is now repairable through the canonical activation/idempotency path
+(Yes).
+
+**Verification:** `git diff --check`, `manage.py check`, `makemigrations --check` (only the
+pre-existing RISK-009 drift, unchanged), `manage.py migrate --check` all clean; full
+regression **2284 -> 2321/2321 PASS**, 0 failures, 0 errors, no warnings. Both adversarial
+Scenario A/B checks re-run standalone (real DB, rolled-back transaction) and passing. Same
+branch `fix/profile-supplier-invariant`, PR #18 updated in place (no second PR opened).
+
+**Next governance action (unchanged):** architectural re-review and merge of PR #18, after
+which the standing next task remains a dedicated, code-free Phase 5 — Marketplace Order
+Workflow Architecture Assessment — not implementation.
