@@ -119,7 +119,9 @@ def caregiver_favorite_toggle(request, supplier_id):
 
 
 def find_an_organization(request):
+    tenant_id = _resolve_optional_tenant_hint(request)
     page_view = OrganizationDirectoryService.search(
+        tenant_id=tenant_id,
         text=request.GET.get("q", ""),
         city=request.GET.get("city") or None,
         service_category_id=request.GET.get("service") or None,
