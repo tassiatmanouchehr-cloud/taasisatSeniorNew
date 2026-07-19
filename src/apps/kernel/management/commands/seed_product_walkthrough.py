@@ -1577,8 +1577,8 @@ class Command(BaseCommand):
         # TenantService.get_default_tenant() resolves for anonymous public
         # requests. The public preview routes accept an explicit, validated
         # ?tenant=<slug> hint for exactly this situation (see
-        # apps.public_site.views._resolve_optional_tenant_hint) — every
-        # printed URL below is therefore directly usable as-is.
+        # apps.public_site.services.tenant_context.resolve_public_tenant) —
+        # every printed URL below is therefore directly usable as-is.
         tenant_hint = f"?tenant={tenant.slug}"
         provider_preview_url = self._route_kw("public_site:caregiver-profile", supplier_id=provider_supplier_id)
         organization_preview_url = self._route_kw(

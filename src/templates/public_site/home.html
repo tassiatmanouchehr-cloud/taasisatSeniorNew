@@ -13,6 +13,9 @@
 <section class="border-b border-border bg-surface">
   <div class="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
     <form method="get" action="/find-a-caregiver/" class="flex flex-col gap-3 sm:flex-row" role="search" aria-label="جستجوی مراقب">
+      {% if home.tenant_slug %}
+      <input type="hidden" name="tenant" value="{{ home.tenant_slug }}">
+      {% endif %}
       <div class="flex-1">
         {% include "ui/components/forms/input.html" with name="q" label="جستجوی مراقب" placeholder="جستجو بر اساس نام مراقب" type="search" %}
       </div>
@@ -45,7 +48,7 @@
   <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
     <div class="flex flex-wrap items-end justify-between gap-4">
       {% include "ui/components/public/section_header.html" with eyebrow="مراقبان برگزیده" title="مراقبان با بالاترین امتیاز و اعتبار" align="start" size="md" %}
-      <a href="/find-a-caregiver/" class="inline-flex items-center gap-2 rounded-2xl border border-border bg-background px-5 py-3 text-sm font-black text-text no-underline transition-all hover:border-border-strong hover:shadow-sm">
+      <a href="{{ home.caregiver_directory_url }}" class="inline-flex items-center gap-2 rounded-2xl border border-border bg-background px-5 py-3 text-sm font-black text-text no-underline transition-all hover:border-border-strong hover:shadow-sm">
         مشاهده همه مراقبان
         <svg class="h-4 w-4 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
       </a>
@@ -92,5 +95,5 @@
 </section>
 
 {# === CTA === #}
-{% include "ui/components/public/cta_section.html" with eyebrow="آماده شروع هستید؟" title="همین حالا شروع کنید" subtitle="مراقب مناسب را پیدا کنید یا به‌عنوان مراقب به پلتفرم بپیوندید." primary_cta_text="رزرو مراقب" primary_cta_url="/find-a-caregiver/" secondary_cta_text="مراقب شوید" secondary_cta_url="/caregivers/" variant="highlight" %}
+{% include "ui/components/public/cta_section.html" with eyebrow="آماده شروع هستید؟" title="همین حالا شروع کنید" subtitle="مراقب مناسب را پیدا کنید یا به‌عنوان مراقب به پلتفرم بپیوندید." primary_cta_text="رزرو مراقب" primary_cta_url=home.caregiver_directory_url secondary_cta_text="مراقب شوید" secondary_cta_url="/caregivers/" variant="highlight" %}
 {% endblock %}

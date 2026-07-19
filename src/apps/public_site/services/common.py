@@ -338,7 +338,8 @@ def append_tenant_query(url: str, tenant_slug: str | None) -> str:
     ?tenant=<slug> on /find-a-caregiver/. Returns `url` unchanged when no
     hint is active (the default-tenant browsing path is untouched).
     Navigation context only: the destination view re-resolves and
-    re-validates the hint itself via _resolve_optional_tenant_hint()
+    re-validates the hint itself via
+    apps.public_site.services.tenant_context.resolve_public_tenant()
     exactly as if the visitor had typed the URL directly — this helper
     never grants access on its own. Merges into any query string `url`
     already carries (rather than blindly appending a second `?`), so it

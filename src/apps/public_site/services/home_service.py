@@ -26,24 +26,33 @@ class HomePageService:
     """Read-only: assembles everything the Home Page template needs."""
 
     @classmethod
-    def get_home_view(cls, *, tenant_id=None) -> HomePageViewModel:
+    def get_home_view(cls, *, tenant_id=None, tenant_slug=None) -> HomePageViewModel:
+        """tenant_slug (follow-up to FR-016): the resolved public-site
+        tenant's own slug, if navigation needs to carry it forward — see
+        apps.public_site.services.tenant_context.resolve_public_tenant().
+        Empty/None on the ordinary default-tenant path, exactly like
+        every directory's own tenant_slug field, so home.html's search
+        form, "view all caregivers" link, and featured-caregiver cards
+        stay bare (no query string) unless a hint is actually active."""
         tenant_id = tenant_id or TenantService.get_default_tenant_id()
 
         cities = CaregiverDirectoryService.available_cities(tenant_id=tenant_id)
 
         return HomePageViewModel(
-            service_categories=cls._service_categories(tenant_id),
+            service_categories=cls._service_categories(tenant_id, tenant_slug),
             featured_caregivers=CaregiverDirectoryService.featured(
-                tenant_id=tenant_id, limit=FEATURED_CAREGIVERS_LIMIT
+                tenant_id=tenant_id, tenant_slug=tenant_slug, limit=FEATURED_CAREGIVERS_LIMIT,
             ),
             reviews=cls._reviews(tenant_id),
             city_options=tuple(FilterOptionViewModel(value=c, label=c) for c in cities),
+            tenant_slug=tenant_slug or "",
+            caregiver_directory_url=common.append_tenant_query("/find-a-caregiver/", tenant_slug),
         )
 
     # ------------------------------------------------------------------
 
     @classmethod
-    def _service_categories(cls, tenant_id) -> tuple[ServiceCategoryViewModel, ...]:
+    def _service_categories(cls, tenant_id, tenant_slug) -> tuple[ServiceCategoryViewModel, ...]:
         categories = CatalogQueryService.list_active_categories(tenant_id=tenant_id).order_by("sort_order", "name")
         return tuple(
             ServiceCategoryViewModel(
@@ -52,7 +61,9 @@ class HomePageService:
                 slug=category.slug,
                 icon=category.icon,
                 description=category.description,
-                directory_url=f"/find-a-caregiver/?service={category.id}",
+                directory_url=common.append_tenant_query(
+                    f"/find-a-caregiver/?service={category.id}", tenant_slug,
+                ),
             )
             for category in categories
         )

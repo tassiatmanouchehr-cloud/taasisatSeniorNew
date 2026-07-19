@@ -18,7 +18,6 @@ from django.views.decorators.http import require_POST
 from apps.accounts.services.errors import AccountsError
 from apps.accounts.services.favorites import FavoritesService
 from apps.kernel.models.supplier import SupplierType
-from apps.kernel.services.tenant_service import TenantService
 
 from .services.customer_context import require_customer, resolve_customer_or_none
 from .services.directory_service import CAREGIVER_SUPPLIER_TYPES, CaregiverDirectoryService
@@ -26,42 +25,17 @@ from .services.home_service import HomePageService
 from .services.organization_directory_service import OrganizationDirectoryService
 from .services.organization_profile_service import OrganizationPublicProfileService
 from .services.profile_service import CaregiverPublicProfileService
-
-
-def _resolve_optional_tenant_hint(request):
-    """Public profile pages resolve the platform's single default tenant
-    by default (unchanged behavior — returns None, and the profile
-    service falls back to TenantService.get_default_tenant_id() exactly
-    as before). An explicit ?tenant=<slug> hint lets a caller target a
-    different, specific, already-known tenant (e.g. the
-    seed_product_walkthrough command's own dedicated demo tenant)
-    without ever searching across tenants: the profile lookup stays
-    scoped to exactly one resolved tenant_id either way.
-
-    Raises Http404 immediately for an unknown/invalid slug — it is never
-    silently substituted with the default, which would blur "no hint
-    given" with "wrong hint given"."""
-    slug = request.GET.get("tenant")
-    if not slug:
-        return None
-    tenant = TenantService.get_tenant_by_slug(slug)
-    if tenant is None:
-        raise Http404("Unknown tenant.")
-    return tenant.id
+from .services.tenant_context import resolve_public_tenant
 
 
 def home(request):
-    return render(request, "public_site/home.html", {"home": HomePageService.get_home_view()})
+    tenant_id, tenant_slug = resolve_public_tenant(request)
+    home_view = HomePageService.get_home_view(tenant_id=tenant_id, tenant_slug=tenant_slug)
+    return render(request, "public_site/home.html", {"home": home_view})
 
 
 def find_a_caregiver(request):
-    tenant_id = _resolve_optional_tenant_hint(request)
-    # Safe to read the raw slug directly here: _resolve_optional_tenant_hint()
-    # above already 404'd on an unknown/invalid slug, so by this point any
-    # non-empty value is a real tenant's own slug — used only to build
-    # navigation URLs (cards/pagination/filter-reset), never to filter the
-    # query itself (tenant_id, resolved above, remains the sole authority).
-    tenant_slug = request.GET.get("tenant") or None
+    tenant_id, tenant_slug = resolve_public_tenant(request)
     supplier_type = request.GET.get("type") or None
     if supplier_type not in CAREGIVER_SUPPLIER_TYPES:
         supplier_type = None
@@ -80,7 +54,7 @@ def find_a_caregiver(request):
 
 
 def caregiver_profile(request, supplier_id):
-    tenant_id = _resolve_optional_tenant_hint(request)
+    tenant_id, _tenant_slug = resolve_public_tenant(request)
     customer = resolve_customer_or_none(request)
     profile = CaregiverPublicProfileService.get_profile(supplier_id, tenant_id=tenant_id, customer=customer)
     if profile is None:
@@ -126,10 +100,7 @@ def caregiver_favorite_toggle(request, supplier_id):
 
 
 def find_an_organization(request):
-    tenant_id = _resolve_optional_tenant_hint(request)
-    # See find_a_caregiver()'s identical comment: safe to read raw here,
-    # navigation-only, never used for query filtering.
-    tenant_slug = request.GET.get("tenant") or None
+    tenant_id, tenant_slug = resolve_public_tenant(request)
     page_view = OrganizationDirectoryService.search(
         tenant_id=tenant_id,
         tenant_slug=tenant_slug,
@@ -142,7 +113,7 @@ def find_an_organization(request):
 
 
 def organization_profile(request, supplier_id):
-    tenant_id = _resolve_optional_tenant_hint(request)
+    tenant_id, _tenant_slug = resolve_public_tenant(request)
     customer = resolve_customer_or_none(request)
     profile = OrganizationPublicProfileService.get_profile(supplier_id, tenant_id=tenant_id, customer=customer)
     if profile is None:
