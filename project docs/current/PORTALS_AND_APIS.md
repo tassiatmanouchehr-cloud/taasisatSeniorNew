@@ -1,7 +1,7 @@
 # PORTALS, APIS, AND ENTRY POINTS
 
-**Last verified HEAD:** main @ 756c14dc25d9446eff73b209bfd85b3e0f4c6648 (post-merge documentation synchronization following PR #16 — **Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers MERGED and canonically CLOSED**). **Phase 4 — Customer Portal: FORMALLY CLOSED (2026-07-17) — the Customer Portal capability set below (dashboard, profile/settings, orders/history, invoices/payments, notifications, reviews, favorites incl. public favorite toggles and the saved-provider portal list) is production-complete.**
-**Last verified date:** 2026-07-17 (Phase 4 Closure Review, documentation-only)
+**Last verified HEAD:** main @ 78bbbe3dcd33b5697415c1ee8c58debb67ac1862 (post-merge documentation synchronization following PR #23 — FR-019 public caregiver marketplace remediation). **Phase 4 — Customer Portal: FORMALLY CLOSED (2026-07-17) — the Customer Portal capability set below (dashboard, profile/settings, orders/history, invoices/payments, notifications, reviews, favorites incl. public favorite toggles and the saved-provider portal list) is production-complete.** Between PR #16 and PR #23, five further PRs (#19–#23, FR-015 through FR-019) shipped public-site tenant-resolution and caregiver-marketplace fixes — see the "Public Site" section below and the "PR #19–#23" paragraph in it for what changed; no new routes were added by any of the five, so the route inventory itself is unchanged from the PR #16 baseline.
+**Last verified date:** 2026-07-19 (FR-015 through FR-019, PR #23 merge)
 
 **Phase 4 — Sprint 4.1 note (2026-07-16, merged 2026-07-17):** Customer Favorites and Saved
 Providers is implemented and merged to `main`. Closed the one confirmed gap the Phase 4
@@ -72,6 +72,28 @@ Entry: `require_admin_permission()` → `require_authenticated()` → RBAC check
 ## Public Site (21 views)
 
 Home, about, services, how-it-work, contact, pricing, trust-safety, caregivers, organizations, find-a-caregiver, caregiver profile (now includes a Sprint 2.4 privacy-safe weekly-availability summary — day labels only, never exact times; Sprint 2.6 — SEO `page_url`/`canonical_url` now the profile's own URL, gallery alt-text fallback, redundant generic verification badge removed; **Sprint 4.1 — a favorite-toggle button when viewed by an authenticated customer, `POST find-a-caregiver/<uuid:supplier_id>/favorite/`**), **find-an-organization (Phase 3 Sprint 3.3 — the Company Public Directory: search/city/service-category filters, pagination, organization cards with logo/headline/rating/verification badge/city/service summary/active-caregiver count; route ordered before the existing `find-an-organization/<uuid:supplier_id>/` detail route)**, organization profile (**Sprint 4.1 — same favorite-toggle affordance, `POST find-an-organization/<uuid:supplier_id>/favorite/`**), FAQ, privacy, terms, accessibility, support, service-areas.
+
+FR-015 through FR-019 (PRs #19–#23, 2026-07-19): the anonymous-visitor tenant-resolution
+chain behind every public view was corrected in five sequential steps, and the caregiver
+marketplace's content was enriched — no route added, removed, or renamed. `home`,
+`find-a-caregiver`, `caregiver-profile`, `find-an-organization`, and `organization-profile`
+all now resolve their tenant through one canonical function,
+`apps.public_site.services.tenant_context.resolve_public_tenant()`: an explicit `?tenant=`
+hint (highest priority, unchanged since FR-015/FR-016 fixed hint-honoring and link
+propagation on both directories), then the optional `settings.PUBLIC_SITE_TENANT_SLUG`
+(FR-017), then — `settings.DEBUG`-only, added by FR-019 — a best-effort lookup of
+`apps.kernel.dev_tenant.CANONICAL_DEV_TENANT_SLUG`, the exact tenant
+`seed_product_walkthrough` seeds, letting a local `clone → migrate → seed_product_walkthrough
+→ runserver` workflow show real caregivers at the bare `/find-a-caregiver/` URL with zero
+manual configuration; then the unchanged platform-default fallback. The caregiver directory
+card and profile page now render a caregiver's own uploaded avatar (`avatar_url`, wired
+through `CaregiverCardViewModel`/`CaregiverProfileViewModel` in FR-019 — previously
+initials-only, unlike the organization side's `logo_url`). The caregiver profile's gallery
+section (Sprint 2.2) gained a responsive 1/2/3-column grid and an accessible, Alpine-core-only
+lightbox (FR-019 — no Focus-plugin dependency; dialog semantics, keyboard-reachable close,
+Escape-to-close, focus returned to the triggering thumbnail on close). See "CROSS-CUTTING —
+Public Site Tenant Resolution and Caregiver Marketplace Remediation" in
+`project docs/IMPLEMENTATION_ROADMAP.md` for the full per-PR breakdown.
 
 Sprint 4.1 (Customer Favorites and Saved Providers, 2026-07-16): both public profile toggle
 views require an authenticated customer (`apps.public_site.services.customer_context

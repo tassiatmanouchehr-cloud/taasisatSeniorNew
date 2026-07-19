@@ -95,7 +95,7 @@ The repository code remains the ultimate source of truth.
 
 Pre-phase (P0 hygiene, small): ~~fix seed test race (G12)~~ — **DONE, merged in PR #1** (`eb51018`); full regression 1680/1680 green.
 
-### PHASE 1 — Registration & Verification Workflows — **COMPLETE (2026-07-15, pending PR merge)**
+### PHASE 1 — Registration & Verification Workflows — **COMPLETE and MERGED to main** (PR #5, merge commit `0c9d70c`, 2026-07-15 — see the "Phase 1.3 remediation update" changelog entry above for the final merge record)
 
 **Scope:** Complete customer/caregiver/company registration; profile completion; identity + professional-license verification; **manual verification by platform owner** (admin portal review queue: approve/reject `VerificationDocument`, roll up to profile `verification_status`); future-AI-verification placeholder (strategy interface with manual implementation only).
 
@@ -336,6 +336,75 @@ Branch `fix/profile-supplier-invariant`, 72 new/extended tests, full regression
 `3d723cbcd1237aa2ba24a151aabc9b9cff80bb20`, 2026-07-18). The demo-preview namespace explored
 during the same investigation is explicitly a separate, not-yet-started future
 implementation — not part of this remediation.
+
+### CROSS-CUTTING — Public Site Tenant Resolution and Caregiver Marketplace Remediation — FR-015 through FR-019, **MERGED to main via PR #19, #20, #21, #22, #23** (not a numbered phase; five sequential bug-fix/UX-remediation PRs on `apps.public_site`, discovered and closed ahead of Phase 5 implementation)
+
+Five sequential PRs, each closing a defect the previous one's own verification surfaced or a
+follow-up review found, all scoped to `apps.public_site` (and, for FR-019, `apps.kernel`'s
+seed command) — no model, migration, tenant-isolation rule, or public-visibility predicate
+changed by any of them:
+
+- **FR-015 (PR #19, merge commit `aac018575a2f9380d75a11c55bf08b34ce65a511`, 2026-07-19):**
+  `find_a_caregiver()`/`find_an_organization()` ignored an explicit `?tenant=` query hint
+  entirely (only the two detail views honored it) — a supplier in a non-default tenant was
+  visible at its own direct URL but absent from the corresponding directory. Fixed
+  symmetrically for both entity types via the existing `_resolve_optional_tenant_hint()`
+  helper. 16 new tests. Full regression 2321 → 2337/2337.
+- **FR-016 (PR #20, merge commit `e1f0bfd6c921636bab0c196eaf469d2eb2a667aa`, 2026-07-19):**
+  FR-015 fixed directory *resolution* but not link *propagation* — card links, pagination
+  links, and the filter/reset link on both directories dropped the `?tenant=` hint, so
+  clicking through from a correctly tenant-scoped directory 404'd. Fixed via a new shared
+  `common.append_tenant_query()` helper, threaded into both directory services' card/
+  pagination/filters construction. 8 new tests. Full regression 2337 → 2345/2345.
+- **FR-017 (PR #21, merge commit `5e4364c868ea4082f40bd4588089951a8c81f247`, 2026-07-19):**
+  the homepage (`home()`) never resolved any tenant context at all, and there was no way to
+  serve a non-default, already-populated tenant as the public site without every visitor
+  manually typing `?tenant=` on every link. New canonical resolver
+  `apps.public_site.services.tenant_context.resolve_public_tenant()`, wired into all five
+  public views, resolution order: (1) explicit `?tenant=` hint, (2) new optional
+  `settings.PUBLIC_SITE_TENANT_SLUG`, (3) the pre-existing platform-default fallback. A new
+  context processor propagates the resolved tenant to `base_public.html`'s shared nav/footer
+  links. 15 new tests. Full regression → 2365/2365.
+- **FR-018 (PR #22, merge commit `394b0a71688a333143084d180a59d1ae5a551957`, 2026-07-19):**
+  Public Site Runtime Audit findings PSA-001 through PSA-005 — generic page-title suffix and
+  doubled OG-title brand suffix; missing favicon; the caregiver-profile "request consultation"
+  CTA silently dropping which caregiver the visitor came from (fixed by passing a
+  server-revalidated supplier UUID through to the existing non-functional placeholder contact
+  form — no booking/messaging/payment logic added); a misleading "no organizations found"
+  empty state that didn't distinguish "no filters matched" from "the directory itself is
+  empty"; and Django's raw, unbranded default 403 page on authenticated-only portal routes
+  (fixed via one project-wide branded, non-disclosing `handler403`, status code unchanged, the
+  established anonymous-403-not-redirect security policy preserved). 39 new tests. Full
+  regression 2365 → 2404/2404.
+- **FR-019 (PR #23, merge commit `f1a34221c41df34139c599d7d073d2832cf2ae99`, 2026-07-19):**
+  the canonical `/find-a-caregiver/` URL (zero `?tenant=`, zero manual `.env` edit) still
+  showed 0 results for a fresh local-development checkout, because `resolve_public_tenant()`'s
+  platform-default fallback (FR-017, working as designed) was never the same tenant
+  `seed_product_walkthrough` seeds its realistic demo dataset into. Root-caused, then an
+  independent corrective review rejected a documentation-only first pass as insufficient and
+  required an actual code-level contract: new `apps.kernel.dev_tenant.CANONICAL_DEV_TENANT_SLUG`
+  (a single, plain, dependency-free constant), imported by both the seed command and a new,
+  `settings.DEBUG`-only resolution tier in `resolve_public_tenant()` — structurally unreachable
+  in `config.settings.production`/`config.settings.testing` (both hardcode `DEBUG = False`),
+  never picks "the first active tenant," silently falls through (never raises) when the dev
+  tenant hasn't been seeded yet. Alongside this: two real code gaps closed (directory cards
+  built via raw string concatenation instead of Django's named route; a caregiver's own
+  uploaded avatar never reaching any public card/profile, unlike the organization side's
+  `logo_url`); `seed_product_walkthrough` enriched with avatar/skills/experience/gallery data
+  for its demo caregivers (previously all four sections silently rendered empty); a responsive
+  1/2/3-column gallery grid with an Alpine-core-only accessible lightbox; and, found during
+  final pre-merge screenshot review, a profile-header back-link/avatar collision (fixed via
+  `mb-14`/`sm:mb-16` document-flow spacing) and an Alpine `x-trap` console warning (the Focus
+  plugin it requires is not wired into this project's asset pipeline — replaced with explicit
+  Alpine-core-only focus-management methods, which also surfaced and fixed a previously
+  undetected backdrop-click-to-close occlusion bug). 55 new tests total across the three
+  FR-019 commits. Full regression 2404 → 2434 → 2450 → **2459/2459 green**.
+
+Cumulative: 133 new tests (16+8+15+39+55) across FR-015–FR-019, full regression
+**2321 → 2459/2459**, zero new models/migrations, zero tenant-isolation or public-visibility
+predicate changes across all five PRs. See `project docs/quality/DEFECT_AND_RISK_REGISTER.md`
+(FR-015 through FR-019 entries) and `project docs/traceability/IMPLEMENTATION_JOURNAL.md` for
+full per-PR root-cause/fix/verification detail.
 
 ### PHASE 5 — Marketplace Order Workflow
 

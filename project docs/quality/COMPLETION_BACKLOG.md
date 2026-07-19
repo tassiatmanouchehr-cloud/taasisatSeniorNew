@@ -1,7 +1,7 @@
 # CURRENT GAPS AND COMPLETION BACKLOG
 
-**Last verified HEAD:** main @ 096d7c50d2b912b52ae60468653cc2ce0df8798a (PR #18 merge — Core Profile-ServiceSupplier Invariant Remediation, including the independent pre-merge review remediation). **Branch `fix/profile-supplier-invariant` implements BG-033 — see below, including its independent-pre-merge-review remediation. Merged and closed.**
-**Last verified date:** 2026-07-18 (Core Profile-ServiceSupplier Invariant Remediation + independent pre-merge review remediation + independent focused review (APPROVE) + PR #18 merged to `main`; Phase 4 — Customer Portal remains FORMALLY CLOSED; BG-032 RESOLVED; BG-033 RESOLVED, PR #18 merged)
+**Last verified HEAD:** main @ 78bbbe3dcd33b5697415c1ee8c58debb67ac1862 (post-merge documentation synchronization following PR #23 — FR-019 public caregiver marketplace remediation). **Branch `fix/profile-supplier-invariant` implements BG-033 — see below, including its independent-pre-merge-review remediation. Merged and closed.** Between PR #18 and PR #23, five further PRs (#19–#23, FR-015 through FR-019) shipped public-site tenant-resolution and caregiver-marketplace fixes — tracked as FR entries in `project docs/quality/DEFECT_AND_RISK_REGISTER.md`, not new backlog items here, since each closed a discovered defect rather than a pre-listed gap.
+**Last verified date:** 2026-07-19 (FR-015 through FR-019, PR #19–#23 merged to `main`; Phase 4 — Customer Portal remains FORMALLY CLOSED; BG-032 RESOLVED; BG-033 RESOLVED, PR #18 merged; full regression baseline 2,459/2,459)
 
 ---
 
@@ -76,8 +76,8 @@ signal). Also delivered in the same slice: `DocumentService.resubmit()`
 replacement of a VERIFIED document) and `ActivationEligibilityService`
 (Part D — read-only, structured eligibility for caregiver/organization).
 47 new tests, zero new migrations. Branch
-`phase1-verification-activation-rules`, PR pending merge. See
-traceability/IMPLEMENTATION_JOURNAL.md and ARCHITECTURE_DECISION_LOG ADM-015.
+`phase1-verification-activation-rules`. **MERGED to main via PR #4** (merge commit
+`860640e`, 2026-07-15). See traceability/IMPLEMENTATION_JOURNAL.md and ARCHITECTURE_DECISION_LOG ADM-015.
 **Not included:** wiring `ActivationEligibilityService` into an actual
 activation/publishing action (currently read-only — see BG-018);
 `profile_completion_percent` auto-recompute on every mutation (see BG-018).
@@ -95,9 +95,9 @@ persisted staleness to auto-recompute) and `ProfileActivationService`
 structured reasons, permission-gated via new `ACCOUNTS_PROFILE_ACTIVATE`,
 row-locked, idempotent, audited). Minimum usable platform-operator and
 owner-facing UI delivered (Part D). 40 new tests, zero new migrations.
-Branch `phase1-activation-completion-final`, PR pending merge. See
-`traceability/IMPLEMENTATION_JOURNAL.md` and `ARCHITECTURE_DECISION_LOG`
-ADM-016.
+Branch `phase1-activation-completion-final`. **MERGED to main via PR #5**
+(merge commit `0c9d70c`, 2026-07-15). See `traceability/IMPLEMENTATION_JOURNAL.md` and
+`ARCHITECTURE_DECISION_LOG` ADM-016.
 **Not included:** automatic deactivation of an already-active profile when
 verification later becomes invalid/expired (see BG-019 — no
 suspension/revalidation workflow exists to hook it into).
@@ -147,8 +147,9 @@ headline (`specialty`), services-offered (`ServiceSupplier.service_categories`),
 public profile route, and the provider-portal profile edit pages were already implemented
 (Epic 06 Sprint 2) and reused, not rebuilt. 50 new tests, one new migration (2 new tables
 only), full regression 1874/1874 green. Branch
-`phase2-caregiver-professional-profile-foundation`, PR pending merge. See
-`traceability/IMPLEMENTATION_JOURNAL.md` and `ARCHITECTURE_DECISION_LOG` ADM-017.
+`phase2-caregiver-professional-profile-foundation`. **MERGED to main via PR #6**
+(merge commit `c5259b3`, 2026-07-15). See `traceability/IMPLEMENTATION_JOURNAL.md` and
+`ARCHITECTURE_DECISION_LOG` ADM-017.
 **Not included (roadmap Phase 2 remains open):** gallery (new model + upload service +
 moderation flag), certificates-as-gallery presentation, extended financial overview,
 orders + history pages — see BG-021.

@@ -1,7 +1,7 @@
 # RUNTIME WORKFLOWS
 
-**Last verified HEAD:** main @ 756c14dc25d9446eff73b209bfd85b3e0f4c6648 (post-merge documentation synchronization following PR #16 — **Phase 4 — Sprint 4.1: Customer Favorites and Saved Providers MERGED and canonically CLOSED**). **Phase 4 — Customer Portal: FORMALLY CLOSED (2026-07-17) — all Phase 4 workflows below, including the Customer Favorites and Saved Providers workflow (#34), are canonical and implemented.**
-**Last verified date:** 2026-07-17 (Phase 4 Closure Review, documentation-only)
+**Last verified HEAD:** main @ 78bbbe3dcd33b5697415c1ee8c58debb67ac1862 (post-merge documentation synchronization following PR #23 — FR-019 public caregiver marketplace remediation). **Phase 4 — Customer Portal: FORMALLY CLOSED (2026-07-17) — all Phase 4 workflows below, including the Customer Favorites and Saved Providers workflow (#34), are canonical and implemented.** Workflow #24 (Public Caregiver Profile Page) and its underlying directory/tenant-resolution mechanics were further corrected by FR-015 through FR-019 (PRs #19–#23, 2026-07-19) — public anonymous-visitor tenant resolution now runs through one canonical `resolve_public_tenant()` function (see `project docs/current/PORTALS_AND_APIS.md`'s "Public Site" section), and the gallery lightbox (workflow #26's public-facing side) no longer depends on the unregistered Alpine Focus plugin. No workflow status below changed as a result — these were resolver/UX/content-completeness fixes, not new or removed capabilities.
+**Last verified date:** 2026-07-19 (FR-015 through FR-019, PR #23 merge)
 
 ---
 

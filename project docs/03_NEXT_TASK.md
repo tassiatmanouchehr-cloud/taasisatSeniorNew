@@ -889,7 +889,7 @@ profile services, and the portal's existing `_guard()`/nav-item schema.
   implementation and remediation record. **Sprint 4.1 (Customer Favorites and Saved
   Providers) is now CLOSED and canonically complete on `main`.**
 
-### Core Profile-ServiceSupplier Invariant Remediation — IMPLEMENTED, PR PENDING (2026-07-17/18)
+### Core Profile-ServiceSupplier Invariant Remediation — IMPLEMENTED and MERGED via PR #18 (2026-07-17/18)
 
 Bug-fix/architecture remediation, sequenced ahead of Phase 5 implementation — not a
 roadmap phase itself. Triggered by an investigation into a live bug report ("public
@@ -996,13 +996,81 @@ documentation synchronized. **PR #16 merged 2026-07-17 (merge commit
 `544de34684cf89ee28c1c4144cd5d82035e58e4e`).** A dedicated code-free Phase 4 Closure Review
 (2026-07-17) subsequently confirmed every roadmap-defined Phase 4 capability is implemented,
 found no remaining Phase-4-specific blocking gap, and formally closed Phase 4 — no Sprint 4.2
-was required or is canonically defined. See `traceability/ARCHITECTURE_DECISION_LOG.md`
-ADM-028 and `traceability/IMPLEMENTATION_JOURNAL.md` for the full closure record.
+was required or is canonically defined; this closure review was itself a documentation-only
+change, **merged via PR #17 (merge commit `5d77de61181d643930ccb93b77d6a4b3bdcb8499`,
+2026-07-17)**. See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-028 and
+`traceability/IMPLEMENTATION_JOURNAL.md` for the full closure record.
+
+### FR-015 through FR-019 — Public Site Tenant Resolution and Caregiver Marketplace Remediation — IMPLEMENTED and MERGED via PR #19, #20, #21, #22, #23 (2026-07-18/19)
+
+The manual end-to-end runtime/UI validation task declared immediately below this point (before
+this update) — "confirming, through the real running application, that ACTIVE caregivers and
+companies are actually visible and usable through the website UI" — has now been performed and
+is **DONE**. It surfaced, and the following five sequential PRs closed, five defects in
+`apps.public_site`'s anonymous-visitor tenant resolution and the public caregiver marketplace's
+content completeness. No model, migration, tenant-isolation rule, or public-visibility
+predicate changed across any of the five.
+
+- **FR-015 (PR #19, merge commit `aac018575a2f9380d75a11c55bf08b34ce65a511`, 2026-07-18):**
+  `find_a_caregiver()`/`find_an_organization()` silently ignored an explicit `?tenant=<slug>`
+  hint — only the two detail views honored it, so a supplier in a non-default tenant was
+  visible at its own direct URL but invisible in the directory. Fixed symmetrically for both
+  entity types via the existing `_resolve_optional_tenant_hint()` helper. 16 tests. Full
+  regression 2321 → 2337/2337.
+- **FR-016 (PR #20, merge commit `e1f0bfd6c921636bab0c196eaf469d2eb2a667aa`, 2026-07-19):**
+  FR-015 fixed *resolution* but not *link propagation* — card, pagination, and filter/reset
+  links on both directories dropped the hint, 404ing on click-through. Fixed via a new shared
+  `common.append_tenant_query()` helper. 8 tests, +5 more from a pre-merge review remediation
+  (the helper didn't handle a URL that already carried a query string). Full regression
+  → 2345 → 2350/2350.
+- **FR-017 (PR #21, merge commit `5e4364c868ea4082f40bd4588089951a8c81f247`, 2026-07-19):**
+  the homepage never resolved any tenant context at all, and no deployment could serve a
+  non-default tenant without every visitor manually typing `?tenant=` on every link. New
+  canonical `apps.public_site.services.tenant_context.resolve_public_tenant()`, wired into all
+  5 public views: (1) explicit hint, (2) new optional `settings.PUBLIC_SITE_TENANT_SLUG`
+  (unset by default; loud `ImproperlyConfigured` if misconfigured), (3) unchanged
+  platform-default fallback. New context processor propagates the resolved tenant to shared
+  nav/footer links. 15 tests. Full regression → 2365/2365.
+- **FR-018 (PR #22, merge commit `394b0a71688a333143084d180a59d1ae5a551957`, 2026-07-19):**
+  Public Site Runtime Audit findings PSA-001 through PSA-005 — generic page-title suffix +
+  doubled OG-title brand; missing favicon; the caregiver-profile CTA losing which caregiver
+  the visitor came from (fixed via a server-revalidated supplier UUID passed to the existing
+  non-functional placeholder contact form); a misleading organization-directory empty state;
+  Django's raw unbranded 403 on authenticated-only portal routes (fixed via one project-wide
+  branded, non-disclosing `handler403`, status code unchanged). 39 tests. Full regression
+  → 2404/2404.
+- **FR-019 (PR #23, merge commit `f1a34221c41df34139c599d7d073d2832cf2ae99`, 2026-07-19):**
+  the canonical `/find-a-caregiver/` URL (zero `?tenant=`, zero manual `.env` edit) still
+  showed 0 results on a fresh checkout — FR-017's platform-default fallback was never the
+  tenant `seed_product_walkthrough` seeds. New `apps.kernel.dev_tenant
+  .CANONICAL_DEV_TENANT_SLUG` (one dependency-free constant, imported by both the seed command
+  and a new `settings.DEBUG`-only tier in `resolve_public_tenant()` — structurally unreachable
+  in production/testing, silently falls through when unseeded). Also fixed: directory cards
+  using string concatenation instead of Django's named route; a caregiver's own uploaded
+  avatar never reaching any public card/profile; `seed_product_walkthrough` enriched with
+  avatar/skills/experience/gallery data; a responsive gallery grid with an Alpine-core-only
+  accessible lightbox; and, found during final pre-merge screenshot review, a profile-header
+  back-link/avatar collision and an Alpine `x-trap` console warning (the Focus plugin it needs
+  isn't wired into this project's asset pipeline). 55 tests across three commits. Full
+  regression 2404 → 2434 → 2450 → **2459/2459 green**.
+
+Cumulative: 133 new tests, full regression **2321 → 2459/2459**, zero new models/migrations.
+See `project docs/quality/DEFECT_AND_RISK_REGISTER.md` (FR-015–FR-019 entries),
+`project docs/traceability/IMPLEMENTATION_JOURNAL.md`, and `IMPLEMENTATION_ROADMAP.md`'s
+matching CROSS-CUTTING entry for full per-PR detail.
 
 **The next task is a dedicated, code-free Phase 5 — Marketplace Order Workflow Architecture
 Assessment** (mirroring the Phase 3 closure / Phase 4 assessment's own governance-first
 approach), determining Phase 5's actual bounded first-sprint scope from direct repository
-evidence. Until that assessment is performed and approved:
+evidence. This is the correct next task, re-derived from current evidence, not merely carried
+forward by default: the "manual end-to-end runtime/UI validation" placeholder that used to sit
+here is now complete (that is exactly what FR-015–FR-019 was); no other roadmap phase's
+dependencies are satisfied out of order (Phase 5 explicitly gates Phases 6–8); and no
+currently-open defect or risk register entry is flagged as more urgent than this — the
+organization directory's own known limitation (seed organizations are `unverified` by
+construction, so `/find-an-organization/` correctly shows 0 results) is a deliberate,
+repeatedly-reconfirmed, non-blocking seed-data characteristic, not a defect, and no instruction
+has requested it be changed. Until the Phase 5 assessment is performed and approved:
 
 - **Do not begin Phase 5 implementation.**
 - **Do not create a branch for production work.**
@@ -1189,25 +1257,122 @@ output only, per this task's own governance.
 
 ---
 
-## Documentation gap notice (added 2026-07-19, post-PR-#23 sync)
+## POST-PR-#23 RECONCILIATION (2026-07-19) — supersedes the "Sprint 4.1 recommended first
+## sprint"/Phase 4 framing above; the sections above this point are historical record only
 
-Everything below this point was NOT chronologically maintained in this file after Sprint 4.1 —
-Sprint 4.1 itself merged (PR #16), Phase 4 was formally closed (PR #17), and five further
-merged PRs followed (#19 FR-015, #20 FR-016, #21 FR-017, #22 FR-018/PSA-001–005, #23 FR-019
-public caregiver marketplace remediation + corrective canonical-tenant contract + final
-profile-header/gallery-focus UI correction) without a corresponding entry being appended here.
-This entry does not attempt to reconstruct that missing history — the authoritative record for
-all of it is `project docs/quality/DEFECT_AND_RISK_REGISTER.md` (FR-006 onward, in particular
-the FR-015 through FR-019 entries) and `project docs/traceability/IMPLEMENTATION_JOURNAL.md`
-(which does carry each of those merges' full detail, including PR #23's). Do not treat this
-file's Sprint-4.1-era "recommended first sprint" framing above as the current state.
+The chronological narrative above ends at Sprint 4.1 / the Phase 4 Customer Portal
+Architecture Assessment (2026-07-16/17). Six further PRs merged after that point and are now
+fully reconstructed in this file's own "Phase 4 — Customer Portal is FORMALLY CLOSED
+(2026-07-17)" section and the "FR-015 through FR-019" section immediately following it,
+further above — PR #17 (Phase 4 formal closure, merge commit
+`5d77de61181d643930ccb93b77d6a4b3bdcb8499`) and PRs #19–#23 (FR-015 through FR-019, merge
+commits `aac0185`/`e1f0bfd`/`5e4364c`/`394b0a7`/`f1a3422`, full detail and per-PR test counts
+in those sections). Do not treat this file's Sprint-4.1-era "recommended first sprint" framing
+as the current state — it was superseded by the Phase 4 closure recorded further above.
 
-**Current state (verified 2026-07-19):** `main` HEAD is `f1a34221c41df34139c599d7d073d2832cf2ae99`
-(PR #23 merge). Phase 4 (Customer Portal) is formally closed. The public caregiver marketplace
-— directory, profile, gallery, and the canonical `DEBUG`-only development-tenant contract — is
-now verified working end-to-end with zero manual configuration and is merged to `main`.
+## AUTHORITATIVE NEXT TASK
 
-**Next task:** a dedicated Phase 5 (Marketplace Order Workflow) Architecture Assessment
-(code-free), per `IMPLEMENTATION_ROADMAP.md`'s phase order — not started. Do not begin Phase 5
-implementation, or any other new implementation phase, without a fresh instruction that
-explicitly authorizes it.
+### Title
+
+Phase 5 — Marketplace Order Workflow: Architecture Assessment (code-free)
+
+### Objective
+
+Produce a written, evidence-based assessment of what Phase 5 (job publication, offer
+submission, `OrderOfferService`, reservation hold, payment/escrow coupling, assignment,
+execution, completion, cancellation, disputes) actually requires, given the current state of
+`apps.orders` (the `OrderOffer` model already exists — committed in `ce3b30e`, Phase 1 of the
+Offer Marketplace — but `OrderOfferService` itself was never built), `apps.booking`,
+`apps.matching`, `apps.commission`, `apps.payments`, and `apps.finance` — and produce a bounded
+first-implementation-sprint recommendation. This is a planning/governance activity, matching
+the repository's own established precedent (the Phase 3 Closure / Phase 4 Customer Portal
+Architecture Assessment, PR #15, and the Phase 4 Closure Review, PR #17 — both documentation-
+only, both preceding their respective phase's first implementation sprint).
+
+### Why this is next
+
+- Phase 4 (Customer Portal) is formally closed (PR #17); Phase 5 is the next phase in
+  `IMPLEMENTATION_ROADMAP.md`'s explicit, single active implementation order.
+- The "manual end-to-end runtime/UI validation of caregiver and company visibility in the
+  public marketplace directory" task that sat between the Core Profile-ServiceSupplier
+  Invariant Remediation (PR #18) and Phase 5 is now **complete** — it is exactly what surfaced
+  and closed FR-015 through FR-019 (PRs #19–#23). There is no remaining placeholder task
+  standing between the current `main` state and Phase 5.
+- Every other roadmap phase (6 — Invoice Workflow, 7 — Financial Engine Review, 8 — Payment &
+  Settlement Review) explicitly depends on Phase 5's own implementation or its usage patterns
+  (`IMPLEMENTATION_ROADMAP.md`'s own "Depends on" lines) — none of them can legitimately be
+  reordered ahead of Phase 5 on current evidence.
+- No currently-open defect/risk register entry is flagged as more urgent than this. The
+  organization directory's own "0 results" behavior under the demo tenant is a deliberate,
+  repeatedly-reconfirmed characteristic of `seed_product_walkthrough`'s seed data (every
+  organization it creates is `verification_status=unverified` by construction — see FR-015's
+  own entry in `quality/DEFECT_AND_RISK_REGISTER.md`), not a defect, and no instruction has
+  asked for it to change.
+- `IMPLEMENTATION_ROADMAP.md` § 5 (Governance) and this file's own repeated, explicit
+  prohibitions both require a dedicated architecture assessment before any Phase 5 code is
+  written — this has not yet been performed.
+
+### In scope
+
+- Read `apps.orders` (`OrderOffer`, `ServiceCategory`, `ServiceType`, `Order`,
+  `OrderStatusHistory`, `OrderShareLink`, `OrderOrganizationEligibility`), `apps.booking`
+  (`SupplierAssignment`), `apps.matching` (`MatchRound`, `MatchCandidate`), `apps.commission`
+  (`PaymentDeadline`, `ObjectionPeriod`, `Dispute`, etc.), `apps.payments`, `apps.finance`
+  directly from current source — not from memory or prior reports.
+- Determine exactly what `OrderOfferService` needs to implement against the already-committed
+  `OrderOffer` model (submit/edit/withdraw/select per the ADM-001..013 decisions already on
+  record in `traceability/ARCHITECTURE_DECISION_LOG.md`).
+- Determine the concurrency contract for offer selection (the one-selected-per-order DB
+  constraint already exists on `OrderOffer` — confirm what service-layer locking it still
+  needs).
+- Determine the reservation-hold / `PaymentDeadline` reuse contract (ADM-011).
+- Identify which of BG-007 (deadline-expiry gate) and BG-008 (pre-service payment gate) are
+  genuine blockers vs. already-satisfied.
+- Recommend a bounded first Phase 5 implementation sprint (mirroring Sprint 4.1's own
+  "recommended first sprint" precedent) — scope, acceptance criteria, explicit exclusions.
+
+### Out of scope
+
+- Any model, migration, service, view, or template change.
+- Any branch creation for production work.
+- Beginning `OrderOfferService` implementation itself.
+- Redesigning Phases 6, 7, or 8.
+- Touching the pre-existing `kernel` migration-drift cosmetic warning (RISK-009) — confirmed
+  unrelated, out of scope, unchanged since it was first documented.
+
+### Required repository verification
+
+- Direct inspection of every app/service/model listed above under "In scope" — cite exact file
+  paths and current behavior, not assumptions.
+- Confirm current full-regression baseline before starting (`python manage.py test` on synced
+  `main`) so the assessment's own eventual PR can cite an accurate "before" count.
+- Confirm `git status`/`local main == origin/main` before starting, per this repository's own
+  established pre-phase-start convention (every prior phase's own Pre-Check did this).
+
+### Acceptance criteria
+
+- A written assessment document (location per `DOCUMENTATION_RULES.md` — under `project docs/`,
+  not a new root-level report) covering every "In scope" item above, each backed by a citation
+  to real source code, not narrative assumption.
+- A concrete, bounded first-sprint recommendation with explicit in-scope/out-of-scope lines,
+  matching the level of detail the Phase 4 assessment (PR #15) and Sprint 4.1's own
+  "recommended first sprint" section provided.
+- No code, test, or migration file changed by the assessment itself.
+
+### Required tests or runtime checks
+
+None — this is a documentation/analysis-only activity. No test suite is expected to change as
+a result of the assessment itself.
+
+### Documentation synchronization requirements
+
+On completion, update: this file (replace this "Authoritative Next Task" section with the
+assessment's own findings and the resulting bounded-sprint recommendation, exactly as PR #15
+did for Phase 4), `02_PROJECT_CONTINUATION.md` (Active work branch / Active blocker rows),
+`IMPLEMENTATION_ROADMAP.md` (a Phase 5 assessment changelog line, matching its own established
+per-phase-update convention), and `traceability/IMPLEMENTATION_JOURNAL.md`/
+`traceability/ARCHITECTURE_DECISION_LOG.md` (a new ADM entry recording the assessment's
+decisions, matching ADM-026's precedent for the Phase 4 assessment).
+
+**Do not begin Phase 5 implementation without this assessment being performed and approved
+first** — per this repository's own repeatedly-stated governance.
