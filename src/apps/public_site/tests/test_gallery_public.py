@@ -199,3 +199,65 @@ class PublicGalleryPresentationTest(PublicSiteTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "گالری تصاویر")
+
+    def test_lightbox_never_uses_unregistered_alpine_focus_plugin_directive(self):
+        """FINAL UI CORRECTION (Blocker 2): the project's asset pipeline
+        (scripts/build-alpine.js) only ever vendors Alpine's bare core CDN
+        bundle — no Focus plugin is registered anywhere. `x-trap` requires
+        that plugin, so its mere presence in rendered markup would produce
+        the browser-console `Alpine Warning: You can't use [x-trap]
+        without first installing the "Focus" plugin`. Locks that directive
+        out for good rather than merely asserting today's happy path."""
+        supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
+        CaregiverGalleryService.add_item(caregiver, image=_image_file())
+
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+
+        self.assertNotContains(response, "x-trap")
+
+    def test_lightbox_dialog_has_accessible_label(self):
+        supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
+        CaregiverGalleryService.add_item(caregiver, image=_image_file())
+
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+
+        self.assertContains(response, 'aria-label="نمای بزرگ‌شده تصویر گالری"')
+
+    def test_lightbox_close_control_is_a_real_keyboard_focusable_button(self):
+        supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
+        CaregiverGalleryService.add_item(caregiver, image=_image_file())
+
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+        content = response.content.decode()
+
+        self.assertContains(response, 'aria-label="بستن"')
+        # a real <button type="button"> (not a div/span click-handler) is
+        # keyboard-focusable and Enter/Space-activatable by construction,
+        # with no tabindex hack required.
+        close_button_start = content.index('aria-label="بستن"')
+        preceding_markup = content[max(0, close_button_start - 400):close_button_start]
+        self.assertIn("<button", preceding_markup)
+        self.assertIn('x-ref="lightboxClose"', preceding_markup)
+
+    def test_lightbox_close_and_reopen_use_shared_focus_managed_methods(self):
+        """The close button, the Escape handler, and the dialog-wrapper
+        click-to-dismiss all route through the same openLightbox()/
+        closeLightbox() methods (not three independently duplicated
+        inline expressions) — this is what makes focus-return to the
+        triggering thumbnail consistent across every close path."""
+        supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
+        CaregiverGalleryService.add_item(caregiver, image=_image_file())
+
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+
+        self.assertContains(response, "openLightbox(")
+        self.assertContains(response, "closeLightbox()")
+        self.assertContains(response, '@keydown.escape.window="closeLightbox()"')
