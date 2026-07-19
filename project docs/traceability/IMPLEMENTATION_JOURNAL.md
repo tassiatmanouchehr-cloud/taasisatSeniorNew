@@ -4203,7 +4203,20 @@ pre-existing kernel migration drift (investigated, confirmed unrelated, not touc
 explicit instruction).
 
 **Branch:** `fix/public-site-canonical-tenant-resolution`, from `main` @
-`e1f0bfd6c921636bab0c196eaf469d2eb2a667aa`. PR opened, not merged.
+`e1f0bfd6c921636bab0c196eaf469d2eb2a667aa`. An independent final pre-merge review returned
+`APPROVE`; **PR #21 merged to `main`** (merge commit `5e4364c868ea4082f40bd4588089951a8c81f247`,
+2026-07-19).
 
 **Next task:** Phase 5 — Marketplace Order Workflow remains NOT STARTED; no phase has been marked
 as started by this entry.
+
+## PR #21 Merge (2026-07-19)
+
+PR #21 merged to `main` via merge commit `5e4364c868ea4082f40bd4588089951a8c81f247`, since the
+independent final review above returned `APPROVE`. Local `main` fast-forwarded
+`e1f0bfd..5e4364c`. Post-merge `manage.py check` / `migrate --check` clean; focused
+`apps.public_site` 255/255 and full regression 2365/2365 both re-verified with the local `.env`
+temporarily set aside (to avoid `PUBLIC_SITE_TENANT_SLUG` contaminating the empty test database)
+and restored immediately after. Runtime re-verified with `.env` restored: `/` and
+`/find-a-caregiver/` both 200, 3 featured-caregiver profile links followed successfully, unknown
+explicit tenant still 404s, no cross-tenant leak. No further phase started.
