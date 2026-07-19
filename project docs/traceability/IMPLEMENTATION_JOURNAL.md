@@ -4594,5 +4594,87 @@ workflow, authentication, supplier verification rules, `resolve_public_tenant()`
 **Branch:** `fix/public-caregiver-marketplace-remediation` (same branch as the original FR-019
 pass — no new branch created for the correction).
 
+## FR-019 — Final UI Correction and Merge (2026-07-19)
+
+A final pre-merge screenshot review of the corrective pass above (not a new architectural
+review — explicit instruction: "Do not redesign the tenant architecture. Do not change
+visibility rules. Do not change seed eligibility behavior.") found two genuine runtime defects,
+proven geometrically rather than by eyeballing screenshots:
+
+**Blocker 1 — profile-header overlap.** Playwright bounding-box measurement at 375/768/1280px
+confirmed `back_link_overlaps_avatar`/`back_link_overlaps_h1` were both `true` at desktop/
+tablet (avatar-overlap also `true` at mobile): the back-link `<div>` sits in normal document
+flow directly above the avatar/name block's `-mt-14 sm:-mt-16` negative-margin pull-up, with no
+space reserved for it. Every *other* claimed collision point (avatar↔name, name↔badge,
+name↔subtitle) measured `false` at every viewport — not real. **Fix:** added `mb-14 sm:mb-16`
+to the back-link wrapper, exactly canceling the following block's negative margin via ordinary
+document flow (no absolute positioning). Re-measured after the fix: all overlap booleans
+`false` at all three viewports, zero new overlaps, zero horizontal overflow introduced.
+
+**Blocker 2 — Alpine `x-trap` console warning.** The gallery lightbox's `x-trap.noscroll`
+requires the Alpine Focus plugin. Investigation confirmed this project's asset pipeline
+(`scripts/build-alpine.js`) only ever vendors Alpine's bare core CDN bundle into
+`static/ui/js/alpine.min.js` — no plugin devDependency, no plugin-aware build step, no plugin
+script tag anywhere — so the Preferred remediation option (register the plugin centrally) was
+not viable; used the Alternative instead. **Fix:** removed `x-trap.noscroll`; the lightbox's
+`x-data` scope gained `openLightbox()`/`closeLightbox()` methods shared by all three
+close-triggers (close button, Escape, backdrop) — opening moves focus to the close button
+(`x-ref="lightboxClose"`), Tab is pinned to it (`@keydown.tab.prevent`), closing returns focus
+to the exact thumbnail that opened it. Verifying this surfaced an unrelated, previously
+undetected bug: the backdrop and dialog-wrapper `<div>`s were both `fixed inset-0`
+(full-viewport, identical coverage) — the higher-z-index dialog wrapper permanently occluded
+the backdrop everywhere, so its `@click="open = false"` was dead code, confirmed via
+`document.elementFromPoint()`. Fixed by moving the close-on-click handler to the actually-
+topmost dialog-wrapper element. Re-verified via Playwright: `dialog_closed_after_backdrop_click:
+true` at all three viewports; zero console warnings/errors; zero failed or 4xx/5xx requests.
+
+**Tests:** 9 new (`PublicProfileHeaderLayoutTest` — 5 markup-contract tests for the corrected
+header regions/long-content/missing-avatar-fallback; `PublicGalleryPresentationTest` — 4 new
+tests locking `x-trap` absence, dialog `aria-label`, keyboard-accessible close, shared
+`openLightbox()`/`closeLightbox()` markup). `manage.py check` clean. Full regression:
+**2450 -> 2459/2459 green**, 0 failures, 0 errors.
+
+**Branch:** same branch, same PR-not-yet-opened state at the time of this correction. Commit
+`bec26e093ec66af67fb024da6bb7923eaf5a9995`.
+
+## FR-019 — PR #23 Opened, Reviewed, Merged, and Post-Merge Synchronized (2026-07-19)
+
+Full repository workflow executed against the corrected branch head (`bec26e09`): verified
+working tree clean and the branch cleanly based on `origin/main`'s tip (`0d1d155`, zero
+divergence, no rebase needed); reviewed the complete 18-file diff against `origin/main` (only
+the intended canonical-tenant/seed/avatar/gallery/header files, zero unrelated changes, zero
+duplicated tenant-slug literals outside the one locked-by-test pre-existing occurrence in
+`test_seed_product_walkthrough.py`, `output.css` a single-line minified diff); confirmed
+`makemigrations --check --dry-run` drift is pre-existing on `main` (this branch touches zero
+model/migration files); re-ran every test tier fresh with `.env` isolated — focused suites
+268/268, `apps.public_site apps.kernel` 597/597, full regression 2459/2459, all matching the
+pre-PR counts exactly; ran a runtime smoke test against the literal canonical workflow
+(`migrate` → `seed_product_walkthrough --reset-demo` → `runserver`, `PUBLIC_SITE_TENANT_SLUG`
+commented out so only the `DEBUG`-gated auto-resolution tier was exercised) confirming
+`/find-a-caregiver/` 200/10 real caregivers with avatars, profile pages with skills/experience,
+gallery + lightbox open/close, zero horizontal overflow at 375/768/1280px, and a cross-tenant
+profile probe correctly 404ing.
+
+Opened **PR #23** ("Fix canonical public caregiver marketplace and enrich public profiles"),
+base `main`, head `fix/public-caregiver-marketplace-remediation`. No CI is configured in this
+repository (0 check runs, consistent with every prior merged PR here); mergeable_state `clean`;
+zero review comments. **Merged via the repository's established merge-commit strategy**
+(matching the "Merge pull request #N from ..." pattern of every prior merge in this repo's
+history — not squash, not rebase): merge commit `f1a34221c41df34139c599d7d073d2832cf2ae99`.
+Local `main` fast-forwarded to `origin/main` (`f1a3422`); working tree clean.
+
+**Post-merge documentation synchronization:** this FR-019 register/journal entry corrected to
+record the merge (was previously left saying "No PR opened and no merge performed"); no other
+active documentation file (`RUNTIME_WORKFLOWS.md`, `PORTALS_AND_APIS.md`) contained any claim
+contradicted by this merge, so neither required a change.
+
+**Explicitly out of scope, unchanged:** the payment engine, order workflow, authentication,
+supplier verification rules, `resolve_public_tenant()`'s case 1/case 2 priority order, the
+pre-existing `kernel` migration drift (untouched — zero models/migrations in this PR),
+organization-directory redesign.
+
 **Next task:** Phase 5 — Marketplace Order Workflow remains NOT STARTED; no phase has been
-marked as started by this entry.
+marked as started by this entry. A dedicated Phase 5 Architecture Assessment (code-free) is
+still the next roadmap-ordered milestone, per `project docs/02_PROJECT_CONTINUATION.md` and
+`project docs/03_NEXT_TASK.md` — not started by this PR, and not to be started without an
+explicit instruction authorizing it.

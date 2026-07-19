@@ -1186,3 +1186,28 @@ options, and the exact implementation prompt.
 **Do not begin Phase 4 implementation without a fresh current-state-verification instruction
 that explicitly authorizes branch creation and code changes** — this assessment is planning
 output only, per this task's own governance.
+
+---
+
+## Documentation gap notice (added 2026-07-19, post-PR-#23 sync)
+
+Everything below this point was NOT chronologically maintained in this file after Sprint 4.1 —
+Sprint 4.1 itself merged (PR #16), Phase 4 was formally closed (PR #17), and five further
+merged PRs followed (#19 FR-015, #20 FR-016, #21 FR-017, #22 FR-018/PSA-001–005, #23 FR-019
+public caregiver marketplace remediation + corrective canonical-tenant contract + final
+profile-header/gallery-focus UI correction) without a corresponding entry being appended here.
+This entry does not attempt to reconstruct that missing history — the authoritative record for
+all of it is `project docs/quality/DEFECT_AND_RISK_REGISTER.md` (FR-006 onward, in particular
+the FR-015 through FR-019 entries) and `project docs/traceability/IMPLEMENTATION_JOURNAL.md`
+(which does carry each of those merges' full detail, including PR #23's). Do not treat this
+file's Sprint-4.1-era "recommended first sprint" framing above as the current state.
+
+**Current state (verified 2026-07-19):** `main` HEAD is `f1a34221c41df34139c599d7d073d2832cf2ae99`
+(PR #23 merge). Phase 4 (Customer Portal) is formally closed. The public caregiver marketplace
+— directory, profile, gallery, and the canonical `DEBUG`-only development-tenant contract — is
+now verified working end-to-end with zero manual configuration and is merged to `main`.
+
+**Next task:** a dedicated Phase 5 (Marketplace Order Workflow) Architecture Assessment
+(code-free), per `IMPLEMENTATION_ROADMAP.md`'s phase order — not started. Do not begin Phase 5
+implementation, or any other new implementation phase, without a fresh instruction that
+explicitly authorizes it.
