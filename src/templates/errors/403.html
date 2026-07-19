@@ -1,0 +1,17 @@
+{% extends "ui/layouts/base.html" %}
+{% block title %}دسترسی مجاز نیست{% endblock %}
+
+{% block body %}
+<main id="main-content" class="flex min-h-screen items-center justify-center bg-background px-4 py-16">
+  <div class="w-full max-w-md rounded-3xl border border-border bg-surface p-8 text-center shadow-sm">
+    <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-background-alt text-2xl" aria-hidden="true">🔒</div>
+    <h1 class="text-xl font-black text-text">دسترسی به این صفحه مجاز نیست</h1>
+    <p class="mt-3 text-sm leading-7 text-text-muted">
+      حساب کاربری شما اجازه مشاهده این بخش را ندارد. اگر فکر می‌کنید این یک اشتباه است، با پشتیبانی سالمندیار تماس بگیرید.
+    </p>
+    <a href="/" class="mt-6 inline-flex items-center justify-center rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white no-underline transition-all hover:bg-primary-700">
+      بازگشت به صفحه اصلی
+    </a>
+  </div>
+</main>
+{% endblock %}

@@ -66,7 +66,11 @@
     {% endif %}
 
     {% else %}
-    {% include "ui/components/data/empty_state.html" with icon="🔍" title="سازمانی با این فیلترها یافت نشد" description="فیلترهای دیگری را امتحان کنید یا فیلتر شهر را حذف کنید." action_label="حذف همه فیلترها" action_href=page.filters.reset_url %}
+    {% if page.filters.has_active_filters %}
+    {% include "ui/components/data/empty_state.html" with icon="🔍" title="سازمانی با این فیلترها یافت نشد" description="فیلترهای دیگری را امتحان کنید یا فیلتر شهر را حذف کنید." action_label="پاک کردن فیلترها" action_href=page.filters.reset_url %}
+    {% else %}
+    {% include "ui/components/data/empty_state.html" with icon="🏢" title="در حال حاضر سازمان تأییدشده‌ای برای نمایش وجود ندارد." description="به‌زودی سازمان‌های تأییدشده در این بخش نمایش داده می‌شوند." %}
+    {% endif %}
     {% endif %}
   </div>
 </section>

@@ -11,6 +11,12 @@
 <div class="h-32 w-full bg-gradient-to-l from-primary-700 to-primary-400 sm:h-44" aria-hidden="true"></div>
 
 <section class="bg-background">
+  <div class="mx-auto max-w-5xl px-4 pt-4 sm:px-6 lg:px-8">
+    <a href="{{ directory_url }}" class="inline-flex items-center gap-1 text-sm font-semibold text-text-muted no-underline transition-colors hover:text-primary">
+      <svg class="h-4 w-4 icon-directional" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      بازگشت به فهرست مراقبان
+    </a>
+  </div>
   <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
     <div class="-mt-14 flex flex-col items-start gap-4 sm:-mt-16 sm:flex-row sm:items-end sm:gap-6">
       <div class="ring-4 ring-background rounded-full">
@@ -199,7 +205,7 @@
           {% endif %}
         </div>
 
-        {% include "ui/components/public/cta_section.html" with title="نیاز به مشاوره دارید؟" subtitle="برای هماهنگی و دریافت این مراقب، با ما تماس بگیرید." primary_cta_text="شروع گفتگو" primary_cta_url="/contact/" %}
+        {% include "ui/components/public/cta_section.html" with title="نیاز به مشاوره دارید؟" subtitle="برای هماهنگی و دریافت خدمت از "|add:profile.display_name|add:"، درخواست مشاوره ثبت کنید." primary_cta_text="درخواست مشاوره درباره این مراقب" primary_cta_url=contact_url %}
       </aside>
     </div>
   </div>

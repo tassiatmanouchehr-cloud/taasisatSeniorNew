@@ -313,6 +313,14 @@ class OrganizationDirectoryFiltersViewModel:
     # the same name for the full rationale.
     tenant_slug: str = ""
     reset_url: str = "/find-an-organization/"
+    # FR-018: true only when the visitor actually chose at least one
+    # normalized, recognized filter value (non-empty search text, a city
+    # that survived whitespace/casing normalization, or a service
+    # category id that matches a real category) — never merely because a
+    # query-string parameter happened to be present. Lets the template
+    # distinguish "no verified organizations exist at all" from "your
+    # filters matched nothing" instead of always blaming the filters.
+    has_active_filters: bool = False
 
 
 @dataclass(frozen=True)

@@ -11,6 +11,8 @@ at all (see apps.kernel.tests.test_architecture_guardrails
 enforced for apps.portal/apps.provider_portal/apps.organization_portal.
 """
 
+import uuid
+
 from django.http import Http404
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
@@ -19,6 +21,7 @@ from apps.accounts.services.errors import AccountsError
 from apps.accounts.services.favorites import FavoritesService
 from apps.kernel.models.supplier import SupplierType
 
+from .services import common
 from .services.customer_context import require_customer, resolve_customer_or_none
 from .services.directory_service import CAREGIVER_SUPPLIER_TYPES, CaregiverDirectoryService
 from .services.home_service import HomePageService
@@ -54,13 +57,26 @@ def find_a_caregiver(request):
 
 
 def caregiver_profile(request, supplier_id):
-    tenant_id, _tenant_slug = resolve_public_tenant(request)
+    tenant_id, tenant_slug = resolve_public_tenant(request)
     customer = resolve_customer_or_none(request)
     profile = CaregiverPublicProfileService.get_profile(supplier_id, tenant_id=tenant_id, customer=customer)
     if profile is None:
         raise Http404("Caregiver profile not found.")
+    # FR-018 (PSA-003): the consultation-request CTA carries the caregiver
+    # forward as a server-validated id (never a free-form name) so
+    # /contact/ can look it up itself and greet the visitor by name — see
+    # contact()'s own docstring for the validation this id goes through.
+    contact_url = common.append_tenant_query(f"/contact/?caregiver={profile.supplier_id}", tenant_slug)
+    directory_url = common.append_tenant_query("/find-a-caregiver/", tenant_slug)
     return render(
-        request, "public_site/caregiver_profile.html", {"profile": profile, "can_favorite": customer is not None},
+        request,
+        "public_site/caregiver_profile.html",
+        {
+            "profile": profile,
+            "can_favorite": customer is not None,
+            "contact_url": contact_url,
+            "directory_url": directory_url,
+        },
     )
 
 
@@ -158,7 +174,34 @@ def how_it_works(request):
 
 
 def contact(request):
-    return render(request, "public_site/contact.html")
+    """FR-018 (PSA-003): an optional ?caregiver=<supplier_id> query hint
+    lets a visitor arrive here already knowing which caregiver prompted
+    their request — carried forward from caregiver_profile()'s own CTA
+    (see that view). The id is always re-validated here exactly like any
+    other public profile lookup (same tenant resolution, same
+    CaregiverPublicProfileService.get_profile() visibility gate this
+    view never bypasses): a malformed, unknown, or foreign-tenant id
+    404s rather than being silently ignored or trusted at face value.
+    display_name shown to the visitor always comes from this validated
+    lookup, never from a client-supplied string — the query string never
+    carries a name. Ordinary access with no ?caregiver= hint is entirely
+    unaffected (caregiver_context stays None). This view still never
+    writes anything — no order/contract/assignment row is created by
+    opening this page (the contact form itself has no real submission
+    handler yet; see the template's own note)."""
+    caregiver_context = None
+    caregiver_id = request.GET.get("caregiver") or None
+    if caregiver_id:
+        try:
+            uuid.UUID(caregiver_id)
+        except ValueError:
+            raise Http404("Unknown caregiver.")
+        tenant_id, _tenant_slug = resolve_public_tenant(request)
+        profile = CaregiverPublicProfileService.get_profile(caregiver_id, tenant_id=tenant_id)
+        if profile is None:
+            raise Http404("Unknown caregiver.")
+        caregiver_context = {"display_name": profile.display_name}
+    return render(request, "public_site/contact.html", {"caregiver_context": caregiver_context})
 
 
 def pricing(request):
