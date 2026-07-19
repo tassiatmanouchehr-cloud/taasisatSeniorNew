@@ -4044,3 +4044,46 @@ tenant was not made globally default; no JavaScript-only navigation was introduc
 current activity — this fix removes the navigation blocker FR-015's own fix surfaced. Phase 5
 — Marketplace Order Workflow remains NOT STARTED; no phase has been marked as started by this
 entry.
+
+## PR #20 Final Pre-Merge Review — Helper Robustness Fix (2026-07-19)
+
+**Trigger:** Independent, review-only final pre-merge review of PR #20 (the FR-016 branch above),
+per repository convention: fresh verification, not reuse of the implementer's own report.
+
+**Finding:** `common.append_tenant_query(url, tenant_slug)` unconditionally appended
+`f"{url}?{urlencode({'tenant': tenant_slug})}"` with no check for whether `url` already contained
+a query string. Confirmed via direct inspection that all 4 call sites in this PR (both directories'
+card `profile_url` construction and both directories' `reset_url` construction) always pass a bare
+path (`/find-a-caregiver/<id>/`, `/find-an-organization/<id>/`, or the default `/find-a-caregiver/`
+/ `/find-an-organization/` base URLs) — so no shipped navigation surface in PR #20 was actually
+broken. But the helper's own docstring states it is "the one shared convention every
+directory-generated link... uses," implying a general-purpose contract; called on any URL that
+already carried a query string, it would have produced a malformed double-`?` URL or silently
+duplicated the `tenant` parameter. Classified as a genuine (if currently unreached) defect and
+fixed during the review rather than left latent, consistent with the review task's instruction to
+fix only genuine blocking defects found.
+
+**Fix:** `append_tenant_query()` now splits `url` on its first `?`, parses any existing query string
+with `urllib.parse.parse_qsl`, merges `tenant` into that dict (overwriting rather than duplicating
+an existing `tenant` param), and re-encodes once with `urlencode`. Behavior for every existing call
+site (all bare paths) is byte-identical to before.
+
+**Tests:** 5 new unit tests (`AppendTenantQueryHelperTest` in `apps/public_site/tests/test_views.py`):
+no-op on falsy `tenant_slug`; correct append to a bare path; correct merge into a URL that already
+has other query params (no duplicate `?`, other params preserved); overwrite rather than duplicate
+an existing `tenant` param; correct URL-encoding of a slug containing spaces/`&`.
+
+**Verification:** `git diff --check` clean. `manage.py check` clean. `manage.py migrate --check`
+clean (no model changes). `apps.public_site.tests.test_views` — 60/60 pass. Focused
+`apps.public_site` — 240/240 pass. Full regression: **2345 -> 2350/2350 green**, 0 failures, 0
+errors, no warnings.
+
+**Documentation:** `DEFECT_AND_RISK_REGISTER.md`'s FR-016 entry appended with a "PR #20 final
+review addendum" describing this finding and fix; historical FR-016 text above left unmodified.
+
+**Outcome:** No other blocking issues found across architecture, navigation-surface, ViewModel/
+service-compatibility, test-quality, or documentation review. PR #20 not merged — stopping per
+task instructions pending explicit merge approval.
+
+**Next task (unchanged):** Phase 5 — Marketplace Order Workflow remains NOT STARTED; no phase has
+been marked as started by this entry.

@@ -28,6 +28,8 @@ from apps.kernel.models import Person, UserAccount
 from apps.kernel.models.supplier import SupplierStatus
 from apps.kernel.services.tenant_service import TenantService
 
+from apps.public_site.services.common import append_tenant_query
+
 from .helpers import PublicSiteTestCase
 
 
@@ -747,3 +749,40 @@ class DirectoryTenantLinkPropagationTest(PublicSiteTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "سازمان تأییدنشده پیوند تست")
+
+
+class AppendTenantQueryHelperTest(TestCase):
+    """Unit coverage for common.append_tenant_query() found missing during
+    PR #20 final review: every current directory-generated caller only
+    ever passes a bare path (no existing query string), so the gap below
+    never produced a broken link in this PR, but the helper itself must
+    still merge correctly into a URL that already carries params rather
+    than blindly appending a second "?"."""
+
+    def test_no_op_when_no_tenant_slug(self):
+        self.assertEqual(append_tenant_query("/find-a-caregiver/", None), "/find-a-caregiver/")
+        self.assertEqual(append_tenant_query("/find-a-caregiver/", ""), "/find-a-caregiver/")
+
+    def test_appends_query_to_bare_path(self):
+        self.assertEqual(append_tenant_query("/find-a-caregiver/", "demo-senior-platform"), "/find-a-caregiver/?tenant=demo-senior-platform")
+
+    def test_merges_into_existing_query_string_without_duplicating_marker(self):
+        result = append_tenant_query("/find-a-caregiver/?type=agency&page=2", "demo-senior-platform")
+
+        self.assertEqual(result.count("?"), 1)
+        parsed = parse_qs(urlparse(result).query)
+        self.assertEqual(parsed["type"], ["agency"])
+        self.assertEqual(parsed["page"], ["2"])
+        self.assertEqual(parsed["tenant"], ["demo-senior-platform"])
+
+    def test_overwrites_rather_than_duplicates_existing_tenant_param(self):
+        result = append_tenant_query("/find-a-caregiver/?tenant=stale-slug", "demo-senior-platform")
+
+        parsed = parse_qs(urlparse(result).query)
+        self.assertEqual(parsed["tenant"], ["demo-senior-platform"])
+
+    def test_url_encodes_special_characters_in_slug(self):
+        result = append_tenant_query("/find-a-caregiver/", "a b&c")
+
+        self.assertEqual(parse_qs(urlparse(result).query)["tenant"], ["a b&c"])
+        self.assertNotIn(" ", result)

@@ -35,7 +35,7 @@ function every public surface already shares, closing that gap without
 introducing a second, parallel eligibility implementation.
 """
 
-from urllib.parse import urlencode
+from urllib.parse import parse_qsl, urlencode
 
 from django.db.models import Count
 
@@ -340,10 +340,15 @@ def append_tenant_query(url: str, tenant_slug: str | None) -> str:
     Navigation context only: the destination view re-resolves and
     re-validates the hint itself via _resolve_optional_tenant_hint()
     exactly as if the visitor had typed the URL directly — this helper
-    never grants access on its own."""
+    never grants access on its own. Merges into any query string `url`
+    already carries (rather than blindly appending a second `?`), so it
+    stays safe to call on a URL that isn't a bare path."""
     if not tenant_slug:
         return url
-    return f"{url}?{urlencode({'tenant': tenant_slug})}"
+    base, _, query = url.partition("?")
+    params = dict(parse_qsl(query))
+    params["tenant"] = tenant_slug
+    return f"{base}?{urlencode(params)}"
 
 
 def reviews_to_viewmodels(reviews) -> tuple[ReviewViewModel, ...]:
