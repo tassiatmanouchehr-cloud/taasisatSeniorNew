@@ -683,3 +683,141 @@ class SeedProductWalkthroughReportSideEffectTest(TestCase):
         }
 
         self.assertEqual(supplier_ids_before, supplier_ids_after)
+
+
+@override_settings(DEBUG=True)
+class SeedProductWalkthroughProfessionalShowcaseTest(TestCase):
+    """Public Caregiver Marketplace Remediation (Phase 5): the walkthrough
+    seed previously created zero CaregiverSkill/CaregiverExperience/
+    CaregiverGalleryItem rows and never set an avatar — every demo
+    caregiver's public profile silently rendered those sections as empty.
+    This asserts the fix populates them, through the same owner-authorized
+    services every provider-portal caller uses (never a direct model
+    write)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        _run_command()
+        cls.tenant = Tenant.objects.get(slug=DEMO_TENANT_SLUG)
+        cls.caregivers = list(CaregiverProfile.objects.filter(user__tenant=cls.tenant))
+
+    def test_every_demo_caregiver_has_an_avatar(self):
+        for caregiver in self.caregivers:
+            self.assertTrue(caregiver.avatar, caregiver.display_name)
+
+    def test_every_demo_caregiver_has_skills(self):
+        for caregiver in self.caregivers:
+            self.assertGreater(caregiver.skills.count(), 0, caregiver.display_name)
+
+    def test_every_demo_caregiver_has_at_least_one_experience_entry(self):
+        for caregiver in self.caregivers:
+            self.assertGreater(caregiver.experiences.count(), 0, caregiver.display_name)
+
+    def test_experience_entries_are_visible_by_default(self):
+        for caregiver in self.caregivers:
+            self.assertTrue(caregiver.experiences.first().is_visible)
+
+    def test_several_caregivers_have_approved_gallery_items(self):
+        with_gallery = [c for c in self.caregivers if c.gallery_items.exists()]
+        self.assertGreaterEqual(len(with_gallery), 4)
+        for caregiver in with_gallery:
+            self.assertTrue(all(item.is_visible for item in caregiver.gallery_items.all()))
+
+    def test_gallery_items_have_meaningful_alt_text(self):
+        for caregiver in self.caregivers:
+            for item in caregiver.gallery_items.all():
+                self.assertTrue(item.alt_text.strip())
+
+    def test_placeholder_images_are_not_impersonating_real_people(self):
+        """The generated demo photos are flat-color placeholders, not real
+        photographs — their captions must say so explicitly, never
+        describing a specific real person."""
+        for caregiver in self.caregivers:
+            for item in caregiver.gallery_items.all():
+                self.assertIn("نمایشی", item.caption)
+
+
+@override_settings(DEBUG=True)
+class SeedProductWalkthroughProfessionalShowcaseIdempotencyTest(TestCase):
+    def test_second_run_creates_no_duplicate_skill_experience_or_gallery_rows(self):
+        _run_command()
+        tenant = Tenant.objects.get(slug=DEMO_TENANT_SLUG)
+        counts_after_first = self._snapshot(tenant)
+
+        _run_command()
+        counts_after_second = self._snapshot(tenant)
+
+        self.assertEqual(counts_after_first, counts_after_second)
+        # A meaningful, non-zero baseline — otherwise this test would pass
+        # trivially by comparing two empty snapshots.
+        self.assertGreater(counts_after_first["skills"], 0)
+        self.assertGreater(counts_after_first["experiences"], 0)
+        self.assertGreater(counts_after_first["gallery_items"], 0)
+
+    def test_third_run_still_creates_no_duplicates(self):
+        _run_command()
+        _run_command()
+        tenant = Tenant.objects.get(slug=DEMO_TENANT_SLUG)
+        counts_after_second = self._snapshot(tenant)
+
+        _run_command()
+        counts_after_third = self._snapshot(tenant)
+
+        self.assertEqual(counts_after_second, counts_after_third)
+
+    def test_avatar_file_is_not_replaced_on_rerun(self):
+        """set_caregiver_avatar() always writes a *new* file — if the seed
+        called it unconditionally on every run, the stored avatar path
+        would change every time even though nothing about the demo data
+        actually changed. The seed's own idempotency guard must prevent
+        that."""
+        _run_command()
+        tenant = Tenant.objects.get(slug=DEMO_TENANT_SLUG)
+        caregiver = CaregiverProfile.objects.filter(user__tenant=tenant).first()
+        avatar_name_before = caregiver.avatar.name
+
+        _run_command()
+        caregiver.refresh_from_db()
+
+        self.assertEqual(avatar_name_before, caregiver.avatar.name)
+
+    def _snapshot(self, tenant):
+        from apps.accounts.models.gallery import CaregiverGalleryItem
+        from apps.accounts.models.professional_profile import CaregiverExperience, CaregiverSkill
+
+        caregivers = CaregiverProfile.objects.filter(user__tenant=tenant)
+        return {
+            "skills": CaregiverSkill.objects.filter(caregiver__in=caregivers).count(),
+            "experiences": CaregiverExperience.objects.filter(caregiver__in=caregivers).count(),
+            "gallery_items": CaregiverGalleryItem.objects.filter(caregiver__in=caregivers).count(),
+        }
+
+
+@override_settings(DEBUG=True)
+class SeedProductWalkthroughPublicDirectoryDiscoveryOutputTest(TestCase):
+    """Public Caregiver Marketplace Remediation (Phase 5, print_report):
+    the seed's own printed report previously never mentioned the public
+    caregiver/organization *directory* URLs at all (only individual
+    preview URLs) — an operator running this command had no printed link
+    to the actual canonical discovery entry point, and no warning that
+    visiting it with no ?tenant hint depends on
+    settings.PUBLIC_SITE_TENANT_SLUG."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.output = _run_command()
+
+    def test_output_lists_public_caregiver_directory_url(self):
+        self.assertIn("/find-a-caregiver/", self.output)
+        self.assertIn("Public caregiver directory", self.output)
+
+    def test_output_lists_public_organization_directory_url(self):
+        self.assertIn("/find-an-organization/", self.output)
+        self.assertIn("Public organization directory", self.output)
+
+    def test_directory_urls_carry_the_demo_tenant_hint(self):
+        self.assertIn(f"/find-a-caregiver/?tenant={DEMO_TENANT_SLUG}", self.output)
+        self.assertIn(f"/find-an-organization/?tenant={DEMO_TENANT_SLUG}", self.output)
+
+    def test_output_explains_public_site_tenant_slug_dependency(self):
+        self.assertIn("PUBLIC_SITE_TENANT_SLUG", self.output)

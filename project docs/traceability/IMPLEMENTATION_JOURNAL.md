@@ -4343,3 +4343,136 @@ avoidable — left as a candidate for a future, separately-tested optimization (
 
 **Next task:** Phase 5 — Marketplace Order Workflow remains NOT STARTED; no phase has been marked
 as started by this entry.
+
+## FR-019 — Public Caregiver Marketplace Remediation (2026-07-19)
+
+**Trigger:** a report that `CaregiverProfile.objects.count()` showed a healthy total (13 in the
+reporter's environment) while `/find-a-caregiver/` rendered "0 caregivers found." Instructed to
+reconstruct actual state from source before implementing anything, and to determine root cause
+before touching any visibility rule.
+
+**Phase 1-2 (verification and root cause):** read `00_START_HERE.md` → `02_PROJECT_CONTINUATION.md`
+(confirmed its own "immediate next task" line already anticipated this exact class of report) →
+`03_NEXT_TASK.md`'s FR-014/ADM-029 history, then every listed source file. Built the required
+predicate table by direct DB inspection against this environment's real seeded data (11
+caregiver-type `ServiceSupplier` rows under the dedicated `demo-senior-platform` tenant) rather
+than assuming: `status=ACTIVE` ✓ 11/11, `supplier_type` in caregiver types ✓ 11/11,
+`profile_status=active` ✓ 11/11, `verification_status=verified` ✓ 11/11, `account.is_active` ✓
+11/11, `membership_active` ✓ 10/11 (the 11th is `seed_product_walkthrough`'s own deliberately-
+seeded suspended-membership example — correctly excluded by design, confirmed via that
+command's own comment). Query-string handling (`views.py`'s `find_a_caregiver()` already
+normalizes `city`/`service`/`availability` via `... or None`) was re-verified correct, not
+assumed — `?city=`/`?availability=`/`?service=` behave identically to the parameter's absence
+(now covered by a regression test; was previously untested but never actually broken). Every
+predicate: correct. **Actual root cause:** `resolve_public_tenant()`'s no-hint fallback
+(FR-017, unchanged and correctly behaving) resolves the platform's single hardcoded default
+tenant, never the separate, dedicated tenant `seed_product_walkthrough` deliberately seeds its
+realistic dataset into. Reproduced directly by toggling `.env`'s `PUBLIC_SITE_TENANT_SLUG`
+(commented out by default in the shipped `.env.example`) off and back on against the identical
+database: `/find-a-caregiver/` genuinely, correctly returns 0 results without it, and the real
+10 with it. This is FR-017's resolver working exactly as designed — not a bug — but nothing in
+the seed command's own printed output ever told an operator this or gave them the actual
+directory URL. `config/settings/base.py`'s own comment ("never a literal default here") was
+read and deliberately respected — no tenant slug was hardcoded into any view, template, or
+settings module to paper over this.
+
+**Two genuine code defects found during the same investigation (Phase 3-4), fixed:**
+1. `CaregiverDirectoryService._build_card()` built `profile_url` via
+   `f"/find-a-caregiver/{supplier.id}/"` instead of Django's own named route. Now uses
+   `reverse("public_site:caregiver-profile", args=[supplier.id])` — proven byte-for-byte
+   identical to the prior string, closing a latent desync hazard, not a behavior change.
+2. A caregiver's own uploaded avatar (`CaregiverProfile.avatar`, settable via the existing
+   `ProfileMediaService.set_caregiver_avatar()`) was never resolved by
+   `common.bulk_supplier_attrs()`, so no public card or profile ever showed it — unlike the
+   organization side's `logo_url` (Sprint 3.2). Added `avatar_url` to the same already-fetched
+   entity read (zero new queries), surfaced through `CaregiverCardViewModel`/
+   `CaregiverProfileViewModel`, rendered via `ui/components/data/avatar.html`'s pre-existing
+   `src=` prop (built for exactly this, never wired up caregiver-side).
+
+**Seed report fix (Phase 3):** `seed_product_walkthrough`'s `_print_report()` never printed the
+public directory URLs at all, only individual profile previews. Now prints both directory URLs
+(tenant-hinted, directly usable) and an explicit note when `settings.PUBLIC_SITE_TENANT_SLUG`
+isn't already pointed at this demo tenant, explaining exactly why the bare URL would otherwise
+show zero results.
+
+**Seed data completeness (Phase 5):** the walkthrough seed created zero
+`CaregiverSkill`/`CaregiverExperience`/`CaregiverGalleryItem` rows and set no avatar for any of
+its 11 demo caregivers, despite the public profile page fully supporting all four sections
+since Phase 2.1/Sprint 2.2/2.3 — every demo profile silently rendered them empty. Added, via
+new `_ensure_professional_showcase()`/`_ensure_avatar()`/`_ensure_skills()`/
+`_ensure_experience()`/`_ensure_gallery()` helpers: an avatar for all 11 (via
+`ProfileMediaService.set_caregiver_avatar()`), 3 specialty-mapped skills each (via
+`CaregiverSkillService.add_skill()`, whose own unique-name guard doubles as this seed's
+idempotency check), one experience entry each (via `CaregiverExperienceService.create()`, no
+service-level guard, so this command adds its own "skip if any experience already exists"
+check), and 3 gallery items each for 4 caregivers (via `CaregiverGalleryService.add_item()`,
+same self-added idempotency pattern). New `_placeholder_image_file()` generates small,
+deterministic, solid-color PNG/JPEG images entirely in memory via Pillow (already a project
+dependency, and the exact pattern this repo's own `test_caregiver_gallery.py` already uses to
+build test images) — never fetched over a network, never a committed binary asset, never a real
+or scraped photograph; gallery captions explicitly read "تصویر نمایشی..." ("demonstration
+image..."), never describing a real person. Verified idempotent by running the command three
+times consecutively: identical skill/experience/gallery row counts and an unchanged avatar file
+path after the second and third runs.
+
+**Gallery presentation (Phase 4):** grid changed from a fixed 2/3-column layout to a responsive
+1/2/3-column one; added a self-contained Alpine.js lightbox (no new dependency) — each
+thumbnail is a real `<button>` with a caption-derived `aria-label`, opening a
+`role="dialog"`/`aria-modal="true"` overlay closable by backdrop click, an explicit close
+button, or Escape. **A real bug caught during runtime verification, not shipped:** the first
+version positioned the close button with `-top-3 -end-3` and set the backdrop/image with
+`bg-black/80`, `max-h-[85vh]`, `object-contain` — none of which existed in the project's
+*compiled* `static/css/output.css` (Tailwind's JIT only compiles classes it finds scanning
+templates at the last `npm run build`, and none of these five had been used anywhere else in
+the codebase before). They silently had zero effect: Playwright's own bounding-box measurement
+showed the close button rendering at the bottom of the image in normal document flow, and the
+backdrop's computed `background-color` was fully transparent. Fixed by running
+`npm install && npm run css:build` (clean, minimal, purely-additive rebuild of `output.css` —
+diffed to confirm no tool-version banner/timestamp noise, only new rules) and switching the
+close button to `top-4`/`end-4` (positive, already-compiled logical-inset utilities, confirmed
+present in the bundle both before and after the rebuild, as defense against a future
+un-rebuilt deployment). Re-measured after the fix: backdrop `rgba(0,0,0,0.8)`, close button at
+exactly the image's top/inline-end corner, both Escape and click-to-close functional.
+
+**Tests:** 30 new/updated. `apps/public_site/tests/test_caregiver_discovery_remediation.py`
+(new) — default-tenant-with-no-eligible-caregivers returns a healthy 200 (characterizing the
+root cause as non-defect behavior), empty `city`/`availability`/`service` query parameters
+don't eliminate results, card `profile_url` matches `reverse()` byte-for-byte, avatar renders
+on both card and profile with a clean initials fallback when unset, avatar/profile never leak
+across tenants. `apps/public_site/tests/test_gallery_public.py` (extended) — gallery order is
+deterministic through the actual public page (not just the model's `Meta.ordering` in
+isolation), the grid uses the new responsive classes, the lightbox thumbnail/dialog carry the
+required accessibility markup, no gallery section renders when a caregiver has none.
+`apps/kernel/tests/test_seed_product_walkthrough.py` (extended) — every demo caregiver has an
+avatar/skills/≥1 experience entry, ≥4 have approved gallery items with non-empty alt text and
+explicitly demo-labeled captions, three consecutive runs produce zero duplicate rows and a
+stable avatar file path, the report prints both directory URLs with the tenant hint and
+explains the `PUBLIC_SITE_TENANT_SLUG` dependency.
+
+**Verification:** `manage.py check` / `manage.py migrate --check` clean (no model change; the
+pre-existing documented `makemigrations` cosmetic drift, RISK-009, untouched). Focused
+(`apps.public_site.tests.test_caregiver_discovery_remediation
+apps.public_site.tests.test_gallery_public apps.kernel.tests.test_seed_product_walkthrough`):
+87/87. Broader (`apps.public_site apps.kernel`): 572/572. Full regression:
+**2404 -> 2434/2434 green**, 0 failures, 0 errors (run with `.env` set aside per policy,
+restored immediately after both runs). Manual runtime verification against a real local
+server, freshly re-seeded via `seed_product_walkthrough`: `/find-a-caregiver/` lists 10 real
+caregivers with working avatar images and no `?tenant=` hint required once `.env` is
+configured; every card resolves to a real 200 profile; a gallery-bearing profile's lightbox
+opens/closes correctly (click and Escape); Playwright/Chromium screenshots captured at 375px,
+768px, and 1280px viewports show zero horizontal overflow, zero console errors, and zero
+failed or 4xx/5xx network requests at any of the three.
+
+**Explicitly out of scope, unchanged:** the payment engine, order workflow, authentication,
+supplier verification rules, tenant-isolation principles, `resolve_public_tenant()`'s
+resolution order/precedence, kernel migration drift, and any organization-directory redesign
+beyond the one already-shared `common.bulk_supplier_attrs()` change (adding `avatar_url` as a
+new key that organization-side callers already ignore — no organization behavior changed, no
+organization file touched).
+
+**Branch:** `fix/public-caregiver-marketplace-remediation`, from `main` @
+`0d1d155467173418222d62eb4024c1c24668ae31`, pushed to `origin`. No PR opened, no merge
+performed — not requested by this task's own scope.
+
+**Next task:** Phase 5 — Marketplace Order Workflow remains NOT STARTED; no phase has been
+marked as started by this entry.

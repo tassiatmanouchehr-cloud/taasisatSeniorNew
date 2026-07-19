@@ -33,14 +33,17 @@ Usage:
     python manage.py seed_product_walkthrough --reset-demo
 """
 
+import io
 import uuid
 from datetime import time, timedelta
 
 from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
+from PIL import Image
 
 from apps.accounts.models.profiles import (
     CaregiverProviderType,
@@ -52,8 +55,15 @@ from apps.accounts.models.profiles import (
     ProfileStatus,
 )
 from apps.accounts.services.care_recipients import CareRecipientService
+from apps.accounts.services.caregiver_gallery_service import CaregiverGalleryService
+from apps.accounts.services.caregiver_professional_profile_service import (
+    CaregiverExperienceService,
+    CaregiverSkillService,
+)
+from apps.accounts.services.errors import AccountsError
 from apps.accounts.services.organization_rbac import OrganizationRoleSyncService
 from apps.accounts.services.organization_staff import OrganizationStaffService
+from apps.accounts.services.profile_media_service import ProfileMediaService
 from apps.accounts.services.profiles import ensure_caregiver_profile, ensure_customer_profile
 from apps.accounts.services.supplier_bridge import (
     get_or_create_supplier_for_caregiver,
@@ -169,6 +179,31 @@ ORGANIZATIONS = [
 
 PLATFORM_ADMIN = {"email": "demo.admin@example.test", "phone": "09000090001", "name": "مدیر پلتفرم نمایشی"}
 
+# Public Caregiver Marketplace Remediation (Phase 5 — seed contract): a
+# caregiver's public profile (apps.public_site.services.profile_service
+# .CaregiverPublicProfileService) renders skills/experience/gallery
+# sections only when the underlying rows exist — this seed command never
+# created any, so every walkthrough profile silently rendered those
+# sections as empty even though the page itself supports them. Keyed by
+# `specialty` (every INDEPENDENT_PROVIDERS/affiliated-provider spec
+# already carries one), never invented per-person.
+SKILLS_BY_SPECIALTY = {
+    "پرستار": ("تزریقات و مراقبت‌های پرستاری", "کنترل علائم حیاتی", "مدیریت دارو"),
+    "مراقب سالمند": ("کمک در امور روزمره زندگی", "همراهی و مراقبت شبانه‌روزی", "کمک به تحرک و جابجایی ایمن"),
+    "فیزیوتراپیست": ("توان‌بخشی حرکتی", "تمرینات کششی و تقویتی", "پیشگیری از زمین‌خوردن"),
+    "مراقب سازمانی": ("مراقبت در منزل", "همراهی بیمار", "هماهنگی با تیم درمانی سازمان"),
+}
+
+# Deliberately generic, unmistakably-placeholder captions — see
+# _placeholder_gallery_image()'s own docstring for why these are
+# generated in-memory (solid-color PNGs) rather than any real, scraped,
+# or remotely-fetched photograph. Never describes a specific person.
+GALLERY_CAPTIONS = (
+    "تصویر نمایشی از محیط مراقبت در منزل",
+    "تصویر نمایشی از فعالیت روزانه مراقبتی",
+    "تصویر نمایشی از همراهی و مراقبت",
+)
+
 # Discovered, real URL names (see PR description / final report for the
 # provenance of each — derived from config/urls.py + each app's urls.py,
 # never guessed).
@@ -202,6 +237,29 @@ ROUTE_NAMES = {
 }
 
 CUSTOMER_FINANCIAL_ROUTE_NAME = "portal:request-financial"
+
+
+def _placeholder_image_file(name: str, *, seed: str, fmt: str = "PNG") -> SimpleUploadedFile:
+    """Generates a small, solid-color image entirely in memory — never a
+    real photograph, never fetched over the network, never a committed
+    binary asset. The color is deterministically derived from `seed` (a
+    stable per-record string, e.g. the demo account's email) purely so
+    different caregivers/gallery slots get visibly distinct placeholders
+    on repeated seed runs; it carries no meaning beyond that. This is
+    unmistakably placeholder/demo media — a flat color field, never a
+    face or any real person — satisfying "must not impersonate real
+    people" by construction, not by relying on a disclaimer alone. Sized
+    well within apps.accounts.services.image_validation's limits (5MB /
+    8000x8000 / 25MP) and using only Pillow, already a project dependency
+    (see apps.accounts.services.image_validation itself, and the existing
+    test-only image-generation convention in
+    apps.accounts.tests.test_caregiver_gallery)."""
+    digest = sum(seed.encode("utf-8"))
+    color = ((digest * 37) % 200 + 30, (digest * 61) % 200 + 30, (digest * 97) % 200 + 30)
+    buffer = io.BytesIO()
+    Image.new("RGB", (640, 480), color=color).save(buffer, format=fmt)
+    content_type = "image/jpeg" if fmt == "JPEG" else "image/png"
+    return SimpleUploadedFile(name, buffer.getvalue(), content_type=content_type)
 
 
 class Command(BaseCommand):
@@ -624,7 +682,7 @@ class Command(BaseCommand):
 
     def _ensure_independent_providers(self, tenant):
         providers = []
-        for spec in INDEPENDENT_PROVIDERS:
+        for index, spec in enumerate(INDEPENDENT_PROVIDERS):
             user = self._ensure_user(tenant, email=spec["email"], phone=spec["phone"], full_name=spec["name"])
             profile = ensure_caregiver_profile(
                 user,
@@ -649,6 +707,16 @@ class Command(BaseCommand):
             )
             supplier = get_or_create_supplier_for_caregiver(profile, tenant_id=tenant.id)
             self._ensure_supplier_financials(supplier)
+            self._ensure_professional_showcase(
+                profile,
+                specialty=spec["specialty"],
+                experience_title="سابقه کار به‌صورت مستقل",
+                organization_name="",
+                experience_description=f"ارائه خدمات {spec['specialty']} به‌صورت مستقل برای خانواده‌ها در تهران.",
+                years_experience=6,
+                with_gallery=(index < 2),
+                avatar_seed=spec["email"],
+            )
             providers.append(
                 {"user": user, "profile": profile, "supplier": supplier, "availability": spec["availability"]}
             )
@@ -687,6 +755,94 @@ class Command(BaseCommand):
             self._record(True)
         else:
             self._record(False)
+
+    # ------------------------------------------------------------------
+    # Public Caregiver Marketplace Remediation (Phase 5): skills,
+    # experience, gallery, avatar — every write below goes through the
+    # same owner-authorized service every provider-portal caller uses
+    # (CaregiverSkillService/CaregiverExperienceService/
+    # CaregiverGalleryService/ProfileMediaService), never a direct model
+    # write. Each helper is independently idempotent (checked by existence,
+    # not merely relying on a service-level uniqueness backstop where none
+    # exists) so a second `seed_product_walkthrough` run never creates a
+    # duplicate skill/experience/gallery row or a new avatar file.
+    # ------------------------------------------------------------------
+
+    def _ensure_professional_showcase(
+        self, profile, *, specialty, experience_title, organization_name, experience_description,
+        years_experience, with_gallery, avatar_seed,
+    ):
+        self._ensure_avatar(profile, seed=avatar_seed)
+        self._ensure_skills(profile, SKILLS_BY_SPECIALTY.get(specialty, ()))
+        self._ensure_experience(
+            profile,
+            title=experience_title,
+            organization_name=organization_name,
+            description=experience_description,
+            years_experience=years_experience,
+        )
+        if with_gallery:
+            self._ensure_gallery(profile, seed=avatar_seed)
+
+    def _ensure_avatar(self, profile, *, seed):
+        """Skips entirely if an avatar is already set — ProfileMediaService
+        .set_caregiver_avatar() always writes a new file, so calling it
+        unconditionally on every re-run would leave an orphaned file behind
+        on every single seed re-run, not just create a harmless duplicate
+        row."""
+        if profile.avatar:
+            self._record(False)
+            return
+        ProfileMediaService.set_caregiver_avatar(profile, _placeholder_image_file(f"avatar-{seed}.png", seed=seed))
+        self._record(True)
+
+    def _ensure_skills(self, profile, skill_names):
+        for name in skill_names:
+            try:
+                CaregiverSkillService.add_skill(profile, name=name)
+            except AccountsError:
+                # CaregiverSkillService.add_skill() itself raises for an
+                # exact-name duplicate (uq_caregiver_skill_name) — this IS
+                # this seed command's idempotency guard for skills, not a
+                # real failure being swallowed.
+                self._record(False)
+            else:
+                self._record(True)
+
+    def _ensure_experience(self, profile, *, title, organization_name, description, years_experience):
+        """CaregiverExperienceService.create() has no duplicate guard of its
+        own (no unique constraint on (caregiver, title) — unlike skills),
+        so this seed command's own idempotency check is the only thing
+        stopping a second run from creating a second identical experience
+        row: skip entirely once this caregiver has *any* experience entry."""
+        if CaregiverExperienceService.list_experiences(profile).exists():
+            self._record(False)
+            return
+        start_date = timezone.now().date() - timedelta(days=365 * years_experience)
+        CaregiverExperienceService.create(
+            profile,
+            title=title,
+            organization_name=organization_name,
+            description=description,
+            start_date=start_date,
+            is_current=True,
+        )
+        self._record(True)
+
+    def _ensure_gallery(self, profile, *, seed):
+        """Skips entirely once this caregiver already has any gallery item
+        — CaregiverGalleryService.add_item() has no duplicate guard of its
+        own (only a MAX_GALLERY_ITEMS_PER_CAREGIVER cap), so a second run
+        would otherwise keep appending identical placeholder photos."""
+        if CaregiverGalleryService.list_items(profile).exists():
+            self._record(False)
+            return
+        for index, caption in enumerate(GALLERY_CAPTIONS):
+            image = _placeholder_image_file(f"gallery-{seed}-{index}.jpg", seed=f"{seed}-{index}", fmt="JPEG")
+            CaregiverGalleryService.add_item(
+                profile, image=image, caption=caption, alt_text=caption,
+            )
+            self._record(True)
 
     # ------------------------------------------------------------------
     # C. Organizations
@@ -829,6 +985,16 @@ class Command(BaseCommand):
 
                 supplier = get_or_create_supplier_for_caregiver(profile, tenant_id=tenant.id)
                 self._ensure_supplier_financials(supplier)
+                self._ensure_professional_showcase(
+                    profile,
+                    specialty="مراقب سازمانی",
+                    experience_title=f"عضو تیم مراقبتی {org.name}",
+                    organization_name=org.name,
+                    experience_description=f"ارائه خدمات مراقبتی در قالب تیم {org.name}.",
+                    years_experience=4,
+                    with_gallery=(org_index == 0 and provider_index < 2),
+                    avatar_seed=spec["email"],
+                )
 
                 affiliated.append(
                     {
@@ -1600,6 +1766,26 @@ class Command(BaseCommand):
             'No customer "profile" page exists as a distinct URL in this codebase (confirmed by inspecting '
             "apps/portal/urls.py) — reported here rather than inventing one."
         )
+        w("")
+        w("--- Public caregiver/organization discovery (Public Caregiver Marketplace Remediation) ---")
+        caregiver_directory_url = self._route("public_site:find-a-caregiver")
+        organization_directory_url = self._route("public_site:organization-directory")
+        w(f"Public caregiver directory : {caregiver_directory_url}{tenant_hint}")
+        w(f"Public organization directory: {organization_directory_url}{tenant_hint}")
+        if getattr(settings, "PUBLIC_SITE_TENANT_SLUG", None) == tenant.slug:
+            w(
+                f"settings.PUBLIC_SITE_TENANT_SLUG is already set to '{tenant.slug}' — the URLs above also "
+                "work with no ?tenant hint at all, e.g. plain " + caregiver_directory_url + "."
+            )
+        else:
+            w(
+                "settings.PUBLIC_SITE_TENANT_SLUG is NOT set to this demo tenant, so visiting "
+                f"{caregiver_directory_url} with no ?tenant hint resolves to the platform's own default "
+                "tenant instead — which this command never seeds, so that URL alone would correctly, but "
+                "confusingly, show zero caregivers. Use one of the ?tenant-qualified URLs above, or set "
+                f"PUBLIC_SITE_TENANT_SLUG={tenant.slug} in your local .env (see .env.example) so every public "
+                "link works with no query hint, matching an ordinary visitor's experience."
+            )
         w("")
         w("--- Dataset ---")
         w(f"Tenant ID: {tenant.id} (slug: {tenant.slug})")

@@ -125,3 +125,77 @@ class PublicGalleryQueryCountTest(PublicSiteTestCase):
         # remains a single bounded query regardless of how many items exist.
         with self.assertNumQueries(15):
             CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id)
+
+
+class PublicGalleryOrderingTest(PublicSiteTestCase):
+    """Phase 6 (Public Caregiver Marketplace Remediation): gallery order
+    must be deterministic end-to-end through the public profile page, not
+    just guaranteed by the model's own Meta.ordering in isolation."""
+
+    def test_gallery_items_render_in_display_order_on_the_public_page(self):
+        supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
+        third = CaregiverGalleryService.add_item(caregiver, image=_image_file("c.png"), caption="سوم")
+        first = CaregiverGalleryService.add_item(caregiver, image=_image_file("a.png"), caption="اول")
+        second = CaregiverGalleryService.add_item(caregiver, image=_image_file("b.png"), caption="دوم")
+        CaregiverGalleryService.reorder(
+            caregiver, ordered_item_ids=[first.id, second.id, third.id],
+        )
+
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+        html = response.content.decode()
+
+        self.assertLess(html.index("اول"), html.index("دوم"))
+        self.assertLess(html.index("دوم"), html.index("سوم"))
+
+
+class PublicGalleryPresentationTest(PublicSiteTestCase):
+    """Phase 4 (Public Caregiver Marketplace Remediation): the gallery
+    grid and its lightbox — accessible, Alpine.js-only (no new
+    dependency), never a raw filesystem path, always meaningful alt
+    text."""
+
+    def test_gallery_grid_uses_responsive_column_classes(self):
+        supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
+        CaregiverGalleryService.add_item(caregiver, image=_image_file(), caption="نمونه")
+
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+
+        self.assertContains(response, "sm:grid-cols-2")
+        self.assertContains(response, "lg:grid-cols-3")
+
+    def test_gallery_thumbnail_is_keyboard_and_screen_reader_accessible(self):
+        supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
+        CaregiverGalleryService.add_item(caregiver, image=_image_file(), caption="قابل دسترس")
+
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+
+        self.assertContains(response, "<button")
+        self.assertContains(response, 'aria-label="بزرگ‌نمایی تصویر گالری: قابل دسترس"')
+
+    def test_lightbox_overlay_is_a_real_dialog_with_escape_and_close(self):
+        supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
+        CaregiverGalleryService.add_item(caregiver, image=_image_file())
+
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+
+        self.assertContains(response, 'role="dialog"')
+        self.assertContains(response, 'aria-modal="true"')
+        self.assertContains(response, "@keydown.escape.window")
+
+    def test_no_gallery_section_rendered_when_caregiver_has_no_items(self):
+        supplier, _caregiver = self._create_caregiver_supplier(verification_status="verified")
+
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "گالری تصاویر")

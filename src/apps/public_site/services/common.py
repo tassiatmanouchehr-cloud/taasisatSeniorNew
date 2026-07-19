@@ -117,6 +117,21 @@ def bulk_supplier_attrs(suppliers) -> dict:
         account = getattr(entity, "user", None) or getattr(entity, "admin_user", None)
         account_active = getattr(account, "is_active", True)
 
+        # Public Caregiver Marketplace Remediation: caregiver profile image
+        # was resolved (avatar exists on CaregiverProfile, set via
+        # ProfileMediaService.set_caregiver_avatar()) but never surfaced to
+        # any public view — every public caregiver card/profile fell back to
+        # initials-only, unlike the organization side's own logo_url. `image`
+        # (not `avatar`) mirrors the field name actually used by
+        # OrganizationProfile-shaped entities' own image attribute lookups
+        # elsewhere in this module (`getattr(entity, ..., "") or ""`), so a
+        # plain `getattr(entity, "avatar", None)` here — never raising for an
+        # OrganizationProfile entity, which simply has no `avatar` attribute —
+        # is the same duck-typing convention every other key in this dict
+        # already uses.
+        avatar_field = getattr(entity, "avatar", None)
+        avatar_url = avatar_field.url if avatar_field else ""
+
         attrs_by_id[supplier.id] = {
             "city": getattr(entity, "city", "") or "",
             "specialty": getattr(entity, "specialty", "") or "",
@@ -129,6 +144,7 @@ def bulk_supplier_attrs(suppliers) -> dict:
             "profile_status": getattr(entity, "status", "active") or "active",
             "membership_active": membership_active,
             "account_active": account_active,
+            "avatar_url": avatar_url,
         }
     return attrs_by_id
 
