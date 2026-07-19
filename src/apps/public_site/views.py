@@ -56,12 +56,19 @@ def home(request):
 
 def find_a_caregiver(request):
     tenant_id = _resolve_optional_tenant_hint(request)
+    # Safe to read the raw slug directly here: _resolve_optional_tenant_hint()
+    # above already 404'd on an unknown/invalid slug, so by this point any
+    # non-empty value is a real tenant's own slug — used only to build
+    # navigation URLs (cards/pagination/filter-reset), never to filter the
+    # query itself (tenant_id, resolved above, remains the sole authority).
+    tenant_slug = request.GET.get("tenant") or None
     supplier_type = request.GET.get("type") or None
     if supplier_type not in CAREGIVER_SUPPLIER_TYPES:
         supplier_type = None
 
     page_view = CaregiverDirectoryService.search(
         tenant_id=tenant_id,
+        tenant_slug=tenant_slug,
         text=request.GET.get("q", ""),
         city=request.GET.get("city") or None,
         supplier_type=supplier_type,
@@ -120,8 +127,12 @@ def caregiver_favorite_toggle(request, supplier_id):
 
 def find_an_organization(request):
     tenant_id = _resolve_optional_tenant_hint(request)
+    # See find_a_caregiver()'s identical comment: safe to read raw here,
+    # navigation-only, never used for query filtering.
+    tenant_slug = request.GET.get("tenant") or None
     page_view = OrganizationDirectoryService.search(
         tenant_id=tenant_id,
+        tenant_slug=tenant_slug,
         text=request.GET.get("q", ""),
         city=request.GET.get("city") or None,
         service_category_id=request.GET.get("service") or None,

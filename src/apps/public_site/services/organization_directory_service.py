@@ -56,6 +56,7 @@ class OrganizationDirectoryService:
         cls,
         *,
         tenant_id=None,
+        tenant_slug=None,
         text="",
         city=None,
         service_category_id=None,
@@ -87,12 +88,20 @@ class OrganizationDirectoryService:
             suppliers=[candidates_by_id[supplier_id] for supplier_id in page_supplier_ids], categories=categories,
         )
         cards = tuple(
-            cls._build_card(candidates_by_id[supplier_id], attrs_by_id[supplier_id], card_data=card_data)
+            cls._build_card(
+                candidates_by_id[supplier_id], attrs_by_id[supplier_id], card_data=card_data, tenant_slug=tenant_slug,
+            )
             for supplier_id in page_supplier_ids
         )
 
         filters = cls._build_filters(
-            tenant_id=tenant_id, text=text, city=city, service_category_id=service_category_id, categories=categories,
+            tenant_id=tenant_id,
+            text=text,
+            city=city,
+            service_category_id=service_category_id,
+            categories=categories,
+            tenant_slug=tenant_slug,
+            base_url=base_url,
         )
 
         params = {}
@@ -102,6 +111,8 @@ class OrganizationDirectoryService:
             params["city"] = city
         if service_category_id:
             params["service"] = str(service_category_id)
+        if tenant_slug:
+            params["tenant"] = tenant_slug
 
         pagination = common.build_pagination(
             current_page=current_page,
@@ -199,7 +210,7 @@ class OrganizationDirectoryService:
         }
 
     @classmethod
-    def _build_card(cls, supplier, attrs, *, card_data) -> OrganizationCardViewModel:
+    def _build_card(cls, supplier, attrs, *, card_data, tenant_slug=None) -> OrganizationCardViewModel:
         rating = card_data["ratings"].get(supplier.id) or RatingSummaryViewModel(
             average=None, review_count=0, stars_rounded=0,
         )
@@ -219,7 +230,7 @@ class OrganizationDirectoryService:
             is_verified=attrs["verification_status"] == "verified",
             rating=rating,
             active_provider_count=active_provider_count,
-            profile_url=f"/find-an-organization/{supplier.id}/",
+            profile_url=common.append_tenant_query(f"/find-an-organization/{supplier.id}/", tenant_slug),
         )
 
     @staticmethod
@@ -236,7 +247,10 @@ class OrganizationDirectoryService:
         return tuple(category.name for category in categories if str(category.id) in category_ids)
 
     @classmethod
-    def _build_filters(cls, *, tenant_id, text, city, service_category_id, categories):
+    def _build_filters(
+        cls, *, tenant_id, text, city, service_category_id, categories,
+        tenant_slug=None, base_url="/find-an-organization/",
+    ):
         cities = cls.available_cities(tenant_id=tenant_id)
         normalized_city = " ".join((city or "").split()).casefold() or None
 
@@ -252,4 +266,6 @@ class OrganizationDirectoryService:
             city_options=city_options,
             service_options=service_options,
             search_text=text or "",
+            tenant_slug=tenant_slug or "",
+            reset_url=common.append_tenant_query(base_url, tenant_slug),
         )

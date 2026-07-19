@@ -59,6 +59,7 @@ class CaregiverDirectoryService:
         cls,
         *,
         tenant_id=None,
+        tenant_slug=None,
         text="",
         city=None,
         supplier_type=None,
@@ -90,7 +91,9 @@ class CaregiverDirectoryService:
 
         card_data = cls._bulk_card_data(tenant_id=tenant_id, supplier_ids=page_supplier_ids)
         cards = tuple(
-            cls._build_card(candidates_by_id[supplier_id], attrs_by_id[supplier_id], card_data=card_data)
+            cls._build_card(
+                candidates_by_id[supplier_id], attrs_by_id[supplier_id], card_data=card_data, tenant_slug=tenant_slug,
+            )
             for supplier_id in page_supplier_ids
         )
 
@@ -101,6 +104,8 @@ class CaregiverDirectoryService:
             supplier_type=supplier_type,
             service_category_id=service_category_id,
             availability_status=availability_status,
+            tenant_slug=tenant_slug,
+            base_url=base_url,
         )
         pagination = cls._build_pagination(
             current_page=current_page,
@@ -112,6 +117,7 @@ class CaregiverDirectoryService:
             supplier_type=supplier_type,
             service_category_id=service_category_id,
             availability_status=availability_status,
+            tenant_slug=tenant_slug,
         )
 
         return DirectoryPageViewModel(caregivers=cards, filters=filters, pagination=pagination)
@@ -228,7 +234,7 @@ class CaregiverDirectoryService:
         }
 
     @classmethod
-    def _build_card(cls, supplier, attrs, *, card_data) -> CaregiverCardViewModel:
+    def _build_card(cls, supplier, attrs, *, card_data, tenant_slug=None) -> CaregiverCardViewModel:
         rating = card_data["ratings"].get(supplier.id) or RatingSummaryViewModel(
             average=None, review_count=0, stars_rounded=0,
         )
@@ -248,11 +254,14 @@ class CaregiverDirectoryService:
             is_verified=attrs["verification_status"] == "verified",
             rating=rating,
             completed_jobs=card_data["completed_jobs"].get(supplier.id, 0),
-            profile_url=f"/find-a-caregiver/{supplier.id}/",
+            profile_url=common.append_tenant_query(f"/find-a-caregiver/{supplier.id}/", tenant_slug),
         )
 
     @classmethod
-    def _build_filters(cls, *, tenant_id, text, city, supplier_type, service_category_id, availability_status):
+    def _build_filters(
+        cls, *, tenant_id, text, city, supplier_type, service_category_id, availability_status,
+        tenant_slug=None, base_url="/find-a-caregiver/",
+    ):
         cities = cls.available_cities(tenant_id=tenant_id)
         normalized_city = " ".join((city or "").split()).casefold() or None
 
@@ -284,6 +293,8 @@ class CaregiverDirectoryService:
             availability_options=availability_options,
             search_text=text or "",
             gender_filter_supported=False,
+            tenant_slug=tenant_slug or "",
+            reset_url=common.append_tenant_query(base_url, tenant_slug),
         )
 
     @classmethod
@@ -299,6 +310,7 @@ class CaregiverDirectoryService:
         supplier_type,
         service_category_id,
         availability_status,
+        tenant_slug=None,
     ):
         params = {}
         if text:
@@ -311,6 +323,8 @@ class CaregiverDirectoryService:
             params["service"] = str(service_category_id)
         if availability_status:
             params["availability"] = availability_status
+        if tenant_slug:
+            params["tenant"] = tenant_slug
 
         return common.build_pagination(
             current_page=current_page,
