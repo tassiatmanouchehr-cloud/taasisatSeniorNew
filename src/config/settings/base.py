@@ -44,6 +44,18 @@ DEBUG = False
 
 ALLOWED_HOSTS = []
 
+# apps.public_site's canonical anonymous-visitor tenant (see
+# apps.public_site.services.tenant_context.resolve_public_tenant()).
+# Unset (None) for the ordinary single-tenant deployment — every public
+# view then falls back to TenantService's platform default tenant,
+# exactly as before this setting existed. An environment that serves a
+# specific, non-default tenant as its public site (e.g. a local dev
+# environment walking through seed_product_walkthrough's dedicated demo
+# tenant) sets this via its own .env / real environment variable — never
+# a literal default here, so no specific tenant slug is ever hard-coded
+# into source for every deployment to inherit.
+PUBLIC_SITE_TENANT_SLUG = os.environ.get("PUBLIC_SITE_TENANT_SLUG") or None
+
 # GIS/PostGIS support — optional for native development
 # Set GIS_ENABLED=false on Windows/native dev where GDAL is not available.
 # Production and Docker default to GIS_ENABLED=true.
@@ -116,6 +128,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "apps.public_site.context_processors.public_tenant_context",
             ],
         },
     },

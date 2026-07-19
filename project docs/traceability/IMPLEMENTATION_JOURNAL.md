@@ -4087,3 +4087,123 @@ task instructions pending explicit merge approval.
 
 **Next task (unchanged):** Phase 5 — Marketplace Order Workflow remains NOT STARTED; no phase has
 been marked as started by this entry.
+
+## PR #20 Merge (2026-07-19)
+
+PR #20 merged to `main` via merge commit `e1f0bfd6c921636bab0c196eaf469d2eb2a667aa`, since the
+independent final review above returned `APPROVE`. Local `main` fast-forwarded
+`aac0185..e1f0bfd`. Post-merge `manage.py check` / `migrate --check` / `apps.public_site.tests
+.test_views` (60/60) all clean. No further phase started.
+
+## FR-017 — Public Site Had No Canonical Tenant (2026-07-19)
+
+**Trigger:** Continued manual runtime validation of PR #20's own merged outcome (the immediate
+next task PR #20 itself set): `GET /find-a-caregiver/` — the bare public root, exactly what an
+ordinary, non-technical visitor types or reaches by clicking "یافتن مراقب" from the homepage —
+still rendered zero caregivers, while `GET /find-a-caregiver/?tenant=demo-senior-platform`
+rendered the correct real ones.
+
+**Reproduction:** Confirmed against the real running local server and a direct database query
+(not assumed): the platform default tenant (`salmandyar`) has 4 ACTIVE `ServiceSupplier` rows,
+but all 4 carry `verification_status="unverified"` (seeded by `seed_demo_accounts`, which never
+runs the real verification workflow) — `common.is_publicly_visible_attrs()` correctly excludes
+them, which is intentional, not a bug. Meanwhile `seed_product_walkthrough`'s dedicated
+`demo-senior-platform` tenant has 13 real, VERIFIED, ACTIVE suppliers, but nothing in the
+codebase ever pointed the public site at that tenant without a visitor manually typing the
+slug into every URL.
+
+**Trace:** Investigated every angle the task specified. Host/domain: `Tenant.domain` exists on
+the model (`apps/kernel/models/tenant.py`) but is read by zero lines of application code anywhere
+in the repository (grepped and confirmed) — an inert field, not a working mechanism. Site
+configuration: `apps.kernel.models.configuration`'s `ConfigurationKey`/`ConfigurationValue` (CCS)
+is tenant-*scoped* configuration — resolving it requires already knowing the tenant, so it cannot
+answer "which tenant is this" and was ruled out as circular for this purpose. Default tenant:
+`TenantService.DEFAULT_TENANT_SLUG = "salmandyar"`, a hard-coded module constant, with zero
+override mechanism. Homepage: `home()` in `apps/public_site/views.py` never called any
+tenant-resolution helper at all — not even the explicit-`?tenant=`-hint one FR-015 added to the
+other four public views — so it was unconditionally pinned to the platform default regardless of
+query string. Public navigation: `templates/public_site/base_public.html`'s shared nav/footer
+links were hard-coded bare paths (`/find-a-caregiver/`, `/find-an-organization/`), the same class
+of gap FR-016 already fixed for directory-*generated* links, but never extended to the site's own
+persistent chrome. Seed/demo configuration: no existing settings/env mechanism named which tenant
+a given environment's public site should serve.
+
+**Fix:** New canonical resolver `apps.public_site.services.tenant_context.resolve_public_tenant()`
+— explicit `?tenant=` hint (unchanged FR-015 behavior) → new `settings.PUBLIC_SITE_TENANT_SLUG`
+if configured → platform default tenant (unchanged). `PUBLIC_SITE_TENANT_SLUG` is an
+environment-variable-driven Django setting (`config/settings/base.py`, documented in
+`.env.example`), unset in every shipped settings module — never a hard-coded literal naming
+`demo-senior-platform` or any other specific tenant anywhere in source. A misconfigured value
+(set but resolves to no real tenant) raises `django.core.exceptions.ImproperlyConfigured` rather
+than silently falling back, so a deployer's typo is loud, not a silently-wrong public site. All
+five public views now resolve through this one function. `HomePageService.get_home_view()` and
+`CaregiverDirectoryService.featured()` both gained an optional `tenant_slug` parameter (default
+`None`, zero behavior change for any pre-existing caller), threaded via the existing,
+review-hardened `common.append_tenant_query()` — no new URL-building logic anywhere. New context
+processor `apps.public_site.context_processors.public_tenant_context`, scoped internally to
+`request.resolver_match.namespace == "public_site"` (zero cost on any other app's page), exposes
+`public_tenant_slug` to every public template so the shared nav/footer chrome (6 link occurrences
+in `base_public.html`) carries the resolved tenant forward consistently, matching every
+directory-generated link FR-016 already fixed.
+
+**Local development configuration:** This environment's own `PUBLIC_SITE_TENANT_SLUG` is set to
+`demo-senior-platform` via a local, gitignored `src/.env` file (never committed — `.gitignore`
+already excludes `.env`; `.env.example` documents the setting with this exact value as its
+commented-out example, not an active default).
+
+**Tests:** 11 new failing-then-passing regression tests (`PublicSiteCanonicalTenantResolutionTest`,
+`apps/public_site/tests/test_canonical_tenant_resolution.py`, 15 total — 4 pass both before and
+after since they assert pre-existing behavior: explicit-hint priority over the configured tenant,
+unknown-hint 404 even with a tenant configured, isolation from a third tenant, and the unset-setting
+no-op). Verified failing against the pre-fix code by temporarily stashing the 11 production/template
+files (the two new files, `tenant_context.py`/`context_processors.py`, were untracked and simply
+unused by the stashed-back old code) and running the new test class: 11/15 failed, all 15 passed
+after `git stash pop`. One test-authoring bug found and fixed during this process (not a production
+defect): the test's own `_tenant_param()` helper naively `parse_qs()`'d a raw rendered `href`
+attribute without first HTML-unescaping it, so a multi-param query string's `&amp;`-encoded
+separator silently corrupted the second param's key (`amp;tenant` instead of `tenant`) — fixed by
+unescaping before parsing, matching how every real browser already treats the same markup.
+
+**Verification:** `git diff --check` / `manage.py check` / `manage.py migrate --check` all clean
+(zero model changes). Investigated the pre-existing kernel migration drift per explicit task
+instruction: `manage.py makemigrations --check --dry-run` shows roughly 30 "Alter field" entries
+confined entirely to `apps.kernel` — `help_text`/`verbose_name`/`choices` metadata only, no
+add/remove/rename, nothing `migrate --check` flags as a pending schema change. Confirmed unrelated
+to `apps.public_site` and to this fix; not modified, no migration generated, per instruction not to
+touch it unless proven relevant to the current model state, which it is not. Focused
+`apps.public_site` — 255/255 pass (240 pre-existing + 15 new). Full regression:
+**2350 -> 2365/2365 green**, 0 failures, 0 errors, no warnings.
+
+**Manual runtime verification** against a real local server with `PUBLIC_SITE_TENANT_SLUG=
+demo-senior-platform` (via the local `.env` above): `GET /` → 200, rendered 4 real
+featured-caregiver cards, every one carrying `?tenant=demo-senior-platform` with zero manual
+typing; 3 of those card links followed successfully (200 each); `GET /find-a-caregiver/` (bare,
+no hint at all) → `10 مراقب یافت شد` (previously 0); the organization nav link rendered on that
+same page carried the identical tenant context; the homepage search form's hidden `tenant` field
+and the empty-state reset link both carried it; an unknown `?tenant=` slug still 404d; a valid
+explicit `?tenant=demo-senior-platform` override still worked exactly as before; the platform
+default tenant's own data (`مدیر سازمان نمونه`) did not leak into the demo-configured homepage,
+confirming isolation. The organization directory correctly still shows 0 results under the demo
+tenant — the same pre-existing, already-documented FR-015/FR-016 seed-data verification-status
+limitation, unrelated to and unaffected by this fix.
+
+**Preserved, unchanged:** tenant isolation (the destination view is always the sole authority for
+which rows a resolved `tenant_id` returns — the configured/hinted slug only selects *which*
+already-validated `tenant_id` to use, never weakens what that `tenant_id` returns);
+`common.is_publicly_visible_attrs()` untouched; the default-tenant fallback and unknown-slug 404
+behavior for every deployment that leaves `PUBLIC_SITE_TENANT_SLUG` unset (every existing test,
+and every shipped settings module); `featured()`/`build_cards_for_supplier_ids()`'s byte-identical
+output for Customer Favorites and any other caller not passing `tenant_slug`.
+
+**Explicitly out of scope:** `demo-senior-platform` is not hard-coded anywhere in committed
+source — it exists only in this one environment's own gitignored `.env` file, exactly as
+`.env.example`'s commented-out example documents; `seed_product_walkthrough`'s organization
+`verification_status` (still the same pre-existing, separate, already-documented limitation); the
+pre-existing kernel migration drift (investigated, confirmed unrelated, not touched or "fixed," per
+explicit instruction).
+
+**Branch:** `fix/public-site-canonical-tenant-resolution`, from `main` @
+`e1f0bfd6c921636bab0c196eaf469d2eb2a667aa`. PR opened, not merged.
+
+**Next task:** Phase 5 — Marketplace Order Workflow remains NOT STARTED; no phase has been marked
+as started by this entry.

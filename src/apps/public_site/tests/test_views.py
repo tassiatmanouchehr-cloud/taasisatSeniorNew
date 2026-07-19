@@ -1,11 +1,14 @@
 """HTTP-level tests for the Epic 06 public views.
 
-All four public caregiver/organization views (find_a_caregiver,
-caregiver_profile, find_an_organization, organization_profile) resolve
-an optional ?tenant=<slug> hint via the single shared
-_resolve_optional_tenant_hint() helper, falling back to
-TenantService.get_default_tenant_id() when no hint is given — see the
-*TenantHintTest classes below for that behavior specifically. The plain
+All five public views (home, find_a_caregiver, caregiver_profile,
+find_an_organization, organization_profile) resolve their tenant context
+via the single shared
+apps.public_site.services.tenant_context.resolve_public_tenant() —
+priority order: an explicit ?tenant=<slug> hint, then
+settings.PUBLIC_SITE_TENANT_SLUG if configured, then
+TenantService.get_default_tenant_id() — see the *TenantHintTest classes
+below for the hint behavior specifically, and PublicSiteCanonicalTenantResolutionTest
+for the settings-driven case. The plain
 FindACaregiverViewTest/FindAnOrganizationViewTest/*ProfileViewTest
 classes below deliberately build their fixtures against the platform's
 real default tenant (TenantService.get_default_tenant()) and never pass

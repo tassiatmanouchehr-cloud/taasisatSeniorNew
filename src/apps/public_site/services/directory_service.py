@@ -139,9 +139,16 @@ class CaregiverDirectoryService:
         return common.distinct_cities_from_attrs(attrs_by_id.values())
 
     @classmethod
-    def featured(cls, *, tenant_id=None, limit=4) -> tuple[CaregiverCardViewModel, ...]:
+    def featured(cls, *, tenant_id=None, tenant_slug=None, limit=4) -> tuple[CaregiverCardViewModel, ...]:
         """Top-ranked caregivers for the Home Page's "Featured Caregivers"
-        section — same ranking as the directory itself, no filters."""
+        section — same ranking as the directory itself, no filters.
+
+        tenant_slug (follow-up to FR-016): threaded into each card's
+        profile_url exactly like search()'s own tenant_slug, so a
+        featured-caregiver card on a tenant-hinted/tenant-configured
+        homepage still resolves when clicked. Defaults to None — every
+        pre-existing caller (Home Page with no active hint) is
+        byte-identical to before."""
         tenant_id = tenant_id or TenantService.get_default_tenant_id()
 
         candidates, attrs_by_id = cls._filter_candidates(
@@ -158,7 +165,9 @@ class CaregiverDirectoryService:
         featured_supplier_ids = [item.supplier_id for item in ranked[:limit] if item.supplier_id in candidates_by_id]
         card_data = cls._bulk_card_data(tenant_id=tenant_id, supplier_ids=featured_supplier_ids)
         return tuple(
-            cls._build_card(candidates_by_id[supplier_id], attrs_by_id[supplier_id], card_data=card_data)
+            cls._build_card(
+                candidates_by_id[supplier_id], attrs_by_id[supplier_id], card_data=card_data, tenant_slug=tenant_slug,
+            )
             for supplier_id in featured_supplier_ids
         )
 

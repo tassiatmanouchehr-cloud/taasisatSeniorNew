@@ -244,6 +244,13 @@ class HomePageViewModel:
     featured_caregivers: tuple[CaregiverCardViewModel, ...] = field(default_factory=tuple)
     reviews: tuple[ReviewViewModel, ...] = field(default_factory=tuple)
     city_options: tuple[FilterOptionViewModel, ...] = field(default_factory=tuple)
+    # Follow-up to FR-016 — the resolved public-site tenant's own slug
+    # (see apps.public_site.services.tenant_context.resolve_public_tenant()),
+    # so the homepage's own search form and "view all caregivers" link
+    # can carry it forward. Empty string on the ordinary default-tenant
+    # path, matching every directory's own tenant_slug field.
+    tenant_slug: str = ""
+    caregiver_directory_url: str = "/find-a-caregiver/"
 
 
 @dataclass(frozen=True)
