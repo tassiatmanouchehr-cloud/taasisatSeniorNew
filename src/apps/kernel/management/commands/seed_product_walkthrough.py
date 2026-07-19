@@ -75,6 +75,7 @@ from apps.booking.services import AssignmentService, OrganizationAssignmentServi
 from apps.execution.services import ExecutionService
 from apps.finance.models import FinancialParty, FinancialPartyType
 from apps.finance.services import FinancialDocumentService, FinancialPartyService
+from apps.kernel.dev_tenant import CANONICAL_DEV_TENANT_SLUG
 from apps.kernel.models import Person, Role, RoleAssignment, Tenant, UserAccount
 from apps.kernel.models.supplier import AvailabilityStatus, SupplierType
 from apps.kernel.role_catalog import DEFAULT_TENANT_ROLES
@@ -99,7 +100,12 @@ from apps.reviews.services import ReviewSubmissionService
 from apps.wallet.models import Wallet
 from apps.wallet.services import WalletService
 
-DEMO_TENANT_SLUG = "demo-senior-platform"
+# FR-019: this is the exact same slug apps.public_site.services
+# .tenant_context.resolve_public_tenant() resolves to (DEBUG-only, no
+# explicit hint/PUBLIC_SITE_TENANT_SLUG configured) — imported from the
+# single shared apps.kernel.dev_tenant module, never redefined here, so
+# the seed and the public resolver cannot silently drift apart.
+DEMO_TENANT_SLUG = CANONICAL_DEV_TENANT_SLUG
 DEMO_TENANT_NAME = "پلتفرم مراقبت سالمندیار — محیط نمایشی"
 DEMO_PASSWORD = "Demo12345!"
 DEMO_ORDER_MARKER = "PRODUCT_WALKTHROUGH_DEMO"

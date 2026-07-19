@@ -4476,3 +4476,123 @@ performed — not requested by this task's own scope.
 
 **Next task:** Phase 5 — Marketplace Order Workflow remains NOT STARTED; no phase has been
 marked as started by this entry.
+
+## FR-019 Corrective Review — Canonical Tenant Contract (2026-07-19, same day)
+
+**Trigger:** an independent review of the FR-019 work above rejected it as incomplete. Quoted
+verbatim: "resolve_public_tenant() without a hint selects the platform default tenant...
+seed_product_walkthrough creates its realistic caregivers in a separate dedicated tenant...
+No tenant-resolution behavior was changed. The remediation only reports that
+PUBLIC_SITE_TENANT_SLUG should be configured. That is operational documentation, not a
+product-level resolution." The review was correct: the original fix improved the seed
+command's printed output but left the actual canonical URL,
+`GET /find-a-caregiver/` with zero query string, dependent on a human reading that output and
+manually editing `.env`. The review required a genuine code-level fix satisfying: no hardcoded
+`demo-senior-platform` in a view/template, no weakened isolation, no "first active tenant"
+heuristic, no hidden fallback unsafe in production, and the seed/resolver must share one
+explicit canonical-tenant contract.
+
+**Investigation, as instructed, before changing anything:** re-read
+`apps/public_site/services/tenant_context.py` (the actual home of `resolve_public_tenant()` —
+the review's own file list named `common.py`, which does not contain this function; treated as
+a pointer to the resolution-service area, not a literal path, and verified against the real
+file), `apps/public_site/tests/test_canonical_tenant_resolution.py` (confirmed the documented,
+tested resolution order: explicit hint → `settings.PUBLIC_SITE_TENANT_SLUG` → platform
+default; nothing in it anticipated a third, automatic tier), `seed_product_walkthrough.py`
+(confirms the demo tenant is deliberately *not* the platform default — the tenant boundary is
+its own `--reset-demo` safety mechanism, not an oversight), and — newly discovered during this
+pass — `apps/kernel/management/commands/seed_tenant.py` (an unrelated command; its own default
+tenant slug is `"dev"`, distinct from both `TenantService`'s `"salmandyar"` and
+`seed_product_walkthrough`'s `"demo-senior-platform"` — confirms there is no single existing
+"canonical tenant" convention already shared across every seed command in this repository, so
+this had to be established, not merely discovered).
+
+**Why "align the seed with the existing default tenant" (the review's option 1) was rejected:**
+would mean seeding realistic demo data directly into `TenantService`'s platform default tenant
+— the exact tenant `seed_product_walkthrough`'s own module docstring deliberately keeps demo
+data *out of*, because `--reset-demo` deletes every row scoped to its tenant and must never be
+able to delete anything outside a dedicated, unambiguous demo boundary. Merging the two
+identities would make `--reset-demo` dangerous and contradict a decision this repository's own
+history (FR-014/ADM-029) already reviewed and confirmed. Not pursued.
+
+**The actual fix (the review's option 2, adapted to this repository's real settings-module
+constraint):** a `development.py`-only default was considered and rejected once verified that
+`python manage.py test` in this environment actually runs under `config.settings.development`
+(confirmed: `manage.py` defaults `DJANGO_SETTINGS_MODULE` to it, and `pyproject.toml`'s
+`[tool.pytest.ini_options]` `DJANGO_SETTINGS_MODULE=config.settings.testing` only applies to
+literal `pytest` invocations, never to `manage.py test` — this project's actual, consistently-
+used test-running convention throughout this whole session) — an unconditional settings-level
+default would therefore have silently activated during every test run, breaking
+`test_unset_setting_still_uses_platform_default_unchanged` and any other test relying on an
+unconfigured `PUBLIC_SITE_TENANT_SLUG`. Instead: a new `apps.kernel.dev_tenant` module (plain,
+zero Django-app-import dependency — safe even before the app registry is ready, though not
+currently required to be) defines exactly one literal, `CANONICAL_DEV_TENANT_SLUG =
+"demo-senior-platform"`. `seed_product_walkthrough.DEMO_TENANT_SLUG` now imports it instead of
+redefining the string. `resolve_public_tenant()` gained a new case 3 (renumbering the old case
+3 to case 4): a `settings.DEBUG`-only, best-effort `Tenant.objects.filter(slug=
+CANONICAL_DEV_TENANT_SLUG).first()` lookup — never `.get()`, never raises, returns `None` and
+falls straight through to the unchanged platform-default case 4 when the dev tenant hasn't
+been seeded yet (every test database; any deployment that hasn't run the walkthrough). Gated on
+`DEBUG` specifically because that is the exact, already-established, already-reviewed
+convention this same command already uses for its own "local development only" guarantee
+(`seed_product_walkthrough` itself: "refuses to run when settings.DEBUG is False") — and because
+both `config.settings.production` and `config.settings.testing` hardcode `DEBUG = False`
+unconditionally (verified by reading their source directly, not merely assumed — see
+`ProductionSettingsNeverAutoResolveDevTenantTest`, which reads the files via
+`importlib.util.find_spec(...).origin` rather than importing them, since `production.py`
+requires a real `SECRET_KEY` environment variable this test environment does not always carry).
+Case 1 (explicit `?tenant=`) and case 2 (`PUBLIC_SITE_TENANT_SLUG`) keep unconditional priority
+over the new case 3, unchanged.
+
+**Why this satisfies every stated constraint:** no tenant slug in any view or template (it's in
+one small service-layer module and one settings-independent constant module); tenant isolation
+completely unchanged (only the *input* to the existing, unmodified resolution logic changed);
+never "the first active tenant" (one specific, named, known slug); never unsafe in production
+(structurally unreachable — `DEBUG` is a hardcoded `False` literal there, not
+environment-driven); `config/settings/base.py`'s own "never a literal default here... for every
+deployment to inherit" comment remains true, since the literal lives outside `base.py` entirely
+and is consulted only when `DEBUG=True`.
+
+**Tests added:** 16 new. `test_canonical_tenant_resolution.py` —
+`DebugOnlyCanonicalDevTenantAutoResolutionTest` (8 tests: bare-URL zero-config resolution on
+both the directory and homepage, a card link resolves to a real profile, case 3 inactive under
+`DEBUG=False`, case 1 and case 2 both still override case 3, an unknown hint still 404s even
+with case 3 available and `DEBUG=True`, isolation holds, silent fall-through with no dev tenant
+seeded) and `ProductionSettingsNeverAutoResolveDevTenantTest` (2 tests, source-text checks for
+both `production.py` and `testing.py`). `test_seed_product_walkthrough.py` —
+`SeedProductWalkthroughCanonicalTenantAlignmentTest` (5 tests: seeded tenant slug matches the
+canonical constant exactly; seed-then-hit-the-real-URL end-to-end for both the directory and a
+profile page, with zero configuration; a second seed run keeps exactly one canonical-slug
+tenant; a caregiver in an unrelated tenant stays excluded).
+
+**Verification:** focused (`apps.public_site.tests.test_canonical_tenant_resolution
+apps.kernel.tests.test_seed_product_walkthrough`) 91/91; broader
+(`apps.public_site apps.kernel`) 588/588; full regression **2434 -> 2450/2450 green**, 0
+failures, 0 errors (`.env` isolated per policy, restored after). Runtime evidence gathered
+twice, independently: (1) `.env` renamed away entirely (no file present, not merely edited),
+server process started with `env -i` (a fully empty process environment — the closest Linux
+equivalent to opening a brand-new PowerShell session, proving the result isn't a transient
+in-memory or shell-inherited environment variable) — `GET /find-a-caregiver/` with zero query
+string still returned 200 with 10 real caregivers; (2) separately, `.env` freshly copied
+verbatim from `.env.example` (only this sandbox's own non-standard `DATABASE_PORT=5433`
+adjusted to its real Postgres port, `5432` — `PUBLIC_SITE_TENANT_SLUG` left exactly as shipped,
+commented out) — identical 200/10 result, and a full Playwright/Chromium pass at 375px, 768px,
+and 1280px: zero horizontal overflow, zero console errors, zero failed or 4xx/5xx network
+requests, gallery lightbox opens and closes correctly (click and Escape), and both
+`?tenant=salmandyar` (a real but wrong tenant) and `?tenant=no-such-slug` still correctly 404.
+
+**Documentation corrected:** the original FR-019 register/journal entries' "seed prints setup
+instructions" framing was rewritten in place (register) and this addendum appended (journal) —
+per explicit instruction, the completion claim was not left standing merely because the seed
+command's output had improved; the entries now record the actual canonical-tenant contract and
+why the seed conforms to it.
+
+**Explicitly out of scope, unchanged (same as the original pass):** the payment engine, order
+workflow, authentication, supplier verification rules, `resolve_public_tenant()`'s case 1/case
+2 priority order, kernel migration drift, organization-directory redesign.
+
+**Branch:** `fix/public-caregiver-marketplace-remediation` (same branch as the original FR-019
+pass — no new branch created for the correction).
+
+**Next task:** Phase 5 — Marketplace Order Workflow remains NOT STARTED; no phase has been
+marked as started by this entry.

@@ -1,6 +1,7 @@
 """Tests for the seed_product_walkthrough management command."""
 
 import io
+import uuid
 from unittest import mock
 
 from django.core.management import CommandError, call_command
@@ -821,3 +822,89 @@ class SeedProductWalkthroughPublicDirectoryDiscoveryOutputTest(TestCase):
 
     def test_output_explains_public_site_tenant_slug_dependency(self):
         self.assertIn("PUBLIC_SITE_TENANT_SLUG", self.output)
+
+
+@override_settings(DEBUG=True)
+class SeedProductWalkthroughCanonicalTenantAlignmentTest(TestCase):
+    """FR-019 corrective review: the seed and the public resolver must
+    agree on the same canonical tenant contract — proven end-to-end
+    here (seed, then hit the real public URL with zero configuration),
+    not merely asserted by import identity between the two files."""
+
+    def test_seeded_tenant_slug_matches_canonical_dev_tenant_slug(self):
+        from apps.kernel.dev_tenant import CANONICAL_DEV_TENANT_SLUG
+
+        _run_command()
+
+        self.assertTrue(Tenant.objects.filter(slug=CANONICAL_DEV_TENANT_SLUG).exists())
+        self.assertEqual(DEMO_TENANT_SLUG, CANONICAL_DEV_TENANT_SLUG)
+
+    def test_bare_directory_url_shows_seeded_caregivers_with_zero_configuration(self):
+        """The literal clean-development-workflow acceptance scenario:
+        migrate, seed_product_walkthrough, runserver, GET
+        /find-a-caregiver/ with no ?tenant= hint and no
+        PUBLIC_SITE_TENANT_SLUG override."""
+        from django.test import Client
+        from django.urls import reverse
+
+        _run_command()
+
+        with override_settings(PUBLIC_SITE_TENANT_SLUG=None):
+            response = Client().get(reverse("public_site:find-a-caregiver"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "مریم احمدی")
+
+    def test_bare_caregiver_profile_url_also_resolves_with_zero_configuration(self):
+        from django.test import Client
+        from django.urls import reverse
+
+        _run_command()
+        tenant = Tenant.objects.get(slug=DEMO_TENANT_SLUG)
+        supplier = ServiceSupplier.objects.filter(
+            tenant_id=tenant.id, supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+        ).first()
+
+        with override_settings(PUBLIC_SITE_TENANT_SLUG=None):
+            response = Client().get(reverse("public_site:caregiver-profile", args=[supplier.id]))
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_second_seed_run_keeps_exactly_one_canonical_dev_tenant(self):
+        from apps.kernel.dev_tenant import CANONICAL_DEV_TENANT_SLUG
+
+        _run_command()
+        _run_command()
+
+        self.assertEqual(Tenant.objects.filter(slug=CANONICAL_DEV_TENANT_SLUG).count(), 1)
+
+    def test_cross_tenant_caregiver_still_excluded_under_zero_configuration(self):
+        """A caregiver seeded under a different tenant must never appear
+        just because case 3 auto-resolves the demo tenant."""
+        from django.test import Client
+        from django.urls import reverse
+
+        from apps.accounts.models.profiles import CaregiverProviderType
+        from apps.accounts.services.profiles import ensure_caregiver_profile
+        from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_caregiver
+        from apps.kernel.models import Person, UserAccount
+
+        _run_command()
+
+        other_tenant = Tenant.objects.create(slug=f"other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
+        person = Person.objects.create(tenant=other_tenant, full_name="مراقب تنانت دیگر")
+        user = UserAccount.objects.create_user(
+            phone=f"0915{uuid.uuid4().hex[:7]}", person=person, tenant=other_tenant,
+        )
+        profile = ensure_caregiver_profile(
+            user, phone=person.full_name, display_name="مراقب تنانت دیگر نباید دیده شود",
+            provider_type=CaregiverProviderType.INDEPENDENT, specialty="پرستار", city="tehran",
+            verification_status="verified", status="active",
+        )
+        get_or_create_supplier_for_caregiver(profile, tenant_id=other_tenant.id)
+
+        with override_settings(PUBLIC_SITE_TENANT_SLUG=None):
+            response = Client().get(reverse("public_site:find-a-caregiver"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "مراقب تنانت دیگر نباید دیده شود")
