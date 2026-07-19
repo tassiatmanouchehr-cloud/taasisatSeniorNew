@@ -15,7 +15,9 @@ other unauthenticated view in this codebase also takes
 test suite where that distinction matters: the service-level tests above
 use isolated tenants and pass tenant_id explicitly instead."""
 
+import re
 import uuid
+from urllib.parse import parse_qs, urlparse
 
 from django.test import TestCase
 from django.urls import reverse
@@ -25,6 +27,8 @@ from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_or
 from apps.kernel.models import Person, UserAccount
 from apps.kernel.models.supplier import SupplierStatus
 from apps.kernel.services.tenant_service import TenantService
+
+from apps.public_site.services.common import append_tenant_query
 
 from .helpers import PublicSiteTestCase
 
@@ -566,3 +570,219 @@ class FindAnOrganizationViewTenantHintTest(PublicSiteTestCase):
 
         self.assertEqual(detail_response.status_code, 200)
         self.assertContains(directory_response, "سازگاری جزئیات و فهرست تست سازمان")
+
+
+class DirectoryTenantLinkPropagationTest(PublicSiteTestCase):
+    """Follow-up to FR-015: PR #19 fixed tenant resolution at the
+    directory *view* boundary (find_a_caregiver()/find_an_organization()
+    now honor ?tenant=<slug>), but the URLs those directories *generate*
+    (card links, pagination, filter-reset) still dropped the hint —
+    clicking a rendered caregiver/organization card from a tenant-hinted
+    directory 404'd, because the destination view then resolved the
+    (unhinted) default tenant instead. This class proves the fix by
+    parsing real rendered URLs out of the HTML and following them with
+    the test client, not by asserting the tenant slug merely appears
+    somewhere on the page.
+
+    self.tenant here (from PublicSiteTestCase.setUp) is deliberately NOT
+    the default tenant — mirrors every other *TenantHintTest class."""
+
+    @staticmethod
+    def _hrefs_matching(html, path_prefix):
+        """Every href value in `html` whose path starts with
+        `path_prefix` — real HTML attribute extraction (regex-scoped to
+        href="..." attributes), not a substring search over the whole
+        page."""
+        return re.findall(rf'href="({re.escape(path_prefix)}[^"]*)"', html)
+
+    @staticmethod
+    def _tenant_param(url):
+        return parse_qs(urlparse(url).query).get("tenant", [None])[0]
+
+    # ------------------------------------------------------------------
+    # Caregiver directory
+    # ------------------------------------------------------------------
+
+    def test_caregiver_card_link_preserves_tenant_hint_and_resolves(self):
+        self._create_caregiver_supplier(display_name="پیوند کارت مراقب تست")
+
+        response = self.client.get(reverse("public_site:find-a-caregiver"), {"tenant": self.tenant.slug})
+        self.assertEqual(response.status_code, 200)
+
+        card_hrefs = self._hrefs_matching(response.content.decode(), "/find-a-caregiver/")
+        card_hrefs = [h for h in card_hrefs if h != "/find-a-caregiver/"]  # exclude the reset/empty-state link
+        self.assertTrue(card_hrefs, "no caregiver card links were rendered")
+
+        for href in card_hrefs:
+            self.assertEqual(
+                self._tenant_param(href), self.tenant.slug,
+                f"card link {href!r} does not carry the active tenant hint",
+            )
+            followed = self.client.get(href)
+            self.assertEqual(followed.status_code, 200, f"following {href!r} did not resolve")
+
+    def test_caregiver_pagination_links_preserve_tenant_hint(self):
+        for i in range(13):  # PAGE_SIZE=12 — forces a second page
+            self._create_caregiver_supplier(display_name=f"مراقب صفحه‌بندی تست {i}")
+
+        response = self.client.get(reverse("public_site:find-a-caregiver"), {"tenant": self.tenant.slug})
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+
+        next_hrefs = self._hrefs_matching(html, "/find-a-caregiver/?")
+        self.assertTrue(next_hrefs, "expected pagination links on a 13-result page with PAGE_SIZE=12")
+        for href in next_hrefs:
+            self.assertEqual(self._tenant_param(href), self.tenant.slug)
+            followed = self.client.get(href)
+            self.assertEqual(followed.status_code, 200)
+
+    def test_caregiver_filter_form_hidden_field_preserves_tenant_hint(self):
+        self._create_caregiver_supplier(display_name="فیلتر شهری تست", city="tehran")
+
+        response = self.client.get(
+            reverse("public_site:find-a-caregiver"), {"tenant": self.tenant.slug, "city": "tehran"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(f'name="tenant" value="{self.tenant.slug}"', response.content.decode())
+
+        # Simulate the browser re-submitting the form with that hidden
+        # field included (a GET form submits every named input, hidden
+        # ones included) — the destination must stay scoped to the same
+        # tenant, not silently fall back to the default one.
+        resubmitted = self.client.get(
+            reverse("public_site:find-a-caregiver"), {"tenant": self.tenant.slug, "city": "tehran"},
+        )
+        self.assertEqual(resubmitted.status_code, 200)
+        self.assertContains(resubmitted, "فیلتر شهری تست")
+
+    def test_caregiver_clear_filters_link_preserves_tenant_hint(self):
+        self._create_caregiver_supplier(display_name="حذف فیلتر تست")
+
+        response = self.client.get(
+            reverse("public_site:find-a-caregiver"), {"tenant": self.tenant.slug, "city": "no-such-city"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "مراقبی با این فیلترها یافت نشد")
+
+        # Scoped to "?" so this only matches the reset link's own generated
+        # URL (which always carries a query string once a tenant hint is
+        # active) — not the static site-nav links to the bare
+        # /find-a-caregiver/ path that appear on every page regardless.
+        reset_hrefs = self._hrefs_matching(response.content.decode(), "/find-a-caregiver/?")
+        self.assertTrue(reset_hrefs)
+        reset_href = reset_hrefs[0]
+        self.assertEqual(self._tenant_param(reset_href), self.tenant.slug)
+
+        followed = self.client.get(reset_href)
+        self.assertEqual(followed.status_code, 200)
+        self.assertContains(followed, "حذف فیلتر تست")
+
+    def test_missing_or_wrong_tenant_context_still_excludes_cross_tenant_caregivers(self):
+        """The link-propagation fix is navigation-context only — it must
+        never let a caregiver from one tenant leak into another tenant's
+        directory or become reachable without re-validating the hint."""
+        from apps.kernel.models import Tenant
+
+        self._create_caregiver_supplier(display_name="نباید نشت کند مراقب")
+        other_tenant = Tenant.objects.create(slug=f"other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
+
+        no_hint_response = self.client.get(reverse("public_site:find-a-caregiver"))
+        self.assertNotContains(no_hint_response, "نباید نشت کند مراقب")
+
+        wrong_hint_response = self.client.get(
+            reverse("public_site:find-a-caregiver"), {"tenant": other_tenant.slug},
+        )
+        self.assertNotContains(wrong_hint_response, "نباید نشت کند مراقب")
+
+    # ------------------------------------------------------------------
+    # Organization directory
+    # ------------------------------------------------------------------
+
+    def test_organization_card_link_preserves_tenant_hint_and_resolves(self):
+        self._create_organization_supplier(name="پیوند کارت سازمان تست")
+
+        response = self.client.get(reverse("public_site:organization-directory"), {"tenant": self.tenant.slug})
+        self.assertEqual(response.status_code, 200)
+
+        card_hrefs = self._hrefs_matching(response.content.decode(), "/find-an-organization/")
+        card_hrefs = [h for h in card_hrefs if h != "/find-an-organization/"]
+        self.assertTrue(card_hrefs, "no organization card links were rendered")
+
+        for href in card_hrefs:
+            self.assertEqual(self._tenant_param(href), self.tenant.slug)
+            followed = self.client.get(href)
+            self.assertEqual(followed.status_code, 200, f"following {href!r} did not resolve")
+
+    def test_organization_pagination_and_filter_and_reset_preserve_tenant_hint_where_present(self):
+        for i in range(13):
+            self._create_organization_supplier(name=f"سازمان صفحه‌بندی تست {i}")
+
+        response = self.client.get(reverse("public_site:organization-directory"), {"tenant": self.tenant.slug})
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+
+        self.assertIn(f'name="tenant" value="{self.tenant.slug}"', html)
+
+        pagination_hrefs = self._hrefs_matching(html, "/find-an-organization/?")
+        self.assertTrue(pagination_hrefs, "expected pagination links on a 13-result page with PAGE_SIZE=12")
+        for href in pagination_hrefs:
+            self.assertEqual(self._tenant_param(href), self.tenant.slug)
+            followed = self.client.get(href)
+            self.assertEqual(followed.status_code, 200)
+
+        empty_response = self.client.get(
+            reverse("public_site:organization-directory"), {"tenant": self.tenant.slug, "city": "no-such-city"},
+        )
+        # See the caregiver test's identical comment: scoped to "?" to
+        # avoid the static site-nav links to the bare
+        # /find-an-organization/ path.
+        reset_hrefs = self._hrefs_matching(empty_response.content.decode(), "/find-an-organization/?")
+        self.assertTrue(reset_hrefs)
+        self.assertEqual(self._tenant_param(reset_hrefs[0]), self.tenant.slug)
+
+    def test_unverified_organization_remains_absent_regardless_of_tenant_hint(self):
+        self._create_organization_supplier(
+            name="سازمان تأییدنشده پیوند تست", verification_status=VerificationStatus.UNVERIFIED,
+        )
+
+        response = self.client.get(reverse("public_site:organization-directory"), {"tenant": self.tenant.slug})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "سازمان تأییدنشده پیوند تست")
+
+
+class AppendTenantQueryHelperTest(TestCase):
+    """Unit coverage for common.append_tenant_query() found missing during
+    PR #20 final review: every current directory-generated caller only
+    ever passes a bare path (no existing query string), so the gap below
+    never produced a broken link in this PR, but the helper itself must
+    still merge correctly into a URL that already carries params rather
+    than blindly appending a second "?"."""
+
+    def test_no_op_when_no_tenant_slug(self):
+        self.assertEqual(append_tenant_query("/find-a-caregiver/", None), "/find-a-caregiver/")
+        self.assertEqual(append_tenant_query("/find-a-caregiver/", ""), "/find-a-caregiver/")
+
+    def test_appends_query_to_bare_path(self):
+        self.assertEqual(append_tenant_query("/find-a-caregiver/", "demo-senior-platform"), "/find-a-caregiver/?tenant=demo-senior-platform")
+
+    def test_merges_into_existing_query_string_without_duplicating_marker(self):
+        result = append_tenant_query("/find-a-caregiver/?type=agency&page=2", "demo-senior-platform")
+
+        self.assertEqual(result.count("?"), 1)
+        parsed = parse_qs(urlparse(result).query)
+        self.assertEqual(parsed["type"], ["agency"])
+        self.assertEqual(parsed["page"], ["2"])
+        self.assertEqual(parsed["tenant"], ["demo-senior-platform"])
+
+    def test_overwrites_rather_than_duplicates_existing_tenant_param(self):
+        result = append_tenant_query("/find-a-caregiver/?tenant=stale-slug", "demo-senior-platform")
+
+        parsed = parse_qs(urlparse(result).query)
+        self.assertEqual(parsed["tenant"], ["demo-senior-platform"])
+
+    def test_url_encodes_special_characters_in_slug(self):
+        result = append_tenant_query("/find-a-caregiver/", "a b&c")
+
+        self.assertEqual(parse_qs(urlparse(result).query)["tenant"], ["a b&c"])
+        self.assertNotIn(" ", result)

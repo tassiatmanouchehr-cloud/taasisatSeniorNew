@@ -12,6 +12,9 @@
     {% include "ui/components/public/section_header.html" with eyebrow="فهرست مراقبان" title="پیدا کردن مراقب مناسب" subtitle="فهرست واقعی مراقبان ثبت‌شده در پلتفرم — قابل فیلتر بر اساس شهر، خدمت، وضعیت دسترسی و نوع همکاری." align="start" size="md" %}
 
     <form method="get" action="/find-a-caregiver/" class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5" role="search" aria-label="فیلتر مراقبان">
+      {% if page.filters.tenant_slug %}
+      <input type="hidden" name="tenant" value="{{ page.filters.tenant_slug }}">
+      {% endif %}
       <div class="sm:col-span-2 lg:col-span-1">
         {% include "ui/components/forms/input.html" with name="q" label="جستجو بر اساس نام" type="search" value=page.filters.search_text placeholder="مثلاً مریم احمدی" %}
       </div>
@@ -69,7 +72,7 @@
     {% endif %}
 
     {% else %}
-    {% include "ui/components/data/empty_state.html" with icon="🔍" title="مراقبی با این فیلترها یافت نشد" description="فیلترهای دیگری را امتحان کنید یا فیلتر شهر را حذف کنید." action_label="حذف همه فیلترها" action_href="/find-a-caregiver/" %}
+    {% include "ui/components/data/empty_state.html" with icon="🔍" title="مراقبی با این فیلترها یافت نشد" description="فیلترهای دیگری را امتحان کنید یا فیلتر شهر را حذف کنید." action_label="حذف همه فیلترها" action_href=page.filters.reset_url %}
     {% endif %}
   </div>
 </section>

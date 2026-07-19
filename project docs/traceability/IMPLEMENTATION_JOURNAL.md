@@ -3946,3 +3946,144 @@ opened). Not merged.
 **Next task (unchanged):** manual end-to-end runtime and UI validation continues. Phase 5 —
 Marketplace Order Workflow remains NOT STARTED; no phase has been marked as started by this
 entry.
+
+---
+
+## FR-016 — Public Directory-Generated Navigation Drops the Tenant Hint (2026-07-19)
+
+**Trigger:** PR #19 (FR-015) merged to `main` after an independent final pre-merge review
+returned `APPROVE`. Continued manual runtime validation of that merged outcome — the task
+FR-015's own fix set as the next step — found that while `GET
+/find-a-caregiver/?tenant=demo-senior-platform` now correctly rendered real caregivers (FR-015
+working as intended), clicking any rendered caregiver card produced a URL with no tenant hint
+(`/find-a-caregiver/<supplier-id>/`), which then 404'd because the detail view resolved the
+default tenant instead. This is a distinct defect from FR-015: FR-015 was about the two
+directory *views* not resolving the hint for their own query; this is about the *links those
+views render* not carrying the hint forward.
+
+**Reproduced before any fix:** against the real local dev server, re-seeded via
+`seed_product_walkthrough`. `GET /find-a-caregiver/?tenant=demo-senior-platform` → 200, 10
+caregivers rendered. Extracted a real card `href` from the HTML — confirmed it omitted
+`?tenant=`. Requested that exact URL — 404. Appended `?tenant=demo-senior-platform` manually
+to the same URL — 200. Repeated the same contrast for the organization directory using a
+disposable, explicitly-VERIFIED test organization (seeded organizations remain unverified for
+the separate, already-documented FR-015 reason, so a real seeded one could not have proven
+this independently) — identical shape confirmed, then the disposable organization/user/person
+deleted.
+
+**Traced:** `CaregiverCardViewModel.profile_url`/`OrganizationCardViewModel.profile_url` were
+hardcoded `f"/find-a-caregiver/{supplier.id}/"` / `f"/find-an-organization/{supplier.id}/"` in
+each service's own `_build_card()`, with no tenant awareness at all. `_build_pagination()`'s
+`params` dict (already the canonical, shared, query-string-preserving mechanism via
+`common.build_pagination()`) never included `tenant`. The filter `<form method="get">` in both
+directory templates had no hidden `tenant` field, so a GET submission — which replaces the
+entire query string with only the form's own named inputs — silently dropped it. The "clear
+filters" empty-state link was a hardcoded bare path in both templates.
+
+**Fix:** one new shared helper, `common.append_tenant_query(url, tenant_slug)` (returns `url`
+unchanged when no hint is active; otherwise appends `?tenant=<slug>` via `urlencode`, matching
+the same encoding convention `common.build_pagination()` already uses). Both directory
+`search()` methods gained an optional `tenant_slug` parameter — the view passes the already-
+validated raw slug string (safe to read directly: `_resolve_optional_tenant_hint()` already
+404'd on an invalid one before this point) alongside the already-resolved `tenant_id`; the
+slug is used only for URL construction, never for query filtering, so tenant isolation remains
+exactly as authoritative as FR-015 left it. Threaded into: `_build_card()` (via the new
+helper), `_build_pagination()`'s existing `params` dict (one added conditional line — reuses
+`common.build_pagination()` unmodified), and a new `tenant_slug` + computed `reset_url` field
+on both Filters ViewModels, which the templates use for a hidden `<input type="hidden"
+name="tenant" ...>` in the filter form and the "clear filters" link. `featured()` (Home Page)
+and `build_cards_for_supplier_ids()` (Customer Favorites) were deliberately left unchanged —
+neither passes `tenant_slug`, so their card URLs are byte-identical to before.
+
+**Tests:** `DirectoryTenantLinkPropagationTest` (8 tests) appended to
+`apps/public_site/tests/test_views.py`: caregiver card links carry the hint and resolve;
+caregiver pagination links carry the hint and resolve (fixture forces a second page,
+PAGE_SIZE=12); the filter form's hidden field carries the hint and a resubmission stays
+scoped to the same tenant; the "clear filters" link carries the hint and resolves; missing/
+wrong tenant context still excludes cross-tenant caregivers; the organization-side equivalents
+(card link + combined pagination/filter/reset); unverified organizations remain absent
+regardless of the hint. Proven failing before the fix by temporarily `git stash`-ing the
+production diff (7 files), running the new tests against the untouched original code (6 of 8
+failed, exactly the ones that require the fix; the 2 leak/exclusion tests correctly passed
+both before and after, since they assert something the fix was never meant to change), then
+`git stash pop` to restore the fix and re-confirm all 8 pass. One test-only bug was found and
+fixed during this process (the "clear filters" href extraction initially matched the site's
+own static nav-bar links to the bare `/find-a-caregiver/` path before the real reset link;
+narrowed the extraction to require a query string, which only the generated reset link ever
+has).
+
+**Verification:** `git diff --check` / `manage.py check` / `manage.py migrate --check` all
+clean. Focused suites (`apps.public_site`, `apps.discovery`,
+`apps.kernel.tests.test_supplier_registry`, `apps.kernel.tests.test_supplier`,
+`apps.kernel.tests.test_seed_product_walkthrough`,
+`apps.accounts.tests.test_profile_supplier_invariant`) — 374/374 pass. Full regression:
+**2337 -> 2345/2345 green**, 0 failures, 0 errors, no warnings. Manual runtime re-verification
+against the real server: 3 distinct caregiver card links all resolved 200; search/city/
+service/cooperation filters all preserved the hint via the rendered hidden field; "clear
+filters" preserved the hint; an invalid tenant slug still 404s (unchanged); the organization
+card link, hidden filter field, and follow-through all confirmed working. No browser-only or
+JavaScript-dependent behavior was introduced — every fix is a server-rendered GET link/form,
+so standard browser back-navigation needs no special handling.
+
+**Preserved, unchanged:** tenant isolation (every destination view still independently
+re-resolves and re-validates its own `?tenant=` parameter — a link or hidden form field is
+never trusted as pre-validated), the default-tenant fallback for hint-less requests, unknown-
+slug 404 behavior on both directories, and every public-visibility predicate (ACTIVE profile,
+VERIFIED, ACTIVE supplier, correct type, active membership for affiliated caregivers) — none
+of the eligibility-filtering code was touched.
+
+**Explicitly out of scope, unchanged:** `seed_product_walkthrough`'s organization
+`verification_status` (still unverified by construction — the same pre-existing, separate
+FR-015 limitation); no new tenant field or duplicated tenancy data added anywhere; the demo
+tenant was not made globally default; no JavaScript-only navigation was introduced.
+
+**Branch:** `fix/public-directory-tenant-link-propagation`, from `main` @
+`aac018575a2f9380d75a11c55bf08b34ce65a511`. PR opened, **not merged**.
+
+**Next task (unchanged):** manual end-to-end runtime and UI validation continues to be the
+current activity — this fix removes the navigation blocker FR-015's own fix surfaced. Phase 5
+— Marketplace Order Workflow remains NOT STARTED; no phase has been marked as started by this
+entry.
+
+## PR #20 Final Pre-Merge Review — Helper Robustness Fix (2026-07-19)
+
+**Trigger:** Independent, review-only final pre-merge review of PR #20 (the FR-016 branch above),
+per repository convention: fresh verification, not reuse of the implementer's own report.
+
+**Finding:** `common.append_tenant_query(url, tenant_slug)` unconditionally appended
+`f"{url}?{urlencode({'tenant': tenant_slug})}"` with no check for whether `url` already contained
+a query string. Confirmed via direct inspection that all 4 call sites in this PR (both directories'
+card `profile_url` construction and both directories' `reset_url` construction) always pass a bare
+path (`/find-a-caregiver/<id>/`, `/find-an-organization/<id>/`, or the default `/find-a-caregiver/`
+/ `/find-an-organization/` base URLs) — so no shipped navigation surface in PR #20 was actually
+broken. But the helper's own docstring states it is "the one shared convention every
+directory-generated link... uses," implying a general-purpose contract; called on any URL that
+already carried a query string, it would have produced a malformed double-`?` URL or silently
+duplicated the `tenant` parameter. Classified as a genuine (if currently unreached) defect and
+fixed during the review rather than left latent, consistent with the review task's instruction to
+fix only genuine blocking defects found.
+
+**Fix:** `append_tenant_query()` now splits `url` on its first `?`, parses any existing query string
+with `urllib.parse.parse_qsl`, merges `tenant` into that dict (overwriting rather than duplicating
+an existing `tenant` param), and re-encodes once with `urlencode`. Behavior for every existing call
+site (all bare paths) is byte-identical to before.
+
+**Tests:** 5 new unit tests (`AppendTenantQueryHelperTest` in `apps/public_site/tests/test_views.py`):
+no-op on falsy `tenant_slug`; correct append to a bare path; correct merge into a URL that already
+has other query params (no duplicate `?`, other params preserved); overwrite rather than duplicate
+an existing `tenant` param; correct URL-encoding of a slug containing spaces/`&`.
+
+**Verification:** `git diff --check` clean. `manage.py check` clean. `manage.py migrate --check`
+clean (no model changes). `apps.public_site.tests.test_views` — 60/60 pass. Focused
+`apps.public_site` — 240/240 pass. Full regression: **2345 -> 2350/2350 green**, 0 failures, 0
+errors, no warnings.
+
+**Documentation:** `DEFECT_AND_RISK_REGISTER.md`'s FR-016 entry appended with a "PR #20 final
+review addendum" describing this finding and fix; historical FR-016 text above left unmodified.
+
+**Outcome:** No other blocking issues found across architecture, navigation-surface, ViewModel/
+service-compatibility, test-quality, or documentation review. PR #20 not merged — stopping per
+task instructions pending explicit merge approval.
+
+**Next task (unchanged):** Phase 5 — Marketplace Order Workflow remains NOT STARTED; no phase has
+been marked as started by this entry.

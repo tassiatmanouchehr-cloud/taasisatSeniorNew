@@ -204,6 +204,14 @@ class DirectoryFiltersViewModel:
     # no such field) — surfaced honestly to the template/report rather
     # than fabricated. See the PR description's "Known limitations".
     gender_filter_supported: bool = False
+    # Follow-up to FR-015 (tenant-context propagation in directory-
+    # generated navigation): the active tenant hint, if any, so the
+    # filter form can resubmit it as a hidden field and the "clear
+    # filters" link can preserve it. Empty string on the default-tenant
+    # path — never used for query filtering, only for building the two
+    # URLs below.
+    tenant_slug: str = ""
+    reset_url: str = "/find-a-caregiver/"
 
 
 @dataclass(frozen=True)
@@ -294,6 +302,10 @@ class OrganizationDirectoryFiltersViewModel:
     city_options: tuple[FilterOptionViewModel, ...]
     service_options: tuple[FilterOptionViewModel, ...]
     search_text: str = ""
+    # Follow-up to FR-015 — see DirectoryFiltersViewModel's own field of
+    # the same name for the full rationale.
+    tenant_slug: str = ""
+    reset_url: str = "/find-an-organization/"
 
 
 @dataclass(frozen=True)

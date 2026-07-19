@@ -12,6 +12,9 @@
     {% include "ui/components/public/section_header.html" with eyebrow="فهرست سازمان‌ها" title="پیدا کردن سازمان مناسب" subtitle="فهرست واقعی سازمان‌های ثبت‌شده در پلتفرم — قابل فیلتر بر اساس شهر و خدمت." align="start" size="md" %}
 
     <form method="get" action="/find-an-organization/" class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" role="search" aria-label="فیلتر سازمان‌ها">
+      {% if page.filters.tenant_slug %}
+      <input type="hidden" name="tenant" value="{{ page.filters.tenant_slug }}">
+      {% endif %}
       <div class="sm:col-span-2 lg:col-span-2">
         {% include "ui/components/forms/input.html" with name="q" label="جستجو بر اساس نام" type="search" value=page.filters.search_text placeholder="مثلاً سازمان نمونه" %}
       </div>
@@ -63,7 +66,7 @@
     {% endif %}
 
     {% else %}
-    {% include "ui/components/data/empty_state.html" with icon="🔍" title="سازمانی با این فیلترها یافت نشد" description="فیلترهای دیگری را امتحان کنید یا فیلتر شهر را حذف کنید." action_label="حذف همه فیلترها" action_href="/find-an-organization/" %}
+    {% include "ui/components/data/empty_state.html" with icon="🔍" title="سازمانی با این فیلترها یافت نشد" description="فیلترهای دیگری را امتحان کنید یا فیلتر شهر را حذف کنید." action_label="حذف همه فیلترها" action_href=page.filters.reset_url %}
     {% endif %}
   </div>
 </section>
