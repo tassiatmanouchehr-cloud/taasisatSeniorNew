@@ -4220,3 +4220,110 @@ temporarily set aside (to avoid `PUBLIC_SITE_TENANT_SLUG` contaminating the empt
 and restored immediately after. Runtime re-verified with `.env` restored: `/` and
 `/find-a-caregiver/` both 200, 3 featured-caregiver profile links followed successfully, unknown
 explicit tenant still 404s, no cross-tenant leak. No further phase started.
+
+## FR-018 — Public Site Coherence Remediation, PSA-001 through PSA-005 (2026-07-19)
+
+**Trigger:** a code-and-runtime-backed public-site audit performed as an ordinary end user
+against the merged PR #21 outcome, covering homepage, both directories, caregiver/organization
+detail pages, public auth entry points, assets, accessibility, and privacy/security surface.
+Found 3 BLOCKER-adjacent-but-not-quite findings selected for immediate remediation (PSA-001
+generic page-title suffix, PSA-002 missing favicon, PSA-003 caregiver-profile CTA losing
+caregiver context — HIGH — PSA-004 misleading unfiltered organization empty state, PSA-005 raw
+Django 403 for anonymous users) plus low-risk polish (non-absolute `og:url`, duplicated brand in
+social-preview titles, a shipped internal build comment, dead `href="#"` social placeholders).
+
+**PSA-001:** `ui/layouts/base.html`'s `title_suffix` block read "` | پلتفرم`" (generic
+"Platform") instead of "` | سالمندیار`". Fixed the one hard-coded string. Separately discovered
+`seo_meta.html` appended its *own* redundant `" | سالمندیار"` on top of every caller's
+already-branded `page_title` — doubling the brand on `og:title`/`twitter:title` for every one of
+~20 public templates, not only the homepage the audit evidenced. Removed the component's own
+append rather than touching all 20 call sites (every one already embeds the brand correctly).
+
+**PSA-002:** added `static/favicon.svg` (a small, project-owned, provisional SVG — the existing
+"س" nav-brand mark on the existing primary color, not a final-branding approval) and one
+`<link rel="icon">` in the single shared `<head>` template.
+
+**PSA-003:** the caregiver profile's only conversion CTA linked to a generic `/contact/` with no
+reference to which caregiver was being viewed. Product interpretation, confirmed against the
+actual code before implementing: `/contact/` is itself still a non-functional demo form (no
+backend submission handler, its own copy already discloses this) — no `apps.orders` order-
+placement wiring exists to hook into, and none was added; this fix is scoped exactly to context
+preservation, not booking/messaging/payment. CTA now reads "درخواست مشاوره درباره این مراقب" and
+links to `/contact/?caregiver=<supplier_id>&tenant=<slug>` using the same server-validated id
+`caregiver_profile()` already resolved. `contact()` independently re-validates it through the
+unchanged `CaregiverPublicProfileService.get_profile()` (same tenant resolution, same
+`is_publicly_visible_attrs()` gate) — malformed/unknown/foreign-tenant ids 404. The visitor is
+greeted by the caregiver's real `display_name` (auto-escaped, never the raw id as visible text).
+Ordinary hint-less `/contact/` access is unaffected. No write of any kind occurs. Also added a
+"بازگشت به فهرست مراقبان" back-link, closing the audit's separately-noted missing-breadcrumb
+observation.
+
+**PSA-004:** the bare, unfiltered `/find-an-organization/` blamed "these filters" for zero
+results even with none applied — misleading given the real cause (no verified organizations
+exist yet, the same pre-existing FR-015/FR-016 seed-verification limitation, unchanged here).
+`OrganizationDirectoryFiltersViewModel.has_active_filters` is now computed from normalized,
+*validated* filter inputs only (trimmed search text; a city that survives normalization; a
+service-category id that matches a real category) — never from raw query-string presence, so a
+garbage `?service=` value doesn't falsely trigger the filtered-state message. Two distinct
+empty-state messages now render depending on this flag; the reset button only appears when a
+filter is genuinely active. Display-logic only — no visibility/verification rule changed.
+
+**PSA-005:** anonymous visitors to `/portal/`, `/provider/`, `/organization/`, `/admin-portal/`
+saw Django's raw default 403. Per the task's own explicit first step ("inspect the intended
+access-control architecture"), an initial redirect-anonymous-to-login implementation was built
+and immediately broke 15 pre-existing tests across `apps.portal`, `apps.provider_portal`,
+`apps.organization_portal`, `apps.admin_portal` — every one of these apps already has its own
+explicit, redundant "anonymous access returns a plain 403, never a redirect"
+`UnauthenticatedAccessTest` (or equivalent per-view test). That is this codebase's own
+established, deliberately non-disclosing security policy — exactly PSA-005's own named exception
+("unless the established security policy explicitly requires non-disclosure"). Reverted the
+redirect; the actual fix is a new `handler403` (`apps.kernel.views.forbidden`) that renders one
+branded, Persian, non-disclosing `templates/errors/403.html` for every browser-facing
+`PermissionDenied` — anonymous or authenticated-wrong-role alike, status code unchanged (403) —
+replacing only Django's raw default page. `/api/` is explicitly left untouched (`ApiError`
+already governs its real error shape before this handler is ever reached). Zero permission-check
+functions touched, zero status codes changed, zero pre-existing tests modified. A
+`_safe_next_path()` open-redirect guard was still written and unit-tested (Django's own
+`url_has_allowed_host_and_scheme()`) — available for a future login-redirect flow, not currently
+wired into the live handler, since the discovered policy doesn't use one.
+
+**Open Graph / metadata cleanup:** `og:url` now absolute via a new `absolute_url` template
+filter (`request.build_absolute_uri()` — never a hard-coded host), agreeing with
+`<link rel="canonical">` (both derive from the same argument through the same filter);
+`og:title`/`twitter:title` brand duplication fixed by the same PSA-001 change.
+
+**Other polish:** removed the shipped internal build-process HTML comment; the 3 footer social
+icons are now non-interactive (no `href="#"`) since no real account exists to link yet.
+
+**Tests:** 39 new (`apps/public_site/tests/test_page_metadata.py`,
+`test_caregiver_contact_context.py`, `test_organization_empty_state.py`,
+`apps/kernel/tests/test_http_error_handlers.py`). Focused suites (`apps.public_site`,
+`apps.kernel`, `apps.portal`, `apps.provider_portal`, `apps.organization_portal`,
+`apps.admin_portal`, `apps.accounts`, `apps.api`) — 1470/1470 pass, confirming the PSA-005
+redesign fixed all 15 initially-broken pre-existing tests with zero edits to any of them.
+
+**Verification:** `git diff --check` / `manage.py check` / `manage.py migrate --check` all clean
+(zero model changes; kernel migration drift not touched). Full regression: **2365 -> 2404/2404
+green**, 0 failures, 0 errors, no warnings (run with the local `.env` temporarily set aside to
+avoid `PUBLIC_SITE_TENANT_SLUG` contaminating the empty test database, restored immediately
+after). Manual runtime verification against a real local server with `.env` restored: `/` title
+"خانه | سالمندیار"; favicon 200; `og:url`/canonical both absolute and identical; zero `href="#"`
+anchors; `/find-a-caregiver/` and `/find-an-organization/` both 200; 3 caregiver profiles
+followed successfully, CTA carrying the caregiver id and tenant hint, back-link present;
+`/contact/?caregiver=<id>&tenant=<slug>` greeted the visitor by name, a malformed and an unknown
+caregiver id both 404d, hint-less `/contact/` unaffected; bare organization directory showed the
+no-verified-organizations message with no reset button, a filtered zero-match query showed the
+filtered message with a reset button; anonymous `/portal/`/`/admin-portal/` both returned the new
+branded 403; no cross-tenant leak; every footer/nav route still 200. No literal rendered-viewport
+(375/768/1280) screenshot testing was performed in this remediation pass either — same limitation
+already recorded by the original audit, still open.
+
+**Explicitly out of scope:** no direct booking/messaging/payment/order-placement workflow; no
+seed or verification data changed; tenant-resolution precedence (FR-017) untouched; kernel
+migration drift not investigated further.
+
+**Branch:** `fix/public-site-coherence-remediation`, from `main` @
+`e9fede1620d4b19ecc294f08cd86591997c4cacf`. PR opened, not merged.
+
+**Next task:** Phase 5 — Marketplace Order Workflow remains NOT STARTED; no phase has been marked
+as started by this entry.

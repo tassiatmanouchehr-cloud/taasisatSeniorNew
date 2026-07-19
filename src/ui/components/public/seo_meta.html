@@ -1,15 +1,16 @@
+{% load public_site_tags %}
 {% if page_description %}
 <meta name="description" content="{{ page_description }}">
 {% endif %}
 <meta property="og:type" content="website">
 <meta property="og:locale" content="fa_IR">
-{% if page_title %}<meta property="og:title" content="{{ page_title }} | سالمندیار">{% endif %}
+{% if page_title %}<meta property="og:title" content="{{ page_title }}">{% endif %}
 {% if page_description %}<meta property="og:description" content="{{ page_description }}">{% endif %}
-{% if og_image %}<meta property="og:image" content="{{ og_image }}">{% endif %}
-{% if page_url %}<meta property="og:url" content="{{ page_url }}">{% endif %}
+{% if og_image %}<meta property="og:image" content="{{ og_image|absolute_url:request }}">{% endif %}
+{% if page_url %}<meta property="og:url" content="{{ page_url|absolute_url:request }}">{% endif %}
 <meta property="og:site_name" content="سالمندیار — بازار خدمات مراقبت سالمندان">
 <meta name="twitter:card" content="summary_large_image">
-{% if page_title %}<meta name="twitter:title" content="{{ page_title }} | سالمندیار">{% endif %}
+{% if page_title %}<meta name="twitter:title" content="{{ page_title }}">{% endif %}
 {% if page_description %}<meta name="twitter:description" content="{{ page_description }}">{% endif %}
-{% if og_image %}<meta name="twitter:image" content="{{ og_image }}">{% endif %}
-{% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
+{% if og_image %}<meta name="twitter:image" content="{{ og_image|absolute_url:request }}">{% endif %}
+{% if canonical_url or page_url %}<link rel="canonical" href="{{ canonical_url|default:page_url|absolute_url:request }}">{% endif %}

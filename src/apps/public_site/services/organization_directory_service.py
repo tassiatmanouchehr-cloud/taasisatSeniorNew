@@ -257,6 +257,7 @@ class OrganizationDirectoryService:
         city_options = tuple(
             FilterOptionViewModel(value=c, label=c, selected=(normalized_city == c.casefold())) for c in cities
         )
+        is_recognized_service = any(str(cat.id) == str(service_category_id) for cat in categories) if service_category_id else False
         service_options = tuple(
             FilterOptionViewModel(value=str(cat.id), label=cat.name, selected=(str(cat.id) == str(service_category_id)))
             for cat in categories
@@ -268,4 +269,5 @@ class OrganizationDirectoryService:
             search_text=text or "",
             tenant_slug=tenant_slug or "",
             reset_url=common.append_tenant_query(base_url, tenant_slug),
+            has_active_filters=bool((text or "").strip()) or bool(normalized_city) or is_recognized_service,
         )

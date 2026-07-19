@@ -4,6 +4,13 @@ from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
 
+# FR-018: distinguishes an anonymous visitor (redirected to login) from an
+# authenticated-but-unauthorized one (branded 403) — see
+# apps.kernel.views.forbidden's own module docstring for the full
+# rationale. No permission-check logic changed, only how the resulting
+# PermissionDenied is rendered.
+handler403 = "apps.kernel.views.forbidden"
+
 urlpatterns = [
     path("", include("apps.public_site.urls", namespace="public_site")),
     path("accounts/", include("apps.accounts.urls", namespace="accounts")),
