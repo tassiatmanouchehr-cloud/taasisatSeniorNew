@@ -4343,3 +4343,256 @@ avoidable — left as a candidate for a future, separately-tested optimization (
 
 **Next task:** Phase 5 — Marketplace Order Workflow remains NOT STARTED; no phase has been marked
 as started by this entry.
+
+## FR-019 — Public Caregiver Marketplace Remediation (2026-07-19)
+
+**Trigger:** a report that `CaregiverProfile.objects.count()` showed a healthy total (13 in the
+reporter's environment) while `/find-a-caregiver/` rendered "0 caregivers found." Instructed to
+reconstruct actual state from source before implementing anything, and to determine root cause
+before touching any visibility rule.
+
+**Phase 1-2 (verification and root cause):** read `00_START_HERE.md` → `02_PROJECT_CONTINUATION.md`
+(confirmed its own "immediate next task" line already anticipated this exact class of report) →
+`03_NEXT_TASK.md`'s FR-014/ADM-029 history, then every listed source file. Built the required
+predicate table by direct DB inspection against this environment's real seeded data (11
+caregiver-type `ServiceSupplier` rows under the dedicated `demo-senior-platform` tenant) rather
+than assuming: `status=ACTIVE` ✓ 11/11, `supplier_type` in caregiver types ✓ 11/11,
+`profile_status=active` ✓ 11/11, `verification_status=verified` ✓ 11/11, `account.is_active` ✓
+11/11, `membership_active` ✓ 10/11 (the 11th is `seed_product_walkthrough`'s own deliberately-
+seeded suspended-membership example — correctly excluded by design, confirmed via that
+command's own comment). Query-string handling (`views.py`'s `find_a_caregiver()` already
+normalizes `city`/`service`/`availability` via `... or None`) was re-verified correct, not
+assumed — `?city=`/`?availability=`/`?service=` behave identically to the parameter's absence
+(now covered by a regression test; was previously untested but never actually broken). Every
+predicate: correct. **Actual root cause:** `resolve_public_tenant()`'s no-hint fallback
+(FR-017, unchanged and correctly behaving) resolves the platform's single hardcoded default
+tenant, never the separate, dedicated tenant `seed_product_walkthrough` deliberately seeds its
+realistic dataset into. Reproduced directly by toggling `.env`'s `PUBLIC_SITE_TENANT_SLUG`
+(commented out by default in the shipped `.env.example`) off and back on against the identical
+database: `/find-a-caregiver/` genuinely, correctly returns 0 results without it, and the real
+10 with it. This is FR-017's resolver working exactly as designed — not a bug — but nothing in
+the seed command's own printed output ever told an operator this or gave them the actual
+directory URL. `config/settings/base.py`'s own comment ("never a literal default here") was
+read and deliberately respected — no tenant slug was hardcoded into any view, template, or
+settings module to paper over this.
+
+**Two genuine code defects found during the same investigation (Phase 3-4), fixed:**
+1. `CaregiverDirectoryService._build_card()` built `profile_url` via
+   `f"/find-a-caregiver/{supplier.id}/"` instead of Django's own named route. Now uses
+   `reverse("public_site:caregiver-profile", args=[supplier.id])` — proven byte-for-byte
+   identical to the prior string, closing a latent desync hazard, not a behavior change.
+2. A caregiver's own uploaded avatar (`CaregiverProfile.avatar`, settable via the existing
+   `ProfileMediaService.set_caregiver_avatar()`) was never resolved by
+   `common.bulk_supplier_attrs()`, so no public card or profile ever showed it — unlike the
+   organization side's `logo_url` (Sprint 3.2). Added `avatar_url` to the same already-fetched
+   entity read (zero new queries), surfaced through `CaregiverCardViewModel`/
+   `CaregiverProfileViewModel`, rendered via `ui/components/data/avatar.html`'s pre-existing
+   `src=` prop (built for exactly this, never wired up caregiver-side).
+
+**Seed report fix (Phase 3):** `seed_product_walkthrough`'s `_print_report()` never printed the
+public directory URLs at all, only individual profile previews. Now prints both directory URLs
+(tenant-hinted, directly usable) and an explicit note when `settings.PUBLIC_SITE_TENANT_SLUG`
+isn't already pointed at this demo tenant, explaining exactly why the bare URL would otherwise
+show zero results.
+
+**Seed data completeness (Phase 5):** the walkthrough seed created zero
+`CaregiverSkill`/`CaregiverExperience`/`CaregiverGalleryItem` rows and set no avatar for any of
+its 11 demo caregivers, despite the public profile page fully supporting all four sections
+since Phase 2.1/Sprint 2.2/2.3 — every demo profile silently rendered them empty. Added, via
+new `_ensure_professional_showcase()`/`_ensure_avatar()`/`_ensure_skills()`/
+`_ensure_experience()`/`_ensure_gallery()` helpers: an avatar for all 11 (via
+`ProfileMediaService.set_caregiver_avatar()`), 3 specialty-mapped skills each (via
+`CaregiverSkillService.add_skill()`, whose own unique-name guard doubles as this seed's
+idempotency check), one experience entry each (via `CaregiverExperienceService.create()`, no
+service-level guard, so this command adds its own "skip if any experience already exists"
+check), and 3 gallery items each for 4 caregivers (via `CaregiverGalleryService.add_item()`,
+same self-added idempotency pattern). New `_placeholder_image_file()` generates small,
+deterministic, solid-color PNG/JPEG images entirely in memory via Pillow (already a project
+dependency, and the exact pattern this repo's own `test_caregiver_gallery.py` already uses to
+build test images) — never fetched over a network, never a committed binary asset, never a real
+or scraped photograph; gallery captions explicitly read "تصویر نمایشی..." ("demonstration
+image..."), never describing a real person. Verified idempotent by running the command three
+times consecutively: identical skill/experience/gallery row counts and an unchanged avatar file
+path after the second and third runs.
+
+**Gallery presentation (Phase 4):** grid changed from a fixed 2/3-column layout to a responsive
+1/2/3-column one; added a self-contained Alpine.js lightbox (no new dependency) — each
+thumbnail is a real `<button>` with a caption-derived `aria-label`, opening a
+`role="dialog"`/`aria-modal="true"` overlay closable by backdrop click, an explicit close
+button, or Escape. **A real bug caught during runtime verification, not shipped:** the first
+version positioned the close button with `-top-3 -end-3` and set the backdrop/image with
+`bg-black/80`, `max-h-[85vh]`, `object-contain` — none of which existed in the project's
+*compiled* `static/css/output.css` (Tailwind's JIT only compiles classes it finds scanning
+templates at the last `npm run build`, and none of these five had been used anywhere else in
+the codebase before). They silently had zero effect: Playwright's own bounding-box measurement
+showed the close button rendering at the bottom of the image in normal document flow, and the
+backdrop's computed `background-color` was fully transparent. Fixed by running
+`npm install && npm run css:build` (clean, minimal, purely-additive rebuild of `output.css` —
+diffed to confirm no tool-version banner/timestamp noise, only new rules) and switching the
+close button to `top-4`/`end-4` (positive, already-compiled logical-inset utilities, confirmed
+present in the bundle both before and after the rebuild, as defense against a future
+un-rebuilt deployment). Re-measured after the fix: backdrop `rgba(0,0,0,0.8)`, close button at
+exactly the image's top/inline-end corner, both Escape and click-to-close functional.
+
+**Tests:** 30 new/updated. `apps/public_site/tests/test_caregiver_discovery_remediation.py`
+(new) — default-tenant-with-no-eligible-caregivers returns a healthy 200 (characterizing the
+root cause as non-defect behavior), empty `city`/`availability`/`service` query parameters
+don't eliminate results, card `profile_url` matches `reverse()` byte-for-byte, avatar renders
+on both card and profile with a clean initials fallback when unset, avatar/profile never leak
+across tenants. `apps/public_site/tests/test_gallery_public.py` (extended) — gallery order is
+deterministic through the actual public page (not just the model's `Meta.ordering` in
+isolation), the grid uses the new responsive classes, the lightbox thumbnail/dialog carry the
+required accessibility markup, no gallery section renders when a caregiver has none.
+`apps/kernel/tests/test_seed_product_walkthrough.py` (extended) — every demo caregiver has an
+avatar/skills/≥1 experience entry, ≥4 have approved gallery items with non-empty alt text and
+explicitly demo-labeled captions, three consecutive runs produce zero duplicate rows and a
+stable avatar file path, the report prints both directory URLs with the tenant hint and
+explains the `PUBLIC_SITE_TENANT_SLUG` dependency.
+
+**Verification:** `manage.py check` / `manage.py migrate --check` clean (no model change; the
+pre-existing documented `makemigrations` cosmetic drift, RISK-009, untouched). Focused
+(`apps.public_site.tests.test_caregiver_discovery_remediation
+apps.public_site.tests.test_gallery_public apps.kernel.tests.test_seed_product_walkthrough`):
+87/87. Broader (`apps.public_site apps.kernel`): 572/572. Full regression:
+**2404 -> 2434/2434 green**, 0 failures, 0 errors (run with `.env` set aside per policy,
+restored immediately after both runs). Manual runtime verification against a real local
+server, freshly re-seeded via `seed_product_walkthrough`: `/find-a-caregiver/` lists 10 real
+caregivers with working avatar images and no `?tenant=` hint required once `.env` is
+configured; every card resolves to a real 200 profile; a gallery-bearing profile's lightbox
+opens/closes correctly (click and Escape); Playwright/Chromium screenshots captured at 375px,
+768px, and 1280px viewports show zero horizontal overflow, zero console errors, and zero
+failed or 4xx/5xx network requests at any of the three.
+
+**Explicitly out of scope, unchanged:** the payment engine, order workflow, authentication,
+supplier verification rules, tenant-isolation principles, `resolve_public_tenant()`'s
+resolution order/precedence, kernel migration drift, and any organization-directory redesign
+beyond the one already-shared `common.bulk_supplier_attrs()` change (adding `avatar_url` as a
+new key that organization-side callers already ignore — no organization behavior changed, no
+organization file touched).
+
+**Branch:** `fix/public-caregiver-marketplace-remediation`, from `main` @
+`0d1d155467173418222d62eb4024c1c24668ae31`, pushed to `origin`. No PR opened, no merge
+performed — not requested by this task's own scope.
+
+**Next task:** Phase 5 — Marketplace Order Workflow remains NOT STARTED; no phase has been
+marked as started by this entry.
+
+## FR-019 Corrective Review — Canonical Tenant Contract (2026-07-19, same day)
+
+**Trigger:** an independent review of the FR-019 work above rejected it as incomplete. Quoted
+verbatim: "resolve_public_tenant() without a hint selects the platform default tenant...
+seed_product_walkthrough creates its realistic caregivers in a separate dedicated tenant...
+No tenant-resolution behavior was changed. The remediation only reports that
+PUBLIC_SITE_TENANT_SLUG should be configured. That is operational documentation, not a
+product-level resolution." The review was correct: the original fix improved the seed
+command's printed output but left the actual canonical URL,
+`GET /find-a-caregiver/` with zero query string, dependent on a human reading that output and
+manually editing `.env`. The review required a genuine code-level fix satisfying: no hardcoded
+`demo-senior-platform` in a view/template, no weakened isolation, no "first active tenant"
+heuristic, no hidden fallback unsafe in production, and the seed/resolver must share one
+explicit canonical-tenant contract.
+
+**Investigation, as instructed, before changing anything:** re-read
+`apps/public_site/services/tenant_context.py` (the actual home of `resolve_public_tenant()` —
+the review's own file list named `common.py`, which does not contain this function; treated as
+a pointer to the resolution-service area, not a literal path, and verified against the real
+file), `apps/public_site/tests/test_canonical_tenant_resolution.py` (confirmed the documented,
+tested resolution order: explicit hint → `settings.PUBLIC_SITE_TENANT_SLUG` → platform
+default; nothing in it anticipated a third, automatic tier), `seed_product_walkthrough.py`
+(confirms the demo tenant is deliberately *not* the platform default — the tenant boundary is
+its own `--reset-demo` safety mechanism, not an oversight), and — newly discovered during this
+pass — `apps/kernel/management/commands/seed_tenant.py` (an unrelated command; its own default
+tenant slug is `"dev"`, distinct from both `TenantService`'s `"salmandyar"` and
+`seed_product_walkthrough`'s `"demo-senior-platform"` — confirms there is no single existing
+"canonical tenant" convention already shared across every seed command in this repository, so
+this had to be established, not merely discovered).
+
+**Why "align the seed with the existing default tenant" (the review's option 1) was rejected:**
+would mean seeding realistic demo data directly into `TenantService`'s platform default tenant
+— the exact tenant `seed_product_walkthrough`'s own module docstring deliberately keeps demo
+data *out of*, because `--reset-demo` deletes every row scoped to its tenant and must never be
+able to delete anything outside a dedicated, unambiguous demo boundary. Merging the two
+identities would make `--reset-demo` dangerous and contradict a decision this repository's own
+history (FR-014/ADM-029) already reviewed and confirmed. Not pursued.
+
+**The actual fix (the review's option 2, adapted to this repository's real settings-module
+constraint):** a `development.py`-only default was considered and rejected once verified that
+`python manage.py test` in this environment actually runs under `config.settings.development`
+(confirmed: `manage.py` defaults `DJANGO_SETTINGS_MODULE` to it, and `pyproject.toml`'s
+`[tool.pytest.ini_options]` `DJANGO_SETTINGS_MODULE=config.settings.testing` only applies to
+literal `pytest` invocations, never to `manage.py test` — this project's actual, consistently-
+used test-running convention throughout this whole session) — an unconditional settings-level
+default would therefore have silently activated during every test run, breaking
+`test_unset_setting_still_uses_platform_default_unchanged` and any other test relying on an
+unconfigured `PUBLIC_SITE_TENANT_SLUG`. Instead: a new `apps.kernel.dev_tenant` module (plain,
+zero Django-app-import dependency — safe even before the app registry is ready, though not
+currently required to be) defines exactly one literal, `CANONICAL_DEV_TENANT_SLUG =
+"demo-senior-platform"`. `seed_product_walkthrough.DEMO_TENANT_SLUG` now imports it instead of
+redefining the string. `resolve_public_tenant()` gained a new case 3 (renumbering the old case
+3 to case 4): a `settings.DEBUG`-only, best-effort `Tenant.objects.filter(slug=
+CANONICAL_DEV_TENANT_SLUG).first()` lookup — never `.get()`, never raises, returns `None` and
+falls straight through to the unchanged platform-default case 4 when the dev tenant hasn't
+been seeded yet (every test database; any deployment that hasn't run the walkthrough). Gated on
+`DEBUG` specifically because that is the exact, already-established, already-reviewed
+convention this same command already uses for its own "local development only" guarantee
+(`seed_product_walkthrough` itself: "refuses to run when settings.DEBUG is False") — and because
+both `config.settings.production` and `config.settings.testing` hardcode `DEBUG = False`
+unconditionally (verified by reading their source directly, not merely assumed — see
+`ProductionSettingsNeverAutoResolveDevTenantTest`, which reads the files via
+`importlib.util.find_spec(...).origin` rather than importing them, since `production.py`
+requires a real `SECRET_KEY` environment variable this test environment does not always carry).
+Case 1 (explicit `?tenant=`) and case 2 (`PUBLIC_SITE_TENANT_SLUG`) keep unconditional priority
+over the new case 3, unchanged.
+
+**Why this satisfies every stated constraint:** no tenant slug in any view or template (it's in
+one small service-layer module and one settings-independent constant module); tenant isolation
+completely unchanged (only the *input* to the existing, unmodified resolution logic changed);
+never "the first active tenant" (one specific, named, known slug); never unsafe in production
+(structurally unreachable — `DEBUG` is a hardcoded `False` literal there, not
+environment-driven); `config/settings/base.py`'s own "never a literal default here... for every
+deployment to inherit" comment remains true, since the literal lives outside `base.py` entirely
+and is consulted only when `DEBUG=True`.
+
+**Tests added:** 16 new. `test_canonical_tenant_resolution.py` —
+`DebugOnlyCanonicalDevTenantAutoResolutionTest` (8 tests: bare-URL zero-config resolution on
+both the directory and homepage, a card link resolves to a real profile, case 3 inactive under
+`DEBUG=False`, case 1 and case 2 both still override case 3, an unknown hint still 404s even
+with case 3 available and `DEBUG=True`, isolation holds, silent fall-through with no dev tenant
+seeded) and `ProductionSettingsNeverAutoResolveDevTenantTest` (2 tests, source-text checks for
+both `production.py` and `testing.py`). `test_seed_product_walkthrough.py` —
+`SeedProductWalkthroughCanonicalTenantAlignmentTest` (5 tests: seeded tenant slug matches the
+canonical constant exactly; seed-then-hit-the-real-URL end-to-end for both the directory and a
+profile page, with zero configuration; a second seed run keeps exactly one canonical-slug
+tenant; a caregiver in an unrelated tenant stays excluded).
+
+**Verification:** focused (`apps.public_site.tests.test_canonical_tenant_resolution
+apps.kernel.tests.test_seed_product_walkthrough`) 91/91; broader
+(`apps.public_site apps.kernel`) 588/588; full regression **2434 -> 2450/2450 green**, 0
+failures, 0 errors (`.env` isolated per policy, restored after). Runtime evidence gathered
+twice, independently: (1) `.env` renamed away entirely (no file present, not merely edited),
+server process started with `env -i` (a fully empty process environment — the closest Linux
+equivalent to opening a brand-new PowerShell session, proving the result isn't a transient
+in-memory or shell-inherited environment variable) — `GET /find-a-caregiver/` with zero query
+string still returned 200 with 10 real caregivers; (2) separately, `.env` freshly copied
+verbatim from `.env.example` (only this sandbox's own non-standard `DATABASE_PORT=5433`
+adjusted to its real Postgres port, `5432` — `PUBLIC_SITE_TENANT_SLUG` left exactly as shipped,
+commented out) — identical 200/10 result, and a full Playwright/Chromium pass at 375px, 768px,
+and 1280px: zero horizontal overflow, zero console errors, zero failed or 4xx/5xx network
+requests, gallery lightbox opens and closes correctly (click and Escape), and both
+`?tenant=salmandyar` (a real but wrong tenant) and `?tenant=no-such-slug` still correctly 404.
+
+**Documentation corrected:** the original FR-019 register/journal entries' "seed prints setup
+instructions" framing was rewritten in place (register) and this addendum appended (journal) —
+per explicit instruction, the completion claim was not left standing merely because the seed
+command's output had improved; the entries now record the actual canonical-tenant contract and
+why the seed conforms to it.
+
+**Explicitly out of scope, unchanged (same as the original pass):** the payment engine, order
+workflow, authentication, supplier verification rules, `resolve_public_tenant()`'s case 1/case
+2 priority order, kernel migration drift, organization-directory redesign.
+
+**Branch:** `fix/public-caregiver-marketplace-remediation` (same branch as the original FR-019
+pass — no new branch created for the correction).
+
+**Next task:** Phase 5 — Marketplace Order Workflow remains NOT STARTED; no phase has been
+marked as started by this entry.

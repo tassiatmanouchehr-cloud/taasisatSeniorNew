@@ -48,6 +48,7 @@ class CaregiverCardViewModel:
     supplier_id: UUID
     display_name: str
     avatar_initial: str
+    avatar_url: str
     city: str
     specialty: str
     bio_snippet: str
@@ -145,6 +146,7 @@ class CaregiverProfileViewModel:
     supplier_id: UUID
     display_name: str
     avatar_initial: str
+    avatar_url: str
     city: str
     specialty: str
     bio: str

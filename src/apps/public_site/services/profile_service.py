@@ -122,6 +122,7 @@ class CaregiverPublicProfileService:
             supplier_id=supplier.id,
             display_name=supplier.display_name,
             avatar_initial=common.avatar_initial(supplier.display_name),
+            avatar_url=attrs["avatar_url"],
             city=attrs["city"],
             specialty=attrs["specialty"],
             bio=attrs["bio"],

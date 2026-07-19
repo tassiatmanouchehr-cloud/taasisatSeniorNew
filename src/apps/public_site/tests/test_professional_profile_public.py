@@ -295,6 +295,118 @@ class PublicProfileHighlightsAndBadgesTest(PublicSiteTestCase):
         self.assertIsNone(CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id))
 
 
+class PublicProfileHeaderLayoutTest(PublicSiteTestCase):
+    """FINAL UI CORRECTION BEFORE PR (Blocker 1): the profile header must
+    render distinct, non-overlapping semantic regions for the back-link,
+    avatar, identity (name/badges), and metadata (city/specialty,
+    availability/affiliation badges) at every viewport — proven at the
+    markup-contract level here; the geometric non-overlap claim itself is
+    proven separately with real bounding-box measurement in the browser
+    (Playwright), since Django's template-rendering test client cannot
+    measure layout."""
+
+    def test_header_has_distinct_semantic_regions_for_back_link_avatar_identity_badges_metadata(self):
+        supplier, _caregiver = self._create_caregiver_supplier(
+            display_name="مراقب نمونه", city="tehran", specialty="پرستار سالمندان",
+        )
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+        content = response.content.decode()
+
+        # Back-link region: its own wrapping block, reserving vertical
+        # space (mb-14 / sm:mb-16) equal to the following block's
+        # negative top margin (-mt-14 / sm:-mt-16) so the two never
+        # collide — this is the exact fix for the reported overlap.
+        self.assertIn('class="mx-auto max-w-5xl px-4 pt-4 mb-14 sm:px-6 sm:mb-16 lg:px-8"', content)
+        self.assertIn("بازگشت به فهرست مراقبان", content)
+
+        # Avatar region: its own wrapper, distinct from the identity block.
+        self.assertIn('class="ring-4 ring-background rounded-full"', content)
+
+        # Identity region: name + badges share a flex row, but the row
+        # itself is a distinct element from the avatar and from the
+        # metadata paragraph below it.
+        self.assertIn('class="flex flex-wrap items-center gap-2"', content)
+        self.assertIn("<h1", content)
+        self.assertIn("مراقب نمونه", content)
+
+        # Metadata (city/specialty) region: a separate <p>, not merged
+        # into the <h1> or the badge row.
+        self.assertIn('class="mt-1 text-sm text-text-muted"', content)
+        self.assertIn("پرستار سالمندان", content)
+
+        # Availability/affiliation badge row: a distinct block below the
+        # identity block, not nested inside it.
+        self.assertIn('class="mt-6 flex flex-wrap items-center gap-3"', content)
+
+    def test_long_display_name_and_headline_render_without_truncation(self):
+        long_name = "زهرا سادات میرمحمدصادقی حسینی طباطبایی نائینی اصفهانی"
+        long_specialty = "مراقبت تخصصی از سالمندان مبتلا به آلزایمر و پارکینسون با سابقه طولانی درمانی"
+        self.assertLessEqual(len(long_specialty), 100)
+        supplier, _caregiver = self._create_caregiver_supplier(
+            display_name=long_name, specialty=long_specialty, city="tehran",
+        )
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+
+        # Full, untruncated text must appear — no CSS `truncate`/JS
+        # substring shortening on the identity elements themselves. The
+        # <h1>/<p> classes use wrapping (flex-wrap, whitespace-normal by
+        # default), never a fixed single-line clamp.
+        self.assertContains(response, long_name)
+        self.assertContains(response, long_specialty)
+        self.assertNotContains(response, "truncate")
+
+    def test_missing_avatar_uses_approved_initials_fallback(self):
+        supplier, caregiver = self._create_caregiver_supplier(display_name="بدون آواتار تست")
+        self.assertFalse(caregiver.avatar)
+
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+        content = response.content.decode()
+
+        # The approved fallback (ui/components/data/avatar.html, initials
+        # mode): a role="img" container labelled with the caregiver's
+        # name, no broken <img> tag inside the avatar wrapper.
+        self.assertIn('role="img"', content)
+        self.assertIn('aria-label="بدون آواتار تست"', content)
+        self.assertNotContains(response, '<img src=""')
+
+    def test_missing_optional_city_and_specialty_does_not_break_layout(self):
+        supplier, _caregiver = self._create_caregiver_supplier(display_name="مراقب بدون شهر", city="", specialty="")
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        # metadata paragraph still renders (empty), identity region intact.
+        self.assertContains(response, 'class="mt-1 text-sm text-text-muted"')
+        self.assertContains(response, "مراقب بدون شهر")
+
+    def test_unverified_badge_variant_still_renders_within_the_same_identity_row(self):
+        """profile.verification_badges always carries at least the base
+        "profile verified" badge for any publicly-visible caregiver
+        (PublicProfileHighlightsAndBadgesTest already proves the data
+        selection rules); this test only proves the *layout contract*:
+        whatever the badge set is, it renders inside the same identity
+        row as the name, not in a separately-positioned block."""
+        supplier, _caregiver = self._create_caregiver_supplier(display_name="نشان تأیید تست")
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+        content = response.content.decode()
+
+        h1_tag_index = content.index("<h1")
+        row_start = content.rindex('class="flex flex-wrap items-center gap-2"', 0, h1_tag_index)
+        row_end = content.index("</div>", h1_tag_index)
+        row_markup = content[row_start:row_end]
+        self.assertIn("نشان تأیید تست", row_markup)
+        self.assertIn("نمایه تأییدشده", row_markup)
+
+
 class PublicProfileQueryCountTest(PublicSiteTestCase):
     def test_query_count_does_not_grow_with_skills_experience_or_credentials(self):
         supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")

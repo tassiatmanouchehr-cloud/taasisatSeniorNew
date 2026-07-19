@@ -25,6 +25,8 @@ already resolved earlier in the same call.
 
 import math
 
+from django.urls import reverse
+
 from apps.discovery.services.query_normalizer import normalize_query
 from apps.discovery.services.ranking_service import DiscoveryRankingService
 from apps.discovery.services.search_service import SupplierSearchService
@@ -251,6 +253,7 @@ class CaregiverDirectoryService:
             supplier_id=supplier.id,
             display_name=supplier.display_name,
             avatar_initial=common.avatar_initial(supplier.display_name),
+            avatar_url=attrs["avatar_url"],
             city=attrs["city"],
             specialty=attrs["specialty"],
             bio_snippet=common.bio_snippet(attrs["bio"]),
@@ -263,7 +266,9 @@ class CaregiverDirectoryService:
             is_verified=attrs["verification_status"] == "verified",
             rating=rating,
             completed_jobs=card_data["completed_jobs"].get(supplier.id, 0),
-            profile_url=common.append_tenant_query(f"/find-a-caregiver/{supplier.id}/", tenant_slug),
+            profile_url=common.append_tenant_query(
+                reverse("public_site:caregiver-profile", args=[supplier.id]), tenant_slug,
+            ),
         )
 
     @classmethod

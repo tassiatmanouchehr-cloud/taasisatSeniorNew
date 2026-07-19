@@ -1,6 +1,7 @@
 """Tests for the seed_product_walkthrough management command."""
 
 import io
+import uuid
 from unittest import mock
 
 from django.core.management import CommandError, call_command
@@ -683,3 +684,227 @@ class SeedProductWalkthroughReportSideEffectTest(TestCase):
         }
 
         self.assertEqual(supplier_ids_before, supplier_ids_after)
+
+
+@override_settings(DEBUG=True)
+class SeedProductWalkthroughProfessionalShowcaseTest(TestCase):
+    """Public Caregiver Marketplace Remediation (Phase 5): the walkthrough
+    seed previously created zero CaregiverSkill/CaregiverExperience/
+    CaregiverGalleryItem rows and never set an avatar — every demo
+    caregiver's public profile silently rendered those sections as empty.
+    This asserts the fix populates them, through the same owner-authorized
+    services every provider-portal caller uses (never a direct model
+    write)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        _run_command()
+        cls.tenant = Tenant.objects.get(slug=DEMO_TENANT_SLUG)
+        cls.caregivers = list(CaregiverProfile.objects.filter(user__tenant=cls.tenant))
+
+    def test_every_demo_caregiver_has_an_avatar(self):
+        for caregiver in self.caregivers:
+            self.assertTrue(caregiver.avatar, caregiver.display_name)
+
+    def test_every_demo_caregiver_has_skills(self):
+        for caregiver in self.caregivers:
+            self.assertGreater(caregiver.skills.count(), 0, caregiver.display_name)
+
+    def test_every_demo_caregiver_has_at_least_one_experience_entry(self):
+        for caregiver in self.caregivers:
+            self.assertGreater(caregiver.experiences.count(), 0, caregiver.display_name)
+
+    def test_experience_entries_are_visible_by_default(self):
+        for caregiver in self.caregivers:
+            self.assertTrue(caregiver.experiences.first().is_visible)
+
+    def test_several_caregivers_have_approved_gallery_items(self):
+        with_gallery = [c for c in self.caregivers if c.gallery_items.exists()]
+        self.assertGreaterEqual(len(with_gallery), 4)
+        for caregiver in with_gallery:
+            self.assertTrue(all(item.is_visible for item in caregiver.gallery_items.all()))
+
+    def test_gallery_items_have_meaningful_alt_text(self):
+        for caregiver in self.caregivers:
+            for item in caregiver.gallery_items.all():
+                self.assertTrue(item.alt_text.strip())
+
+    def test_placeholder_images_are_not_impersonating_real_people(self):
+        """The generated demo photos are flat-color placeholders, not real
+        photographs — their captions must say so explicitly, never
+        describing a specific real person."""
+        for caregiver in self.caregivers:
+            for item in caregiver.gallery_items.all():
+                self.assertIn("نمایشی", item.caption)
+
+
+@override_settings(DEBUG=True)
+class SeedProductWalkthroughProfessionalShowcaseIdempotencyTest(TestCase):
+    def test_second_run_creates_no_duplicate_skill_experience_or_gallery_rows(self):
+        _run_command()
+        tenant = Tenant.objects.get(slug=DEMO_TENANT_SLUG)
+        counts_after_first = self._snapshot(tenant)
+
+        _run_command()
+        counts_after_second = self._snapshot(tenant)
+
+        self.assertEqual(counts_after_first, counts_after_second)
+        # A meaningful, non-zero baseline — otherwise this test would pass
+        # trivially by comparing two empty snapshots.
+        self.assertGreater(counts_after_first["skills"], 0)
+        self.assertGreater(counts_after_first["experiences"], 0)
+        self.assertGreater(counts_after_first["gallery_items"], 0)
+
+    def test_third_run_still_creates_no_duplicates(self):
+        _run_command()
+        _run_command()
+        tenant = Tenant.objects.get(slug=DEMO_TENANT_SLUG)
+        counts_after_second = self._snapshot(tenant)
+
+        _run_command()
+        counts_after_third = self._snapshot(tenant)
+
+        self.assertEqual(counts_after_second, counts_after_third)
+
+    def test_avatar_file_is_not_replaced_on_rerun(self):
+        """set_caregiver_avatar() always writes a *new* file — if the seed
+        called it unconditionally on every run, the stored avatar path
+        would change every time even though nothing about the demo data
+        actually changed. The seed's own idempotency guard must prevent
+        that."""
+        _run_command()
+        tenant = Tenant.objects.get(slug=DEMO_TENANT_SLUG)
+        caregiver = CaregiverProfile.objects.filter(user__tenant=tenant).first()
+        avatar_name_before = caregiver.avatar.name
+
+        _run_command()
+        caregiver.refresh_from_db()
+
+        self.assertEqual(avatar_name_before, caregiver.avatar.name)
+
+    def _snapshot(self, tenant):
+        from apps.accounts.models.gallery import CaregiverGalleryItem
+        from apps.accounts.models.professional_profile import CaregiverExperience, CaregiverSkill
+
+        caregivers = CaregiverProfile.objects.filter(user__tenant=tenant)
+        return {
+            "skills": CaregiverSkill.objects.filter(caregiver__in=caregivers).count(),
+            "experiences": CaregiverExperience.objects.filter(caregiver__in=caregivers).count(),
+            "gallery_items": CaregiverGalleryItem.objects.filter(caregiver__in=caregivers).count(),
+        }
+
+
+@override_settings(DEBUG=True)
+class SeedProductWalkthroughPublicDirectoryDiscoveryOutputTest(TestCase):
+    """Public Caregiver Marketplace Remediation (Phase 5, print_report):
+    the seed's own printed report previously never mentioned the public
+    caregiver/organization *directory* URLs at all (only individual
+    preview URLs) — an operator running this command had no printed link
+    to the actual canonical discovery entry point, and no warning that
+    visiting it with no ?tenant hint depends on
+    settings.PUBLIC_SITE_TENANT_SLUG."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.output = _run_command()
+
+    def test_output_lists_public_caregiver_directory_url(self):
+        self.assertIn("/find-a-caregiver/", self.output)
+        self.assertIn("Public caregiver directory", self.output)
+
+    def test_output_lists_public_organization_directory_url(self):
+        self.assertIn("/find-an-organization/", self.output)
+        self.assertIn("Public organization directory", self.output)
+
+    def test_directory_urls_carry_the_demo_tenant_hint(self):
+        self.assertIn(f"/find-a-caregiver/?tenant={DEMO_TENANT_SLUG}", self.output)
+        self.assertIn(f"/find-an-organization/?tenant={DEMO_TENANT_SLUG}", self.output)
+
+    def test_output_explains_public_site_tenant_slug_dependency(self):
+        self.assertIn("PUBLIC_SITE_TENANT_SLUG", self.output)
+
+
+@override_settings(DEBUG=True)
+class SeedProductWalkthroughCanonicalTenantAlignmentTest(TestCase):
+    """FR-019 corrective review: the seed and the public resolver must
+    agree on the same canonical tenant contract — proven end-to-end
+    here (seed, then hit the real public URL with zero configuration),
+    not merely asserted by import identity between the two files."""
+
+    def test_seeded_tenant_slug_matches_canonical_dev_tenant_slug(self):
+        from apps.kernel.dev_tenant import CANONICAL_DEV_TENANT_SLUG
+
+        _run_command()
+
+        self.assertTrue(Tenant.objects.filter(slug=CANONICAL_DEV_TENANT_SLUG).exists())
+        self.assertEqual(DEMO_TENANT_SLUG, CANONICAL_DEV_TENANT_SLUG)
+
+    def test_bare_directory_url_shows_seeded_caregivers_with_zero_configuration(self):
+        """The literal clean-development-workflow acceptance scenario:
+        migrate, seed_product_walkthrough, runserver, GET
+        /find-a-caregiver/ with no ?tenant= hint and no
+        PUBLIC_SITE_TENANT_SLUG override."""
+        from django.test import Client
+        from django.urls import reverse
+
+        _run_command()
+
+        with override_settings(PUBLIC_SITE_TENANT_SLUG=None):
+            response = Client().get(reverse("public_site:find-a-caregiver"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "مریم احمدی")
+
+    def test_bare_caregiver_profile_url_also_resolves_with_zero_configuration(self):
+        from django.test import Client
+        from django.urls import reverse
+
+        _run_command()
+        tenant = Tenant.objects.get(slug=DEMO_TENANT_SLUG)
+        supplier = ServiceSupplier.objects.filter(
+            tenant_id=tenant.id, supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+        ).first()
+
+        with override_settings(PUBLIC_SITE_TENANT_SLUG=None):
+            response = Client().get(reverse("public_site:caregiver-profile", args=[supplier.id]))
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_second_seed_run_keeps_exactly_one_canonical_dev_tenant(self):
+        from apps.kernel.dev_tenant import CANONICAL_DEV_TENANT_SLUG
+
+        _run_command()
+        _run_command()
+
+        self.assertEqual(Tenant.objects.filter(slug=CANONICAL_DEV_TENANT_SLUG).count(), 1)
+
+    def test_cross_tenant_caregiver_still_excluded_under_zero_configuration(self):
+        """A caregiver seeded under a different tenant must never appear
+        just because case 3 auto-resolves the demo tenant."""
+        from django.test import Client
+        from django.urls import reverse
+
+        from apps.accounts.models.profiles import CaregiverProviderType
+        from apps.accounts.services.profiles import ensure_caregiver_profile
+        from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_caregiver
+        from apps.kernel.models import Person, UserAccount
+
+        _run_command()
+
+        other_tenant = Tenant.objects.create(slug=f"other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
+        person = Person.objects.create(tenant=other_tenant, full_name="مراقب تنانت دیگر")
+        user = UserAccount.objects.create_user(
+            phone=f"0915{uuid.uuid4().hex[:7]}", person=person, tenant=other_tenant,
+        )
+        profile = ensure_caregiver_profile(
+            user, phone=person.full_name, display_name="مراقب تنانت دیگر نباید دیده شود",
+            provider_type=CaregiverProviderType.INDEPENDENT, specialty="پرستار", city="tehran",
+            verification_status="verified", status="active",
+        )
+        get_or_create_supplier_for_caregiver(profile, tenant_id=other_tenant.id)
+
+        with override_settings(PUBLIC_SITE_TENANT_SLUG=None):
+            response = Client().get(reverse("public_site:find-a-caregiver"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "مراقب تنانت دیگر نباید دیده شود")

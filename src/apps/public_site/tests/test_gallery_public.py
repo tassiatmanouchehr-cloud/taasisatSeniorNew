@@ -125,3 +125,139 @@ class PublicGalleryQueryCountTest(PublicSiteTestCase):
         # remains a single bounded query regardless of how many items exist.
         with self.assertNumQueries(15):
             CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id)
+
+
+class PublicGalleryOrderingTest(PublicSiteTestCase):
+    """Phase 6 (Public Caregiver Marketplace Remediation): gallery order
+    must be deterministic end-to-end through the public profile page, not
+    just guaranteed by the model's own Meta.ordering in isolation."""
+
+    def test_gallery_items_render_in_display_order_on_the_public_page(self):
+        supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
+        third = CaregiverGalleryService.add_item(caregiver, image=_image_file("c.png"), caption="سوم")
+        first = CaregiverGalleryService.add_item(caregiver, image=_image_file("a.png"), caption="اول")
+        second = CaregiverGalleryService.add_item(caregiver, image=_image_file("b.png"), caption="دوم")
+        CaregiverGalleryService.reorder(
+            caregiver, ordered_item_ids=[first.id, second.id, third.id],
+        )
+
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+        html = response.content.decode()
+
+        self.assertLess(html.index("اول"), html.index("دوم"))
+        self.assertLess(html.index("دوم"), html.index("سوم"))
+
+
+class PublicGalleryPresentationTest(PublicSiteTestCase):
+    """Phase 4 (Public Caregiver Marketplace Remediation): the gallery
+    grid and its lightbox — accessible, Alpine.js-only (no new
+    dependency), never a raw filesystem path, always meaningful alt
+    text."""
+
+    def test_gallery_grid_uses_responsive_column_classes(self):
+        supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
+        CaregiverGalleryService.add_item(caregiver, image=_image_file(), caption="نمونه")
+
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+
+        self.assertContains(response, "sm:grid-cols-2")
+        self.assertContains(response, "lg:grid-cols-3")
+
+    def test_gallery_thumbnail_is_keyboard_and_screen_reader_accessible(self):
+        supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
+        CaregiverGalleryService.add_item(caregiver, image=_image_file(), caption="قابل دسترس")
+
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+
+        self.assertContains(response, "<button")
+        self.assertContains(response, 'aria-label="بزرگ‌نمایی تصویر گالری: قابل دسترس"')
+
+    def test_lightbox_overlay_is_a_real_dialog_with_escape_and_close(self):
+        supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
+        CaregiverGalleryService.add_item(caregiver, image=_image_file())
+
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+
+        self.assertContains(response, 'role="dialog"')
+        self.assertContains(response, 'aria-modal="true"')
+        self.assertContains(response, "@keydown.escape.window")
+
+    def test_no_gallery_section_rendered_when_caregiver_has_no_items(self):
+        supplier, _caregiver = self._create_caregiver_supplier(verification_status="verified")
+
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "گالری تصاویر")
+
+    def test_lightbox_never_uses_unregistered_alpine_focus_plugin_directive(self):
+        """FINAL UI CORRECTION (Blocker 2): the project's asset pipeline
+        (scripts/build-alpine.js) only ever vendors Alpine's bare core CDN
+        bundle — no Focus plugin is registered anywhere. `x-trap` requires
+        that plugin, so its mere presence in rendered markup would produce
+        the browser-console `Alpine Warning: You can't use [x-trap]
+        without first installing the "Focus" plugin`. Locks that directive
+        out for good rather than merely asserting today's happy path."""
+        supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
+        CaregiverGalleryService.add_item(caregiver, image=_image_file())
+
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+
+        self.assertNotContains(response, "x-trap")
+
+    def test_lightbox_dialog_has_accessible_label(self):
+        supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
+        CaregiverGalleryService.add_item(caregiver, image=_image_file())
+
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+
+        self.assertContains(response, 'aria-label="نمای بزرگ‌شده تصویر گالری"')
+
+    def test_lightbox_close_control_is_a_real_keyboard_focusable_button(self):
+        supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
+        CaregiverGalleryService.add_item(caregiver, image=_image_file())
+
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+        content = response.content.decode()
+
+        self.assertContains(response, 'aria-label="بستن"')
+        # a real <button type="button"> (not a div/span click-handler) is
+        # keyboard-focusable and Enter/Space-activatable by construction,
+        # with no tabindex hack required.
+        close_button_start = content.index('aria-label="بستن"')
+        preceding_markup = content[max(0, close_button_start - 400):close_button_start]
+        self.assertIn("<button", preceding_markup)
+        self.assertIn('x-ref="lightboxClose"', preceding_markup)
+
+    def test_lightbox_close_and_reopen_use_shared_focus_managed_methods(self):
+        """The close button, the Escape handler, and the dialog-wrapper
+        click-to-dismiss all route through the same openLightbox()/
+        closeLightbox() methods (not three independently duplicated
+        inline expressions) — this is what makes focus-return to the
+        triggering thumbnail consistent across every close path."""
+        supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
+        CaregiverGalleryService.add_item(caregiver, image=_image_file())
+
+        response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+
+        self.assertContains(response, "openLightbox(")
+        self.assertContains(response, "closeLightbox()")
+        self.assertContains(response, '@keydown.escape.window="closeLightbox()"')
