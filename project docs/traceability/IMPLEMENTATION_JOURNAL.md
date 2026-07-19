@@ -4323,7 +4323,23 @@ seed or verification data changed; tenant-resolution precedence (FR-017) untouch
 migration drift not investigated further.
 
 **Branch:** `fix/public-site-coherence-remediation`, from `main` @
-`e9fede1620d4b19ecc294f08cd86591997c4cacf`. PR opened, not merged.
+`e9fede1620d4b19ecc294f08cd86591997c4cacf`. An independent focused review of PSA-003 (caregiver
+UUID trust boundary, server-side name resolution, tenant isolation, business-action coupling)
+found no correctness, security, or tenant-isolation blockers — one non-blocking observation
+recorded below. **PR #22 merged to `main`** (merge commit
+`394b0a71688a333143084d180a59d1ae5a551957`, 2026-07-19). Post-merge: `manage.py check` and
+`migrate --check` both clean; focused suite (`apps.public_site apps.kernel apps.portal
+apps.provider_portal apps.organization_portal apps.admin_portal apps.accounts apps.api`)
+1470/1470; full regression 2404/2404, 0 failures, 0 errors; runtime re-verified against the live
+dev server with `.env` restored (all checks from the pre-merge entry above reconfirmed, plus
+cross-tenant caregiver-context lookup rejected 404).
+
+**Non-blocking observation (not addressed in this task):** `contact()` reuses the full
+`CaregiverPublicProfileService.get_profile()` (skills, credentials, gallery, schedule, reviews,
+rating, completed-jobs count) solely to read `display_name`, costing ~8-10 queries the page
+doesn't otherwise need. Correct and safe (same visibility gate, same non-disclosure behavior) but
+avoidable — left as a candidate for a future, separately-tested optimization (e.g. a minimal
+`id + display_name` lookup), not fixed here per explicit instruction.
 
 **Next task:** Phase 5 — Marketplace Order Workflow remains NOT STARTED; no phase has been marked
 as started by this entry.
