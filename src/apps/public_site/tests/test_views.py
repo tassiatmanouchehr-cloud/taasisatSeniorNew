@@ -1,12 +1,19 @@
 """HTTP-level tests for the Epic 06 public views.
 
-Tests run against the platform's real default tenant (TenantService
-.get_default_tenant()) rather than an isolated per-test tenant, because
-the views never accept a tenant_id — they always resolve it via
-TenantService, exactly like every other unauthenticated view in this
-codebase (apps.accounts.services.registration). This is the one place in
-this test suite where that matters: the service-level tests above use
-isolated tenants and pass tenant_id explicitly instead."""
+All four public caregiver/organization views (find_a_caregiver,
+caregiver_profile, find_an_organization, organization_profile) resolve
+an optional ?tenant=<slug> hint via the single shared
+_resolve_optional_tenant_hint() helper, falling back to
+TenantService.get_default_tenant_id() when no hint is given — see the
+*TenantHintTest classes below for that behavior specifically. The plain
+FindACaregiverViewTest/FindAnOrganizationViewTest/*ProfileViewTest
+classes below deliberately build their fixtures against the platform's
+real default tenant (TenantService.get_default_tenant()) and never pass
+a hint, so they exercise exactly the no-hint/default-tenant path every
+other unauthenticated view in this codebase also takes
+(apps.accounts.services.registration). This is the one place in this
+test suite where that distinction matters: the service-level tests above
+use isolated tenants and pass tenant_id explicitly instead."""
 
 import uuid
 
@@ -167,6 +174,97 @@ class CaregiverProfileTenantHintTest(PublicSiteTestCase):
         )
 
         self.assertEqual(response.status_code, 404)
+
+
+class FindACaregiverViewTenantHintTest(PublicSiteTestCase):
+    """Regression: find_a_caregiver() (the directory view) never resolved
+    the ?tenant=<slug> hint that caregiver_profile() (the detail view)
+    already honored — a caregiver publicly visible at its own direct
+    detail URL under an explicit tenant hint silently vanished from the
+    directory search for that same tenant/hint, because the directory
+    always searched TenantService.get_default_tenant_id() regardless of
+    the query string. Reproduced against a real running server against
+    seed_product_walkthrough's own dedicated demo tenant before this fix
+    (directory: 0 results; detail: 200, fully rendered).
+
+    self.tenant here (from PublicSiteTestCase.setUp) is deliberately NOT
+    the default tenant — mirrors CaregiverProfileTenantHintTest exactly."""
+
+    def test_correct_tenant_hint_lists_the_caregiver(self):
+        self._create_caregiver_supplier(display_name="مراقب چندمستأجری فهرست تست")
+
+        response = self.client.get(reverse("public_site:find-a-caregiver"), {"tenant": self.tenant.slug})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "مراقب چندمستأجری فهرست تست")
+
+    def test_missing_hint_falls_back_to_default_tenant_and_does_not_list_non_default_supplier(self):
+        self._create_caregiver_supplier(display_name="نباید بدون تنانت دیده شود")
+
+        response = self.client.get(reverse("public_site:find-a-caregiver"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "نباید بدون تنانت دیده شود")
+
+    def test_unknown_tenant_slug_404s_no_leak(self):
+        self._create_caregiver_supplier()
+
+        response = self.client.get(reverse("public_site:find-a-caregiver"), {"tenant": "no-such-tenant-slug"})
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_wrong_tenant_hint_cannot_reach_a_different_tenants_caregivers(self):
+        """The hint narrows the directory to exactly one tenant — it is
+        never a global, cross-tenant search."""
+        from apps.kernel.models import Tenant
+
+        self._create_caregiver_supplier(display_name="این نباید در فهرست دیده شود")
+        other_tenant = Tenant.objects.create(slug=f"other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
+
+        response = self.client.get(reverse("public_site:find-a-caregiver"), {"tenant": other_tenant.slug})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "این نباید در فهرست دیده شود")
+
+    def test_unverified_caregiver_not_listed_even_with_correct_tenant_hint(self):
+        self._create_caregiver_supplier(display_name="تأییدنشده تست", verification_status="unverified")
+
+        response = self.client.get(reverse("public_site:find-a-caregiver"), {"tenant": self.tenant.slug})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "تأییدنشده تست")
+
+    def test_draft_caregiver_not_listed_even_with_correct_tenant_hint(self):
+        self._create_caregiver_supplier(display_name="پیش‌نویس تست", profile_status="draft")
+
+        response = self.client.get(reverse("public_site:find-a-caregiver"), {"tenant": self.tenant.slug})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "پیش‌نویس تست")
+
+    def test_inactive_supplier_not_listed_even_with_correct_tenant_hint(self):
+        from apps.kernel.models.supplier import SupplierStatus
+
+        self._create_caregiver_supplier(display_name="تعلیق تست", supplier_status=SupplierStatus.SUSPENDED)
+
+        response = self.client.get(reverse("public_site:find-a-caregiver"), {"tenant": self.tenant.slug})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "تعلیق تست")
+
+    def test_caregiver_visible_at_detail_hint_is_also_visible_at_directory_hint(self):
+        """Consistency invariant: for an unfiltered directory request in
+        the same tenant, every caregiver eligible for public detail
+        visibility must also be eligible for directory visibility."""
+        supplier, _ = self._create_caregiver_supplier(display_name="سازگاری جزئیات و فهرست تست")
+
+        detail_response = self.client.get(
+            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+        directory_response = self.client.get(reverse("public_site:find-a-caregiver"), {"tenant": self.tenant.slug})
+
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertContains(directory_response, "سازگاری جزئیات و فهرست تست")
 
 
 class OrganizationProfileTenantHintTest(PublicSiteTestCase):
@@ -375,3 +473,96 @@ class FindAnOrganizationViewTest(PublicSiteTestCase):
 
         self.assertEqual(list_response.status_code, 200)
         self.assertEqual(detail_response.status_code, 200)
+
+
+class FindAnOrganizationViewTenantHintTest(PublicSiteTestCase):
+    """Regression: find_an_organization() (the organization directory view)
+    never resolved the ?tenant=<slug> hint that organization_profile()
+    (the detail view) already honored — the same class of defect fixed
+    for find_a_caregiver() in FindACaregiverViewTenantHintTest, applied
+    symmetrically to the organization directory. Reproduced against a
+    real running server with a real verified/ACTIVE organization in
+    seed_product_walkthrough's own dedicated demo tenant before this fix
+    (directory: 0 results; detail: 200, fully rendered).
+
+    self.tenant here (from PublicSiteTestCase.setUp) is deliberately NOT
+    the default tenant — mirrors FindACaregiverViewTenantHintTest and
+    OrganizationProfileTenantHintTest exactly."""
+
+    def test_correct_tenant_hint_lists_the_organization(self):
+        self._create_organization_supplier(name="سازمان چندمستأجری فهرست تست")
+
+        response = self.client.get(reverse("public_site:organization-directory"), {"tenant": self.tenant.slug})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "سازمان چندمستأجری فهرست تست")
+
+    def test_missing_hint_falls_back_to_default_tenant_and_does_not_list_non_default_organization(self):
+        self._create_organization_supplier(name="نباید بدون تنانت دیده شود سازمان")
+
+        response = self.client.get(reverse("public_site:organization-directory"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "نباید بدون تنانت دیده شود سازمان")
+
+    def test_unknown_tenant_slug_404s_no_leak(self):
+        self._create_organization_supplier()
+
+        response = self.client.get(reverse("public_site:organization-directory"), {"tenant": "no-such-tenant-slug"})
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_wrong_tenant_hint_cannot_reach_a_different_tenants_organizations(self):
+        """The hint narrows the directory to exactly one tenant — it is
+        never a global, cross-tenant search."""
+        from apps.kernel.models import Tenant
+
+        self._create_organization_supplier(name="این نباید در فهرست دیده شود سازمان")
+        other_tenant = Tenant.objects.create(slug=f"other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
+
+        response = self.client.get(reverse("public_site:organization-directory"), {"tenant": other_tenant.slug})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "این نباید در فهرست دیده شود سازمان")
+
+    def test_unverified_organization_not_listed_even_with_correct_tenant_hint(self):
+        self._create_organization_supplier(name="تأییدنشده تست سازمان", verification_status=VerificationStatus.UNVERIFIED)
+
+        response = self.client.get(reverse("public_site:organization-directory"), {"tenant": self.tenant.slug})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "تأییدنشده تست سازمان")
+
+    def test_draft_organization_not_listed_even_with_correct_tenant_hint(self):
+        self._create_organization_supplier(name="پیش‌نویس تست سازمان", status="draft")
+
+        response = self.client.get(reverse("public_site:organization-directory"), {"tenant": self.tenant.slug})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "پیش‌نویس تست سازمان")
+
+    def test_inactive_supplier_not_listed_even_with_correct_tenant_hint(self):
+        supplier, _ = self._create_organization_supplier(name="تعلیق تست سازمان")
+        supplier.status = SupplierStatus.SUSPENDED
+        supplier.save(update_fields=["status"])
+
+        response = self.client.get(reverse("public_site:organization-directory"), {"tenant": self.tenant.slug})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "تعلیق تست سازمان")
+
+    def test_organization_visible_at_detail_hint_is_also_visible_at_directory_hint(self):
+        """Consistency invariant: for an unfiltered directory request in
+        the same tenant, every organization eligible for public detail
+        visibility must also be eligible for directory visibility."""
+        supplier, _ = self._create_organization_supplier(name="سازگاری جزئیات و فهرست تست سازمان")
+
+        detail_response = self.client.get(
+            reverse("public_site:organization-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+        )
+        directory_response = self.client.get(
+            reverse("public_site:organization-directory"), {"tenant": self.tenant.slug},
+        )
+
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertContains(directory_response, "سازگاری جزئیات و فهرست تست سازمان")

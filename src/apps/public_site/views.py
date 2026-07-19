@@ -55,11 +55,13 @@ def home(request):
 
 
 def find_a_caregiver(request):
+    tenant_id = _resolve_optional_tenant_hint(request)
     supplier_type = request.GET.get("type") or None
     if supplier_type not in CAREGIVER_SUPPLIER_TYPES:
         supplier_type = None
 
     page_view = CaregiverDirectoryService.search(
+        tenant_id=tenant_id,
         text=request.GET.get("q", ""),
         city=request.GET.get("city") or None,
         supplier_type=supplier_type,
@@ -117,7 +119,9 @@ def caregiver_favorite_toggle(request, supplier_id):
 
 
 def find_an_organization(request):
+    tenant_id = _resolve_optional_tenant_hint(request)
     page_view = OrganizationDirectoryService.search(
+        tenant_id=tenant_id,
         text=request.GET.get("q", ""),
         city=request.GET.get("city") or None,
         service_category_id=request.GET.get("service") or None,

@@ -3783,3 +3783,166 @@ company visibility in the public marketplace directory — not a new implementat
 Phase 5 — Marketplace Order Workflow remains NOT STARTED; its own dedicated, code-free
 Architecture Assessment remains the next roadmap-ordered milestone after that manual
 validation.
+
+---
+
+## FR-015 — Public Caregiver Directory Ignores `?tenant=` Hint (2026-07-18)
+
+**Trigger:** manual runtime validation of PR #18's own outcome (the immediate next task PR #18
+itself set — "manual end-to-end runtime and UI validation of caregiver and company visibility
+in the public marketplace directory"). `GET /find-a-caregiver/?tenant=demo-senior-platform`
+rendered `0 مراقب یافت شد` with no filters applied, while the same caregiver's direct detail
+URL (`/find-a-caregiver/<supplier_id>/?tenant=demo-senior-platform`) rendered correctly (200,
+verified badge, city, role, availability, bio, years of experience, service radius, weekly
+availability) — proving the caregiver was genuinely eligible (ACTIVE profile, VERIFIED,
+ACTIVE `ServiceSupplier`, correct type, correct tenant) and the defect was specific to the
+directory/listing path, not to eligibility itself.
+
+**Investigation:** traced both `apps.public_site.views.find_a_caregiver()` (directory) and
+`caregiver_profile()` (detail) side by side. `caregiver_profile()` calls
+`_resolve_optional_tenant_hint(request)` — a helper added specifically so a supplier in a
+non-default tenant (e.g. `seed_product_walkthrough`'s own dedicated demo tenant) can be
+previewed via an explicit `?tenant=<slug>` — and passes the resolved `tenant_id` into
+`CaregiverPublicProfileService.get_profile()`. `find_a_caregiver()` never called that helper
+and never passed `tenant_id` to `CaregiverDirectoryService.search()` at all, so the service
+silently fell back to `TenantService.get_default_tenant_id()` regardless of the query string.
+Proven stage-by-stage with a real shell trace: querying `SupplierSearchService
+.filter_suppliers()` with `tenant_id=<default tenant>` excluded the known caregiver at the very
+first stage (candidate population); querying with `tenant_id=<demo tenant>` included it through
+every subsequent stage (supplier ACTIVE, `is_publicly_visible_attrs()`). The service layer
+itself was already correct and already tested with an explicit `tenant_id` — `CaregiverDirectoryService.search(tenant_id=...)`'s own existing tests in `test_directory_service.py`
+pass `tenant_id` directly, which is exactly why they never caught this: the gap was entirely
+in the view, not the service or query layer. `find_an_organization()` has the identical gap
+(never resolves the hint either), but the organization directory's current emptiness for the
+same demo tenant is a separate, pre-existing cause — its seeded organizations have
+`verification_status=unverified` — confirmed by direct query and left unfixed here (out of
+scope for a caregiver-directory fix; not modified).
+
+**Fix:** `find_a_caregiver()` now calls `_resolve_optional_tenant_hint(request)` (the same
+helper `caregiver_profile()` already uses) and passes the resolved `tenant_id` into
+`CaregiverDirectoryService.search()` — a two-line change in `apps/public_site/views.py`. No
+change to the service layer, the query layer, or any visibility predicate. Callers that never
+pass `?tenant=` get exactly the pre-existing default-tenant behavior (verified by a dedicated
+regression test); an unknown tenant slug now correctly 404s instead of silently rendering an
+empty list, matching the detail view's own established contract.
+
+**Tests:** 8 new (`FindACaregiverViewTenantHintTest` in `apps/public_site/tests/test_views.py`,
+mirroring the existing `CaregiverProfileTenantHintTest` structure): correct hint lists the
+caregiver; missing hint still excludes a non-default-tenant caregiver (no behavior change for
+existing callers); unknown slug 404s; wrong tenant hint cannot cross-tenant-leak a caregiver
+into a different tenant's listing; unverified/DRAFT/inactive-supplier caregivers remain
+excluded even with a correct tenant hint; and a consistency test proving a caregiver visible
+via the detail-page hint is also visible via the directory hint for the same unfiltered
+request. All 8 confirmed failing before the fix (3 genuine failures reproducing the defect: the
+core listing failure, the missing 404 on an unknown slug, and the consistency invariant; 5
+incidentally passed pre-fix since they test *exclusion*, which held regardless of which wrong
+tenant was searched) and passing after.
+
+**Verification:** `git diff --check` / `manage.py check` / `manage.py migrate --check` all
+clean. Focused suites (`apps.public_site`, `apps.discovery`,
+`apps.kernel.tests.test_supplier_registry`, `apps.kernel.tests.test_supplier`,
+`apps.kernel.tests.test_seed_product_walkthrough`,
+`apps.accounts.tests.test_profile_supplier_invariant`) — 358/358 pass. Full regression:
+**2321 -> 2329/2329 green**, 0 failures, 0 errors, no warnings. Manual runtime verification
+against a real local server, re-seeded via `seed_product_walkthrough`: no filters — 10 results
+(was 0); name search — found; city filter (Tehran) — 10 results; independent-cooperation
+filter — 5 results; cleared filters — 10 results; an intentionally unmatched search — 0
+results (correctly empty, not a defect); the known caregiver's direct detail URL — still 200,
+fully rendered. `/find-an-organization/?tenant=demo-senior-platform` — still 200, still 0
+results, unaffected by this fix (organizations remain unverified in this seed data — a
+pre-existing, separate, unfixed condition, not a regression from this change).
+
+**Explicitly not changed:** `find_an_organization()` (has the identical tenant-hint gap, noted
+above, left unfixed — out of scope for this caregiver-directory fix); `CaregiverDirectoryService`,
+`SupplierSearchService`, `DiscoveryRankingService`, `common.is_publicly_visible_attrs()` (no
+visibility rule was weakened or altered); no new tenant field, no demo-only bypass, no
+special-cased caregiver name.
+
+**Branch:** `fix/public-caregiver-directory-visibility`, from `main` @
+`91e885d0381f2e1129210b649a85d837f3e7a0e0`. PR opened, **not merged**.
+
+**Next task (unchanged):** manual end-to-end runtime and UI validation continues to be the
+current activity — this fix removes one confirmed blocker in that validation. Phase 5 —
+Marketplace Order Workflow remains NOT STARTED; no phase has been marked as started by this
+entry.
+
+---
+
+## FR-015 Follow-Up — Organization Directory Tenant Hint Symmetry (2026-07-18)
+
+**Trigger:** direct follow-up to the FR-015 caregiver-directory fix above, on the same PR #19.
+That entry reported, but explicitly left unfixed, that `find_an_organization()` had the
+identical tenant-hint gap as `find_a_caregiver()` — masked by the unrelated fact that
+`seed_product_walkthrough`'s organizations are all `verification_status=unverified`, so they
+were already excluded from the directory for a different reason. A known, proven defect
+masked by an unrelated condition is still a defect: once an organization becomes verified
+through the normal verification workflow, it would silently reproduce the exact failure the
+caregiver fix already resolved. This entry records extending the same fix, symmetrically, to
+the organization directory — not a new investigation, not a new phase.
+
+**Verified before writing any fix (Phase 2):** static inspection alone was not treated as
+sufficient. A real ACTIVE, VERIFIED organization with an ACTIVE `ServiceSupplier` (correct
+`ORGANIZATION` type, correct tenant) was constructed via the canonical
+`get_or_create_supplier_for_organization()` bridge in `seed_product_walkthrough`'s own demo
+tenant — explicitly VERIFIED so the tenant-hint defect could be isolated from the separate
+verification-status limitation. `GET /find-an-organization/?tenant=demo-senior-platform`
+rendered `0 سازمان یافت` for it; `GET /find-an-organization/<id>/?tenant=demo-senior-platform`
+rendered it correctly (200, fully rendered) — the identical directory-vs-detail contrast
+already proven for caregivers. Stage-by-stage trace confirmed the same first excluding
+stage: initial candidate population (tenant + supplier ACTIVE + type), querying with
+`tenant_id=TenantService.get_default_tenant_id()` excluded the organization; querying with
+the correct tenant included it through every subsequent stage. This disposable local test
+organization/user/person was deleted after manual verification — never included in any
+commit.
+
+**Fix:** `find_an_organization()` now calls `_resolve_optional_tenant_hint(request)` — the
+same shared helper `organization_profile()` (and both caregiver views) already use — and
+passes the resolved `tenant_id` into `OrganizationDirectoryService.search()`. A two-line
+change, symmetrical with the caregiver fix. All four public views
+(`find_a_caregiver`/`caregiver_profile`/`find_an_organization`/`organization_profile`) now
+resolve the tenant hint through the single existing `_resolve_optional_tenant_hint()`
+function — no duplicated tenant-resolution logic existed to refactor, so no broader change
+was made (Phase 5 of the task explicitly asked to verify this rather than assume it; verified
+by inspection of the one shared helper's call sites). No change to
+`OrganizationDirectoryService`, `SupplierSearchService`, `DiscoveryRankingService`, or
+`common.is_publicly_visible_attrs()`; no organization seed-verification behavior changed; no
+unverified organization was made publicly visible — confirmed by a dedicated regression test
+and by live re-verification after the fix that the seed-created (unverified) organizations
+remain absent from the directory.
+
+**Tests:** 8 new (`FindAnOrganizationViewTenantHintTest` in
+`apps/public_site/tests/test_views.py`, mirroring `FindACaregiverViewTenantHintTest` exactly):
+correct hint lists the organization; missing hint excludes it; unknown slug 404s; wrong
+tenant hint doesn't leak; unverified/DRAFT/inactive-supplier organizations remain excluded
+even with a correct hint; detail↔directory consistency invariant. All 8 confirmed failing
+before the fix (3 genuine failures reproducing the defect, matching the caregiver fix's own
+failure shape exactly; 5 incidentally passed pre-fix since they test exclusion) and passing
+after.
+
+**Verification:** `git diff --check` / `manage.py check` / `manage.py migrate --check` all
+clean. Focused suites (`apps.public_site`, `apps.discovery`,
+`apps.kernel.tests.test_supplier_registry`, `apps.kernel.tests.test_supplier`,
+`apps.kernel.tests.test_seed_product_walkthrough`,
+`apps.accounts.tests.test_profile_supplier_invariant`) — 366/366 pass, including the original
+caregiver-directory fix's own tests (still green, unaffected). Full regression: **2329 ->
+2337/2337 green**, 0 failures, 0 errors, no warnings. Manual runtime verification against a
+real local server: no tenant hint — organization absent (correct default-tenant fallback);
+correct hint — 1 organization found, rendered; wrong hint — absent (no leak); unknown hint —
+404; unmatched search — 0 results; cleared filters — 1 result again; direct detail URL —
+still 200, fully rendered; `/find-an-organization/?tenant=demo-senior-platform` for the
+original seed data — still 0 results (organizations there remain unverified, unaffected by
+this fix, as expected).
+
+**Explicitly not changed:** `OrganizationDirectoryService`, `SupplierSearchService`,
+`DiscoveryRankingService`, `common.is_publicly_visible_attrs()`; `seed_product_walkthrough`'s
+organization verification behavior (still `unverified` by construction — a separate,
+still-open, unrelated limitation); no new tenant field; no demo-only bypass; no
+special-cased organization name.
+
+**Same commit target:** one new focused commit on the existing branch
+`fix/public-caregiver-directory-visibility`; **PR #19 updated in place** (no second PR
+opened). Not merged.
+
+**Next task (unchanged):** manual end-to-end runtime and UI validation continues. Phase 5 —
+Marketplace Order Workflow remains NOT STARTED; no phase has been marked as started by this
+entry.
