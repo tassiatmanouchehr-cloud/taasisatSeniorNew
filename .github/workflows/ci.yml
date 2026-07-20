@@ -188,7 +188,7 @@ jobs:
         working-directory: src/tests/visual
         run: |
           npm install
-          npx playwright install chromium --with-deps
+          npx playwright install --with-deps chromium webkit
       - name: Run Playwright tests (accessibility + snapshots)
         working-directory: src/tests/visual
         run: npx playwright test
