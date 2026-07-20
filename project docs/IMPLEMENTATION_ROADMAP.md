@@ -1,5 +1,11 @@
 # IMPLEMENTATION ROADMAP
 
+> **Canonical current-state document:** `project docs/current/PROJECT_BASELINE.md`
+> now holds the authoritative implementation matrix, current risks, and current/
+> next milestone. This file remains the single active *phase order* and its own
+> chronological per-PR changelog; where the two disagree on current state,
+> `PROJECT_BASELINE.md` wins.
+
 **Created:** 2026-07-14
 **Verified against HEAD:** ce3b30e0f3c06d7b058587f3e75c357bfe588415 ("Repository documentation reorganization")
 **Post-merge update:** 2026-07-14 — PR #1 merged to main (`eb51018`): documentation sync + BG-002 fix are on main; P0 hygiene complete; **Phase 1 is the active phase**
@@ -34,6 +40,8 @@
 **Sprint 4.1 update:** 2026-07-16 — Customer Favorites and Saved Providers (see PHASE 4 section's Sprint 4.1 entry) implemented on branch `phase4-customer-favorites` (from main @ `d50f83f`); 1 new migration (`accounts/0011_favorite.py`); 57 new tests (54 original + 3 from the first architecture-review remediation); two architecture-review remediations applied (supplier-type boundary enforcement, post-rejection redirect-destination fix); full regression 2249/2249 green
 **PR #16 merge update:** 2026-07-17 — final pre-merge verification confirmed the branch HEAD `3c0374d7fb84ce5b0f615040be150deafefb3e2f`, `mergeable_state: clean`, and `git status`/`git diff --check`/`manage.py check` all clean; **MERGED to main via PR #16 (merge commit `544de34684cf89ee28c1c4144cd5d82035e58e4e`); Sprint 4.1 is CLOSED**
 **Phase 4 closure update:** 2026-07-17 — a dedicated code-free Phase 4 Closure Review (post-merge, `main` @ `756c14dc25d9446eff73b209bfd85b3e0f4c6648`) confirmed every roadmap-defined Phase 4 capability is implemented, Sprint 4.1/PR #16 closed the final confirmed functional gap (Favorites), the post-closure regression baseline is 2249/2249 PASS, and no Sprint 4.2 is required; **Phase 4 — Customer Portal is now FORMALLY CLOSED.** Two non-blocking Sprint 4.1 engineering advisories (favorites list materialization before pagination; mocked-vs-true-concurrency test coverage) were evaluated and deferred as non-blocking technical debt, not product gaps — see `quality/DEFECT_AND_RISK_REGISTER.md` and `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-028. **Phase 5 — Marketplace Order Workflow is next in roadmap order; not started; requires its own Architecture Assessment before implementation.**
+**FR-015–FR-019 update:** 2026-07-18/19 — five sequential public-site tenant-resolution and caregiver-marketplace-remediation PRs (#19–#23) merged; see the "CROSS-CUTTING — Public Site Tenant Resolution and Caregiver Marketplace Remediation" entry further below for full detail. Full regression 2321 → 2459/2459.
+**Enterprise Baseline update:** 2026-07-20 — a full, evidence-only, eight-domain repository gap assessment was performed against `main` @ `8ee1c6772996ee92c9490ae780ab9f86e91b5ab1` and adopted as the project's official baseline; see `project docs/current/PROJECT_BASELINE.md` (living) and `project docs/assessments/2026-07-20_ENTERPRISE_BASELINE.md` (immutable evidence). **The assessment's own risk ranking resequences the next milestone ahead of Phase 5: RBAC Enforcement-Toggle Visibility & Audit Remediation is now the authoritative next implementation target (`PROJECT_BASELINE.md` §17); Phase 5's Architecture Assessment remains queued immediately after it, not abandoned.**
 **Branch verified:** main (via claude/taasisat-senior-state-verify-9dzzlm)
 **Authority:** This roadmap replaces every previous implementation order (including
 `project docs/03_NEXT_TASK.md` sequencing and the archived Offer Marketplace phase plans).
@@ -447,7 +455,8 @@ full per-PR root-cause/fix/verification detail.
 | Item | When |
 |------|------|
 | Seed test race (G12 / BG-002) | DONE — merged in PR #1 (`eb51018`) |
-| Tenant isolation hardening (FR-001), RBAC toggle audit (FR-002) | Recommendations in Phases 7–8; guardrail tests may be added any time |
+| Tenant isolation hardening (FR-001) | Recommendations in Phases 7–8; guardrail tests may be added any time |
+| RBAC toggle audit (FR-002) | **RESEQUENCED 2026-07-20 — no longer deferred to Phases 7–8.** The Enterprise Baseline assessment ranked this the single highest-severity open risk in the repository; it is now the authoritative next implementation target ahead of Phase 5 — see `project docs/current/PROJECT_BASELINE.md` §17 |
 | Real PSP (G8), real notifications (G9) | After Phase 8 recommendations |
 | CI activation (G14) | Any time; recommended alongside P0 hygiene |
 
@@ -457,3 +466,4 @@ full per-PR root-cause/fix/verification detail.
 
 - Every phase ends with: targeted tests + full regression, documentation sync of `project docs/current/` + traceability entries, and a stop for review.
 - This file is the single active implementation order. `03_NEXT_TASK.md` points here (synchronized 2026-07-14).
+- **Every significant implementation milestone or Epic completion must conclude with, in order: (1) a repository assessment verified against code; (2) documentation synchronization of every active document the milestone changed; (3) an in-place update to `project docs/current/PROJECT_BASELINE.md`, with the assessment filed as a new dated file under `project docs/assessments/`; (4) a re-derived next-milestone entry — never carried forward by default phase numbering alone.** Added 2026-07-20 as part of the Enterprise Baseline; full rule in `PROJECT_BASELINE.md` §18 and `01_PROJECT_RULES.md`.

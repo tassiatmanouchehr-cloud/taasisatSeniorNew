@@ -1270,109 +1270,45 @@ commits `aac0185`/`e1f0bfd`/`5e4364c`/`394b0a7`/`f1a3422`, full detail and per-P
 in those sections). Do not treat this file's Sprint-4.1-era "recommended first sprint" framing
 as the current state — it was superseded by the Phase 4 closure recorded further above.
 
-## AUTHORITATIVE NEXT TASK
+## ENTERPRISE BASELINE ESTABLISHED (2026-07-20) — supersedes the "AUTHORITATIVE
+## NEXT TASK: Phase 5 Architecture Assessment" section that previously followed
+## this point; that framing is now historical, not current
 
-### Title
+On 2026-07-20 a full, evidence-only, eight-domain Enterprise Repository Gap
+Assessment was performed against `main` @ `8ee1c6772996ee92c9490ae780ab9f86e91b5ab1`
+and formally adopted as the project's official baseline. The complete, immutable
+assessment is preserved at
+`project docs/assessments/2026-07-20_ENTERPRISE_BASELINE.md`; the always-current,
+living summary derived from it is `project docs/current/PROJECT_BASELINE.md`.
 
-Phase 5 — Marketplace Order Workflow: Architecture Assessment (code-free)
+**This file's own next-task section is no longer the authoritative source for
+"what's next."** Per the source-of-truth order in `01_PROJECT_RULES.md`,
+`PROJECT_BASELINE.md` §14/§15/§17 is now that source. As of this baseline:
 
-### Objective
+- **Previous milestone:** FR-019 / PR #23 (`PROJECT_BASELINE.md` §13).
+- **Current milestone:** Enterprise Baseline Established — a governance
+  checkpoint, not an implementation milestone (`PROJECT_BASELINE.md` §14).
+- **Next milestone:** **RBAC Enforcement-Toggle Visibility & Audit
+  Remediation** — full title/objective/why-it's-next/dependencies/acceptance-
+  criteria/out-of-scope specification lives in `PROJECT_BASELINE.md` §17, not
+  duplicated here to avoid the two documents drifting apart. This was chosen
+  over defaulting to "Phase 5 Architecture Assessment" because the baseline's
+  own risk ranking (`PROJECT_BASELINE.md` §8) places the RBAC kill-switch
+  visibility gap as the single highest-severity open finding in the entire
+  repository, and it is small and fully scoped already — it does not need its
+  own separate assessment phase the way `OrderOfferService` does.
 
-Produce a written, evidence-based assessment of what Phase 5 (job publication, offer
-submission, `OrderOfferService`, reservation hold, payment/escrow coupling, assignment,
-execution, completion, cancellation, disputes) actually requires, given the current state of
-`apps.orders` (the `OrderOffer` model already exists — committed in `ce3b30e`, Phase 1 of the
-Offer Marketplace — but `OrderOfferService` itself was never built), `apps.booking`,
-`apps.matching`, `apps.commission`, `apps.payments`, and `apps.finance` — and produce a bounded
-first-implementation-sprint recommendation. This is a planning/governance activity, matching
-the repository's own established precedent (the Phase 3 Closure / Phase 4 Customer Portal
-Architecture Assessment, PR #15, and the Phase 4 Closure Review, PR #17 — both documentation-
-only, both preceding their respective phase's first implementation sprint).
+**The Phase 5 Architecture Assessment described in the (now superseded)
+section this replaces is not abandoned.** Its own scope definition (what to
+read, what to determine about `OrderOfferService`, acceptance criteria) remains
+valid and will be the correct next task once the RBAC remediation above is
+complete — see the recommended order in `PROJECT_BASELINE.md` §15. **Do not
+begin either — the RBAC remediation or the Phase 5 Architecture Assessment —
+without an explicit instruction authorizing it.**
 
-### Why this is next
-
-- Phase 4 (Customer Portal) is formally closed (PR #17); Phase 5 is the next phase in
-  `IMPLEMENTATION_ROADMAP.md`'s explicit, single active implementation order.
-- The "manual end-to-end runtime/UI validation of caregiver and company visibility in the
-  public marketplace directory" task that sat between the Core Profile-ServiceSupplier
-  Invariant Remediation (PR #18) and Phase 5 is now **complete** — it is exactly what surfaced
-  and closed FR-015 through FR-019 (PRs #19–#23). There is no remaining placeholder task
-  standing between the current `main` state and Phase 5.
-- Every other roadmap phase (6 — Invoice Workflow, 7 — Financial Engine Review, 8 — Payment &
-  Settlement Review) explicitly depends on Phase 5's own implementation or its usage patterns
-  (`IMPLEMENTATION_ROADMAP.md`'s own "Depends on" lines) — none of them can legitimately be
-  reordered ahead of Phase 5 on current evidence.
-- No currently-open defect/risk register entry is flagged as more urgent than this. The
-  organization directory's own "0 results" behavior under the demo tenant is a deliberate,
-  repeatedly-reconfirmed characteristic of `seed_product_walkthrough`'s seed data (every
-  organization it creates is `verification_status=unverified` by construction — see FR-015's
-  own entry in `quality/DEFECT_AND_RISK_REGISTER.md`), not a defect, and no instruction has
-  asked for it to change.
-- `IMPLEMENTATION_ROADMAP.md` § 5 (Governance) and this file's own repeated, explicit
-  prohibitions both require a dedicated architecture assessment before any Phase 5 code is
-  written — this has not yet been performed.
-
-### In scope
-
-- Read `apps.orders` (`OrderOffer`, `ServiceCategory`, `ServiceType`, `Order`,
-  `OrderStatusHistory`, `OrderShareLink`, `OrderOrganizationEligibility`), `apps.booking`
-  (`SupplierAssignment`), `apps.matching` (`MatchRound`, `MatchCandidate`), `apps.commission`
-  (`PaymentDeadline`, `ObjectionPeriod`, `Dispute`, etc.), `apps.payments`, `apps.finance`
-  directly from current source — not from memory or prior reports.
-- Determine exactly what `OrderOfferService` needs to implement against the already-committed
-  `OrderOffer` model (submit/edit/withdraw/select per the ADM-001..013 decisions already on
-  record in `traceability/ARCHITECTURE_DECISION_LOG.md`).
-- Determine the concurrency contract for offer selection (the one-selected-per-order DB
-  constraint already exists on `OrderOffer` — confirm what service-layer locking it still
-  needs).
-- Determine the reservation-hold / `PaymentDeadline` reuse contract (ADM-011).
-- Identify which of BG-007 (deadline-expiry gate) and BG-008 (pre-service payment gate) are
-  genuine blockers vs. already-satisfied.
-- Recommend a bounded first Phase 5 implementation sprint (mirroring Sprint 4.1's own
-  "recommended first sprint" precedent) — scope, acceptance criteria, explicit exclusions.
-
-### Out of scope
-
-- Any model, migration, service, view, or template change.
-- Any branch creation for production work.
-- Beginning `OrderOfferService` implementation itself.
-- Redesigning Phases 6, 7, or 8.
-- Touching the pre-existing `kernel` migration-drift cosmetic warning (RISK-009) — confirmed
-  unrelated, out of scope, unchanged since it was first documented.
-
-### Required repository verification
-
-- Direct inspection of every app/service/model listed above under "In scope" — cite exact file
-  paths and current behavior, not assumptions.
-- Confirm current full-regression baseline before starting (`python manage.py test` on synced
-  `main`) so the assessment's own eventual PR can cite an accurate "before" count.
-- Confirm `git status`/`local main == origin/main` before starting, per this repository's own
-  established pre-phase-start convention (every prior phase's own Pre-Check did this).
-
-### Acceptance criteria
-
-- A written assessment document (location per `DOCUMENTATION_RULES.md` — under `project docs/`,
-  not a new root-level report) covering every "In scope" item above, each backed by a citation
-  to real source code, not narrative assumption.
-- A concrete, bounded first-sprint recommendation with explicit in-scope/out-of-scope lines,
-  matching the level of detail the Phase 4 assessment (PR #15) and Sprint 4.1's own
-  "recommended first sprint" section provided.
-- No code, test, or migration file changed by the assessment itself.
-
-### Required tests or runtime checks
-
-None — this is a documentation/analysis-only activity. No test suite is expected to change as
-a result of the assessment itself.
-
-### Documentation synchronization requirements
-
-On completion, update: this file (replace this "Authoritative Next Task" section with the
-assessment's own findings and the resulting bounded-sprint recommendation, exactly as PR #15
-did for Phase 4), `02_PROJECT_CONTINUATION.md` (Active work branch / Active blocker rows),
-`IMPLEMENTATION_ROADMAP.md` (a Phase 5 assessment changelog line, matching its own established
-per-phase-update convention), and `traceability/IMPLEMENTATION_JOURNAL.md`/
-`traceability/ARCHITECTURE_DECISION_LOG.md` (a new ADM entry recording the assessment's
-decisions, matching ADM-026's precedent for the Phase 4 assessment).
-
-**Do not begin Phase 5 implementation without this assessment being performed and approved
-first** — per this repository's own repeatedly-stated governance.
+Per the governance rule now recorded in `01_PROJECT_RULES.md` and
+`PROJECT_BASELINE.md` §18: on completion of the RBAC remediation (or any other
+significant milestone), update `PROJECT_BASELINE.md` in place, file the
+assessment behind it as a new dated file under `project docs/assessments/`,
+and replace this section with the next re-derived milestone — never carry a
+stale "next task" forward by default.
