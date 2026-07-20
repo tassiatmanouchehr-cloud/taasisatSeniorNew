@@ -78,10 +78,11 @@ test.describe('public mobile navigation', () => {
 
     await toggle.click();
     await expect(panel).toBeVisible();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 
     await toggle.click();
-    await expect(panel).toBeHidden();
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(panel).toBeHidden();
   });
 
   test('Escape closes the open menu', async ({ page }) => {
