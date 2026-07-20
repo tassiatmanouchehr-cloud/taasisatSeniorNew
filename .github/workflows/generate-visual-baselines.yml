@@ -1,0 +1,122 @@
+name: Generate Visual Baselines
+
+on:
+  workflow_dispatch:
+
+env:
+  DJANGO_SETTINGS_MODULE: config.settings.testing
+  DATABASE_NAME: test_marketplace
+  DATABASE_USER: test
+  DATABASE_PASSWORD: test
+  DATABASE_HOST: localhost
+  DATABASE_PORT: "5432"
+  REDIS_URL: redis://localhost:6379/0
+  CELERY_BROKER_URL: redis://localhost:6379/0
+  CELERY_RESULT_BACKEND: redis://localhost:6379/1
+  SECRET_KEY: ci-test-secret-not-for-production
+  GIS_ENABLED: "true"
+
+jobs:
+  generate-baselines:
+    name: Generate Playwright Snapshot Baselines
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    defaults:
+      run:
+        working-directory: src
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: test_marketplace
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gdal-bin libgdal-dev libpq-dev
+      - name: Install Python dependencies
+        run: pip install -r requirements/test.txt
+      - name: Install Node dependencies (root)
+        run: npm install
+      - name: Build CSS
+        run: npx tailwindcss -i ui/css/main.css -o static/css/output.css --minify
+      - name: Build JS
+        run: npm run js:build
+      - name: Run migrations
+        run: python manage.py migrate
+      - name: Seed test data
+        run: python manage.py seed_tenant
+      - name: Start Django server
+        run: python manage.py runserver 0.0.0.0:8000 &
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.development
+          GIS_ENABLED: "true"
+      - name: Wait for server
+        run: sleep 5
+      - name: Install Playwright browsers
+        working-directory: src/tests/visual
+        run: |
+          npm install
+          npx playwright install --with-deps chromium webkit
+      - name: Generate baselines (snapshot specs only)
+        working-directory: src/tests/visual
+        run: npx playwright test specs/snapshots.spec.js specs/showcase.spec.js --update-snapshots
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:8000
+      - name: Validate baseline count
+        working-directory: src/tests/visual
+        run: |
+          PNG_COUNT=$(find baselines -name "*.png" | wc -l)
+          ZERO_BYTE=$(find baselines -name "*.png" -empty | wc -l)
+          echo "Generated PNGs: ${PNG_COUNT}"
+          echo "Zero-byte PNGs: ${ZERO_BYTE}"
+          if [ "${PNG_COUNT}" -ne 525 ]; then
+            echo "::error::Expected 525 baseline PNGs, got ${PNG_COUNT}"
+            exit 1
+          fi
+          if [ "${ZERO_BYTE}" -ne 0 ]; then
+            echo "::error::Found ${ZERO_BYTE} zero-byte PNG files"
+            exit 1
+          fi
+          echo "Baseline count validated: 525 PNGs, 0 zero-byte"
+      - name: Report generated file details
+        if: always()
+        working-directory: src/tests/visual
+        run: |
+          echo "=== Generated baseline files ==="
+          find baselines -name "*.png" | wc -l
+          echo "=== Per-project counts ==="
+          for project in desktop-light-rtl desktop-dark-rtl desktop-light-ltr tablet-light-rtl tablet-dark-rtl mobile-light-rtl mobile-dark-rtl; do
+            count=$(find baselines -name "*-${project}.png" | wc -l)
+            echo "  ${project}: ${count}"
+          done
+          echo "=== Zero-byte files ==="
+          find baselines -name "*.png" -empty | wc -l
+          echo "=== Total size ==="
+          du -sh baselines/ || echo "No baselines directory"
+      - name: Upload baselines artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-baselines
+          path: src/tests/visual/baselines/
+          retention-days: 30
+          if-no-files-found: error
