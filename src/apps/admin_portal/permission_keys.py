@@ -25,6 +25,9 @@ from apps.kernel.permissions.keys import (
     ADMIN_SYSTEM_READ as SYSTEM_READ,
 )
 from apps.kernel.permissions.keys import (
+    ADMIN_RBAC_ENFORCEMENT_READ as RBAC_ENFORCEMENT_READ,
+)
+from apps.kernel.permissions.keys import (
     ADMIN_TENANTS_READ as TENANTS_READ,
 )
 from apps.kernel.permissions.keys import (
@@ -45,6 +48,7 @@ __all__ = [
     "ORDERS_READ",
     "FINANCE_READ",
     "SYSTEM_READ",
+    "RBAC_ENFORCEMENT_READ",
     "COMMISSION_ESCROW_VIEW",
     "COMMISSION_DISPUTE_RESOLVE",
     "DOCUMENT_REVIEW",
