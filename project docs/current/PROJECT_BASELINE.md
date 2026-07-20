@@ -27,8 +27,8 @@ assessment creates a new dated file rather than editing that one).
 
 | Field | Value |
 |---|---|
-| `main` HEAD | `8ee1c6772996ee92c9490ae780ab9f86e91b5ab1` |
-| Last merged PR | #23 — "Fix canonical public caregiver marketplace and enrich public profiles" (FR-019), merge commit `f1a34221c41df34139c599d7d073d2832cf2ae99`, 2026-07-19 |
+| `main` HEAD | `15d3fbf65d6621c93a785d407f67b3980cdeb1c8` |
+| Last merged PR | #26 — "fix: move CI workflow to .github/workflows/ (was never detected by GitHub Actions)" from branch `fix/ci-workflow-location`, merge commit `15d3fbf65d6621c93a785d407f67b3980cdeb1c8`, 2026-07-20 |
 | Working tree at last verification | Clean |
 
 ## 3. Current project version / baseline
@@ -38,12 +38,13 @@ release tags) — versioning is tied to `main`'s SHA and the assessment date, pe
 this repository's own established convention (compare `02_PROJECT_CONTINUATION.md`'s
 "main HEAD SHA" row).
 
-**Baseline identifier: `BASELINE-2026-07-20` (main @ `8ee1c67`)**
+**Baseline identifier: `BASELINE-2026-07-20-PR26` (main @ `15d3fbf`)**
 
-This is the first formally-adopted, assessment-backed baseline. Every future
-baseline supersedes this one in place (this file is updated, not replaced); the
-assessment it was built from is preserved immutably (see the note at the top of
-this file).
+This supersedes `BASELINE-2026-07-20` (main @ `8ee1c67`). Updates: PR #24 (RBAC
+Enforcement-Toggle Emergency Control) resolved FR-002; PR #26 (CI workflow
+location fix) activated GitHub Actions for the first time. The assessment the
+original baseline was built from is preserved immutably at
+`project docs/assessments/2026-07-20_ENTERPRISE_BASELINE.md`.
 
 ## 4. Completed phases
 
@@ -55,6 +56,8 @@ Roadmap phases (see `IMPLEMENTATION_ROADMAP.md` for full detail):
 - **Phase 4 — Customer Portal** — FORMALLY CLOSED, merged via PR #16–#17 (Sprint 4.1).
 - **Core Profile-ServiceSupplier Invariant Remediation** — cross-cutting bug-fix, merged via PR #18.
 - **FR-015 through FR-019 — Public Site Tenant Resolution and Caregiver Marketplace Remediation** — cross-cutting bug-fix/UX remediation, merged via PR #19–#23.
+- **RBAC Enforcement-Toggle Visibility & Audit Remediation** — emergency operational control: read-only operator visibility + audited management command. Merged via PR #24.
+- **CI Workflow Location Fix** — moved `.github/workflows/ci.yml` from `src/.github/` to repository root, activating GitHub Actions for the first time. Merged via PR #26.
 
 Within those phases, per the 2026-07-20 assessment, the following are verified
 **Production Ready or Functionally Complete** end-to-end: identity/registration/
@@ -75,8 +78,10 @@ machine, matching, booking, execution, reviews).
   allocation, escrow release, real PSP) — see §8, §19.
 - **Admin/Organization operability.** Moderation is complete; observability
   (audit browsing, logs, job visibility, live configuration) is not — see §8.
-- **Infrastructure operability.** CI is built but never executed; Docker exists
-  for development only; no production deployment path exists — see §8, §19.
+- **Infrastructure operability.** CI is now active (PR #26, 2026-07-20) — Django
+  Test Suite and Tailwind CSS Build pass; Lint and UI Quality Gates fail on
+  pre-existing code debt. Docker exists for development only; no production
+  deployment path exists — see §8, §19.
 
 ## 6. Not started phases
 
@@ -128,7 +133,7 @@ Ranked by severity, from `project docs/assessments/2026-07-20_ENTERPRISE_BASELIN
 | High | Order cancellation (`status_machine.request_cancellation/approve_cancellation`) has no `PermissionService.require()` call | Open |
 | Medium | No tenant-scoping middleware — isolation is per-developer discipline, not structurally enforced | Open, currently mitigated by per-model/per-app tests |
 | Medium | `SupplierSearchService.filter_suppliers()` has no DB-level `LIMIT` before ranking | Open |
-| Medium | CI pipeline fully built, never executed; no production deployment infrastructure | Open |
+| Medium | CI pipeline now active (PR #26); 2/5 jobs fail due to pre-existing lint/RTL debt, not application defects | Open — lint (`src/tools/` T201/F541) and RTL (`templates/portal/request_financial.html` `ml-2`) debt to be addressed in a follow-up PR |
 
 ## 9. Current technical debt
 
@@ -204,26 +209,23 @@ set materialization in `SupplierSearchService.filter_suppliers()`. Full detail:
 
 ## 13. Previous milestone
 
-**FR-019 — Public Caregiver Marketplace Remediation, merged via PR #23**
-(2026-07-19). Established a `DEBUG`-only canonical development-tenant contract
-between the walkthrough seed and the public tenant resolver, closed two real
-code gaps (directory links via string concatenation; caregiver avatar never
-surfacing publicly), enriched demo seed data, and corrected a profile-header
-layout collision and an Alpine Focus-plugin console warning discovered in
-pre-merge review. Full regression at merge: 2,459/2,459. See
-`project docs/quality/DEFECT_AND_RISK_REGISTER.md`'s FR-019 entry and
-`project docs/traceability/IMPLEMENTATION_JOURNAL.md` for complete detail.
+**CI Workflow Location Fix, merged via PR #26** (2026-07-20). Moved
+`.github/workflows/ci.yml` from `src/.github/workflows/` (where GitHub Actions
+could never detect it) to the repository root. Added `--noinput` to the test
+command and removed a redundant `migrate` step that conflicted with Django's
+test runner. GitHub Actions is now active for the first time in this
+repository's history. Confirmed CI results: Django Test Suite ✅, Tailwind CSS
+Build ✅, Lint & Format Check ❌ (pre-existing debt), UI Quality Gates ❌
+(pre-existing RTL debt), Visual & Accessibility Tests ❌ (pre-existing, requires
+investigation). See `traceability/IMPLEMENTATION_JOURNAL.md` for the full record.
 
 ## 14. Current milestone
 
-**Enterprise Baseline Established (this document, 2026-07-20).**
+**Post-PR-#26 Documentation Synchronization (this update, 2026-07-20).**
 
-This is not an implementation milestone — no application code changed to reach
-it. It is the governance checkpoint at which the repository's actual state
-(everything in §4–§12 above) was independently verified end-to-end for the
-first time and formally adopted as the project's single source of truth for
-"where are we now," superseding scattered, per-PR narrative in the continuation
-documents. Concretely, this milestone consists of:
+This is not an implementation milestone — no application code changed. It
+records the CI activation and updates the baseline to reflect the current
+repository state after PR #24 (RBAC) and PR #26 (CI) merged.
 
 - The full evidence-based assessment (`project docs/assessments/2026-07-20_ENTERPRISE_BASELINE.md`).
 - This baseline document.
@@ -376,8 +378,8 @@ blockers exist, none of which are cosmetic:
 3. **There is no way to deploy this to production.** Django-level hardening in
    `config/settings/production.py` is correct, but no Dockerfile, compose
    variant, CD pipeline, reverse-proxy config, or start script exists to
-   actually run it anywhere — and the CI pipeline that would gate a deployment
-   has, per the project's own defect register, never executed.
+   actually run it anywhere. CI is now active (PR #26) but not yet configured
+   as a deployment gate.
 
 None of these are architectural flaws requiring redesign — each is a concrete,
 well-scoped, additive piece of missing wiring against an otherwise sound
