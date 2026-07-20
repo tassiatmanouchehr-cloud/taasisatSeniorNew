@@ -18,7 +18,7 @@
   <div class="bg-surface border border-border rounded-lg p-5">
     <h2 class="text-base font-bold text-text mb-4">پرداخت پیش از شروع خدمت</h2>
     <p class="text-sm text-text-muted mb-4">برای شروع خدمت، پرداخت باید با موفقیت انجام شود.</p>
-    <form method="post" action="{% url 'portal:request-financial-pay' order_id=order.id %}" class="inline-block ml-2">
+    <form method="post" action="{% url 'portal:request-financial-pay' order_id=order.id %}" class="inline-block ms-2">
       {% csrf_token %}
       <input type="hidden" name="outcome" value="SUCCEEDED">
       <button type="submit" class="inline-flex items-center rounded-lg bg-success px-4 py-2 text-sm font-bold text-white hover:opacity-90">شبیه‌سازی پرداخت موفق (Fake)</button>
@@ -55,7 +55,7 @@
     <p class="text-sm text-text-muted mb-4">مهلت: <span class="ltr-value">{{ financial_view.objection_deadline_label }}</span></p>
 
     {% if financial_view.can_customer_approve %}
-    <form method="post" action="{% url 'portal:request-financial-approve' order_id=order.id %}" class="inline-block ml-2">
+    <form method="post" action="{% url 'portal:request-financial-approve' order_id=order.id %}" class="inline-block ms-2">
       {% csrf_token %}
       <button type="submit" class="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary-700">تأیید انجام خدمت</button>
     </form>
