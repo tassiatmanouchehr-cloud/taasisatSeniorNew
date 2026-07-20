@@ -129,7 +129,7 @@ jobs:
       - name: Run Django system check
         run: python manage.py check
       - name: Run tests
-        run: python manage.py test --verbosity=2
+        run: python manage.py test --verbosity=2 --noinput
 
   visual-regression:
     name: Visual & Accessibility Tests
