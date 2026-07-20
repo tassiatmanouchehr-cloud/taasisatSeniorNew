@@ -4678,3 +4678,87 @@ marked as started by this entry. A dedicated Phase 5 Architecture Assessment (co
 still the next roadmap-ordered milestone, per `project docs/02_PROJECT_CONTINUATION.md` and
 `project docs/03_NEXT_TASK.md` — not started by this PR, and not to be started without an
 explicit instruction authorizing it.
+
+
+
+---
+
+## CI Workflow Location Fix — PR #26 (2026-07-20)
+
+**Milestone:** Infrastructure correction (not a roadmap phase — closes the CI
+portion of the former G14 gap).
+
+**Branch:** `fix/ci-workflow-location`
+**PR:** #26
+**Merge commit:** `15d3fbf65d6621c93a785d407f67b3980cdeb1c8`
+**Base:** `main` @ `88b39bc3fb6eaf7f95c1ef7e0cdbe51077a7c331` (PR #24 merge)
+
+**What was delivered:**
+
+1. **File move:** `src/.github/workflows/ci.yml` → `.github/workflows/ci.yml`
+   (repository root). GitHub Actions requires workflows at
+   `<repo-root>/.github/workflows/` — the nested location inside `src/` meant
+   CI had never detected or executed for any of the 24 prior merged PRs.
+
+2. **Workflow fix — remove redundant `migrate` step:** The workflow originally
+   ran `python manage.py migrate` before `python manage.py test`. This
+   pre-created the same database that Django's test runner then tried to create
+   fresh, causing `ProgrammingError: database "test_marketplace" already exists`
+   → `EOFError` (no TTY to answer the prompt). Removed — Django's test runner
+   internally creates and migrates its own test database.
+
+3. **Workflow fix — add `--noinput`:** The PostgreSQL service container creates
+   a database named `test_marketplace` at startup. Django's test runner tries to
+   create a database with the same name and prompts for confirmation in a
+   non-interactive environment. `--noinput` tells Django to auto-destroy and
+   recreate without prompting.
+
+**No application code, model, migration, service, view, template, or test
+changed.** All changes are narrowly scoped CI workflow corrections.
+
+**Observed CI results (workflow run `29722129758`, commit `3da1320`):**
+
+| Job | Conclusion | Notes |
+|-----|-----------|-------|
+| Tailwind CSS Build | ✅ success | — |
+| Django Test Suite | ✅ success | Full 2500+ test suite on PostgreSQL 16 + PostGIS (~4 min) |
+| Lint & Format Check | ❌ failure | Pre-existing: 426 ruff violations in `src/tools/` (T201 `print`, F541 empty f-strings) |
+| UI Quality Gates | ❌ failure | Pre-existing: 2 RTL violations (`ml-2` → `ms-2`) in `templates/portal/request_financial.html:21,58` |
+| Visual & Accessibility Tests | ❌ failure | WebKit installation defect RESOLVED by PR #28 (merged 2026-07-20, commit `0d72ac5`). Chromium and WebKit now install and launch successfully. Tests execute for ~26 minutes across all 7 projects. Remaining failure: committed screenshot baselines are missing — Playwright's `toHaveScreenshot()` fails with `A snapshot doesn't exist at .../baselines/...`. This is a separate first-run issue requiring a dedicated baseline-generation task; it is not a browser, application, or workflow defect. |
+
+**Key verification:** The removal of `manage.py migrate` does NOT reduce CI
+coverage. Django's `manage.py test` internally creates a fresh database and
+applies all migrations as part of `DiscoverRunner.setup_databases()`. A broken
+migration causes immediate failure before any test executes. No
+`TEST: {MIGRATE: False}` or `MIGRATION_MODULES` override exists in this
+repository's settings.
+
+**Remaining CI debt (pre-existing, NOT introduced by PR #26):**
+- `lint` job: 426 ruff violations in `src/tools/validate_*.py` (T201, F541) — these are
+  CLI scripts that intentionally use `print()` for output; the ruff config's
+  `T201` rule is too strict for non-application scripts.
+- `ui-quality` job: 2 RTL violations (`ml-2` at
+  `templates/portal/request_financial.html:21,58`) — should be `ms-2` for
+  logical RTL-safe margins.
+- `visual-regression` job: **WebKit installation defect RESOLVED (PR #28,
+  merged 2026-07-20).** Chromium and WebKit now install and launch. Tests
+  execute across all 7 Playwright projects (~26 min runtime). **Remaining
+  failure:** committed screenshot baselines do not exist in the repository —
+  Playwright's `toHaveScreenshot()` fails with `A snapshot doesn't exist at
+  .../baselines/snapshots.spec.js/<name>.png, writing actual.` This is expected
+  first-run behavior for visual regression tests that have never executed in CI.
+  Establishing baselines requires: running `npx playwright test
+  --update-snapshots` in the canonical CI environment, human-reviewing the
+  generated images, and committing them. This is a dedicated, separate task —
+  not a browser installation, workflow, or application defect.
+
+  **Font stabilization decision (2026-07-20):** Baselines will be generated
+  using the fonts currently available in the canonical GitHub Actions
+  `ubuntu-latest` environment (system fallback fonts: Tahoma/Arial for
+  Persian, no committed IRANSansX/Vazirmatn/JetBrains Mono). Font
+  stabilization and commercial font licensing are deferred technical debt —
+  not a blocker for establishing initial baselines. Future font or runner-OS
+  changes may require an intentional baseline refresh.
+
+**GitHub Actions is now genuinely active.** Every future push to `main` or
+`phase-*/**` branches, and every PR targeting `main`, will trigger the workflow.

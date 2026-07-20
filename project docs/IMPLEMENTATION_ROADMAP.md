@@ -95,7 +95,7 @@ The repository code remains the ultimate source of truth.
 | G11 | Tenant-isolation hardening, RBAC toggle audit | FR-001/FR-002 in `project docs/quality/DEFECT_AND_RISK_REGISTER.md`, verified in `kernel/services/permission_service.py` |
 | G12 | ~~Seed test order_number collision~~ **FIXED, merged in PR #1** | Bounded savepoint retry + 6-digit suffix in `orders/models.py`; 8 regression tests in `orders/tests/test_order_number_generation.py`; full regression 1680/1680 (CL-017, Run 009) |
 | G13 | AI verification placeholder | Nothing exists; must be a deliberate no-op extension point |
-| G14 | Production deployment config / CI activation | `.github/workflows/ci.yml` present, never run |
+| G14 | ~~Production deployment config / CI activation~~ **CI ACTIVATED (PR #26, 2026-07-20)** — workflow moved to correct path, GitHub Actions now executes on every push/PR. Production deployment config remains NOT STARTED. | `.github/workflows/ci.yml` at repo root; Django Test Suite + Tailwind pass; Lint + UI Quality fail on pre-existing debt |
 
 ---
 
@@ -458,7 +458,7 @@ full per-PR root-cause/fix/verification detail.
 | Tenant isolation hardening (FR-001) | Recommendations in Phases 7–8; guardrail tests may be added any time |
 | RBAC toggle audit (FR-002) | **RESEQUENCED 2026-07-20 — no longer deferred to Phases 7–8.** The Enterprise Baseline assessment ranked this the single highest-severity open risk in the repository; it is now the authoritative next implementation target ahead of Phase 5 — see `project docs/current/PROJECT_BASELINE.md` §17 |
 | Real PSP (G8), real notifications (G9) | After Phase 8 recommendations |
-| CI activation (G14) | Any time; recommended alongside P0 hygiene |
+| CI activation (G14) | **PARTIALLY RESOLVED (PR #26, 2026-07-20)** — CI is now active; production deployment infrastructure remains not started |
 
 ---
 
