@@ -595,3 +595,83 @@ class ServiceSupplierSoleWriterTest(SimpleTestCase):
             [],
             f"ServiceSupplier must only be written by SupplierRegistry — found direct writes in: {offenders}",
         )
+
+
+class RbacEnforcementEmergencyControlTest(SimpleTestCase):
+    """
+    RBAC Enforcement-Toggle Visibility & Audit Remediation (approved
+    architecture decision, 2026-07-20): rbac.enforcement.enabled is an
+    emergency operational control, not a business/admin feature.
+    Deliberately no Admin Portal, Django Admin, public UI, internal
+    application UI, or API mutation surface may ever be created for it —
+    apps.kernel.services.rbac_configuration.RBACConfiguration
+    .set_enforcement_enabled() (called only from the set_rbac_enforcement
+    management command) must remain the sole write path.
+    """
+
+    def test_admin_portal_views_never_reference_configurationvalue(self):
+        """AdminPortalOrmDisciplineTest already forbids any ORM mutation in
+        admin_portal/views.py; this check is a narrower, name-specific
+        tripwire so a future refactor that routes around that guardrail
+        (e.g. by calling a differently-named ORM manager) still fails
+        loudly for this specific model."""
+        views_file = APPS_DIR / "admin_portal" / "views.py"
+        source = _read(views_file)
+        self.assertNotIn(
+            "ConfigurationValue", source,
+            "apps/admin_portal/views.py must never reference ConfigurationValue directly — "
+            "use RBACConfiguration.get_enforcement_status() instead.",
+        )
+
+    def test_admin_portal_urls_has_no_post_route_for_rbac_enforcement(self):
+        urls_file = APPS_DIR / "admin_portal" / "urls.py"
+        source = _read(urls_file)
+        self.assertIn("rbac-enforcement-status", source)
+        # The route must resolve to the read-only view — a POST-mutation
+        # sibling path (e.g. .../rbac-enforcement/set/) must never exist.
+        self.assertNotRegex(
+            source,
+            r"rbac-enforcement[\w/-]*(set|enable|disable|update|toggle)",
+            "Found what looks like a mutation route for the RBAC enforcement toggle in admin_portal/urls.py.",
+        )
+
+    def test_rbac_enforcement_status_template_has_no_form(self):
+        template_file = APPS_DIR.parent / "templates" / "admin_portal" / "rbac_enforcement_status.html"
+        self.assertTrue(template_file.is_file(), f"expected {template_file} to exist")
+        source = _read(template_file)
+        self.assertNotIn("<form", source)
+        self.assertNotIn('method="post"', source.lower())
+
+    def test_management_command_delegates_to_service_not_orm(self):
+        command_file = APPS_DIR / "kernel" / "management" / "commands" / "set_rbac_enforcement.py"
+        self.assertTrue(command_file.is_file(), f"expected {command_file} to exist")
+        source = _read(command_file)
+        self.assertIn("RBACConfiguration.set_enforcement_enabled(", source)
+        self.assertNotIn("ConfigurationValue.objects.", source)
+        self.assertNotIn("ConfigurationKey.objects.", source)
+
+    def test_no_other_write_path_exists_for_the_enforcement_key(self):
+        """Only the sanctioned service method may write rbac.enforcement.enabled
+        via ConfigurationValue — mirrors ServiceSupplierSoleWriterTest's
+        sole-writer pattern for a different model."""
+        allowed_files = {
+            APPS_DIR / "kernel" / "services" / "rbac_configuration.py",
+        }
+        allowed_dir_parts = ("tests", "migrations")
+        pattern = re.compile(r"ConfigurationValue\.objects\.(create|update_or_create|bulk_create)\(")
+        offenders = []
+
+        for path in _python_files(under=APPS_DIR):
+            relative_parts = path.relative_to(APPS_DIR).parts
+            if any(part in allowed_dir_parts for part in relative_parts):
+                continue
+            if path in allowed_files:
+                continue
+            source = _read(path)
+            if pattern.search(source) and "rbac.enforcement.enabled" in source:
+                offenders.append(str(path.relative_to(APPS_DIR)))
+
+        self.assertEqual(
+            offenders, [],
+            f"Found a write path for rbac.enforcement.enabled outside RBACConfiguration: {offenders}",
+        )

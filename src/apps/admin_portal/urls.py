@@ -56,4 +56,5 @@ urlpatterns = [
         name="organization-activate",
     ),
     path("system/", views.system_status, name="system-status"),
+    path("system/rbac-enforcement/", views.rbac_enforcement_status, name="rbac-enforcement-status"),
 ]

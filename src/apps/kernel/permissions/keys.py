@@ -378,3 +378,16 @@ ADMIN_SYSTEM_READ = register(
     description="Read system data in the admin portal.",
     platform_scope=True,
 )
+ADMIN_RBAC_ENFORCEMENT_READ = register(
+    "admin.rbac_enforcement.read",
+    domain="admin",
+    resource="rbac_enforcement",
+    action="read",
+    description=(
+        "View the RBAC enforcement-toggle state and change history for the "
+        "caller's own tenant (read-only; no mutation surface exists here — "
+        "see RBACConfiguration.set_enforcement_enabled(), called only from "
+        "the set_rbac_enforcement management command)."
+    ),
+    platform_scope=True,
+)

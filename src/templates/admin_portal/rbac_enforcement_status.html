@@ -1,0 +1,50 @@
+{% extends "admin_portal/base.html" %}
+
+{% block portal_title %}اجرای RBAC{% endblock %}
+{% block page_title %}وضعیت اجرای RBAC{% endblock %}
+{% block page_description %}
+<p class="mt-1 text-sm text-text-muted">فقط خواندنی — این یک کنترل اضطراری عملیاتی است، نه یک تنظیم قابل تغییر از این پنل.</p>
+{% endblock %}
+
+{% block admin_content %}
+<div class="space-y-4">
+
+  {% if not status.enabled %}
+  {% include "ui/components/feedback/alert.html" with type="danger" title="هشدار: اجرای RBAC برای این مستأجر غیرفعال است" message="در این حالت، بررسی‌های مجوز برای همهٔ کاربران و همهٔ درخواست‌های این مستأجر دور زده می‌شوند. این یک وضعیت اضطراری است و نباید به‌صورت نامحدود ادامه یابد. این وضعیت ثبت و قابل ردیابی است. بازفعال‌سازی فقط از طریق دستور مدیریتی set_rbac_enforcement ممکن است." %}
+  {% endif %}
+
+  <div class="bg-surface border border-border rounded-lg p-5">
+    <dl class="space-y-3 text-sm">
+      <div class="flex items-center justify-between">
+        <dt class="text-text">وضعیت مؤثر</dt>
+        <dd>{% include "ui/components/feedback/badge.html" with label=status.enabled|yesno:"فعال,غیرفعال" variant=status.enabled|yesno:"success,danger" %}</dd>
+      </div>
+      <div class="flex items-center justify-between">
+        <dt class="text-text">منبع مقدار</dt>
+        <dd>
+          {% if status.source == "override" %}
+            {% include "ui/components/feedback/badge.html" with label="مقدار صریح (override)" variant="warning" %}
+          {% else %}
+            {% include "ui/components/feedback/badge.html" with label="پیش‌فرض ضمنی" variant="neutral" %}
+          {% endif %}
+        </dd>
+      </div>
+      <div class="flex items-center justify-between">
+        <dt class="text-text">آخرین تغییر ثبت‌شده</dt>
+        <dd class="font-medium text-text ltr-value">{{ status.last_changed_at|default:"—" }}</dd>
+      </div>
+      <div class="flex items-center justify-between">
+        <dt class="text-text">عامل آخرین تغییر</dt>
+        <dd class="font-medium text-text">{{ status.last_changed_by|default:"—" }}</dd>
+      </div>
+      <div class="flex items-start justify-between gap-inline-3">
+        <dt class="text-text shrink-0">دلیل آخرین تغییر</dt>
+        <dd class="font-medium text-text text-end">{{ status.last_change_reason|default:"—" }}</dd>
+      </div>
+    </dl>
+  </div>
+
+  {% include "ui/components/feedback/alert.html" with type="info" title="این صفحه فقط خواندنی است" message="هیچ دکمه، فرم یا مسیر تغییر در این پنل وجود ندارد. تغییر این کنترل فقط از طریق دستور مدیریتی «python manage.py set_rbac_enforcement» و توسط اپراتور دارای دسترسی مستقیم به محیط اجرا ممکن است — این یک تصمیم معماری عمدی است، نه محدودیت فنی موقت." %}
+
+</div>
+{% endblock %}

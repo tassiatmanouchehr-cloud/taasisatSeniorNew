@@ -26,6 +26,7 @@ from apps.commission.services.dispute_resolution_service import DisputeResolutio
 from apps.commission.services.errors import CommissionError
 from apps.commission.services.queries import FinancialCoreQueryService
 from apps.kernel.api.health import HealthCheckView
+from apps.kernel.services.rbac_configuration import RBACConfiguration
 from apps.reporting.services import (
     FinancialReportService,
     MarketplaceReportService,
@@ -87,6 +88,26 @@ def system_status(request):
         "cache_status": health_view._check_cache(),
     }
     return render(request, "admin_portal/system_status.html", context)
+
+
+@require_GET
+def rbac_enforcement_status(request):
+    """GET /admin-portal/system/rbac-enforcement/ — read-only visibility into
+    the RBAC enforcement toggle for the caller's own tenant.
+
+    Approved architecture decision (RBAC Enforcement-Toggle Visibility &
+    Audit Remediation): this is an emergency operational control, not a
+    business/admin feature. No mutation surface exists on this page or
+    anywhere else in application UI/API — the toggle is changeable only
+    through the `set_rbac_enforcement` management command. This view is
+    informational only, not a secure recovery mechanism: when enforcement
+    is disabled for this tenant, this page's own permission gate
+    (require_admin_permission -> PermissionService.require()) is itself
+    bypassed, the same as every other RBAC-protected route for that
+    tenant."""
+    tenant_id = require_admin_permission(request, permission_keys.RBAC_ENFORCEMENT_READ)
+    status = RBACConfiguration.get_enforcement_status(tenant_id=tenant_id)
+    return render(request, "admin_portal/rbac_enforcement_status.html", {"status": status})
 
 
 # ============================================================

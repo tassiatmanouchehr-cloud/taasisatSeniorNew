@@ -15,7 +15,7 @@ All permission keys are defined in `apps/kernel/permissions/registry.py` with re
 
 `PermissionService.require()` in `apps/kernel/services/permission_service.py`:
 
-1. If `RBACConfiguration.get_enforcement_enabled(tenant_id)` is False → **ALL RBAC BYPASSED** (configurable per-tenant)
+1. If `RBACConfiguration.get_enforcement_enabled(tenant_id)` is False → **ALL RBAC BYPASSED** (configurable per-tenant). This is an emergency operational control, not a self-service setting: no Admin Portal, Django Admin, public UI, or API mutation surface exists. The only write path is `RBACConfiguration.set_enforcement_enabled()`, called exclusively by the `set_rbac_enforcement` management command (mandatory actor + reason, immutable audit record, cache invalidated only after commit — see `current/RUNTIME_WORKFLOWS.md`'s "RBAC Enforcement-Toggle Emergency Control" section). Read-only operator visibility (current state, source, last change) is available at `/admin-portal/system/rbac-enforcement/`, gated by `admin.rbac_enforcement.read`.
 2. If `actor is None` and `ownership_authorized_by is None` → system context, authorized
 3. Normal RBAC check via `RoleAssignment` records
 4. Ownership fallback: if `ownership_authorized_by` is set and has no RoleAssignment → authorized (caller-verified)

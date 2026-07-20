@@ -563,3 +563,52 @@ Resolution:
    - Publishes `Booking.Assignment.Expired.v1`
 
 **Key insight**: The full cascade is implemented but gated. PaymentDeadline rows are created (data foundation) but expiry jobs are not scheduled unless gate is enabled.
+
+## RBAC Enforcement-Toggle Emergency Control (RBAC Enforcement-Toggle Visibility & Audit Remediation)
+
+Operational runbook for `rbac.enforcement.enabled` — the tenant-scoped
+toggle `PermissionService.require()` checks first, before any RBAC
+evaluation (`apps/kernel/services/permission_service.py:135`).
+
+**Read (operator visibility)**: GET `/admin-portal/system/rbac-enforcement/`,
+gated by `admin.rbac_enforcement.read`. Shows the caller's own tenant's
+effective state, whether it is the implicit platform default or an
+explicit override, and the most recent recorded change (actor, reason,
+timestamp) from the audit log. Read-only — no form, button, or mutation
+route exists on this page or anywhere else in application UI/API.
+
+**Write (the only supported path)** — a management command, run by an
+operator with direct access to the deployment environment:
+
+```
+python manage.py set_rbac_enforcement \
+    --tenant <tenant-uuid-or-slug> --enabled true|false \
+    --reason "<mandatory operational reason>" \
+    --actor "<explicit operator identity, e.g. ops:jane@example.com>" \
+    [--correlation-id <uuid>] [--source <label>] \
+    [--confirm-disable]   # required when --enabled false
+```
+
+The command validates input, then delegates the entire write to
+`RBACConfiguration.set_enforcement_enabled()`
+(`apps/kernel/services/rbac_configuration.py`), which: validates the
+tenant exists; requires a non-empty actor and reason; performs a
+concurrency-safe (`select_for_update`) read-modify-write inside
+`transaction.atomic()`; records an immutable `AuditLog` entry
+(`rbac.enforcement.changed`, security class) with before/after state,
+actor, reason, and correlation ID; and invalidates the resolver cache via
+`transaction.on_commit()` only after the write actually commits. A
+same-value request is a no-op — no new `ConfigurationValue` version, but
+a distinct `rbac.enforcement.no_op` audit event is still recorded so a
+repeated command run is never silently invisible.
+
+**Deliberate limitation, disclosed not fixed**: the read-only status
+page's own permission gate (`require_admin_permission` →
+`PermissionService.require()`) is itself bypassed for a tenant whose
+enforcement is already disabled — the same as every other RBAC-protected
+route for that tenant. This is inherent to `PermissionService`'s existing
+bypass semantics (out of scope for this remediation, see
+`current/PROJECT_BASELINE.md` §17); the page is informational only, not a
+secure recovery mechanism. The management command is the authoritative
+control regardless of any tenant's current enforcement state, since it
+runs outside the request/permission pipeline entirely.
