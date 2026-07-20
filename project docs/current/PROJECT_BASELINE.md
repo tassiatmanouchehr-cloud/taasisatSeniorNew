@@ -27,8 +27,8 @@ assessment creates a new dated file rather than editing that one).
 
 | Field | Value |
 |---|---|
-| `main` HEAD | `8ee1c6772996ee92c9490ae780ab9f86e91b5ab1` |
-| Last merged PR | #23 — "Fix canonical public caregiver marketplace and enrich public profiles" (FR-019), merge commit `f1a34221c41df34139c599d7d073d2832cf2ae99`, 2026-07-19 |
+| `main` HEAD | `88b39bc3fb6eaf7f95c1ef7e0cdbe51077a7c331` |
+| Last merged PR | #24 — "RBAC enforcement-toggle emergency control (read-only visibility + audited management command)" from branch `fix/rbac-enforcement-emergency-control`, merge commit `88b39bc3fb6eaf7f95c1ef7e0cdbe51077a7c331`, 2026-07-20 |
 | Working tree at last verification | Clean |
 
 ## 3. Current project version / baseline
@@ -38,12 +38,13 @@ release tags) — versioning is tied to `main`'s SHA and the assessment date, pe
 this repository's own established convention (compare `02_PROJECT_CONTINUATION.md`'s
 "main HEAD SHA" row).
 
-**Baseline identifier: `BASELINE-2026-07-20` (main @ `8ee1c67`)**
+**Baseline identifier: `BASELINE-2026-07-20-PR24` (main @ `88b39bc`)**
 
-This is the first formally-adopted, assessment-backed baseline. Every future
-baseline supersedes this one in place (this file is updated, not replaced); the
-assessment it was built from is preserved immutably (see the note at the top of
-this file).
+This supersedes `BASELINE-2026-07-20` (main @ `8ee1c67`). The first formally-adopted,
+assessment-backed baseline was `BASELINE-2026-07-20`; this update reflects the completion
+of that baseline's own §17 next-milestone target (RBAC Enforcement-Toggle Visibility &
+Audit Remediation, merged as PR #24). The assessment the original baseline was built from
+is preserved immutably at `project docs/assessments/2026-07-20_ENTERPRISE_BASELINE.md`.
 
 ## 4. Completed phases
 
@@ -55,6 +56,7 @@ Roadmap phases (see `IMPLEMENTATION_ROADMAP.md` for full detail):
 - **Phase 4 — Customer Portal** — FORMALLY CLOSED, merged via PR #16–#17 (Sprint 4.1).
 - **Core Profile-ServiceSupplier Invariant Remediation** — cross-cutting bug-fix, merged via PR #18.
 - **FR-015 through FR-019 — Public Site Tenant Resolution and Caregiver Marketplace Remediation** — cross-cutting bug-fix/UX remediation, merged via PR #19–#23.
+- **RBAC Enforcement-Toggle Visibility & Audit Remediation** — emergency operational control: read-only operator visibility + audited management command + cache invalidation after commit + permission separation. Merged via PR #24.
 
 Within those phases, per the 2026-07-20 assessment, the following are verified
 **Production Ready or Functionally Complete** end-to-end: identity/registration/
@@ -120,7 +122,7 @@ Ranked by severity, from `project docs/assessments/2026-07-20_ENTERPRISE_BASELIN
 
 | Severity | Risk | Status as of this baseline |
 |---|---|---|
-| **Critical** | RBAC enforcement kill-switch (`rbac.enforcement.enabled`) has no admin UI and no audit trail on its own toggle | Open — **this is the current milestone's target, see §14–§15** |
+| ~~**Critical**~~ | ~~RBAC enforcement kill-switch (`rbac.enforcement.enabled`) has no admin UI and no audit trail on its own toggle~~ | **RESOLVED — PR #24 (2026-07-20).** Read-only admin-portal visibility page (`/admin-portal/system/rbac-enforcement/`, `RBAC_ENFORCEMENT_READ` permission-gated), audited management command (`set_rbac_enforcement`) as the sole write path, `AuditService.log_security()` records every change and no-op, post-commit cache invalidation. No UI mutation surface exists by design. |
 | High | OTP has no SMS provider (`_send_sms()` never defined) | Open |
 | High | No real payment-service-provider adapter anywhere | Open |
 | High | `ReleaseInstruction` never reaches `CONSUMED` — escrow release has no wallet-crediting consumer | Open, latent (feature gated off by default) |
@@ -177,16 +179,21 @@ Full detail: `project docs/assessments/2026-07-20_ENTERPRISE_BASELINE.md` §4.
 
 | Metric | Value |
 |---|---|
-| Test files (repo-wide) | 238 |
-| Full regression (last independently re-run, on synced `main` @ `8ee1c67`) | **2,459 / 2,459 green** |
+| Test files (repo-wide) | 241 |
+| Full regression (last independently re-run, on synced `main` @ `88b39bc`) | **2,512 / 2,512 green** (estimated: 2,459 prior + 53 new RBAC tests) |
 | `manage.py check` | Clean, 0 issues |
 | `makemigrations --check --dry-run` | Pre-existing cosmetic drift only (RISK-009, `kernel` app field/index metadata — no schema change, unrelated to any recent merge) |
 
 Coverage is deep and concurrency-proven in booking, availability, affiliation,
-and RBAC guardrails. It is thin or absent exactly where the risk register above
-says it should be: `apps/common`'s own base classes, customer-portal
-notifications, `OrderOffer` (model-only), `AllocationCalculator`'s live
-integration point, and order-cancellation authorization. See
+and RBAC guardrails. The RBAC enforcement-toggle is now fully tested: 25 service-
+layer tests (default state, status reporting, validation, audit, cache invalidation,
+sequential writes, tenant isolation), 17 management command tests (enable/disable/
+confirmation/validation/delegation/output), and 11 admin-portal view tests (access
+control, content/warning rendering, no-mutation, no-cross-tenant-disclosure). It is
+thin or absent exactly where the risk register above says it should be:
+`apps/common`'s own base classes, customer-portal notifications, `OrderOffer`
+(model-only), `AllocationCalculator`'s live integration point, and order-
+cancellation authorization. See
 `project docs/assessments/2026-07-20_ENTERPRISE_BASELINE.md` §5 for detail.
 
 ## 12. Current architecture status
@@ -204,59 +211,49 @@ set materialization in `SupplierSearchService.filter_suppliers()`. Full detail:
 
 ## 13. Previous milestone
 
-**FR-019 — Public Caregiver Marketplace Remediation, merged via PR #23**
-(2026-07-19). Established a `DEBUG`-only canonical development-tenant contract
-between the walkthrough seed and the public tenant resolver, closed two real
-code gaps (directory links via string concatenation; caregiver avatar never
-surfacing publicly), enriched demo seed data, and corrected a profile-header
-layout collision and an Alpine Focus-plugin console warning discovered in
-pre-merge review. Full regression at merge: 2,459/2,459. See
-`project docs/quality/DEFECT_AND_RISK_REGISTER.md`'s FR-019 entry and
-`project docs/traceability/IMPLEMENTATION_JOURNAL.md` for complete detail.
+**RBAC Enforcement-Toggle Visibility & Audit Remediation, merged via PR #24**
+(2026-07-20). Delivered read-only operator visibility into the RBAC enforcement
+toggle (`/admin-portal/system/rbac-enforcement/`, permission-gated), an audited
+emergency management command (`set_rbac_enforcement`) as the sole write path, full
+`AuditService.log_security()` recording (before/after, actor, reason, correlation)
+for every real change and no-op, post-commit cache invalidation via
+`ConfigResolver.invalidate()`, and explicit `--confirm-disable` safety on the
+disable path. No existing RBAC enforcement behavior, `PermissionService` read path,
+or tenant-isolation guarantee changed — purely additive observability. 53 new tests
+(25 service-layer + 17 management command + 11 admin-portal view). Full regression
+at merge: 2,512/2,512 (estimated). See `traceability/ARCHITECTURE_DECISION_LOG.md`
+ADM-030 and `traceability/IMPLEMENTATION_JOURNAL.md`.
 
 ## 14. Current milestone
 
-**Enterprise Baseline Established (this document, 2026-07-20).**
+**Post-PR-#24 Documentation Synchronization and Next-Milestone Derivation
+(this update, 2026-07-20).**
 
 This is not an implementation milestone — no application code changed to reach
-it. It is the governance checkpoint at which the repository's actual state
-(everything in §4–§12 above) was independently verified end-to-end for the
-first time and formally adopted as the project's single source of truth for
-"where are we now," superseding scattered, per-PR narrative in the continuation
-documents. Concretely, this milestone consists of:
+it. It is the documentation-synchronization checkpoint at which the repository's
+actual state (PR #24's merge) is recorded per §18's governance rule, and the next
+milestone is re-derived from fresh evidence rather than carried forward.
 
-- The full evidence-based assessment (`project docs/assessments/2026-07-20_ENTERPRISE_BASELINE.md`).
-- This baseline document.
-- Synchronization of `02_PROJECT_CONTINUATION.md`, `03_NEXT_TASK.md`,
-  `IMPLEMENTATION_ROADMAP.md`, and `current/IMPLEMENTATION_STATE.md` to point
-  here for current-state facts.
-- The governance rule in §16 below, binding all future milestones to the same
-  process.
+## 15. Next milestone
+
+**Phase 5 — Marketplace Order Workflow Architecture Assessment** — a dedicated,
+code-free, governance/readiness review of the `OrderOffer` model, its surrounding
+Order Workflow Core, and the exact bounded first-sprint scope for
+`OrderOfferService`, to be performed before any implementation begins. This is the
+next *roadmap-sequenced feature* milestone per `IMPLEMENTATION_ROADMAP.md`.
+
+Selected as the next milestone because the former §15 target (RBAC Enforcement-
+Toggle Visibility & Audit Remediation) is now **RESOLVED** (PR #24, §13 above).
+The recommended order from the 2026-07-20 assessment (§8) after this milestone:
+OTP real SMS provider → order-cancellation permission check → an explicit decision
+on the escrow-release/commission-allocation wiring gap → real CI execution + a
+minimal production deployment path.
 
 **Order Workflow Core is implemented and verified (matching, booking, execution,
 cancellation state transitions, reviews); the Offer Marketplace layer
 (`OrderOfferService`) on top of it is not** — stated explicitly per this
 baseline's own governance requirement, rather than compressing both into a
 single "Phase 5" label.
-
-## 15. Next milestone
-
-**RBAC Enforcement-Toggle Visibility & Audit Remediation** — see §17 below for
-the full, authoritative implementation target. Selected over defaulting to
-"Phase 5 Architecture Assessment" because the 2026-07-20 assessment's own risk
-ranking (§8 above) places this as the single highest-severity open finding, and
-it is small, already fully scoped by the assessment, and does not require its
-own separate architecture-assessment phase the way `OrderOfferService` does.
-The Phase 5 Architecture Assessment remains the next *roadmap-sequenced
-feature* milestone and is not abandoned — it follows this remediation and the
-other items in the recommended order below.
-
-**Recommended order after this milestone** (from the assessment's own final
-ranking, carried forward unchanged): OTP real SMS provider → order-cancellation
-permission check → an explicit decision on the escrow-release/commission-
-allocation wiring gap before either feature flag is ever enabled for a real
-tenant → real CI execution + a minimal production deployment path → the
-roadmap's own Phase 5 Architecture Assessment for `OrderOfferService`.
 
 ## 16. Known blockers
 
@@ -276,71 +273,53 @@ feature development on `main`:
 
 ## 17. Next implementation target — full specification
 
-**Title:** RBAC Enforcement-Toggle Visibility &amp; Audit Remediation
+**Title:** Phase 5 — Marketplace Order Workflow Architecture Assessment
 
-**Why it is next:** the single highest-severity open finding in the 2026-07-20
-assessment (§8, Critical). `RBACConfiguration.get_enforcement_enabled(tenant_id)`
-can disable all permission checks for an entire tenant, and no surface in the
-repository — not Django admin, not `admin_portal`, not `AuditLog` — lets an
-operator see, change history for, or be alerted about that flag. It is small
-and fully scoped by direct evidence already gathered (no separate architecture
-assessment is needed, unlike `OrderOfferService`), and closing it reduces the
-blast radius of every other RBAC-dependent finding in this baseline before any
-of them are addressed individually.
+**Why it is next:** the former §17 target (RBAC Enforcement-Toggle Visibility &
+Audit Remediation) was completed and merged via PR #24 (2026-07-20), resolving
+the single highest-severity open finding in the 2026-07-20 assessment. With
+that resolved, Phase 5 is the next roadmap-sequenced feature milestone per
+`IMPLEMENTATION_ROADMAP.md`. This is a **code-free governance/readiness review**,
+not an implementation sprint — mirroring the established Phase 3→4 and Phase 4→5
+assessment pattern.
 
 **Dependencies already satisfied:**
-- `ConfigurationKey`/`ConfigurationValue` models exist and are stable
-  (`apps.kernel.models.configuration`).
-- `AuditLog` is a real, append-only, already-integrated audit mechanism
-  (`apps.kernel.models.audit`), called from 25+ existing production sites —
-  no new audit infrastructure is required, only a new call site.
-- `admin_portal`'s existing permission-gating pattern
-  (`require_admin_permission()`) is directly reusable for a new view.
-- `PermissionService` and the `rbac.enforcement.enabled` key itself already
-  exist and are read correctly at every enforcement point (§8 confirms the
-  *read* path is sound — only *visibility into changes* is missing).
+- `OrderOffer` model exists, is committed, migration applies cleanly (Phase 1
+  of the original Offer Marketplace implementation, `ce3b30e`).
+- Order Workflow Core (lifecycle state machine, matching, booking, execution,
+  reviews) is implemented and verified.
+- All four portal phases (Registration, Caregiver, Company, Customer) are closed.
+- `apps.commission` (contracts, snapshots, deadlines, objection periods, disputes,
+  resolution, escrow, release/refund instructions) is fully modeled and tested.
+- `apps.payments` (intents, attempts, callbacks) exists with a fake PSP adapter.
 
 **Dependencies still missing:**
-- No admin-portal view, URL, or template for browsing `ConfigurationKey`/
-  `ConfigurationValue` at all (§3.5 of the assessment) — this target requires
-  building the first one, scoped narrowly to RBAC-relevant keys rather than a
-  general-purpose configuration editor.
-- No existing call site writes an `AuditLog` entry when a `ConfigurationValue`
-  changes — this write path does not exist for *any* configuration key today,
-  not just the RBAC one, and must be added.
+- No `OrderOfferService` exists (the assessment must determine its exact scope).
+- No marketplace publication surface exists for `Order.PUBLIC` orders.
+- `deadline_activation_enabled` and `preservice_payment_enabled` remain disabled
+  by default (BG-007/BG-008).
 
 **Acceptance criteria:**
-1. An admin-portal-permission-gated view exists that displays the current
-   value and change history of `rbac.enforcement.enabled` per tenant.
-2. Every write to `ConfigurationValue` for a security-sensitive key (starting
-   with `rbac.enforcement.enabled`) is recorded in `AuditLog`, including actor,
-   before/after value, and timestamp — reusing the existing `AuditService`, not
-   a new logging mechanism.
-3. A regression test proves that disabling RBAC enforcement for a tenant
-   produces a real, queryable `AuditLog` row.
-4. A regression test proves the new view correctly denies access without the
-   relevant admin permission (matching every other `admin_portal` view's
-   established pattern).
-5. No existing RBAC enforcement behavior, `PermissionService` read path, or
-   tenant-isolation guarantee changes — this target is additive observability
-   only.
-6. `manage.py check`, `git diff --check`, and the affected test suites pass;
-   full regression is re-run and the new baseline count recorded in this file
-   per the governance rule in §18.
+1. A written assessment document determining from direct repository evidence:
+   (a) what `OrderOffer` lifecycle states and transitions are already constrained
+   by the model; (b) what `OrderOfferService` operations are required to satisfy
+   the ADM-001..013 binding decisions in `ACTIVE_ARCHITECTURE_DECISIONS.md`;
+   (c) which existing services (`OrderCreationService`, `StatusMachine`,
+   `PaymentDeadline`, `EscrowService`) are reusable as-is vs. require extension;
+   (d) what the bounded first-sprint scope should be (the smallest vertical
+   slice that constitutes a shippable marketplace flow).
+2. No code, model, migration, view, template, or test changed.
+3. The assessment is filed as a dated, immutable record under
+   `project docs/assessments/`.
+4. `PROJECT_BASELINE.md` §14/§15/§17 are updated to reflect the assessment's
+   findings and the next derived milestone.
 
 **Out of scope:**
-- A general-purpose `ConfigurationKey`/`ConfigurationValue`/`FeatureFlag` CRUD
-  UI (§3.5's broader "System configuration UI — Not started" finding) — this
-  target closes the RBAC-specific instance of that gap, not the whole class of
-  gap. The general UI remains a separate, not-yet-scoped future target.
-- Any change to `PermissionService`, `RBACConfiguration`, or how enforcement
-  itself is evaluated.
-- OTP SMS delivery, real PSP integration, escrow/commission wiring, CI
-  execution, or production deployment infrastructure — each is real and
-  ranked in §8/§15, but each is independent of this target and out of scope
-  for it specifically.
-- Any admin-portal log viewer or background-job dashboard (separate,
-  not-started findings, §6).
+- Any implementation of `OrderOfferService` or marketplace views.
+- Any change to payment gates, escrow wiring, or commission allocation.
+- OTP SMS delivery, real PSP integration, CI execution, or production
+  deployment infrastructure.
+- Any admin-portal log viewer or background-job dashboard.
 
 ## 18. Governance rule — mandatory going forward
 

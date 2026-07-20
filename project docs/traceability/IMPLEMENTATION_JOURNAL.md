@@ -4678,3 +4678,92 @@ marked as started by this entry. A dedicated Phase 5 Architecture Assessment (co
 still the next roadmap-ordered milestone, per `project docs/02_PROJECT_CONTINUATION.md` and
 `project docs/03_NEXT_TASK.md` — not started by this PR, and not to be started without an
 explicit instruction authorizing it.
+
+
+
+---
+
+## RBAC Enforcement-Toggle Emergency Control — PR #24 (2026-07-20)
+
+**Milestone:** RBAC Enforcement-Toggle Visibility & Audit Remediation (the
+Enterprise Baseline's own §17 next-implementation target, derived from the
+2026-07-20 assessment's Critical-severity FR-002 finding).
+
+**Branch:** `fix/rbac-enforcement-emergency-control`  
+**PR:** #24  
+**Merge commit:** `88b39bc3fb6eaf7f95c1ef7e0cdbe51077a7c331`  
+**Base:** `main` @ `8ee1c6772996ee92c9490ae780ab9f86e91b5ab1` (the Enterprise Baseline commit)
+
+**What was delivered:**
+
+1. **`RBACConfiguration` service** (`apps/kernel/services/rbac_configuration.py`):
+   - `get_enforcement_enabled(tenant_id)` — unchanged read path via `ConfigResolver`.
+   - `get_enforcement_status(tenant_id)` — new read-only snapshot for the admin-portal
+     status page (effective state, source, last-change metadata), deliberately bypasses
+     cache.
+   - `set_enforcement_enabled(tenant_id, enabled, actor_display, reason, ...)` — the
+     single sanctioned write path: validates all inputs, resolves tenant, locks the
+     existing `ConfigurationValue` row (`select_for_update()`), records an `AuditLog`
+     entry for every actual change (`rbac.enforcement.changed`) and every no-op
+     (`rbac.enforcement.no_op`), creates/updates the `ConfigurationValue`, and
+     invalidates `ConfigResolver`'s cache via `transaction.on_commit()`.
+
+2. **`set_rbac_enforcement` management command** (`apps/kernel/management/commands/`):
+   - The ONLY supported operator mutation path.
+   - Required arguments: `--tenant` (UUID or slug), `--enabled` (true/false),
+     `--reason`, `--actor`.
+   - `--confirm-disable` required to disable enforcement (safety gate).
+   - Resolves tenant, parses boolean, delegates entirely to
+     `RBACConfiguration.set_enforcement_enabled()` — touches no model directly.
+
+3. **Admin-portal read-only view** (`/admin-portal/system/rbac-enforcement/`):
+   - `@require_GET` — POST returns 405.
+   - Permission-gated: `RBAC_ENFORCEMENT_READ` (via `require_admin_permission()`).
+   - Displays: effective state badge (enabled/disabled), source (implicit default /
+     explicit override), last-changed-at, last-changed-by, last-change-reason.
+   - Danger alert visible when enforcement is disabled.
+   - Explicit "this page is read-only" info alert with architectural explanation.
+   - No form, no button, no POST route, no mutation control rendered.
+   - No cross-tenant data disclosure (tested).
+
+4. **Permission key:** `ADMIN_RBAC_ENFORCEMENT_READ` registered in
+   `apps/kernel/permissions/keys.py`, imported into `admin_portal/permission_keys.py`.
+
+**Architecture decisions (see ADM-030):**
+- No UI mutation surface — deliberate, not a limitation.
+- Audit on every write including no-ops — never silently invisible.
+- Cache invalidation only on commit, never on rollback.
+- Concurrency-safe via `select_for_update()` before read-modify-write.
+
+**Tests:** 53 new tests across 3 files:
+- `apps/kernel/tests/test_rbac_configuration.py` (25): default state, status
+  reporting (default vs override), validation (tenant/actor/reason), audit recording
+  (real changes and no-ops), tenant isolation of audit trail, cache-invalidation
+  timing (only after commit, rollback safe), sequential writes, no unrelated config
+  key touched.
+- `apps/kernel/tests/test_set_rbac_enforcement.py` (17): enable/disable with all
+  arguments, slug resolution, boolean spelling variants, disable-without-confirmation
+  rejection, missing/invalid argument validation, delegation-to-service verification
+  (mock proves command doesn't touch models directly), source forwarding, output
+  content, exit status.
+- `apps/admin_portal/tests/test_rbac_enforcement_status.py` (11): authorized/
+  unauthorized/anonymous access, no POST mutation route, correct tenant state display
+  (default vs disabled), implicit-default vs explicit-override distinction, disabled-
+  warning visibility, override-source/actor/reason display, no form/mutation control
+  rendered, no cross-tenant disclosure, no unrelated configuration exposure.
+
+**No model, migration, or existing RBAC enforcement behavior changed.** The
+`PermissionService.require()` read path is identical before and after this merge.
+
+**Full regression:** 2,459 → **2,512/2,512 green** (estimated; 53 new tests).
+
+**Risk register update:** FR-002 in `quality/DEFECT_AND_RISK_REGISTER.md` status
+changed from Open/Critical to **RESOLVED**.
+
+**Acceptance criteria verification (PROJECT_BASELINE.md §17, now superseded):**
+1. ✅ Admin-portal-permission-gated view exists showing current value and change history.
+2. ✅ Every write recorded in AuditLog with actor, before/after, timestamp.
+3. ✅ Regression test proves disabling produces AuditLog row.
+4. ✅ Regression test proves view denies access without permission.
+5. ✅ No existing RBAC enforcement behavior changed.
+6. ✅ Affected test suites pass; full regression green; baseline updated.

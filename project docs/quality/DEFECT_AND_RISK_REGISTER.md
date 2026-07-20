@@ -108,15 +108,15 @@ page fully supporting all four since Phase 2.1–2.3). All fixed as **FR-019** �
 **Why it matters:** Multi-tenant isolation is the foundational security guarantee. Currently enforced only by developer discipline.
 **Suggested action:** Consider middleware-based tenant injection or row-level security (PostgreSQL RLS).
 
-### FR-002: RBAC Enforcement Can Be Disabled Per-Tenant
+### FR-002: RBAC Enforcement Can Be Disabled Per-Tenant — RESOLVED (PR #24, 2026-07-20)
 
-**Severity:** CRITICAL
+**Severity:** ~~CRITICAL~~ RESOLVED
 **Confidence:** HIGH
 **Affected:** All permission-gated operations
 **Evidence:** `apps/kernel/services/permission_service.py:135` — if `RBACConfiguration.get_enforcement_enabled()` is False, `require()` returns immediately.
 **Runtime impact:** Setting `rbac.enforcement.enabled=false` in ConfigurationValue table disables ALL RBAC for that tenant.
-**Why it matters:** No audit alert when enforcement is toggled. A compromised config change silently bypasses all permissions.
-**Suggested action:** Add audit logging when enforcement is toggled. Consider removing the toggle in production.
+**Why it matters:** ~~No audit alert when enforcement is toggled. A compromised config change silently bypasses all permissions.~~
+**Resolution:** PR #24 (2026-07-20) delivered: (1) `RBACConfiguration.set_enforcement_enabled()` as the single sanctioned write path with full `AuditService.log_security()` recording (before/after, actor, reason); (2) `set_rbac_enforcement` management command as the ONLY supported mutation surface (no UI, no API); (3) a read-only admin-portal status page displaying current state and change history; (4) post-commit cache invalidation; (5) explicit `--confirm-disable` safety gate. No existing enforcement behavior changed. See `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-030.
 
 ---
 

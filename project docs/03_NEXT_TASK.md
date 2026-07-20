@@ -1283,32 +1283,29 @@ living summary derived from it is `project docs/current/PROJECT_BASELINE.md`.
 
 **This file's own next-task section is no longer the authoritative source for
 "what's next."** Per the source-of-truth order in `01_PROJECT_RULES.md`,
-`PROJECT_BASELINE.md` §14/§15/§17 is now that source. As of this baseline:
+`PROJECT_BASELINE.md` §14/§15/§17 is now that source. As of this update
+(post-PR-#24 synchronization, 2026-07-20):
 
-- **Previous milestone:** FR-019 / PR #23 (`PROJECT_BASELINE.md` §13).
-- **Current milestone:** Enterprise Baseline Established — a governance
-  checkpoint, not an implementation milestone (`PROJECT_BASELINE.md` §14).
-- **Next milestone:** **RBAC Enforcement-Toggle Visibility & Audit
-  Remediation** — full title/objective/why-it's-next/dependencies/acceptance-
-  criteria/out-of-scope specification lives in `PROJECT_BASELINE.md` §17, not
-  duplicated here to avoid the two documents drifting apart. This was chosen
-  over defaulting to "Phase 5 Architecture Assessment" because the baseline's
-  own risk ranking (`PROJECT_BASELINE.md` §8) places the RBAC kill-switch
-  visibility gap as the single highest-severity open finding in the entire
-  repository, and it is small and fully scoped already — it does not need its
-  own separate assessment phase the way `OrderOfferService` does.
+- **Previous milestone:** RBAC Enforcement-Toggle Visibility & Audit Remediation
+  / PR #24 (`PROJECT_BASELINE.md` §13).
+- **Current milestone:** Post-PR-#24 Documentation Synchronization
+  (`PROJECT_BASELINE.md` §14) — this update.
+- **Next milestone:** **Phase 5 — Marketplace Order Workflow Architecture
+  Assessment** — a code-free, governance/readiness review determining the
+  exact bounded first-sprint scope for `OrderOfferService` from direct
+  repository evidence. Full specification in `PROJECT_BASELINE.md` §17.
 
-**The Phase 5 Architecture Assessment described in the (now superseded)
-section this replaces is not abandoned.** Its own scope definition (what to
-read, what to determine about `OrderOfferService`, acceptance criteria) remains
-valid and will be the correct next task once the RBAC remediation above is
-complete — see the recommended order in `PROJECT_BASELINE.md` §15. **Do not
-begin either — the RBAC remediation or the Phase 5 Architecture Assessment —
-without an explicit instruction authorizing it.**
+The former §17 target (RBAC Enforcement-Toggle Visibility & Audit Remediation)
+was **RESOLVED** by PR #24 (2026-07-20) — see `traceability/
+ARCHITECTURE_DECISION_LOG.md` ADM-030.
 
-Per the governance rule now recorded in `01_PROJECT_RULES.md` and
-`PROJECT_BASELINE.md` §18: on completion of the RBAC remediation (or any other
-significant milestone), update `PROJECT_BASELINE.md` in place, file the
-assessment behind it as a new dated file under `project docs/assessments/`,
-and replace this section with the next re-derived milestone — never carry a
-stale "next task" forward by default.
+**Do not begin Phase 5 implementation without performing and approving the
+Architecture Assessment first.** Do not create a branch for production work.
+Do not design any schema, model, or migration without direct repository evidence
+supporting it.
+
+Per the governance rule in `PROJECT_BASELINE.md` §18: on completion of the Phase
+5 Architecture Assessment (or any other significant milestone), update
+`PROJECT_BASELINE.md` in place, file the assessment as a new dated record under
+`project docs/assessments/`, and replace this section with the next re-derived
+milestone.

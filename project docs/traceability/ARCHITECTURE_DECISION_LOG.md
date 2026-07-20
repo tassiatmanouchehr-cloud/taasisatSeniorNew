@@ -2711,3 +2711,85 @@ visibility in the public marketplace directory — not a new implementation phas
 start of Phase 5. Phase 5 — Marketplace Order Workflow remains NOT STARTED; its own
 dedicated, code-free Architecture Assessment remains the next roadmap-ordered milestone
 after this manual validation.
+
+
+
+---
+
+## ADM-030 — RBAC Enforcement-Toggle Emergency Control (2026-07-20)
+
+**Context:** the 2026-07-20 Enterprise Baseline Assessment (§7/§8) identified
+`rbac.enforcement.enabled` as the single highest-severity open finding in the
+entire repository — a per-tenant kill-switch that disables all RBAC for an
+entire tenant, with no surface anywhere (not Django admin, not `admin_portal`,
+not `AuditLog`) for an operator to see it, see its change history, or be
+alerted when it is toggled. The assessment scoped and ranked this as the next
+implementation target ahead of the roadmap's Phase 5.
+
+**Decision:** treat this as an emergency operational control, not a business
+or admin feature. Design principles:
+
+1. **No UI mutation surface.** No Django Admin toggle, no admin-portal form,
+   no API endpoint, no internal application UI can change this key. The
+   blast radius of an incorrect toggle is the entire tenant's authorization
+   layer — this must not be as easy to flip as any other config value.
+2. **Single sanctioned write path:** a management command
+   (`set_rbac_enforcement`) run by an operator with direct environment access.
+   All validation, audit, tenant-isolation, and cache-invalidation logic
+   lives in the service layer (`RBACConfiguration.set_enforcement_enabled()`),
+   not in the command itself.
+3. **Read-only operator visibility:** an admin-portal view at
+   `/admin-portal/system/rbac-enforcement/` (permission-gated by
+   `RBAC_ENFORCEMENT_READ`) displays the current effective state, its source
+   (implicit default vs explicit override), and the last-change metadata
+   (actor, timestamp, reason). Renders a danger alert when enforcement is
+   disabled.
+4. **Audited by default:** every write — real change *and* same-value no-op —
+   produces an immutable `AuditLog` entry via `AuditService.log_security()`,
+   recording before/after state, actor identity, reason, correlation ID, and
+   source. No-ops are recorded so a repeated command invocation is never
+   silently invisible in the audit trail.
+5. **Cache-safe:** `ConfigResolver.invalidate()` is called via
+   `transaction.on_commit()` — never on rollback, never before the write is
+   durable. Reads through `get_enforcement_enabled()` use the cache as before
+   (via `ConfigResolver.get_or_default()`); the status page
+   (`get_enforcement_status()`) deliberately bypasses the cache to show the
+   live database state.
+6. **Concurrency-safe:** the write path uses `select_for_update()` on the
+   existing `ConfigurationValue` row before reading/modifying it — an
+   interleaved concurrent write from two operator terminals cannot lose an
+   update or corrupt the before/after audit chain.
+
+**Alternatives considered:**
+- A general-purpose `ConfigurationValue` CRUD UI in admin-portal: rejected —
+  this is a security-class control, not a business setting; the general UI is a
+  separate future target that should not gate this.
+- A Django Admin `ModelAdmin` for `ConfigurationValue`: rejected — same
+  blast-radius concern, and Django Admin has no concept of `AuditLog`
+  integration, tenant-scoped permission gating, or post-commit cache
+  invalidation.
+- An API endpoint (REST/internal): rejected — expands the attack surface; an
+  API can be called from any authenticated service/user with the right token,
+  whereas a management command requires direct shell access to the runtime
+  environment.
+
+**Consequences:**
+- New files: `apps/kernel/services/rbac_configuration.py` (service),
+  `apps/kernel/management/commands/set_rbac_enforcement.py` (command),
+  `apps/admin_portal/views.py` (new `rbac_enforcement_status` view function),
+  `apps/admin_portal/urls.py` (new route), `apps/admin_portal/permission_keys.py`
+  (new `RBAC_ENFORCEMENT_READ` import), `apps/kernel/permissions/keys.py`
+  (`ADMIN_RBAC_ENFORCEMENT_READ` registered),
+  `templates/admin_portal/rbac_enforcement_status.html` (template).
+- New tests: `apps/kernel/tests/test_rbac_configuration.py` (25 tests),
+  `apps/kernel/tests/test_set_rbac_enforcement.py` (17 tests),
+  `apps/admin_portal/tests/test_rbac_enforcement_status.py` (11 tests).
+- No model, migration, or existing code path changed.
+- `PermissionService.require()` still reads `RBACConfiguration
+  .get_enforcement_enabled()` exactly as before — this decision adds
+  observability and auditability around the flag, not a change to how the flag
+  is evaluated.
+- FR-002 in `quality/DEFECT_AND_RISK_REGISTER.md` is now RESOLVED.
+
+**Branch:** `fix/rbac-enforcement-emergency-control`. **PR #24**, merged to `main`
+(merge commit `88b39bc3fb6eaf7f95c1ef7e0cdbe51077a7c331`, 2026-07-20).
