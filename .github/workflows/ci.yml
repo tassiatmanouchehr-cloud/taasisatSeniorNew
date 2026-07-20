@@ -128,8 +128,6 @@ jobs:
         run: pip install -r requirements/test.txt
       - name: Run Django system check
         run: python manage.py check
-      - name: Run migrations
-        run: python manage.py migrate
       - name: Run tests
         run: python manage.py test --verbosity=2
 
