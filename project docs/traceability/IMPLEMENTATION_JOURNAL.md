@@ -4752,5 +4752,13 @@ repository's settings.
   generated images, and committing them. This is a dedicated, separate task —
   not a browser installation, workflow, or application defect.
 
+  **Font stabilization decision (2026-07-20):** Baselines will be generated
+  using the fonts currently available in the canonical GitHub Actions
+  `ubuntu-latest` environment (system fallback fonts: Tahoma/Arial for
+  Persian, no committed IRANSansX/Vazirmatn/JetBrains Mono). Font
+  stabilization and commercial font licensing are deferred technical debt —
+  not a blocker for establishing initial baselines. Future font or runner-OS
+  changes may require an intentional baseline refresh.
+
 **GitHub Actions is now genuinely active.** Every future push to `main` or
 `phase-*/**` branches, and every PR targeting `main`, will trigger the workflow.
