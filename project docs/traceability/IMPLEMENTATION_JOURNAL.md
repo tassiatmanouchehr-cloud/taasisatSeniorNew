@@ -4724,7 +4724,7 @@ changed.** All changes are narrowly scoped CI workflow corrections.
 | Django Test Suite | ✅ success | Full 2500+ test suite on PostgreSQL 16 + PostGIS (~4 min) |
 | Lint & Format Check | ❌ failure | Pre-existing: 426 ruff violations in `src/tools/` (T201 `print`, F541 empty f-strings) |
 | UI Quality Gates | ❌ failure | Pre-existing: 2 RTL violations (`ml-2` → `ms-2`) in `templates/portal/request_financial.html:21,58` |
-| Visual & Accessibility Tests | ❌ failure | Pre-existing: requires investigation (Playwright/seed/runtime issue) |
+| Visual & Accessibility Tests | ❌ failure | Pre-existing workflow defect: WebKit browser not installed (workflow runs `npx playwright install chromium --with-deps` but `playwright.config.js` requires WebKit for iPad Mini/iPhone 13 projects). Unrelated to application behavior — Django server, migrations, and seed data all succeed. Fix: PR #28 |
 
 **Key verification:** The removal of `manage.py migrate` does NOT reduce CI
 coverage. Django's `manage.py test` internally creates a fresh database and
@@ -4740,8 +4740,17 @@ repository's settings.
 - `ui-quality` job: 2 RTL violations (`ml-2` at
   `templates/portal/request_financial.html:21,58`) — should be `ms-2` for
   logical RTL-safe margins.
-- `visual-regression` job: failure requires log investigation — likely
-  Playwright baseline/seed-data/runtime mismatch.
+- `visual-regression` job: **ROOT CAUSE IDENTIFIED** — the workflow installs
+  only Chromium (`npx playwright install chromium --with-deps`) but
+  `playwright.config.js` defines tablet projects using `devices['iPad Mini']`
+  and mobile projects using `devices['iPhone 13']`, both of which require the
+  **WebKit** browser engine. Every tablet/mobile test fails with
+  `browserType.launch: Executable doesn't exist at .../webkit-2311/pw_run.sh`.
+  This is a latent workflow configuration defect (the mismatch existed since the
+  workflow was first written, never visible because CI never executed before
+  PR #26). It is completely unrelated to application behavior — Django server,
+  migrations, and seed data all succeed in the same job. Fix: PR #28 adds
+  `webkit` to the install command.
 
 **GitHub Actions is now genuinely active.** Every future push to `main` or
 `phase-*/**` branches, and every PR targeting `main`, will trigger the workflow.

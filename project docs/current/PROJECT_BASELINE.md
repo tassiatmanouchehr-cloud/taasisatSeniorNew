@@ -216,8 +216,9 @@ command and removed a redundant `migrate` step that conflicted with Django's
 test runner. GitHub Actions is now active for the first time in this
 repository's history. Confirmed CI results: Django Test Suite ✅, Tailwind CSS
 Build ✅, Lint & Format Check ❌ (pre-existing debt), UI Quality Gates ❌
-(pre-existing RTL debt), Visual & Accessibility Tests ❌ (pre-existing, requires
-investigation). See `traceability/IMPLEMENTATION_JOURNAL.md` for the full record.
+(pre-existing RTL debt), Visual & Accessibility Tests ❌ (pre-existing workflow
+defect: WebKit not installed — fix in PR #28). See
+`traceability/IMPLEMENTATION_JOURNAL.md` for the full record.
 
 ## 14. Current milestone
 
