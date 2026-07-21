@@ -1270,45 +1270,110 @@ commits `aac0185`/`e1f0bfd`/`5e4364c`/`394b0a7`/`f1a3422`, full detail and per-P
 in those sections). Do not treat this file's Sprint-4.1-era "recommended first sprint" framing
 as the current state — it was superseded by the Phase 4 closure recorded further above.
 
-## ENTERPRISE BASELINE ESTABLISHED (2026-07-20) — supersedes the "AUTHORITATIVE
-## NEXT TASK: Phase 5 Architecture Assessment" section that previously followed
-## this point; that framing is now historical, not current
+## RBAC REMEDIATION COMPLETE — MARKETPLACE ORDER WORKFLOW RESTORED (2026-07-21)
 
-On 2026-07-20 a full, evidence-only, eight-domain Enterprise Repository Gap
-Assessment was performed against `main` @ `8ee1c6772996ee92c9490ae780ab9f86e91b5ab1`
-and formally adopted as the project's official baseline. The complete, immutable
-assessment is preserved at
-`project docs/assessments/2026-07-20_ENTERPRISE_BASELINE.md`; the always-current,
-living summary derived from it is `project docs/current/PROJECT_BASELINE.md`.
+The RBAC Enforcement-Toggle Visibility & Audit Remediation described in the
+prior version of this section is **complete** — implemented via PR #24 (merge
+commit `88b39bc3fb6eaf7f95c1ef7e0cdbe51077a7c331`, merged 2026-07-20T05:51:43Z,
+full regression 2517/2517 at merge). Documentation had not yet been synchronized
+with the repository state after the RBAC remediation was merged.
 
-**This file's own next-task section is no longer the authoritative source for
-"what's next."** Per the source-of-truth order in `01_PROJECT_RULES.md`,
-`PROJECT_BASELINE.md` §14/§15/§17 is now that source. As of this baseline:
+The canonical product delivery sequence is restored:
 
-- **Previous milestone:** FR-019 / PR #23 (`PROJECT_BASELINE.md` §13).
-- **Current milestone:** Enterprise Baseline Established — a governance
-  checkpoint, not an implementation milestone (`PROJECT_BASELINE.md` §14).
-- **Next milestone:** **RBAC Enforcement-Toggle Visibility & Audit
-  Remediation** — full title/objective/why-it's-next/dependencies/acceptance-
-  criteria/out-of-scope specification lives in `PROJECT_BASELINE.md` §17, not
-  duplicated here to avoid the two documents drifting apart. This was chosen
-  over defaulting to "Phase 5 Architecture Assessment" because the baseline's
-  own risk ranking (`PROJECT_BASELINE.md` §8) places the RBAC kill-switch
-  visibility gap as the single highest-severity open finding in the entire
-  repository, and it is small and fully scoped already — it does not need its
-  own separate assessment phase the way `OrderOfferService` does.
+1. Registration & Verification — CLOSED (PR #5)
+2. Caregiver Professional Profile — CLOSED (PR #11)
+3. Company Portal — FORMALLY CLOSED (PRs #12–#15)
+4. Customer Portal — FORMALLY CLOSED (PRs #16–#17)
+5. **Marketplace Order Workflow — ACTIVE PHASE** (see below)
+6. Invoice Workflow — not started
+7. Financial Engine Review — not started
+8. Payment & Settlement Review — not started
 
-**The Phase 5 Architecture Assessment described in the (now superseded)
-section this replaces is not abandoned.** Its own scope definition (what to
-read, what to determine about `OrderOfferService`, acceptance criteria) remains
-valid and will be the correct next task once the RBAC remediation above is
-complete — see the recommended order in `PROJECT_BASELINE.md` §15. **Do not
-begin either — the RBAC remediation or the Phase 5 Architecture Assessment —
-without an explicit instruction authorizing it.**
+---
 
-Per the governance rule now recorded in `01_PROJECT_RULES.md` and
-`PROJECT_BASELINE.md` §18: on completion of the RBAC remediation (or any other
-significant milestone), update `PROJECT_BASELINE.md` in place, file the
-assessment behind it as a new dated file under `project docs/assessments/`,
-and replace this section with the next re-derived milestone — never carry a
-stale "next task" forward by default.
+## IMMEDIATE NEXT TASK: Phase 5 — Marketplace Order Workflow Architecture Assessment
+
+### Verified current state
+
+Order Workflow **Core** is implemented and verified on `main`:
+- Order lifecycle state machine (7 states, full history audit)
+- Matching (`MatchOrchestrator`, 33 tests)
+- Booking (`AssignmentService`, 67 tests incl. concurrency)
+- Execution (`ExecutionSession`, `close_session()` with permission check, 58 tests)
+- Reviews (submission + moderation, 39 tests)
+- Cancellation state transitions (exist but have **no** `PermissionService.require()` call — a known High-severity gap)
+
+Order Workflow **Offer Marketplace** layer:
+- `OrderOffer` model exists (`src/apps/orders/models.py:478`)
+- Migration exists (`orders/0008_orderoffer.py`)
+- 40 model-level tests exist (`test_order_offer_model.py`)
+- **`OrderOfferService` does NOT exist** — zero submit/edit/withdraw/select/hold/accept logic anywhere in the repository (confirmed by `grep -rn OrderOfferService src/`)
+- No view, URL, or API endpoint references `OrderOffer` outside the model and admin
+
+### Objective
+
+Perform a code-free Architecture Assessment that determines the bounded
+first-sprint implementation scope for `OrderOfferService`, following this
+repository's own established governance pattern (Phase 3→4 and Phase 4→5
+both required such an assessment before any implementation).
+
+### In-scope work (assessment only — no code changes)
+
+1. Read the existing `OrderOffer` model definition, its field semantics, status
+   enum, constraints, and relationships.
+2. Inspect the order lifecycle state machine to determine where offer
+   acceptance/selection plugs in.
+3. Determine how `AssignmentService.assign()` relates to offer selection.
+4. Identify the minimum vertical slice: which service methods must exist for a
+   complete publish → submit → select → assign cycle.
+5. Identify dependencies on `apps.booking`, `apps.matching`, `apps.execution`.
+6. Determine whether `apps.commission` (deadline, escrow, payment-gate) is a
+   hard dependency for Sprint 5.1 or can be deferred.
+7. Assess whether the existing matching/ranking infrastructure feeds the offer
+   marketplace or whether a separate discovery/bidding surface is needed.
+8. Produce a bounded Sprint 5.1 scope definition with acceptance criteria.
+
+### Out-of-scope work
+
+- Any production code change, model change, migration, view, or test
+- Invoice workflow, payment integration, escrow release, commission allocation
+- Order cancellation permission remediation (separate, tracked in §8)
+- OTP SMS provider, real PSP adapter, CI execution, deployment infrastructure
+- Any redesign of the existing order state machine or assignment service
+
+### Dependencies
+
+- Order Workflow Core (satisfied — on `main`)
+- RBAC Enforcement-Toggle (satisfied — PR #24, merged)
+- Core Profile-ServiceSupplier Invariant (satisfied — PR #18, merged)
+- Public Site Tenant Resolution (satisfied — PRs #19–#23, merged)
+
+### Acceptance criteria
+
+1. A written Architecture Assessment document exists at
+   `project docs/assessments/YYYY-MM-DD_MARKETPLACE_ORDER_WORKFLOW_ARCHITECTURE_ASSESSMENT.md`
+   (dated with the actual completion date; a new immutable historical record, not an
+   overwrite of the Enterprise Baseline assessment).
+2. The assessment identifies every `OrderOffer` field and its role in the lifecycle.
+3. The assessment maps offer status transitions to `Order` status transitions.
+4. A bounded Sprint 5.1 scope is defined with exact service methods, their
+   signatures, and their side effects.
+5. Out-of-scope items are explicitly named and the reasoning is recorded.
+6. No source file is modified.
+
+### Required verification
+
+- Working tree clean after the assessment
+- No model, migration, test, or configuration file modified
+- `git diff --check` passes
+
+### Documentation synchronization
+
+After the assessment is approved, update `PROJECT_BASELINE.md` §14/§15 and
+this file per the governance rule in `PROJECT_BASELINE.md` §18.
+
+---
+
+**Do not begin Phase 5 implementation without completing and receiving
+approval for the Architecture Assessment above.** The assessment is planning
+output only — no branch, no code, no tests.
