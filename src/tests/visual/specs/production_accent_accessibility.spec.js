@@ -29,16 +29,30 @@ const AxeBuilder = require('@axe-core/playwright').default;
 // defect. They must be resolved by PR-B2 (foreground token remediation).
 // If a violation disappears without remediation, the test will fail to alert
 // that assumptions have changed.
+//
+// Bounding: Each entry specifies exact route, rule, and maximum expected
+// node count. The test fails if:
+// - Additional nodes beyond the maximum are affected
+// - A different rule fails
+// - A violation appears on an unlisted route
+// - Any light-mode violation appears
 const KNOWN_DARK_VIOLATIONS = {
   '/accounts/login/': {
     rule: 'color-contrast',
     // The primary submit button uses inline bg-primary text-white
     description: 'text-white (#ffffff) on dark-mode bg-primary — known contrast defect',
+    // Expected: 1 submit button
+    maxExpectedNodes: 3,
+    // Target pattern: elements with text-white class on primary backgrounds
+    targetPattern: /bg-primary|text-white/,
   },
   '/': {
     rule: 'color-contrast',
     // Public homepage CTAs use inline bg-primary text-white
     description: 'text-white (#ffffff) on dark-mode bg-primary in header/hero CTAs — known contrast defect',
+    // Expected: header CTA + hero CTA + mobile CTA + logo + potentially more
+    maxExpectedNodes: 12,
+    targetPattern: /bg-primary|text-white/,
   },
 };
 
@@ -107,29 +121,48 @@ for (const route of PRODUCTION_ROUTES) {
             `Unexpected contrast violations on ${route.path} in dark mode (${testInfo.project.name})`
           ).toHaveLength(0);
         } else {
-          // Filter out known violations
-          const unknownViolations = contrastViolations.filter(v => {
-            if (v.id !== knownManifest.rule) return true;
-            // Known violation: color-contrast on accent elements — expected
-            return false;
-          });
+          // Count total affected nodes across all color-contrast violations
+          const totalNodes = contrastViolations.reduce(
+            (sum, v) => sum + (v.nodes ? v.nodes.length : 0), 0
+          );
 
-          // Log the known violations for visibility
+          // Separate known vs unknown violations by rule ID
+          const knownRuleViolations = contrastViolations.filter(
+            v => v.id === knownManifest.rule
+          );
+          const unknownRuleViolations = contrastViolations.filter(
+            v => v.id !== knownManifest.rule
+          );
+
+          // Count nodes in known-rule violations
+          const knownNodes = knownRuleViolations.reduce(
+            (sum, v) => sum + (v.nodes ? v.nodes.length : 0), 0
+          );
+
+          // Log for visibility
           if (contrastViolations.length > 0) {
             console.log(
               `[${testInfo.project.name}] ${route.path}: ` +
-              `${contrastViolations.length} contrast violation(s) — ` +
-              `known: ${contrastViolations.length - unknownViolations.length}, ` +
-              `unknown: ${unknownViolations.length}`
+              `${totalNodes} affected node(s) in ${contrastViolations.length} violation(s). ` +
+              `Known-rule nodes: ${knownNodes}/${knownManifest.maxExpectedNodes} max. ` +
+              `Unknown-rule violations: ${unknownRuleViolations.length}.`
             );
           }
 
-          // Fail only on UNKNOWN violations (new regressions)
+          // FAIL on any violation with an UNEXPECTED rule ID
           expect(
-            unknownViolations,
-            `New/unknown contrast violations on ${route.path} in dark mode ` +
-            `(${testInfo.project.name}). Known violations: ${knownManifest.description}`
+            unknownRuleViolations,
+            `Violations with unexpected rule on ${route.path} in dark mode (${testInfo.project.name})`
           ).toHaveLength(0);
+
+          // FAIL if known-rule node count EXCEEDS the manifest maximum
+          // (prevents silent expansion of the defect)
+          expect(
+            knownNodes,
+            `Known contrast violation node count (${knownNodes}) exceeds manifest ` +
+            `maximum (${knownManifest.maxExpectedNodes}) on ${route.path} in ` +
+            `${testInfo.project.name}. A new element may have introduced a contrast defect.`
+          ).toBeLessThanOrEqual(knownManifest.maxExpectedNodes);
         }
       }
     });
