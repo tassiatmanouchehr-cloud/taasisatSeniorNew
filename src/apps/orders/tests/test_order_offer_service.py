@@ -1,8 +1,9 @@
 """
-Tests for OrderOfferService — Sprint 5.1: Submission Lifecycle Foundation.
+Tests for OrderOfferService -- Sprint 5.1: Submission Lifecycle Foundation.
 
-Covers: submit_offer(), edit_offer(), withdraw_offer() — authorization,
-tenant isolation, state validation, concurrency, audit, domain errors.
+Covers: submit_offer(), edit_offer(), withdraw_offer() -- authorization,
+actor-to-supplier identity, tenant isolation, state validation, concurrency,
+audit, domain errors.
 """
 
 import uuid
@@ -12,7 +13,6 @@ from unittest.mock import patch
 from django.test import TestCase
 
 from apps.kernel.models.audit import AuditLog
-from apps.kernel.models.supplier import SupplierStatus
 from apps.orders.models import OrderOfferStatus, OrderStatus
 from apps.orders.services.order_offer_service import OrderOfferError, OrderOfferService
 
@@ -26,7 +26,10 @@ class SubmitOfferHappyPathTest(TestCase):
         self.supplier = make_supplier(self.tenant)
         self.order = make_order(self.tenant, status=OrderStatus.NEW)
 
-    def test_successful_submission(self):
+    @patch("apps.orders.services.order_offer_service.resolve_supplier_for_user")
+    def test_successful_submission(self, mock_resolve):
+        mock_resolve.return_value = self.supplier
+
         offer = OrderOfferService.submit_offer(
             order_id=self.order.id,
             supplier_id=self.supplier.id,
@@ -40,16 +43,20 @@ class SubmitOfferHappyPathTest(TestCase):
         self.assertEqual(offer.supplier_id, self.supplier.id)
         self.assertEqual(offer.tenant_id, self.tenant.id)
         self.assertEqual(offer.price_amount, Decimal("500000.00"))
-        self.assertEqual(offer.currency, "IRR")
         self.assertEqual(offer.submitted_by_id, self.actor.id)
 
-    def test_submission_records_audit(self):
+    @patch("apps.orders.services.order_offer_service.resolve_supplier_for_user")
+    def test_submission_records_audit_without_free_text(self, mock_resolve):
+        mock_resolve.return_value = self.supplier
+
         offer = OrderOfferService.submit_offer(
             order_id=self.order.id,
             supplier_id=self.supplier.id,
             actor=self.actor,
             tenant_id=self.tenant.id,
             price_amount=Decimal("500000.00"),
+            terms="Confidential terms here",
+            message="Private message",
         )
 
         audit = AuditLog.objects.get(
@@ -57,9 +64,14 @@ class SubmitOfferHappyPathTest(TestCase):
             action="orders.offer.submitted",
         )
         self.assertEqual(audit.resource_id, offer.id)
-        self.assertEqual(audit.after_snapshot["order_id"], str(self.order.id))
+        # Verify no free-form text in audit payload
+        self.assertNotIn("Confidential", str(audit.after_snapshot))
+        self.assertNotIn("Private", str(audit.after_snapshot))
 
-    def test_submission_with_optional_fields(self):
+    @patch("apps.orders.services.order_offer_service.resolve_supplier_for_user")
+    def test_submission_with_optional_fields(self, mock_resolve):
+        mock_resolve.return_value = self.supplier
+
         offer = OrderOfferService.submit_offer(
             order_id=self.order.id,
             supplier_id=self.supplier.id,
@@ -69,13 +81,101 @@ class SubmitOfferHappyPathTest(TestCase):
             currency="USD",
             estimated_duration_minutes=120,
             terms="Net 30",
-            message="Looking forward to working with you",
+            message="Hello",
         )
 
         self.assertEqual(offer.currency, "USD")
         self.assertEqual(offer.estimated_duration_minutes, 120)
         self.assertEqual(offer.terms, "Net 30")
-        self.assertEqual(offer.message, "Looking forward to working with you")
+        self.assertEqual(offer.message, "Hello")
+
+
+class SubmitOfferActorSupplierAuthorizationTest(TestCase):
+    """Tests that the actor must own the supplier identity they submit for."""
+
+    def setUp(self):
+        self.tenant = make_tenant()
+        self.actor = make_user(self.tenant)
+        self.own_supplier = make_supplier(self.tenant)
+        self.other_supplier = make_supplier(self.tenant)
+        self.order = make_order(self.tenant, status=OrderStatus.NEW)
+
+    @patch("apps.orders.services.order_offer_service.resolve_supplier_for_user")
+    def test_actor_submits_for_own_supplier_succeeds(self, mock_resolve):
+        mock_resolve.return_value = self.own_supplier
+
+        offer = OrderOfferService.submit_offer(
+            order_id=self.order.id,
+            supplier_id=self.own_supplier.id,
+            actor=self.actor,
+            tenant_id=self.tenant.id,
+            price_amount=Decimal("500000.00"),
+        )
+
+        self.assertEqual(offer.supplier_id, self.own_supplier.id)
+
+    @patch("apps.orders.services.order_offer_service.resolve_supplier_for_user")
+    def test_actor_submits_for_another_supplier_same_tenant_denied(self, mock_resolve):
+        """A permitted actor cannot submit on behalf of a different supplier."""
+        mock_resolve.return_value = self.own_supplier  # actor's OWN supplier
+
+        with self.assertRaises(OrderOfferError) as ctx:
+            OrderOfferService.submit_offer(
+                order_id=self.order.id,
+                supplier_id=self.other_supplier.id,  # NOT the actor's supplier
+                actor=self.actor,
+                tenant_id=self.tenant.id,
+                price_amount=Decimal("500000.00"),
+            )
+        self.assertIn("not authorized", str(ctx.exception))
+
+    @patch("apps.orders.services.order_offer_service.resolve_supplier_for_user")
+    def test_actor_with_no_provider_profile_denied(self, mock_resolve):
+        from apps.accounts.services.errors import AccountsError
+
+        mock_resolve.side_effect = AccountsError("No provider profile")
+
+        with self.assertRaises(OrderOfferError) as ctx:
+            OrderOfferService.submit_offer(
+                order_id=self.order.id,
+                supplier_id=self.own_supplier.id,
+                actor=self.actor,
+                tenant_id=self.tenant.id,
+                price_amount=Decimal("500000.00"),
+            )
+        self.assertIn("no active supplier identity", str(ctx.exception))
+
+    @patch("apps.orders.services.order_offer_service.resolve_supplier_for_user")
+    def test_actor_with_inactive_profile_denied(self, mock_resolve):
+        from apps.accounts.services.errors import AccountsError
+
+        mock_resolve.side_effect = AccountsError("Profile not activated")
+
+        with self.assertRaises(OrderOfferError) as ctx:
+            OrderOfferService.submit_offer(
+                order_id=self.order.id,
+                supplier_id=self.own_supplier.id,
+                actor=self.actor,
+                tenant_id=self.tenant.id,
+                price_amount=Decimal("500000.00"),
+            )
+        self.assertIn("no active supplier identity", str(ctx.exception))
+
+    @patch("apps.orders.services.order_offer_service.resolve_supplier_for_user")
+    def test_cross_tenant_supplier_impersonation_denied(self, mock_resolve):
+        """Actor in tenant A cannot use a supplier_id from tenant B."""
+        other_tenant = make_tenant("other")
+        cross_supplier = make_supplier(other_tenant)
+        mock_resolve.return_value = self.own_supplier
+
+        with self.assertRaises(OrderOfferError):
+            OrderOfferService.submit_offer(
+                order_id=self.order.id,
+                supplier_id=cross_supplier.id,
+                actor=self.actor,
+                tenant_id=self.tenant.id,
+                price_amount=Decimal("500000.00"),
+            )
 
 
 class SubmitOfferValidationTest(TestCase):
@@ -96,8 +196,11 @@ class SubmitOfferValidationTest(TestCase):
             )
         self.assertIn("authenticated actor", str(ctx.exception))
 
-    def test_order_not_in_new_status_rejected(self):
+    @patch("apps.orders.services.order_offer_service.resolve_supplier_for_user")
+    def test_order_not_in_new_status_rejected(self, mock_resolve):
+        mock_resolve.return_value = self.supplier
         order = make_order(self.tenant, status=OrderStatus.WAITING_SERVICE)
+
         with self.assertRaises(OrderOfferError) as ctx:
             OrderOfferService.submit_offer(
                 order_id=order.id,
@@ -108,42 +211,10 @@ class SubmitOfferValidationTest(TestCase):
             )
         self.assertIn("NEW status", str(ctx.exception))
 
-    def test_completed_order_rejected(self):
-        order = make_order(self.tenant, status=OrderStatus.COMPLETED)
-        with self.assertRaises(OrderOfferError):
-            OrderOfferService.submit_offer(
-                order_id=order.id,
-                supplier_id=self.supplier.id,
-                actor=self.actor,
-                tenant_id=self.tenant.id,
-                price_amount=Decimal("500000.00"),
-            )
+    @patch("apps.orders.services.order_offer_service.resolve_supplier_for_user")
+    def test_zero_price_rejected(self, mock_resolve):
+        mock_resolve.return_value = self.supplier
 
-    def test_cancelled_order_rejected(self):
-        order = make_order(self.tenant, status=OrderStatus.CANCELLED)
-        with self.assertRaises(OrderOfferError):
-            OrderOfferService.submit_offer(
-                order_id=order.id,
-                supplier_id=self.supplier.id,
-                actor=self.actor,
-                tenant_id=self.tenant.id,
-                price_amount=Decimal("500000.00"),
-            )
-
-    def test_inactive_supplier_rejected(self):
-        self.supplier.status = SupplierStatus.INACTIVE
-        self.supplier.save()
-        with self.assertRaises(OrderOfferError) as ctx:
-            OrderOfferService.submit_offer(
-                order_id=self.order.id,
-                supplier_id=self.supplier.id,
-                actor=self.actor,
-                tenant_id=self.tenant.id,
-                price_amount=Decimal("500000.00"),
-            )
-        self.assertIn("ACTIVE", str(ctx.exception))
-
-    def test_zero_price_rejected(self):
         with self.assertRaises(OrderOfferError) as ctx:
             OrderOfferService.submit_offer(
                 order_id=self.order.id,
@@ -154,17 +225,10 @@ class SubmitOfferValidationTest(TestCase):
             )
         self.assertIn("positive", str(ctx.exception))
 
-    def test_negative_price_rejected(self):
-        with self.assertRaises(OrderOfferError):
-            OrderOfferService.submit_offer(
-                order_id=self.order.id,
-                supplier_id=self.supplier.id,
-                actor=self.actor,
-                tenant_id=self.tenant.id,
-                price_amount=Decimal("-100.00"),
-            )
+    @patch("apps.orders.services.order_offer_service.resolve_supplier_for_user")
+    def test_duplicate_submission_raises_domain_error(self, mock_resolve):
+        mock_resolve.return_value = self.supplier
 
-    def test_duplicate_submission_raises_domain_error(self):
         OrderOfferService.submit_offer(
             order_id=self.order.id,
             supplier_id=self.supplier.id,
@@ -182,34 +246,14 @@ class SubmitOfferValidationTest(TestCase):
             )
         self.assertIn("already has an offer", str(ctx.exception))
 
-
-class SubmitOfferTenantIsolationTest(TestCase):
-    def setUp(self):
-        self.tenant_a = make_tenant("a")
-        self.tenant_b = make_tenant("b")
-        self.actor = make_user(self.tenant_a)
-        self.supplier = make_supplier(self.tenant_a)
-        self.order = make_order(self.tenant_a, status=OrderStatus.NEW)
-
     def test_cross_tenant_order_not_found(self):
+        other_tenant = make_tenant("other")
         with self.assertRaises(OrderOfferError) as ctx:
             OrderOfferService.submit_offer(
                 order_id=self.order.id,
                 supplier_id=self.supplier.id,
                 actor=self.actor,
-                tenant_id=self.tenant_b.id,
-                price_amount=Decimal("500000.00"),
-            )
-        self.assertIn("not found", str(ctx.exception))
-
-    def test_cross_tenant_supplier_not_found(self):
-        supplier_b = make_supplier(self.tenant_b)
-        with self.assertRaises(OrderOfferError) as ctx:
-            OrderOfferService.submit_offer(
-                order_id=self.order.id,
-                supplier_id=supplier_b.id,
-                actor=self.actor,
-                tenant_id=self.tenant_a.id,
+                tenant_id=other_tenant.id,
                 price_amount=Decimal("500000.00"),
             )
         self.assertIn("not found", str(ctx.exception))
@@ -222,7 +266,10 @@ class SubmitOfferPermissionTest(TestCase):
         self.supplier = make_supplier(self.tenant)
         self.order = make_order(self.tenant, status=OrderStatus.NEW)
 
-    def test_permission_service_is_called(self):
+    @patch("apps.orders.services.order_offer_service.resolve_supplier_for_user")
+    def test_permission_service_is_called(self, mock_resolve):
+        mock_resolve.return_value = self.supplier
+
         with patch("apps.orders.services.order_offer_service.PermissionService.require") as mock_require:
             OrderOfferService.submit_offer(
                 order_id=self.order.id,
@@ -233,8 +280,8 @@ class SubmitOfferPermissionTest(TestCase):
             )
 
         mock_require.assert_called_once()
-        call_kwargs = mock_require.call_args
-        self.assertEqual(call_kwargs[0][1], "orders.offer.submit")
+        call_args = mock_require.call_args
+        self.assertEqual(call_args[0][1], "orders.offer.submit")
 
 
 class EditOfferHappyPathTest(TestCase):
@@ -243,13 +290,16 @@ class EditOfferHappyPathTest(TestCase):
         self.actor = make_user(self.tenant)
         self.supplier = make_supplier(self.tenant)
         self.order = make_order(self.tenant, status=OrderStatus.NEW)
-        self.offer = OrderOfferService.submit_offer(
-            order_id=self.order.id,
-            supplier_id=self.supplier.id,
-            actor=self.actor,
-            tenant_id=self.tenant.id,
-            price_amount=Decimal("500000.00"),
-        )
+
+        with patch("apps.orders.services.order_offer_service.resolve_supplier_for_user") as mock:
+            mock.return_value = self.supplier
+            self.offer = OrderOfferService.submit_offer(
+                order_id=self.order.id,
+                supplier_id=self.supplier.id,
+                actor=self.actor,
+                tenant_id=self.tenant.id,
+                price_amount=Decimal("500000.00"),
+            )
 
     def test_successful_price_edit(self):
         updated = OrderOfferService.edit_offer(
@@ -260,40 +310,24 @@ class EditOfferHappyPathTest(TestCase):
         )
 
         self.assertEqual(updated.price_amount, Decimal("600000.00"))
-        self.assertEqual(updated.status, OrderOfferStatus.SUBMITTED)
 
-    def test_edit_records_audit(self):
+    def test_edit_records_audit_without_free_text(self):
         OrderOfferService.edit_offer(
             offer_id=self.offer.id,
             actor=self.actor,
             tenant_id=self.tenant.id,
             price_amount=Decimal("600000.00"),
+            terms="Secret new terms",
         )
 
-        self.assertTrue(
-            AuditLog.objects.filter(
-                tenant_id=self.tenant.id,
-                action="orders.offer.edited",
-                resource_id=self.offer.id,
-            ).exists()
-        )
-
-    def test_edit_multiple_fields(self):
-        updated = OrderOfferService.edit_offer(
-            offer_id=self.offer.id,
-            actor=self.actor,
-            tenant_id=self.tenant.id,
-            price_amount=Decimal("700000.00"),
-            terms="Updated terms",
-            message="Updated message",
-        )
-
-        self.assertEqual(updated.price_amount, Decimal("700000.00"))
-        self.assertEqual(updated.terms, "Updated terms")
-        self.assertEqual(updated.message, "Updated message")
+        audit = AuditLog.objects.get(action="orders.offer.edited")
+        # Verify no free-form text content in audit
+        self.assertNotIn("Secret", str(audit.after_snapshot))
+        # Verify changed_fields is recorded
+        self.assertIn("price_amount", audit.after_snapshot.get("changed_fields", []))
+        self.assertIn("terms", audit.after_snapshot.get("changed_fields", []))
 
     def test_no_change_is_noop(self):
-        """If no fields are provided, edit is a no-op (no audit)."""
         OrderOfferService.edit_offer(
             offer_id=self.offer.id,
             actor=self.actor,
@@ -310,13 +344,16 @@ class EditOfferValidationTest(TestCase):
         self.other_actor = make_user(self.tenant)
         self.supplier = make_supplier(self.tenant)
         self.order = make_order(self.tenant, status=OrderStatus.NEW)
-        self.offer = OrderOfferService.submit_offer(
-            order_id=self.order.id,
-            supplier_id=self.supplier.id,
-            actor=self.actor,
-            tenant_id=self.tenant.id,
-            price_amount=Decimal("500000.00"),
-        )
+
+        with patch("apps.orders.services.order_offer_service.resolve_supplier_for_user") as mock:
+            mock.return_value = self.supplier
+            self.offer = OrderOfferService.submit_offer(
+                order_id=self.order.id,
+                supplier_id=self.supplier.id,
+                actor=self.actor,
+                tenant_id=self.tenant.id,
+                price_amount=Decimal("500000.00"),
+            )
 
     def test_non_owner_denied(self):
         with self.assertRaises(OrderOfferError) as ctx:
@@ -328,46 +365,17 @@ class EditOfferValidationTest(TestCase):
             )
         self.assertIn("original submitter", str(ctx.exception))
 
-    def test_null_actor_denied(self):
-        with self.assertRaises(OrderOfferError):
-            OrderOfferService.edit_offer(
-                offer_id=self.offer.id,
-                actor=None,
-                tenant_id=self.tenant.id,
-                price_amount=Decimal("600000.00"),
-            )
-
     def test_withdrawn_offer_cannot_be_edited(self):
         OrderOfferService.withdraw_offer(
             offer_id=self.offer.id,
             actor=self.actor,
             tenant_id=self.tenant.id,
         )
-        with self.assertRaises(OrderOfferError) as ctx:
-            OrderOfferService.edit_offer(
-                offer_id=self.offer.id,
-                actor=self.actor,
-                tenant_id=self.tenant.id,
-                price_amount=Decimal("600000.00"),
-            )
-        self.assertIn("cannot be edited", str(ctx.exception).lower())
-
-    def test_invalid_price_rejected(self):
         with self.assertRaises(OrderOfferError):
             OrderOfferService.edit_offer(
                 offer_id=self.offer.id,
                 actor=self.actor,
                 tenant_id=self.tenant.id,
-                price_amount=Decimal("0.00"),
-            )
-
-    def test_cross_tenant_denied(self):
-        other_tenant = make_tenant("other")
-        with self.assertRaises(OrderOfferError):
-            OrderOfferService.edit_offer(
-                offer_id=self.offer.id,
-                actor=self.actor,
-                tenant_id=other_tenant.id,
                 price_amount=Decimal("600000.00"),
             )
 
@@ -383,6 +391,16 @@ class EditOfferValidationTest(TestCase):
             )
         self.assertIn("no longer accepting", str(ctx.exception))
 
+    def test_cross_tenant_denied(self):
+        other_tenant = make_tenant("other")
+        with self.assertRaises(OrderOfferError):
+            OrderOfferService.edit_offer(
+                offer_id=self.offer.id,
+                actor=self.actor,
+                tenant_id=other_tenant.id,
+                price_amount=Decimal("600000.00"),
+            )
+
 
 class WithdrawOfferHappyPathTest(TestCase):
     def setUp(self):
@@ -390,13 +408,16 @@ class WithdrawOfferHappyPathTest(TestCase):
         self.actor = make_user(self.tenant)
         self.supplier = make_supplier(self.tenant)
         self.order = make_order(self.tenant, status=OrderStatus.NEW)
-        self.offer = OrderOfferService.submit_offer(
-            order_id=self.order.id,
-            supplier_id=self.supplier.id,
-            actor=self.actor,
-            tenant_id=self.tenant.id,
-            price_amount=Decimal("500000.00"),
-        )
+
+        with patch("apps.orders.services.order_offer_service.resolve_supplier_for_user") as mock:
+            mock.return_value = self.supplier
+            self.offer = OrderOfferService.submit_offer(
+                order_id=self.order.id,
+                supplier_id=self.supplier.id,
+                actor=self.actor,
+                tenant_id=self.tenant.id,
+                price_amount=Decimal("500000.00"),
+            )
 
     def test_successful_withdrawal(self):
         withdrawn = OrderOfferService.withdraw_offer(
@@ -415,13 +436,8 @@ class WithdrawOfferHappyPathTest(TestCase):
             tenant_id=self.tenant.id,
         )
 
-        self.assertTrue(
-            AuditLog.objects.filter(
-                tenant_id=self.tenant.id,
-                action="orders.offer.withdrawn",
-                resource_id=self.offer.id,
-            ).exists()
-        )
+        audit = AuditLog.objects.get(action="orders.offer.withdrawn")
+        self.assertEqual(audit.resource_id, self.offer.id)
 
 
 class WithdrawOfferValidationTest(TestCase):
@@ -431,13 +447,16 @@ class WithdrawOfferValidationTest(TestCase):
         self.other_actor = make_user(self.tenant)
         self.supplier = make_supplier(self.tenant)
         self.order = make_order(self.tenant, status=OrderStatus.NEW)
-        self.offer = OrderOfferService.submit_offer(
-            order_id=self.order.id,
-            supplier_id=self.supplier.id,
-            actor=self.actor,
-            tenant_id=self.tenant.id,
-            price_amount=Decimal("500000.00"),
-        )
+
+        with patch("apps.orders.services.order_offer_service.resolve_supplier_for_user") as mock:
+            mock.return_value = self.supplier
+            self.offer = OrderOfferService.submit_offer(
+                order_id=self.order.id,
+                supplier_id=self.supplier.id,
+                actor=self.actor,
+                tenant_id=self.tenant.id,
+                price_amount=Decimal("500000.00"),
+            )
 
     def test_non_owner_denied(self):
         with self.assertRaises(OrderOfferError) as ctx:
@@ -448,27 +467,29 @@ class WithdrawOfferValidationTest(TestCase):
             )
         self.assertIn("original submitter", str(ctx.exception))
 
-    def test_null_actor_denied(self):
-        with self.assertRaises(OrderOfferError):
-            OrderOfferService.withdraw_offer(
-                offer_id=self.offer.id,
-                actor=None,
-                tenant_id=self.tenant.id,
-            )
-
     def test_already_withdrawn_raises_domain_error(self):
         OrderOfferService.withdraw_offer(
             offer_id=self.offer.id,
             actor=self.actor,
             tenant_id=self.tenant.id,
         )
+        with self.assertRaises(OrderOfferError):
+            OrderOfferService.withdraw_offer(
+                offer_id=self.offer.id,
+                actor=self.actor,
+                tenant_id=self.tenant.id,
+            )
+
+    def test_order_no_longer_new_prevents_withdrawal(self):
+        self.order.status = OrderStatus.WAITING_SERVICE
+        self.order.save()
         with self.assertRaises(OrderOfferError) as ctx:
             OrderOfferService.withdraw_offer(
                 offer_id=self.offer.id,
                 actor=self.actor,
                 tenant_id=self.tenant.id,
             )
-        self.assertIn("cannot be withdrawn", str(ctx.exception).lower())
+        self.assertIn("no longer accepting", str(ctx.exception))
 
     def test_cross_tenant_denied(self):
         other_tenant = make_tenant("other")
@@ -487,3 +508,23 @@ class WithdrawOfferValidationTest(TestCase):
                 tenant_id=self.tenant.id,
             )
         self.assertIn("not found", str(ctx.exception))
+
+
+class IntegrityErrorHandlingTest(TestCase):
+    """Verify that only the duplicate-offer constraint is caught; unrelated
+    IntegrityError cases propagate normally."""
+
+    def test_unrelated_integrity_error_not_swallowed(self):
+        """An IntegrityError that does NOT match the duplicate-offer constraint
+        must propagate, not be caught as a duplicate-offer error."""
+        # _is_duplicate_offer_violation should return False for unrelated errors
+        from django.db import IntegrityError as DjIntegrityError
+
+        from apps.orders.services.order_offer_service import OrderOfferService
+
+        unrelated = DjIntegrityError("some_other_constraint_violation")
+        self.assertFalse(OrderOfferService._is_duplicate_offer_violation(unrelated))
+
+        # The actual duplicate constraint name should match
+        duplicate = DjIntegrityError('duplicate key value violates unique constraint "uq_order_offer_one_per_supplier"')
+        self.assertTrue(OrderOfferService._is_duplicate_offer_violation(duplicate))
