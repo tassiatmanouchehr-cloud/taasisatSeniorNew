@@ -1350,7 +1350,10 @@ both required such an assessment before any implementation).
 
 ### Acceptance criteria
 
-1. A written Architecture Assessment document exists under `project docs/`.
+1. A written Architecture Assessment document exists at
+   `project docs/assessments/YYYY-MM-DD_MARKETPLACE_ORDER_WORKFLOW_ARCHITECTURE_ASSESSMENT.md`
+   (dated with the actual completion date; a new immutable historical record, not an
+   overwrite of the Enterprise Baseline assessment).
 2. The assessment identifies every `OrderOffer` field and its role in the lifecycle.
 3. The assessment maps offer status transitions to `Order` status transitions.
 4. A bounded Sprint 5.1 scope is defined with exact service methods, their

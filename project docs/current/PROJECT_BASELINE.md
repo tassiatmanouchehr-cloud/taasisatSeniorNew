@@ -212,9 +212,9 @@ architecture guardrail tests enforcing the no-mutation-surface design, and
 comprehensive test coverage (81 new tests, full regression 2517/2517 at merge).
 This was a cross-cutting security remediation, not a numbered product phase.
 
-## 14. Current milestone
+## 14. Active product phase
 
-**Phase 5 — Marketplace Order Workflow (active product phase).**
+**Phase 5 — Marketplace Order Workflow.**
 
 This is the next roadmap-sequenced feature phase. The `OrderOffer` model,
 migration (`orders/0008_orderoffer.py`), and 40 model-level tests exist on
@@ -224,12 +224,17 @@ requires a dedicated Architecture Assessment before implementation begins,
 per this repository's established governance pattern (Phase 3→4 and Phase 4→5
 both required one).
 
-## 15. Next milestone
+## 15. Immediate next activity
 
-**Phase 5 — Marketplace Order Workflow Architecture Assessment.** A code-free,
+**Marketplace Order Workflow Architecture Assessment** — a code-free,
 governance-first activity that determines the bounded first-sprint scope from
 direct repository evidence. The RBAC remediation (§13) is complete and no longer
-blocks this.
+blocks this. The assessment output must be filed at
+`project docs/assessments/YYYY-MM-DD_MARKETPLACE_ORDER_WORKFLOW_ARCHITECTURE_ASSESSMENT.md`
+(dated, immutable — does not overwrite the Enterprise Baseline assessment).
+
+Sprint 5.1 implementation remains unauthorized until the assessment is reviewed
+and approved.
 
 **Recommended order after the Phase 5 assessment** (from the 2026-07-20
 assessment's own final ranking, carried forward unchanged): OTP real SMS
