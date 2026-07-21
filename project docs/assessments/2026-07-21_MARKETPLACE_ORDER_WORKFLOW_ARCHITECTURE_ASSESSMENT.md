@@ -23,9 +23,11 @@ concurrency discipline, and audit conventions. Selection, acceptance, and bookin
 integration follow in a later sprint.
 
 The cancellation authorization gap (`request_cancellation()`/`approve_cancellation()`
-have no in-function permission enforcement) is classified as a **defense-in-depth gap**
-— not a confirmed vulnerability today, but not safely contained by an enforceable
-contract. It is independently schedulable and does not block Sprint 5.1's
+have no in-function permission enforcement) is classified as a **confirmed
+service-boundary authorization defect with currently limited external exposure**
+— the functions are authorization-unsafe public entry points, but no portal view or
+API currently invokes them directly. The only non-test caller is a development-only
+seed command. The defect is independently schedulable and does not block Sprint 5.1's
 submission-only scope. It **must** be remediated before any offer selection/acceptance
 sprint exposes new cancellation-interaction surfaces.
 
@@ -94,41 +96,41 @@ model-level only — no service behavior tested because no service exists.
 
 ```
 PENDING_OPERATOR_REVIEW
-    │ approve_public_order()
-    ▼
-NEW ◄──── remove_supplier()
-    │ assign_supplier()
-    ▼
+    | approve_public_order()
+    v
+NEW <---- remove_supplier()
+    | assign_supplier()
+    v
 WAITING_SERVICE
-    │ start_order()
-    ▼
+    | start_order()
+    v
 IN_PROGRESS
-    │ complete_order()
-    ▼
+    | complete_order()
+    v
 COMPLETED (final)
 
-Any non-final ──► CANCELLATION_REQUESTED ──► CANCELLED (final)
+Any non-final --> CANCELLATION_REQUESTED --> CANCELLED (final)
 ```
 
 **Where offers fit:** Between `NEW` and `WAITING_SERVICE`. An offer is submitted
-while the order is `NEW`; eventually one is selected → accepted → supplier
-assigned → order transitions to `WAITING_SERVICE`.
+while the order is `NEW`; eventually one is selected --> accepted --> supplier
+assigned --> order transitions to `WAITING_SERVICE`.
 
 ---
 
 ## 5. OrderOffer Lifecycle Map
 
 ```
-SUBMITTED ──┬── edit() ──────► SUBMITTED (mutated)
-            ├── withdraw() ──► WITHDRAWN (terminal)
-            ├── select() ────► SELECTED
-            └── (order cancelled) ► CANCELLED (terminal)
+SUBMITTED --+-- edit() ------> SUBMITTED (mutated)
+            +-- withdraw() --> WITHDRAWN (terminal)
+            +-- select() ----> SELECTED
+            +-- (order cancelled) > CANCELLED (terminal)
 
-SELECTED  ──┬── accept() ───► ACCEPTED (terminal) → assign supplier
-            ├── expire() ───► EXPIRED (terminal)
-            └── (order cancelled) ► CANCELLED (terminal)
+SELECTED  --+-- accept() ---> ACCEPTED (terminal) --> assign supplier
+            +-- expire() ---> EXPIRED (terminal)
+            +-- (order cancelled) > CANCELLED (terminal)
 
-On select(): all other SUBMITTED offers → REJECTED (terminal)
+On select(): all other SUBMITTED offers --> REJECTED (terminal)
 ```
 
 ### 5.1 Select vs. Accept — Semantic Distinction
@@ -142,14 +144,14 @@ These are **two separate operations with distinct actors and effects**:
 | Order status after? | Remains `NEW` (no assignment yet) | Transitions to `WAITING_SERVICE` (supplier assigned) |
 | Supplier assigned? | **No** — hold only | **Yes** — `status_machine.assign_supplier()` called |
 | Can supplier reject? | **Unresolved business decision** — current model has no "supplier declines selection" transition; the hold simply expires if not accepted | Same |
-| What happens to competing offers? | All other SUBMITTED → REJECTED | N/A (already rejected at select time) |
-| What happens when hold expires? | SELECTED → EXPIRED; order remains `NEW`; rejected offers stay REJECTED (no undo) | N/A |
-| What happens on order cancellation during hold? | SELECTED → CANCELLED | N/A |
+| What happens to competing offers? | All other SUBMITTED --> REJECTED | N/A (already rejected at select time) |
+| What happens when hold expires? | SELECTED --> EXPIRED; order remains `NEW`; rejected offers stay REJECTED (no undo) | N/A |
+| What happens on order cancellation during hold? | SELECTED --> CANCELLED | N/A |
 | Which row(s) locked? | Order row first (verify state + one-selected-per-order invariant), then offer row | Offer row (verify hold_active) |
 | Calls `assign_supplier()`? | **No** | **Yes** |
 
 **Unresolved business decisions** (do not invent):
-1. Can the customer cancel a selection (revert SELECTED → reopen for new offers)?
+1. Can the customer cancel a selection (revert SELECTED --> reopen for new offers)?
 2. Can the supplier decline/reject a selection they received?
 3. Should REJECTED offers' suppliers be notified?
 4. Should hold duration be configurable per tenant?
@@ -213,8 +215,15 @@ key, ownership verified by `submitted_by == actor`).
    and defaults to `None`. The function does not verify who `changed_by` is.
 4. **Call sites outside tests:**
    - `src/apps/kernel/management/commands/seed_product_walkthrough.py:1117-1120` —
-     called directly with no permission check (expected for a seed command)
-   - No portal view currently calls either function directly (confirmed by grep)
+   - `src/apps/kernel/management/commands/seed_product_walkthrough.py:1117-1120` —
+     called directly with no permission check. This command is explicitly
+     labeled "development only" (`help = "Seed a deterministic local
+     product-walkthrough dataset (development only, idempotent)."`) and
+     operates exclusively within a dedicated demo tenant
+     (`demo-senior-platform`). Classification: **development/seed-only**
+     — not production-capable in its current form.
+   - No portal view or API endpoint currently calls either function directly
+     (confirmed by grep excluding tests)
 5. There is **no enforceable system-only contract** — no `_private` naming, no
    module-level `__all__` restriction, no docstring stating "internal only," no
    architecture guardrail test preventing external callers.
@@ -222,17 +231,22 @@ key, ownership verified by `submitted_by == actor`).
    hook) can call `approve_cancellation(order_id=any_uuid)` and cancel any order
    in any tenant without authorization.
 
-**Classification: Defense-in-depth gap.**
+**Classification: Confirmed service-boundary authorization defect with currently
+limited external exposure.**
 
-- Not a confirmed vulnerability today — no portal view or API currently exposes
-  these functions without actor resolution upstream.
-- Not safely contained — there is no technical enforcement preventing a future
-  caller from bypassing authorization. The "safety" relies entirely on reviewer
-  discipline at the call site, not on the function's own contract.
-- The gap becomes **directly exploitable** when:
-  - An API endpoint or view is added that accepts `order_id` from a client
-  - A background job calls `approve_cancellation` with a user-supplied order_id
-  - The offer marketplace adds a "cancel order when last offer withdrawn" rule
+- The functions are authorization-unsafe public service entry points: they perform
+  no permission check, no tenant ownership verification, and no actor identity
+  validation inside their own body.
+- External exposure is currently limited: the only non-test production-path caller
+  is a development-only seed command operating within its own demo tenant.
+- No portal view or API endpoint directly invokes these functions today.
+- However, the defect is real and demonstrable at the service boundary — any code
+  with import access to `apps.orders.services` can cancel any order in any tenant
+  by calling `approve_cancellation(order_id=<uuid>)` with no authorization
+  challenge.
+- The absence of a current public-facing exploit path does not make the service
+  boundary sound — it means the blast radius is currently contained by caller
+  discipline, not by the function's own contract.
 
 **Remediation scheduling:**
 
@@ -241,7 +255,7 @@ key, ownership verified by `submitted_by == actor`).
 - **MUST be remediated before Sprint 5.2** (selection/acceptance), because:
   - `select_offer()` rejects competing offers (a destructive action on other
     suppliers' offers — authorization must be sound before this is wired)
-  - `accept_offer()` triggers `assign_supplier()` → order state change
+  - `accept_offer()` triggers `assign_supplier()` --> order state change
   - Cancellation during a hold interacts with the selected offer
 - **Recommended fix:** Add `PermissionService.require()` with a new
   `orders.cancellation.request` / `orders.cancellation.approve` key pair
@@ -272,9 +286,9 @@ key, ownership verified by `submitted_by == actor`).
 
 ### 7.3 Locking Strategy (Sprint 5.1)
 
-- **Submit:** Lock the order row → verify `status == NEW` → create offer
-- **Edit:** Lock the offer row → verify `status == SUBMITTED` AND `submitted_by == actor` → update fields
-- **Withdraw:** Lock the offer row → verify `status == SUBMITTED` AND `submitted_by == actor` → transition to WITHDRAWN
+- **Submit:** Lock the order row --> verify `status == NEW` --> create offer
+- **Edit:** Lock the offer row --> verify `status == SUBMITTED` AND `submitted_by == actor` --> update fields
+- **Withdraw:** Lock the offer row --> verify `status == SUBMITTED` AND `submitted_by == actor` --> transition to WITHDRAWN
 
 ---
 
@@ -352,7 +366,7 @@ All methods in one PR: submit, edit, withdraw, select, accept, expire, cancel.
 Submit/edit/withdraw + select/reject. Defers accept (booking integration) and expire.
 
 **Benefits:**
-- Tests the most complex concurrency scenario (competing offers → one selected)
+- Tests the most complex concurrency scenario (competing offers --> one selected)
 - Still no booking/financial integration
 
 **Risks:**
@@ -463,7 +477,7 @@ repository's established pattern for owner-authorized mutations
 - Ownership verification pattern (`submitted_by == actor`)
 - Concurrency control pattern (`select_for_update` on parent/row)
 - Audit recording pattern (`AuditService.log()` on every mutation)
-- `IntegrityError` → domain error mapping for constraint violations
+- `IntegrityError` --> domain error mapping for constraint violations
 - Order-state precondition checking (`status == NEW` for submission)
 - Test structure and coverage conventions
 
@@ -494,7 +508,7 @@ repository's established pattern for owner-authorized mutations
 3. `OrderOfferService.edit_offer()` updates price/terms/duration/message only when
    `offer.status == SUBMITTED` and `offer.submitted_by == actor`; raises a domain
    error otherwise.
-4. `OrderOfferService.withdraw_offer()` transitions `SUBMITTED → WITHDRAWN` only
+4. `OrderOfferService.withdraw_offer()` transitions `SUBMITTED --> WITHDRAWN` only
    when `offer.submitted_by == actor`; raises a domain error otherwise.
 5. Every mutation operates inside `transaction.atomic()` with `select_for_update()`
    on the appropriate row (order row for submit, offer row for edit/withdraw).
@@ -513,13 +527,13 @@ repository's established pattern for owner-authorized mutations
 | Submit — order state | Refuses when order is not NEW (each non-NEW status tested) |
 | Submit — supplier validation | Refuses non-ACTIVE supplier; refuses wrong-tenant supplier |
 | Submit — duplicate | `IntegrityError` caught and mapped to domain error |
-| Submit — tenant isolation | Cross-tenant supplier → domain error |
+| Submit — tenant isolation | Cross-tenant supplier --> domain error |
 | Submit — permission | `PermissionService.require()` is called with `orders.offer.submit` |
 | Edit — happy path | Price/terms/duration/message update; audit recorded |
 | Edit — wrong actor | Refuses when `submitted_by != actor` |
 | Edit — wrong status | Refuses when offer is not SUBMITTED (each terminal status tested) |
 | Edit — cross-tenant | Refuses cross-tenant edit |
-| Withdraw — happy path | SUBMITTED → WITHDRAWN; audit recorded |
+| Withdraw — happy path | SUBMITTED --> WITHDRAWN; audit recorded |
 | Withdraw — wrong actor | Refuses when `submitted_by != actor` |
 | Withdraw — wrong status | Refuses when offer is not SUBMITTED |
 | Withdraw — cross-tenant | Refuses cross-tenant withdrawal |
@@ -572,7 +586,7 @@ repository's established pattern for owner-authorized mutations
 |---|---|---|---|
 | R1 | `UniqueConstraint(order, supplier)` prevents re-offer after withdrawal | Medium | Accept as-is; product decision can relax later via migration |
 | R2 | No "ACCEPTING_OFFERS" order state — should `NEW` be split? | Medium | No split in Sprint 5.1; `NEW` semantics are correct ("no supplier assigned") |
-| R3 | Cancellation authorization gap | High | Defense-in-depth gap; remediate before Sprint 5.2 |
+| R3 | Cancellation authorization gap | High | Confirmed service-boundary defect; remediate before Sprint 5.2 |
 | R4 | Hold expiry requires a scheduler that doesn't exist | Medium | Domain method is testable without a scheduler; scheduling is Sprint 5.2+ |
 | R5 | Can a supplier decline a selected offer? | Medium | **Unresolved business decision** — no model transition exists for this; defer |
 | R6 | Can selection be undone (customer changes mind during hold)? | Medium | **Unresolved business decision** — no transition back from SELECTED to submittable state exists; defer |
