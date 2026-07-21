@@ -137,9 +137,9 @@ This is documented as known accessibility debt pending design review.
 
 In `templates/showcase/base.html`, the `<html>` element has `class="bg-background"` added during PR #34 accessibility remediation. This was required because WebKit (tablet and mobile viewport projects) computed `<body>` `background-color` as `transparent` on the showcase pages, causing axe-core to treat the page background as white.
 
-This issue did NOT reproduce on the tested production route (`/accounts/login/`) using `ui/layouts/base.html`. Direct CI verification (PR #35, closed without merge) confirmed that production `<body>` correctly receives `background-color: rgb(15, 23, 42)` in WebKit dark mode.
+This issue did not reproduce on `/accounts/login/` (the one production route tested via direct CI verification in PR #35, closed without merge). On that route, production `<body>` correctly received `background-color: rgb(15, 23, 42)` in WebKit dark mode. Current evidence does not justify modifying the shared production root layout (`ui/layouts/base.html`).
 
-The exact root cause of the showcase-specific behavior remains unproven. Hypotheses include Alpine.js `x-data` on `<html>`, CDN Alpine loading timing, or interaction with the since-removed `color-scheme` meta tag. Current evidence does not justify modifying the shared production root layout (`ui/layouts/base.html`).
+The exact root cause of the showcase-specific behavior remains unproven. Hypotheses include Alpine.js `x-data` on `<html>`, CDN Alpine loading timing, or interaction with the since-removed `color-scheme` meta tag.
 
 ### Typography Layer and Tailwind Utility Interaction
 

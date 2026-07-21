@@ -4812,7 +4812,7 @@ Added `class="bg-background"` to `<html>` in `templates/showcase/base.html` to r
 
 **Branch:** `diag/production-root-bg-verify`
 **Status:** Closed without merge
-**Purpose:** Verify whether production pages using `ui/layouts/base.html` had the same WebKit transparent-body issue as the showcase.
+**Purpose:** Verify whether `/accounts/login/` (a production route using `ui/layouts/base.html`) had the same WebKit transparent-body issue as the showcase.
 
 ### Direct CI Result
 
