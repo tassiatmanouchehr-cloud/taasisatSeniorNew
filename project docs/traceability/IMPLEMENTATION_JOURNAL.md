@@ -4884,3 +4884,63 @@ in `tablet-dark-rtl`. PR #37 did not modify that suite, showcase templates, CSS,
 The PR #37 production-route manifest tests passed in the same run. A subsequent rerun
 completed successfully with all GitHub Actions checks green. No confirmed root cause was
 established, and no remediation was made in PR #37.
+
+
+
+---
+
+## Documentation Synchronization — RBAC Remediation Traceability & Marketplace Restoration (2026-07-21)
+
+### Context
+
+A Repository Traceability Audit (2026-07-21) determined that `PROJECT_BASELINE.md` §8
+(Critical / Open) and §14–§17 (RBAC as next implementation target) were stale relative
+to the repository's actual state. The RBAC Enforcement-Toggle Visibility & Audit
+Remediation was already implemented and merged to `main` before the Enterprise Baseline
+document was committed.
+
+### Evidence
+
+- **PR #24:** "RBAC enforcement-toggle emergency control (read-only visibility + audited management command)"
+- **Branch:** `fix/rbac-enforcement-emergency-control`
+- **Merge commit:** `88b39bc3fb6eaf7f95c1ef7e0cdbe51077a7c331`
+- **Merged:** 2026-07-20T05:51:43Z (by `tassiatmanouchehr-cloud`)
+- **Author:** Claude (via Claude Code session `01PnCSL8UcYPDBbqebWZN44Z`)
+- **Full regression at merge:** 2,517/2,517 green
+- **Scope:** `RBACConfiguration.set_enforcement_enabled()` (sole write path), `set_rbac_enforcement` management command, read-only admin portal page at `/admin-portal/system/rbac-enforcement/`, `admin.rbac_enforcement.read` permission key, 5 architecture guardrail tests, `RUNTIME_WORKFLOWS.md` operational runbook, `PERMISSIONS_AND_TENANCY.md` update
+
+### Root cause of documentation drift
+
+The Enterprise Baseline assessment (2026-07-20) was a multi-domain investigation compiled
+from evidence gathered before PR #24 merged. The assessment findings were committed to
+`main` after PR #24 had already merged, but without re-checking whether the RBAC finding
+was still current. This is a temporal ordering gap in a long-running assessment, not an
+error in the assessment's own methodology.
+
+### Corrective action (this entry)
+
+- `PROJECT_BASELINE.md` §8: RBAC row changed from "Critical / Open" to "Resolved"
+- `PROJECT_BASELINE.md` §13: updated to record RBAC remediation as the previous milestone
+- `PROJECT_BASELINE.md` §14/§15: restored Marketplace Order Workflow as the active phase
+- `PROJECT_BASELINE.md` §17: marked as COMPLETED with traceability
+- `03_NEXT_TASK.md`: new concrete next task — Phase 5 Marketplace Order Workflow Architecture Assessment
+- `02_PROJECT_CONTINUATION.md`: active-work-branch row corrected
+- `IMPLEMENTATION_ROADMAP.md`: Enterprise Baseline update line amended
+
+### Marketplace Order Workflow status (reconstructed from code)
+
+- Order Workflow **Core** (lifecycle, state machine, matching, booking, execution, reviews): fully implemented and tested
+- `OrderOffer` model + migration + 40 model-level tests: present on `main`
+- `OrderOfferService`: **does not exist** — zero service-layer business logic for submit/edit/withdraw/select/hold/accept
+- The next bounded task is a code-free Architecture Assessment for `OrderOfferService`
+
+### Canonical delivery sequence preserved
+
+1. Registration & Verification — CLOSED
+2. Caregiver Professional Profile — CLOSED
+3. Company Portal — FORMALLY CLOSED
+4. Customer Portal — FORMALLY CLOSED
+5. **Marketplace Order Workflow — ACTIVE**
+6. Invoice Workflow — not started
+7. Financial Engine Review — not started
+8. Payment & Settlement Review — not started
