@@ -35,9 +35,13 @@ class DiscoveryConfiguration:
     @classmethod
     def get_ranking_weights(cls, *, tenant_id: uuid.UUID) -> dict[str, Decimal]:
         return {
-            "verification": cls._get_decimal(VERIFICATION_WEIGHT_KEY, tenant_id, DEFAULT_RANKING_WEIGHTS["verification"]),
+            "verification": cls._get_decimal(
+                VERIFICATION_WEIGHT_KEY, tenant_id, DEFAULT_RANKING_WEIGHTS["verification"]
+            ),
             "reputation": cls._get_decimal(REPUTATION_WEIGHT_KEY, tenant_id, DEFAULT_RANKING_WEIGHTS["reputation"]),
-            "availability": cls._get_decimal(AVAILABILITY_WEIGHT_KEY, tenant_id, DEFAULT_RANKING_WEIGHTS["availability"]),
+            "availability": cls._get_decimal(
+                AVAILABILITY_WEIGHT_KEY, tenant_id, DEFAULT_RANKING_WEIGHTS["availability"]
+            ),
             "capacity": cls._get_decimal(CAPACITY_WEIGHT_KEY, tenant_id, DEFAULT_RANKING_WEIGHTS["capacity"]),
         }
 

@@ -5,11 +5,17 @@ from ..models import PaymentStatus
 ALLOWED_TRANSITIONS = {
     PaymentStatus.CREATED: {PaymentStatus.PENDING, PaymentStatus.CANCELLED, PaymentStatus.EXPIRED},
     PaymentStatus.PENDING: {
-        PaymentStatus.AUTHORIZED, PaymentStatus.SUCCEEDED, PaymentStatus.FAILED,
-        PaymentStatus.CANCELLED, PaymentStatus.EXPIRED,
+        PaymentStatus.AUTHORIZED,
+        PaymentStatus.SUCCEEDED,
+        PaymentStatus.FAILED,
+        PaymentStatus.CANCELLED,
+        PaymentStatus.EXPIRED,
     },
     PaymentStatus.AUTHORIZED: {
-        PaymentStatus.SUCCEEDED, PaymentStatus.FAILED, PaymentStatus.CANCELLED, PaymentStatus.EXPIRED,
+        PaymentStatus.SUCCEEDED,
+        PaymentStatus.FAILED,
+        PaymentStatus.CANCELLED,
+        PaymentStatus.EXPIRED,
     },
     # SUCCEEDED/FAILED/CANCELLED/EXPIRED are terminal: no further transitions.
 }

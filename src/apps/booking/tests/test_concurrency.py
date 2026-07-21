@@ -47,22 +47,35 @@ class _ConcurrencyFixtureMixin:
     def _build_fixture(self):
         self.tenant = Tenant.objects.create(slug=f"concur-{uuid.uuid4().hex[:8]}", name="Concurrency Test Tenant")
         self.category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
         self.order = Order.objects.create(
-            tenant=self.tenant, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
-            service_category=self.category, description="Need home care",
-            city="tehran", address="Some address", phone="09120000000",
+            tenant=self.tenant,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.NEW,
+            service_category=self.category,
+            description="Need home care",
+            city="tehran",
+            address="Some address",
+            phone="09120000000",
         )
         self.supplier_a = self._create_supplier()
         self.supplier_b = self._create_supplier()
 
     def _create_supplier(self) -> ServiceSupplier:
         return ServiceSupplier.objects.create(
-            tenant_id=self.tenant.id, supplier_type=SupplierType.INDEPENDENT_PROVIDER,
-            linked_entity_id=uuid.uuid4(), linked_entity_type="TestProfile", display_name="Test Supplier",
-            status=SupplierStatus.ACTIVE, availability_status=AvailabilityStatus.AVAILABLE,
-            verification_level=VerificationLevel.BASIC, service_categories=[str(self.category.id)],
+            tenant_id=self.tenant.id,
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+            linked_entity_id=uuid.uuid4(),
+            linked_entity_type="TestProfile",
+            display_name="Test Supplier",
+            status=SupplierStatus.ACTIVE,
+            availability_status=AvailabilityStatus.AVAILABLE,
+            verification_level=VerificationLevel.BASIC,
+            service_categories=[str(self.category.id)],
         )
 
 
@@ -75,18 +88,30 @@ class ConcurrentAssignmentTest(_ConcurrencyFixtureMixin, TransactionTestCase):
 
         self.admin_a = self._create_user(phone="09121130001")
         self.org_a = OrganizationProfile.objects.create(
-            name="Org A", code=f"org-a-{uuid.uuid4().hex[:6]}", admin_user=self.admin_a, tenant=self.tenant,
+            name="Org A",
+            code=f"org-a-{uuid.uuid4().hex[:6]}",
+            admin_user=self.admin_a,
+            tenant=self.tenant,
         )
         OrganizationMembership.objects.create(
-            organization=self.org_a, user=self.admin_a, role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+            organization=self.org_a,
+            user=self.admin_a,
+            role_type=OrgMembershipRole.ADMIN,
+            status=OrgMembershipStatus.ACTIVE,
         )
 
         self.admin_b = self._create_user(phone="09121130002")
         self.org_b = OrganizationProfile.objects.create(
-            name="Org B", code=f"org-b-{uuid.uuid4().hex[:6]}", admin_user=self.admin_b, tenant=self.tenant,
+            name="Org B",
+            code=f"org-b-{uuid.uuid4().hex[:6]}",
+            admin_user=self.admin_b,
+            tenant=self.tenant,
         )
         OrganizationMembership.objects.create(
-            organization=self.org_b, user=self.admin_b, role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+            organization=self.org_b,
+            user=self.admin_b,
+            role_type=OrgMembershipRole.ADMIN,
+            status=OrgMembershipStatus.ACTIVE,
         )
 
         from apps.orders.services.eligibility_service import OrderEligibilityService
@@ -131,7 +156,8 @@ class ConcurrentAssignmentTest(_ConcurrencyFixtureMixin, TransactionTestCase):
         # IntegrityError from a torn read of the sequence counter.
         self.assertEqual(SupplierAssignment.objects.filter(order=self.order).count(), len(results))
         self.assertEqual(
-            SupplierAssignment.objects.filter(order=self.order, assignment_sequence=1).count(), 1,
+            SupplierAssignment.objects.filter(order=self.order, assignment_sequence=1).count(),
+            1,
         )
 
 

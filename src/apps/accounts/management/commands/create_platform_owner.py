@@ -24,7 +24,8 @@ class Command(BaseCommand):
             raise CommandError(f"Invalid phone: {phone}")
 
         tenant, _ = Tenant.objects.get_or_create(
-            slug="salmandyar", defaults={"name": "سالمندیار", "status": "active"},
+            slug="salmandyar",
+            defaults={"name": "سالمندیار", "status": "active"},
         )
 
         existing = UserAccount.objects.filter(phone=phone).first()
@@ -36,7 +37,11 @@ class Command(BaseCommand):
 
         person = Person.objects.create(tenant=tenant, full_name=name)
         user = UserAccount.objects.create_user(
-            phone=phone, person=person, tenant=tenant, is_staff=True, is_superuser=True,
+            phone=phone,
+            person=person,
+            tenant=tenant,
+            is_staff=True,
+            is_superuser=True,
         )
         self._ensure_role(tenant, user)
         self._ensure_team_member(user, tenant)
@@ -44,11 +49,15 @@ class Command(BaseCommand):
 
     def _ensure_role(self, tenant, user):
         role, _ = Role.objects.get_or_create(
-            tenant=tenant, slug="platform_owner",
+            tenant=tenant,
+            slug="platform_owner",
             defaults={"name": "مالک پلتفرم", "is_system": True},
         )
         RoleAssignment.objects.get_or_create(
-            tenant=tenant, user=user, role=role, defaults={"scope_type": "platform"},
+            tenant=tenant,
+            user=user,
+            role=role,
+            defaults={"scope_type": "platform"},
         )
 
     def _ensure_team_member(self, user, tenant):
@@ -57,5 +66,6 @@ class Command(BaseCommand):
             if not person:
                 person = Person.objects.create(tenant=tenant, full_name=str(user))
             PlatformTeamMember.objects.get_or_create(
-                user=user, defaults={"person": person, "team_area": PlatformTeamArea.OWNER},
+                user=user,
+                defaults={"person": person, "team_area": PlatformTeamArea.OWNER},
             )

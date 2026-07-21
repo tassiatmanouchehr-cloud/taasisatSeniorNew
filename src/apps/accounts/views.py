@@ -23,7 +23,6 @@ from .forms import (
 )
 from .models.otp import OTPPurpose
 from .services.otp import OTPService
-from .services.phone import normalize_phone
 from .services.post_login_destination import resolve_post_login_destination
 from .services.registration import RegistrationService
 

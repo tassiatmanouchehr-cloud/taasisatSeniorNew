@@ -41,12 +41,18 @@ class AssignmentServiceAssignTest(BookingTestCase):
 
     def test_assign_status_confirmed_when_auto_accept_enabled(self):
         config_key = ConfigurationKey.objects.create(
-            key="booking.assignment.auto_accept_enabled", owner_module="M03",
-            scope_level=ScopeLevel.TENANT, value_type=ValueType.BOOLEAN, default_value=False,
+            key="booking.assignment.auto_accept_enabled",
+            owner_module="M03",
+            scope_level=ScopeLevel.TENANT,
+            value_type=ValueType.BOOLEAN,
+            default_value=False,
         )
         ConfigurationValue.objects.create(
-            tenant_id=self.tenant.id, config_key=config_key, scope_type=ScopeLevel.TENANT,
-            value=True, is_active=True,
+            tenant_id=self.tenant.id,
+            config_key=config_key,
+            scope_type=ScopeLevel.TENANT,
+            value=True,
+            is_active=True,
         )
         supplier = self._create_supplier()
         assignment = AssignmentService.assign(order_id=self.order.id, supplier=supplier)
@@ -66,7 +72,9 @@ class AssignmentServiceAssignTest(BookingTestCase):
     def test_explicit_assignment_source_overrides_inference(self):
         supplier = self._create_supplier()
         assignment = AssignmentService.assign(
-            order_id=self.order.id, supplier=supplier, assignment_source=AssignmentSource.API,
+            order_id=self.order.id,
+            supplier=supplier,
+            assignment_source=AssignmentSource.API,
         )
         self.assertEqual(assignment.assignment_source, AssignmentSource.API)
 
@@ -80,7 +88,9 @@ class AssignmentServiceAssignTest(BookingTestCase):
     def test_metadata_json_is_stored(self):
         supplier = self._create_supplier()
         assignment = AssignmentService.assign(
-            order_id=self.order.id, supplier=supplier, metadata={"note": "urgent case"},
+            order_id=self.order.id,
+            supplier=supplier,
+            metadata={"note": "urgent case"},
         )
         assignment.refresh_from_db()
         self.assertEqual(assignment.metadata, {"note": "urgent case"})

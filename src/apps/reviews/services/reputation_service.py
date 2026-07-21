@@ -29,7 +29,8 @@ class ReputationService:
     @transaction.atomic
     def recalculate_reputation(cls, supplier) -> ReputationSnapshot:
         approved = Review.objects.filter(
-            supplier=supplier, moderation_status=ReviewModerationStatus.APPROVED,
+            supplier=supplier,
+            moderation_status=ReviewModerationStatus.APPROVED,
         )
         aggregate = approved.aggregate(avg=Avg("overall_rating"), count=Count("id"))
         review_count = aggregate["count"] or 0
@@ -101,7 +102,8 @@ class ReputationService:
 
         reviews = list(
             Review.objects.filter(
-                supplier=supplier, moderation_status=ReviewModerationStatus.APPROVED,
+                supplier=supplier,
+                moderation_status=ReviewModerationStatus.APPROVED,
             ).order_by("-created_at")[:limit],
         )
         reviewer_ids = [review.reviewer_person_id for review in reviews]

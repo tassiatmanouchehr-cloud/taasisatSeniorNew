@@ -32,7 +32,8 @@ class OrganizationEmptyStateTest(PublicSiteTestCase):
 
     def test_valid_filter_and_zero_results_shows_filtered_message_with_reset(self):
         response = self.client.get(
-            reverse("public_site:organization-directory"), {"tenant": self.tenant.slug, "city": "mashhad"},
+            reverse("public_site:organization-directory"),
+            {"tenant": self.tenant.slug, "city": "mashhad"},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -52,10 +53,12 @@ class OrganizationEmptyStateTest(PublicSiteTestCase):
 
     def test_reset_link_only_appears_when_filters_active(self):
         no_filter_response = self.client.get(
-            reverse("public_site:organization-directory"), {"tenant": self.tenant.slug},
+            reverse("public_site:organization-directory"),
+            {"tenant": self.tenant.slug},
         )
         filtered_response = self.client.get(
-            reverse("public_site:organization-directory"), {"tenant": self.tenant.slug, "q": "zzz-no-match"},
+            reverse("public_site:organization-directory"),
+            {"tenant": self.tenant.slug, "q": "zzz-no-match"},
         )
 
         self.assertNotContains(no_filter_response, "پاک کردن فیلترها")
@@ -72,10 +75,14 @@ class OrganizationEmptyStateTest(PublicSiteTestCase):
 
     def test_real_category_filter_with_results_still_works(self):
         other_category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="مراقبت شبانه", slug="night-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="مراقبت شبانه",
+            slug="night-care",
+            status=CatalogStatus.ACTIVE,
         )
         self._create_organization_supplier(
-            name="سازمان دسته‌بندی تست", service_category_ids=[str(other_category.id)],
+            name="سازمان دسته‌بندی تست",
+            service_category_ids=[str(other_category.id)],
         )
 
         response = self.client.get(

@@ -18,7 +18,8 @@ class FinancialDocumentImmutabilityTest(FinanceTestCase):
     def _draft_document(self):
         session = self._close_execution_session()
         return FinancialDocumentService.create_invoice_from_execution(
-            execution_session_id=session.id, items=self._invoice_items(),
+            execution_session_id=session.id,
+            items=self._invoice_items(),
         )
 
     def test_creation_still_works_normally(self):

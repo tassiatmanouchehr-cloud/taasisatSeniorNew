@@ -15,7 +15,8 @@ class PaymentCallbackServiceTest(PaymentsTestCase):
         payload = self._success_payload(self.attempt)
 
         result = PaymentCallbackService.process_callback(
-            provider_reference=self.attempt.provider_reference, payload=payload,
+            provider_reference=self.attempt.provider_reference,
+            payload=payload,
         )
 
         self.assertEqual(result.status, PaymentStatus.SUCCEEDED)
@@ -34,7 +35,8 @@ class PaymentCallbackServiceTest(PaymentsTestCase):
         payload = self._success_payload(self.attempt, status="FAILED")
 
         result = PaymentCallbackService.process_callback(
-            provider_reference=self.attempt.provider_reference, payload=payload,
+            provider_reference=self.attempt.provider_reference,
+            payload=payload,
         )
 
         self.assertEqual(result.status, PaymentStatus.FAILED)
@@ -47,10 +49,12 @@ class PaymentCallbackServiceTest(PaymentsTestCase):
         payload = self._success_payload(self.attempt)
 
         first = PaymentCallbackService.process_callback(
-            provider_reference=self.attempt.provider_reference, payload=payload,
+            provider_reference=self.attempt.provider_reference,
+            payload=payload,
         )
         second = PaymentCallbackService.process_callback(
-            provider_reference=self.attempt.provider_reference, payload=payload,
+            provider_reference=self.attempt.provider_reference,
+            payload=payload,
         )
 
         self.assertFalse(first.idempotent_replay)
@@ -58,7 +62,9 @@ class PaymentCallbackServiceTest(PaymentsTestCase):
         self.assertEqual(second.status, PaymentStatus.SUCCEEDED)
 
         self.assertEqual(
-            PaymentCallback.objects.filter(attempt=self.attempt, provider_event_id=payload["provider_event_id"]).count(),
+            PaymentCallback.objects.filter(
+                attempt=self.attempt, provider_event_id=payload["provider_event_id"]
+            ).count(),
             1,
         )
 
@@ -67,7 +73,8 @@ class PaymentCallbackServiceTest(PaymentsTestCase):
 
         with self.assertRaises(PaymentError):
             PaymentCallbackService.process_callback(
-                provider_reference=self.attempt.provider_reference, payload=payload,
+                provider_reference=self.attempt.provider_reference,
+                payload=payload,
             )
 
         self.attempt.refresh_from_db()
@@ -84,7 +91,8 @@ class PaymentCallbackServiceTest(PaymentsTestCase):
 
         with self.assertRaises(PaymentError):
             PaymentCallbackService.process_callback(
-                provider_reference=self.attempt.provider_reference, payload=payload,
+                provider_reference=self.attempt.provider_reference,
+                payload=payload,
             )
 
         self.attempt.refresh_from_db()
@@ -102,11 +110,13 @@ class PaymentCallbackServiceTest(PaymentsTestCase):
         second_payload = self._success_payload(self.attempt, status="FAILED")
         with self.assertRaises(PaymentError):
             PaymentCallbackService.process_callback(
-                provider_reference=self.attempt.provider_reference, payload=second_payload,
+                provider_reference=self.attempt.provider_reference,
+                payload=second_payload,
             )
 
         callback = PaymentCallback.objects.get(
-            attempt=self.attempt, provider_event_id=second_payload["provider_event_id"],
+            attempt=self.attempt,
+            provider_event_id=second_payload["provider_event_id"],
         )
         self.assertFalse(callback.accepted)
         self.assertIn("Invalid payment state transition", callback.rejection_reason)
@@ -138,7 +148,8 @@ class PaymentCallbackServiceTest(PaymentsTestCase):
         payload = self._success_payload(self.attempt, status="AUTHORIZED")
 
         PaymentCallbackService.process_callback(
-            provider_reference=self.attempt.provider_reference, payload=payload,
+            provider_reference=self.attempt.provider_reference,
+            payload=payload,
         )
 
         callback = PaymentCallback.objects.get(attempt=self.attempt, provider_event_id=payload["provider_event_id"])

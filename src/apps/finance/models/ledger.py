@@ -29,24 +29,40 @@ class LedgerEntry(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="ledger_entries",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="ledger_entries",
     )
     entry_group_id = models.UUIDField(
         db_index=True,
         help_text="Groups the balanced set of debit/credit entries posted together.",
     )
     party = models.ForeignKey(
-        "finance.FinancialParty", on_delete=models.PROTECT, related_name="ledger_entries",
+        "finance.FinancialParty",
+        on_delete=models.PROTECT,
+        related_name="ledger_entries",
     )
 
     source_document = models.ForeignKey(
-        "finance.FinancialDocument", on_delete=models.SET_NULL, null=True, blank=True, related_name="ledger_entries",
+        "finance.FinancialDocument",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ledger_entries",
     )
     payment_transaction = models.ForeignKey(
-        "finance.PaymentTransaction", on_delete=models.SET_NULL, null=True, blank=True, related_name="ledger_entries",
+        "finance.PaymentTransaction",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ledger_entries",
     )
     obligation = models.ForeignKey(
-        "finance.FinancialObligation", on_delete=models.SET_NULL, null=True, blank=True, related_name="ledger_entries",
+        "finance.FinancialObligation",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ledger_entries",
     )
 
     entry_type = models.CharField(max_length=10, choices=LedgerEntryType.choices)

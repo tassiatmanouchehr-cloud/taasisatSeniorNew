@@ -47,15 +47,21 @@ class Wallet(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="wallets",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="wallets",
     )
     party = models.ForeignKey(
-        "finance.FinancialParty", on_delete=models.PROTECT, related_name="internal_wallets",
+        "finance.FinancialParty",
+        on_delete=models.PROTECT,
+        related_name="internal_wallets",
     )
 
     currency = models.CharField(max_length=10, default=DEFAULT_CURRENCY)
     balance = models.DecimalField(
-        max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, default=Decimal("0"),
+        max_digits=MONEY_MAX_DIGITS,
+        decimal_places=MONEY_DECIMAL_PLACES,
+        default=Decimal("0"),
     )
     status = models.CharField(max_length=20, choices=WalletStatus.choices, default=WalletStatus.ACTIVE)
     metadata = models.JSONField(default=dict, blank=True)
@@ -79,10 +85,14 @@ class WalletTransaction(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="internal_wallet_transactions",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="internal_wallet_transactions",
     )
     wallet = models.ForeignKey(
-        "wallet.Wallet", on_delete=models.PROTECT, related_name="transactions",
+        "wallet.Wallet",
+        on_delete=models.PROTECT,
+        related_name="transactions",
     )
 
     transaction_type = models.CharField(max_length=20, choices=WalletTransactionType.choices)
@@ -119,10 +129,14 @@ class WalletBalanceSnapshot(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="wallet_balance_snapshots",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="wallet_balance_snapshots",
     )
     wallet = models.OneToOneField(
-        "wallet.Wallet", on_delete=models.CASCADE, related_name="balance_snapshot",
+        "wallet.Wallet",
+        on_delete=models.CASCADE,
+        related_name="balance_snapshot",
     )
     balance = models.DecimalField(max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES)
     transaction_count = models.PositiveIntegerField(default=0)

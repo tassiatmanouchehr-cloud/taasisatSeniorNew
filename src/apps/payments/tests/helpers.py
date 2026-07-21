@@ -22,7 +22,9 @@ class PaymentsTestCase(TestCase):
         self.party = FinancialPartyService.resolve_party_for_customer(self.customer_profile)
 
         self.intent = PaymentIntentService.create_intent(
-            payer_party=self.party, amount=Decimal("100000"), idempotency_key=f"intent-{uuid.uuid4().hex[:12]}",
+            payer_party=self.party,
+            amount=Decimal("100000"),
+            idempotency_key=f"intent-{uuid.uuid4().hex[:12]}",
         )
 
     def _create_customer(self, *, tenant, display_name="Test Customer", phone=None) -> CustomerProfile:
@@ -30,7 +32,10 @@ class PaymentsTestCase(TestCase):
         person = Person.objects.create(tenant=tenant, full_name=display_name)
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         return CustomerProfile.objects.create(
-            user=user, person=person, phone=phone, display_name=display_name,
+            user=user,
+            person=person,
+            phone=phone,
+            display_name=display_name,
         )
 
     @staticmethod

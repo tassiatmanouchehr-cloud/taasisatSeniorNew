@@ -42,9 +42,15 @@ class AuthenticatedAccessTest(PortalTestCase):
 
         self.login_as_customer()
         order = create_public_order(
-            service_category_id=self.category.id, description="x", phone="09120000000",
-            address="addr", city="tehran", customer_profile=self.customer,
-            elder_profile=self.care_recipient, created_by=self.customer.user, tenant_id=self.tenant.id,
+            service_category_id=self.category.id,
+            description="x",
+            phone="09120000000",
+            address="addr",
+            city="tehran",
+            customer_profile=self.customer,
+            elder_profile=self.care_recipient,
+            created_by=self.customer.user,
+            tenant_id=self.tenant.id,
         )
         self.client.logout()
         self.client.force_login(self.other_customer.user)

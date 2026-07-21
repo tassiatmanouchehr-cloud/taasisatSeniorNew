@@ -49,7 +49,9 @@ class WalletTenantIsolationTest(WalletTestCase):
             defaults={"owner_module": "M14", "value_type": ValueType.BOOLEAN, "scope_level": ScopeLevel.TENANT},
         )
         ConfigurationValue.objects.update_or_create(
-            tenant_id=self.tenant.id, config_key=config_key, scope_type=ScopeLevel.TENANT,
+            tenant_id=self.tenant.id,
+            config_key=config_key,
+            scope_type=ScopeLevel.TENANT,
             defaults={"value": True, "is_active": True},
         )
 
@@ -57,5 +59,6 @@ class WalletTenantIsolationTest(WalletTestCase):
         WalletTransactionService.debit(wallet_id=self.wallet.id, amount=Decimal("500"))
 
         from apps.wallet.services import WalletError
+
         with self.assertRaises(WalletError):
             WalletTransactionService.debit(wallet_id=self.other_wallet.id, amount=Decimal("500"))

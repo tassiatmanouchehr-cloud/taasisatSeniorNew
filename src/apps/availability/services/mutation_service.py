@@ -78,7 +78,10 @@ class AvailabilityMutationService:
         # own docstring for the full race this closes.
         locked_supplier = ServiceSupplier.objects.select_for_update().get(id=supplier.id)
         cls._validate_no_overlap(
-            supplier=locked_supplier, day_of_week=day_of_week, start_time=start_time, end_time=end_time,
+            supplier=locked_supplier,
+            day_of_week=day_of_week,
+            start_time=start_time,
+            end_time=end_time,
         )
 
         return ProviderWorkingWindow.objects.create(
@@ -92,7 +95,9 @@ class AvailabilityMutationService:
 
     @classmethod
     @transaction.atomic
-    def update_working_window(cls, *, window_id, start_time=None, end_time=None, is_active=None) -> ProviderWorkingWindow:
+    def update_working_window(
+        cls, *, window_id, start_time=None, end_time=None, is_active=None
+    ) -> ProviderWorkingWindow:
         # Resolve the owning supplier id with a plain read first (a window's
         # supplier never changes after creation), then lock the supplier
         # before locking the window row itself — the same supplier-then-
@@ -137,7 +142,14 @@ class AvailabilityMutationService:
     @classmethod
     @transaction.atomic
     def add_blocked_period(
-        cls, *, supplier, start_at, end_at, reason=BlockedPeriodReason.OTHER, notes="", metadata=None,
+        cls,
+        *,
+        supplier,
+        start_at,
+        end_at,
+        reason=BlockedPeriodReason.OTHER,
+        notes="",
+        metadata=None,
     ) -> AvailabilityBlockedPeriod:
         cls._validate_datetime_range(start_at, end_at)
 
@@ -170,7 +182,9 @@ class AvailabilityMutationService:
         windows are excluded: they do not count as available, so they can
         neither cause nor block an overlap."""
         existing = ProviderWorkingWindow.objects.filter(
-            supplier=supplier, day_of_week=day_of_week, is_active=True,
+            supplier=supplier,
+            day_of_week=day_of_week,
+            is_active=True,
         )
         if exclude_id is not None:
             existing = existing.exclude(id=exclude_id)

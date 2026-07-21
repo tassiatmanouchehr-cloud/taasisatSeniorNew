@@ -31,31 +31,52 @@ class PaymentTransaction(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="payment_transactions",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="payment_transactions",
     )
     source_document = models.ForeignKey(
-        "finance.FinancialDocument", on_delete=models.SET_NULL, null=True, blank=True, related_name="payments",
+        "finance.FinancialDocument",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="payments",
     )
     obligation = models.ForeignKey(
-        "finance.FinancialObligation", on_delete=models.SET_NULL, null=True, blank=True, related_name="payments",
+        "finance.FinancialObligation",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="payments",
     )
     payer_party = models.ForeignKey(
-        "finance.FinancialParty", on_delete=models.PROTECT, related_name="payments_made",
+        "finance.FinancialParty",
+        on_delete=models.PROTECT,
+        related_name="payments_made",
     )
     receiver_party = models.ForeignKey(
-        "finance.FinancialParty", on_delete=models.PROTECT, related_name="payments_received",
+        "finance.FinancialParty",
+        on_delete=models.PROTECT,
+        related_name="payments_received",
     )
 
     amount = models.DecimalField(max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES)
     currency = models.CharField(max_length=10, default=DEFAULT_CURRENCY)
     payment_method = models.CharField(max_length=20, choices=PaymentMethod.choices)
     status = models.CharField(
-        max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.INITIATED, db_index=True,
+        max_length=20,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.INITIATED,
+        db_index=True,
     )
 
     provider_reference = models.CharField(max_length=255, blank=True)
     collected_by_party = models.ForeignKey(
-        "finance.FinancialParty", on_delete=models.SET_NULL, null=True, blank=True, related_name="collected_payments",
+        "finance.FinancialParty",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="collected_payments",
     )
     occurred_at = models.DateTimeField(null=True, blank=True)
     metadata = models.JSONField(default=dict, blank=True)

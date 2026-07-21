@@ -283,11 +283,17 @@ def document_verification_review_action(request, document_id):
                 VerificationReviewService.approve(document_id=document.id, tenant_id=tenant_id, reviewer=request.user)
             elif action == DocumentReviewForm.REJECT:
                 VerificationReviewService.reject(
-                    document_id=document.id, tenant_id=tenant_id, reviewer=request.user, reason=reason,
+                    document_id=document.id,
+                    tenant_id=tenant_id,
+                    reviewer=request.user,
+                    reason=reason,
                 )
             else:
                 VerificationReviewService.request_correction(
-                    document_id=document.id, tenant_id=tenant_id, reviewer=request.user, reason=reason,
+                    document_id=document.id,
+                    tenant_id=tenant_id,
+                    reviewer=request.user,
+                    reason=reason,
                 )
         except VerificationReviewError:
             pass  # Illegal transition / missing reason — page still shows current state.
@@ -335,7 +341,8 @@ def organization_activation_detail(request, organization_id):
     tenant_id = require_admin_permission(request, permission_keys.PROFILE_ACTIVATE)
     try:
         organization = ProfileActivationService.get_organization_for_tenant(
-            organization_id=organization_id, tenant_id=tenant_id,
+            organization_id=organization_id,
+            tenant_id=tenant_id,
         )
     except AccountsError:
         raise Http404("Profile not found.") from None

@@ -110,7 +110,8 @@ class DashboardInvoiceSummaryTest(ProviderPortalTestCase):
         from apps.execution.services.session_service import ExecutionService
 
         supplier_assignment = supplier_assignment or AssignmentService.assign(
-            order_id=(order or self.order).id, supplier=self.supplier,
+            order_id=(order or self.order).id,
+            supplier=self.supplier,
         )
         session = ExecutionService.create_session(supplier_assignment=supplier_assignment)
         ExecutionService.start_session(session_id=session.id)
@@ -220,7 +221,9 @@ class DashboardAccessControlTest(ProviderPortalTestCase):
 
         person = Person.objects.create(tenant=self.tenant, full_name="Org User")
         org_user = UserAccount.objects.create_user(
-            phone=f"0912{uuid.uuid4().hex[:7]}", person=person, tenant=self.tenant,
+            phone=f"0912{uuid.uuid4().hex[:7]}",
+            person=person,
+            tenant=self.tenant,
         )
         self.client.force_login(org_user)
         response = self.client.get("/provider/")

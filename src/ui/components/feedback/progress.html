@@ -31,7 +31,7 @@
        aria-valuenow="{{ value }}"
        aria-valuemin="0"
        aria-valuemax="{{ max }}"
-       {% if label %}aria-label="{{ label }}"{% endif %}>
+       {% if label %}aria-label="{{ label }}"{% else %}aria-label="نوار پیشرفت"{% endif %}>
     <div class="h-full rounded-full transition-all duration-500 ease-out
                 {% if indeterminate %}animate-shimmer bg-gradient-to-r from-transparent via-current to-transparent bg-[length:200%_100%]{% endif %}
                 {% if variant == 'primary' %}bg-primary

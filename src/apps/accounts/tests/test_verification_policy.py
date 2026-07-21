@@ -55,7 +55,9 @@ class TenantOverrideTest(TestCase):
             },
         )
         ConfigurationValue.objects.update_or_create(
-            tenant_id=self.tenant.id, config_key=config_key, scope_type=ScopeLevel.TENANT,
+            tenant_id=self.tenant.id,
+            config_key=config_key,
+            scope_type=ScopeLevel.TENANT,
             defaults={"value": value, "is_active": True},
         )
 
@@ -155,5 +157,7 @@ class ExpiringSoonTest(TestCase):
     def test_expiring_exactly_at_window_boundary_is_expiring_soon(self):
         from apps.accounts.services.verification_policy import RequiredDocumentPolicy as Policy
 
-        doc = self._Doc(DocumentStatus.VERIFIED, timezone.now().date() + timedelta(days=Policy.EXPIRING_SOON_WINDOW_DAYS))
+        doc = self._Doc(
+            DocumentStatus.VERIFIED, timezone.now().date() + timedelta(days=Policy.EXPIRING_SOON_WINDOW_DAYS)
+        )
         self.assertTrue(RequiredDocumentPolicy.is_expiring_soon(doc))

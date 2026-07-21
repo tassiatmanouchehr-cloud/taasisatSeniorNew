@@ -142,8 +142,14 @@ class CaregiverExperienceService:
         experience.is_visible = is_visible
         experience.save(
             update_fields=[
-                "title", "organization_name", "description",
-                "start_date", "end_date", "is_current", "is_visible", "updated_at",
+                "title",
+                "organization_name",
+                "description",
+                "start_date",
+                "end_date",
+                "is_current",
+                "is_visible",
+                "updated_at",
             ],
         )
         return experience

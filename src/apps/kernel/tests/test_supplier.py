@@ -127,9 +127,7 @@ class SupplierResolverTest(TestCase):
         )
 
     def _set_marketplace_model(self, model_value):
-        ConfigurationValue.objects.filter(
-            tenant_id=self.tenant_id, config_key=self.config_key
-        ).delete()
+        ConfigurationValue.objects.filter(tenant_id=self.tenant_id, config_key=self.config_key).delete()
         ConfigurationValue.objects.create(
             tenant_id=self.tenant_id,
             config_key=self.config_key,
@@ -153,9 +151,7 @@ class SupplierResolverTest(TestCase):
 
         suppliers = SupplierResolver.get_active_suppliers(tenant_id=self.tenant_id)
         self.assertEqual(suppliers.count(), 1)
-        self.assertEqual(
-            suppliers.first().supplier_type, SupplierType.INDEPENDENT_PROVIDER
-        )
+        self.assertEqual(suppliers.first().supplier_type, SupplierType.INDEPENDENT_PROVIDER)
 
     def test_organization_only_filters_independent(self):
         self._set_marketplace_model("organization_only")
@@ -217,9 +213,8 @@ class ServiceSupplierUniqueConstraintTest(TestCase):
 
     def test_duplicate_linked_entity_pair_rejected_by_database(self):
         self._create()
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                self._create(display_name="Second Row")
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            self._create(display_name="Second Row")
 
     def test_same_id_different_linked_type_is_allowed(self):
         """The constraint is on the (id, type) pair together — the same
@@ -271,6 +266,7 @@ class ServiceSupplierUniqueConstraintConcurrencyTest(TransactionTestCase):
 
         self.assertEqual(errors, [], f"neither racing call should raise unhandled: {errors}")
         count = ServiceSupplier.objects.filter(
-            linked_entity_id=self.linked_entity_id, linked_entity_type="RaceProfile",
+            linked_entity_id=self.linked_entity_id,
+            linked_entity_type="RaceProfile",
         ).count()
         self.assertEqual(count, 1, "concurrent get_or_create must produce exactly one ServiceSupplier row")

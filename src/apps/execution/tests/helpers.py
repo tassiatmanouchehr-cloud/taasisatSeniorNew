@@ -24,7 +24,10 @@ class ExecutionTestCase(TestCase):
         self.other_tenant = Tenant.objects.create(slug=f"execution-other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
 
         self.category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
 
         self.order = Order.objects.create(

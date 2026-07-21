@@ -30,7 +30,9 @@ def list_administered_organizations(user):
     from ..models.profiles import OrganizationMembership, OrgMembershipRole, OrgMembershipStatus
 
     membership_org_ids = OrganizationMembership.objects.filter(
-        user=user, role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+        user=user,
+        role_type=OrgMembershipRole.ADMIN,
+        status=OrgMembershipStatus.ACTIVE,
     ).values_list("organization_id", flat=True)
 
     from ..models.profiles import OrganizationProfile

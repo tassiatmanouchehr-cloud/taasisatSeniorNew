@@ -21,7 +21,8 @@ class ReviewerOwnershipAuthorizationTest(ReviewsTestCase):
     def test_orders_own_customer_can_review(self):
         order = self._complete_order()
         review = ReviewSubmissionService.submit_review(
-            order=order, reviewer_person_id=self.customer_profile.person_id,
+            order=order,
+            reviewer_person_id=self.customer_profile.person_id,
             dimension_scores=self._dimension_scores(),
         )
         self.assertEqual(review.reviewer_person_id, self.customer_profile.person_id)
@@ -32,7 +33,8 @@ class ReviewerOwnershipAuthorizationTest(ReviewsTestCase):
 
         with self.assertRaises(ReviewError):
             ReviewSubmissionService.submit_review(
-                order=order, reviewer_person_id=other_customer.person_id,
+                order=order,
+                reviewer_person_id=other_customer.person_id,
                 dimension_scores=self._dimension_scores(),
             )
 
@@ -40,14 +42,19 @@ class ReviewerOwnershipAuthorizationTest(ReviewsTestCase):
         """An operator-created order with no customer_profile set must fail
         closed, not crash on a None dereference."""
         order_without_customer = self._create_order(
-            tenant=self.tenant, category=self.category, customer_profile=None,
+            tenant=self.tenant,
+            category=self.category,
+            customer_profile=None,
         )
         supplier_assignment = self._assign_and_prepare(order_without_customer)
-        order_without_customer = self._complete_order(order=order_without_customer, supplier_assignment=supplier_assignment)
+        order_without_customer = self._complete_order(
+            order=order_without_customer, supplier_assignment=supplier_assignment
+        )
 
         with self.assertRaises(ReviewError):
             ReviewSubmissionService.submit_review(
-                order=order_without_customer, reviewer_person_id=self.customer_profile.person_id,
+                order=order_without_customer,
+                reviewer_person_id=self.customer_profile.person_id,
                 dimension_scores=self._dimension_scores(),
             )
 

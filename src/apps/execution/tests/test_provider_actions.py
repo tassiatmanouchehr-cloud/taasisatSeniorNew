@@ -18,18 +18,28 @@ class ProviderExecutionActionTestCase(TestCase):
     def setUp(self):
         self.tenant = Tenant.objects.create(slug=f"provexec-{uuid.uuid4().hex[:8]}", name="Provider Exec Tenant")
         self.category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
         self.order = Order.objects.create(
-            tenant=self.tenant, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
-            service_category=self.category, description="x", city="tehran", address="addr", phone="0912",
+            tenant=self.tenant,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.NEW,
+            service_category=self.category,
+            description="x",
+            city="tehran",
+            address="addr",
+            phone="0912",
         )
         self.provider_user, self.supplier = self._create_provider()
         self.other_provider_user, self.other_supplier = self._create_provider(phone="09123334455")
 
         self.assignment = AssignmentService.assign(order_id=self.order.id, supplier=self.supplier)
         self.session = ExecutionService.create_session(
-            supplier_assignment=self.assignment, execution_source=ExecutionSource.BOOKING,
+            supplier_assignment=self.assignment,
+            execution_source=ExecutionSource.BOOKING,
         )
 
     def _create_provider(self, *, phone=None):
@@ -83,19 +93,37 @@ class CrossTenantExecutionIsolationTest(TestCase):
         self.tenant_b = Tenant.objects.create(slug=f"tenb-{uuid.uuid4().hex[:8]}", name="Tenant B")
 
         self.category_a = ServiceCategory.objects.create(
-            tenant=self.tenant_a, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant_a,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
         self.category_b = ServiceCategory.objects.create(
-            tenant=self.tenant_b, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant_b,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
 
         self.order_a = Order.objects.create(
-            tenant=self.tenant_a, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
-            service_category=self.category_a, description="x", city="tehran", address="addr", phone="0912",
+            tenant=self.tenant_a,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.NEW,
+            service_category=self.category_a,
+            description="x",
+            city="tehran",
+            address="addr",
+            phone="0912",
         )
         self.order_b = Order.objects.create(
-            tenant=self.tenant_b, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
-            service_category=self.category_b, description="x", city="tehran", address="addr", phone="0912",
+            tenant=self.tenant_b,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.NEW,
+            service_category=self.category_b,
+            description="x",
+            city="tehran",
+            address="addr",
+            phone="0912",
         )
 
         self.provider_a, self.supplier_a = self._create_provider(tenant=self.tenant_a, phone="09121110003")
@@ -104,10 +132,12 @@ class CrossTenantExecutionIsolationTest(TestCase):
         self.assignment_a = AssignmentService.assign(order_id=self.order_a.id, supplier=self.supplier_a)
         self.assignment_b = AssignmentService.assign(order_id=self.order_b.id, supplier=self.supplier_b)
         self.session_a = ExecutionService.create_session(
-            supplier_assignment=self.assignment_a, execution_source=ExecutionSource.BOOKING,
+            supplier_assignment=self.assignment_a,
+            execution_source=ExecutionSource.BOOKING,
         )
         self.session_b = ExecutionService.create_session(
-            supplier_assignment=self.assignment_b, execution_source=ExecutionSource.BOOKING,
+            supplier_assignment=self.assignment_b,
+            execution_source=ExecutionSource.BOOKING,
         )
 
     def _create_provider(self, *, tenant, phone):
@@ -124,7 +154,8 @@ class CrossTenantExecutionIsolationTest(TestCase):
         ProviderExecutionService.start_visit(session_id=self.session_b.id, actor=self.provider_b)
 
         results = ProviderExecutionQueryService.list_active_for_supplier(
-            supplier=self.supplier_a, tenant_id=self.tenant_a.id,
+            supplier=self.supplier_a,
+            tenant_id=self.tenant_a.id,
         )
         self.assertEqual([s.id for s in results], [self.session_a.id])
 
@@ -132,7 +163,9 @@ class CrossTenantExecutionIsolationTest(TestCase):
         from apps.execution.services.queries import ProviderExecutionQueryService
 
         result = ProviderExecutionQueryService.get_for_order_and_supplier(
-            order_id=self.order_b.id, supplier=self.supplier_a, tenant_id=self.tenant_a.id,
+            order_id=self.order_b.id,
+            supplier=self.supplier_a,
+            tenant_id=self.tenant_a.id,
         )
         self.assertIsNone(result)
 

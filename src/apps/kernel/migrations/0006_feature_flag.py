@@ -10,7 +10,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("kernel", "0005_configuration"),
     ]
@@ -24,8 +23,33 @@ class Migration(migrations.Migration):
                 ("key", models.CharField(max_length=200)),
                 ("name", models.CharField(max_length=255)),
                 ("description", models.TextField(blank=True)),
-                ("flag_type", models.CharField(choices=[("boolean", "Boolean (on/off)"), ("percentage", "Percentage Rollout"), ("actor_list", "Actor Allowlist"), ("rule_based", "Rule-Based (JSON rules)")], default="boolean", max_length=20)),
-                ("status", models.CharField(choices=[("draft", "Draft"), ("enabled", "Enabled"), ("disabled", "Disabled"), ("archived", "Archived")], db_index=True, default="draft", max_length=20)),
+                (
+                    "flag_type",
+                    models.CharField(
+                        choices=[
+                            ("boolean", "Boolean (on/off)"),
+                            ("percentage", "Percentage Rollout"),
+                            ("actor_list", "Actor Allowlist"),
+                            ("rule_based", "Rule-Based (JSON rules)"),
+                        ],
+                        default="boolean",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("draft", "Draft"),
+                            ("enabled", "Enabled"),
+                            ("disabled", "Disabled"),
+                            ("archived", "Archived"),
+                        ],
+                        db_index=True,
+                        default="draft",
+                        max_length=20,
+                    ),
+                ),
                 ("is_enabled", models.BooleanField(default=False)),
                 ("percentage", models.IntegerField(default=0)),
                 ("actor_allowlist", models.JSONField(blank=True, default=list)),

@@ -10,13 +10,13 @@
 # unrelated pre-existing migration drift." Only CaregiverSkill/
 # CaregiverExperience (Phase 2.1's own new models) remain below.
 
-import django.db.models.deletion
 import uuid
+
+import django.db.models.deletion
 from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("accounts", "0005_add_correction_required_document_status"),
     ]
@@ -97,11 +97,7 @@ class Migration(migrations.Migration):
             options={
                 "db_table": "accounts_caregiver_skill",
                 "ordering": ["display_order", "created_at"],
-                "constraints": [
-                    models.UniqueConstraint(
-                        fields=("caregiver", "name"), name="uq_caregiver_skill_name"
-                    )
-                ],
+                "constraints": [models.UniqueConstraint(fields=("caregiver", "name"), name="uq_caregiver_skill_name")],
             },
         ),
     ]

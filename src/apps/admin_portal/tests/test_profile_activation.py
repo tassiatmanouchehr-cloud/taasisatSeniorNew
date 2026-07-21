@@ -29,9 +29,16 @@ class ProfileActivationViewsTestCase(AdminPortalTestCase):
         person = Person.objects.create(tenant=tenant, full_name=full_name)
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         return CaregiverProfile.objects.create(
-            user=user, person=person, phone=phone, display_name=full_name,
-            city="tehran", specialty="elderly-care", bio="Experienced caregiver.",
-            years_experience=5, service_radius_km=10, status=status,
+            user=user,
+            person=person,
+            phone=phone,
+            display_name=full_name,
+            city="tehran",
+            specialty="elderly-care",
+            bio="Experienced caregiver.",
+            years_experience=5,
+            service_radius_km=10,
+            status=status,
         )
 
     def _create_organization(self, *, tenant, name="Test Org", status=ProfileStatus.DRAFT) -> OrganizationProfile:
@@ -39,9 +46,16 @@ class ProfileActivationViewsTestCase(AdminPortalTestCase):
         person = Person.objects.create(tenant=tenant, full_name=f"{name} Admin")
         admin_user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         return OrganizationProfile.objects.create(
-            name=name, code=f"ORG-{uuid.uuid4().hex[:6].upper()}", admin_user=admin_user, tenant=tenant,
-            city="tehran", phone="09120000000", address="Some address",
-            description="A senior-care company.", company_type="home_care", status=status,
+            name=name,
+            code=f"ORG-{uuid.uuid4().hex[:6].upper()}",
+            admin_user=admin_user,
+            tenant=tenant,
+            city="tehran",
+            phone="09120000000",
+            address="Some address",
+            description="A senior-care company.",
+            company_type="home_care",
+            status=status,
         )
 
     def _approve_required_caregiver_documents(self):
@@ -134,7 +148,9 @@ class ActivateActionTest(ProfileActivationViewsTestCase):
         self.client.post(f"/admin-portal/verification/caregivers/{self.caregiver.id}/activate/")
         self.assertFalse(
             AuditLog.objects.filter(
-                tenant_id=self.tenant.id, resource_type="CaregiverProfile", resource_id=self.caregiver.id,
+                tenant_id=self.tenant.id,
+                resource_type="CaregiverProfile",
+                resource_id=self.caregiver.id,
                 action="accounts.profile.activated",
             ).exists(),
             "self-activation must not be permitted, even with the permission granted",

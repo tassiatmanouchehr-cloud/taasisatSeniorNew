@@ -39,8 +39,11 @@ class NotificationHandlersDirectTest(TestCase):
     def _event(self, event_type, **payload_extra):
         payload = {"recipient_id": str(self.recipient_id), **payload_extra}
         return DomainEvent(
-            event_type=event_type, tenant_id=self.tenant.id,
-            aggregate_type="Order", aggregate_id=self.aggregate_id, payload=payload,
+            event_type=event_type,
+            tenant_id=self.tenant.id,
+            aggregate_type="Order",
+            aggregate_id=self.aggregate_id,
+            payload=payload,
         )
 
     def test_handle_order_created_creates_in_app_notification(self):
@@ -83,9 +86,12 @@ class NotificationHandlersDirectTest(TestCase):
     def test_handler_falls_back_to_actor_id_when_no_recipient_in_payload(self):
         actor_id = uuid.uuid4()
         event = DomainEvent(
-            event_type=ORDER_CREATED, tenant_id=self.tenant.id,
-            aggregate_type="Order", aggregate_id=self.aggregate_id,
-            payload={}, actor_id=actor_id,
+            event_type=ORDER_CREATED,
+            tenant_id=self.tenant.id,
+            aggregate_type="Order",
+            aggregate_id=self.aggregate_id,
+            payload={},
+            actor_id=actor_id,
         )
         handle_order_created(event)
 
@@ -94,8 +100,11 @@ class NotificationHandlersDirectTest(TestCase):
 
     def test_handler_skips_silently_when_no_recipient_available(self):
         event = DomainEvent(
-            event_type=ORDER_CREATED, tenant_id=self.tenant.id,
-            aggregate_type="Order", aggregate_id=self.aggregate_id, payload={},
+            event_type=ORDER_CREATED,
+            tenant_id=self.tenant.id,
+            aggregate_type="Order",
+            aggregate_id=self.aggregate_id,
+            payload={},
         )
         handle_order_created(event)  # must not raise
 
@@ -110,8 +119,10 @@ class NotificationHandlersDirectTest(TestCase):
     def test_handler_respects_tenant_isolation(self):
         other_tenant = Tenant.objects.create(slug=f"handler-other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
         event = DomainEvent(
-            event_type=ORDER_CREATED, tenant_id=other_tenant.id,
-            aggregate_type="Order", aggregate_id=self.aggregate_id,
+            event_type=ORDER_CREATED,
+            tenant_id=other_tenant.id,
+            aggregate_type="Order",
+            aggregate_id=self.aggregate_id,
             payload={"recipient_id": str(self.recipient_id)},
         )
         handle_order_created(event)
@@ -129,8 +140,10 @@ class NotificationHandlersEndToEndTest(TestCase):
 
     def _publish(self, event_type):
         event = DomainEvent(
-            event_type=event_type, tenant_id=self.tenant.id,
-            aggregate_type="Order", aggregate_id=uuid.uuid4(),
+            event_type=event_type,
+            tenant_id=self.tenant.id,
+            aggregate_type="Order",
+            aggregate_id=uuid.uuid4(),
             payload={"recipient_id": str(self.recipient_id)},
         )
         publish(event)
@@ -145,8 +158,11 @@ class NotificationHandlersEndToEndTest(TestCase):
 
     def test_publish_unknown_event_type_creates_no_notification(self):
         event = DomainEvent(
-            event_type="SomeUnhandledEvent", tenant_id=self.tenant.id,
-            aggregate_type="Order", aggregate_id=uuid.uuid4(), payload={},
+            event_type="SomeUnhandledEvent",
+            tenant_id=self.tenant.id,
+            aggregate_type="Order",
+            aggregate_id=uuid.uuid4(),
+            payload={},
         )
         publish(event)  # must not raise
         self.assertEqual(Notification.objects.filter(tenant=self.tenant).count(), 0)

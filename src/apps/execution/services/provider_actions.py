@@ -47,9 +47,13 @@ class ProviderExecutionService:
 
         supplier = resolve_supplier_for_user(actor)
         try:
-            session = ExecutionSession.objects.for_tenant(supplier.tenant_id).select_related(
-                "supplier_assignment",
-            ).get(id=session_id)
+            session = (
+                ExecutionSession.objects.for_tenant(supplier.tenant_id)
+                .select_related(
+                    "supplier_assignment",
+                )
+                .get(id=session_id)
+            )
         except ExecutionSession.DoesNotExist:
             raise ProviderExecutionActionError("Visit not found.")
 

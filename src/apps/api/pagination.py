@@ -26,7 +26,9 @@ class Page:
     has_more: bool = False
 
 
-def parse_pagination_params(query_params, *, default_limit: int = DEFAULT_LIMIT, max_limit: int = MAX_LIMIT) -> tuple[int, int]:
+def parse_pagination_params(
+    query_params, *, default_limit: int = DEFAULT_LIMIT, max_limit: int = MAX_LIMIT
+) -> tuple[int, int]:
     """Parses limit/offset from a request's GET-style query params, safely bounded."""
     raw_limit = query_params.get("limit")
     raw_offset = query_params.get("offset")
@@ -66,7 +68,7 @@ def paginate(items, *, limit: int = DEFAULT_LIMIT, offset: int = 0, max_limit: i
     offset = max(offset, 0)
 
     total_count = items.count() if isinstance(items, QuerySet) else len(items)
-    results = tuple(items[offset:offset + limit])
+    results = tuple(items[offset : offset + limit])
     has_more = (offset + limit) < total_count
 
     return Page(results=results, limit=limit, offset=offset, total_count=total_count, has_more=has_more)

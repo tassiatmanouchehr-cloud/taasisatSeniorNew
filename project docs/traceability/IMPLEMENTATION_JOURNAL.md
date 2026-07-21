@@ -4678,3 +4678,92 @@ marked as started by this entry. A dedicated Phase 5 Architecture Assessment (co
 still the next roadmap-ordered milestone, per `project docs/02_PROJECT_CONTINUATION.md` and
 `project docs/03_NEXT_TASK.md` — not started by this PR, and not to be started without an
 explicit instruction authorizing it.
+
+
+---
+
+## Accessibility Remediation — Shared Component and Showcase Violations
+
+**Date:** July 20, 2026
+**Status:** IMPLEMENTED (PR pending)
+**Branch:** `fix/accessibility-remediation`
+**Trigger:** CI `visual-regression` job failing with 68 test failures (66 accessibility + 2 mobile navigation) inherited from main since CI was first activated (PR #26).
+
+### Root Causes Identified
+
+All failures predate PR #32 and PR #33. They became visible only after CI was moved to the
+correct path (PR #26) and WebKit was installed (PR #28).
+
+1. **Theme toggle missing accessible name (universal, all 14 showcase pages × all 7 projects):**
+   `src/templates/showcase/base.html` used Alpine.js `:aria-label` dynamic binding on the
+   theme toggle button with no static HTML fallback. Before Alpine initializes, the button
+   (containing only SVG icons) has no accessible name — axe-core `button-name` violation
+   (critical).
+
+2. **Avatar dark-mode contrast failures (avatars page, dark-mode projects):**
+   `src/ui/components/data/avatar.html` paired `dark:bg-primary-50` (#172554) with
+   `dark:text-primary-400` (#2563eb) = 2.84:1 ratio (FAIL, needs 4.5:1), and
+   `dark:bg-secondary-200` (#1e293b) with `dark:text-secondary-400` (#475569) = 1.93:1
+   (FAIL). Same pattern in `avatar_group.html`. axe-core `color-contrast` (serious).
+
+3. **Progress bar missing accessible name (upload page):**
+   `src/templates/showcase/upload.html` included the progress component without a `label`
+   prop, rendering `role="progressbar"` with no `aria-label`. axe-core `aria-progressbar-name`
+   (critical).
+
+4. **Placeholder avatar missing accessible name:**
+   `src/ui/components/data/avatar.html` conditionally added `aria-label` only when `name`
+   was provided, but always rendered `role="img"` — a placeholder avatar without a name had
+   no accessible name. axe-core `role-img-alt` (serious).
+
+5. **Mobile navigation test timing (WebKit only, 2 failures):**
+   `src/tests/visual/specs/mobile_navigation.spec.js` "clicking the toggle again closes the
+   menu" failed in WebKit (mobile-light-rtl, mobile-dark-rtl). The test asserted
+   `toBeHidden()` before `aria-expanded="false"`, but Alpine updates the attribute
+   synchronously (before the x-transition leave animation completes). In WebKit, the
+   assertion order raced the transition.
+
+### Fixes Applied
+
+| File | Change | Layer |
+|------|--------|-------|
+| `src/templates/showcase/base.html` | Added static `aria-label="تغییر تم"` fallback on theme toggle; Alpine overrides once initialized | Shared layout |
+| `src/ui/components/data/avatar.html` | Changed `dark:text-primary-400` → `dark:text-primary-700` (8.15:1); `dark:text-secondary-400` → `dark:text-secondary-600` (5.71:1); added fallback `aria-label` for unnamed/placeholder avatars | Shared component |
+| `src/ui/components/data/avatar_group.html` | Changed `dark:text-primary-400` → `dark:text-primary-700` | Shared component |
+| `src/ui/components/feedback/progress.html` | Added fallback `aria-label="نوار پیشرفت"` when no label prop provided | Shared component |
+| `src/templates/showcase/upload.html` | Added `label="پیشرفت آپلود"` to progress bar include | Page template |
+| `src/tests/visual/specs/mobile_navigation.spec.js` | Added `aria-expanded="true"` assertion after open; reordered close assertions to match DOM update sequence | Test adjustment |
+
+### What Did NOT Change
+
+- No Python code, model, migration, view, route, or permission modified
+- No business workflow, financial logic, or domain behavior affected
+- No visual baseline PNG changed or regenerated
+- No theme token value changed (component-level class fix, not token redesign)
+- No test weakened — all assertions retained, only timing order corrected
+- No inline-style finding addressed (pre-existing, out of scope)
+- No Ruff finding addressed (pre-existing, out of scope)
+
+### Validation
+
+- `git diff --check`: PASS
+- `python manage.py check`: PASS (0 issues)
+- `makemigrations --check`: exits 1 — pre-existing RISK-009 cosmetic drift only (unchanged)
+- `validate_rtl.py`: PASS (0 violations)
+- `validate_tokens.py`: PASS (0 violations)
+- `validate_themes.py`: PASS (83/83 vars consistent)
+- `validate_components.py`: FAILS on 2 pre-existing inline-style findings in
+  `caregiver_profile.html` — not introduced by this PR, documented, out of scope
+
+### Visual Baseline Status
+
+No baseline PNG was modified. The dark-mode contrast fix (avatar text color change) will
+produce legitimate visual differences in dark-mode avatar screenshots. Baseline regeneration
+remains pending as a separate dedicated phase after CI confirms accessibility tests pass.
+
+### Remaining Accessibility Debt
+
+- Navigation showcase tabs lack `role="tablist"`/`role="tab"` ARIA semantics (best-practice,
+  not critical/serious — does not currently fail CI)
+- `validate_components.py` inline-style findings (2, pre-existing, out of scope)
+- Visual baseline regeneration required after this PR merges (dark-mode avatar color change)

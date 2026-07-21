@@ -41,22 +41,32 @@ class _FixtureMixin:
 
         self.admin_user = self._make_user(tenant=self.tenant, phone="09150000001")
         self.organization = OrganizationProfile.objects.create(
-            name="Care Co", code=f"carecode{uuid.uuid4().hex[:6]}", admin_user=self.admin_user,
-            tenant=self.tenant, status=ProfileStatus.ACTIVE,
+            name="Care Co",
+            code=f"carecode{uuid.uuid4().hex[:6]}",
+            admin_user=self.admin_user,
+            tenant=self.tenant,
+            status=ProfileStatus.ACTIVE,
         )
         OrganizationMembership.objects.create(
-            organization=self.organization, user=self.admin_user,
-            role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+            organization=self.organization,
+            user=self.admin_user,
+            role_type=OrgMembershipRole.ADMIN,
+            status=OrgMembershipStatus.ACTIVE,
         )
 
         self.other_admin_user = self._make_user(tenant=self.tenant, phone="09150000002")
         self.other_organization = OrganizationProfile.objects.create(
-            name="Other Co", code=f"othercode{uuid.uuid4().hex[:6]}", admin_user=self.other_admin_user,
-            tenant=self.tenant, status=ProfileStatus.ACTIVE,
+            name="Other Co",
+            code=f"othercode{uuid.uuid4().hex[:6]}",
+            admin_user=self.other_admin_user,
+            tenant=self.tenant,
+            status=ProfileStatus.ACTIVE,
         )
         OrganizationMembership.objects.create(
-            organization=self.other_organization, user=self.other_admin_user,
-            role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+            organization=self.other_organization,
+            user=self.other_admin_user,
+            role_type=OrgMembershipRole.ADMIN,
+            status=OrgMembershipStatus.ACTIVE,
         )
 
         self.caregiver_user, self.caregiver = self._make_caregiver(tenant=self.tenant, phone="09150000010")
@@ -69,7 +79,10 @@ class _FixtureMixin:
         person = Person.objects.create(tenant=tenant, full_name="Caregiver")
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         caregiver = CaregiverProfile.objects.create(
-            user=user, person=person, phone=phone, display_name="Caregiver",
+            user=user,
+            person=person,
+            phone=phone,
+            display_name="Caregiver",
         )
         return user, caregiver
 
@@ -79,7 +92,9 @@ class JoinByCodeTest(_FixtureMixin, TestCase):
         self._build_fixture()
 
     def test_valid_code_creates_pending_request(self):
-        req = svc.submit_join_request(caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id)
+        req = svc.submit_join_request(
+            caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id
+        )
         self.assertEqual(req.status, AffiliationStatus.PENDING)
         self.assertEqual(req.organization, self.organization)
 
@@ -91,18 +106,24 @@ class JoinByCodeTest(_FixtureMixin, TestCase):
         self.organization.status = ProfileStatus.DRAFT
         self.organization.save(update_fields=["status"])
         with self.assertRaisesMessage(AccountsError, "Invalid company code."):
-            svc.submit_join_request(caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id)
+            svc.submit_join_request(
+                caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id
+            )
 
     def test_cross_tenant_code_is_denied(self):
         with self.assertRaises(AccountsError):
             svc.submit_join_request(
-                caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.other_tenant.id,
+                caregiver_profile=self.caregiver,
+                code=self.organization.code,
+                tenant_id=self.other_tenant.id,
             )
 
     def test_duplicate_pending_request_refused(self):
         svc.submit_join_request(caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id)
         with self.assertRaises(AccountsError):
-            svc.submit_join_request(caregiver_profile=self.caregiver, code=self.other_organization.code, tenant_id=self.tenant.id)
+            svc.submit_join_request(
+                caregiver_profile=self.caregiver, code=self.other_organization.code, tenant_id=self.tenant.id
+            )
 
     def test_duplicate_pending_request_refused_idempotently_under_constraint(self):
         """The uniq_pending_affiliation_request_per_caregiver DB constraint
@@ -121,10 +142,14 @@ class JoinByCodeTest(_FixtureMixin, TestCase):
             )
 
     def test_duplicate_active_membership_refused(self):
-        req = svc.submit_join_request(caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id)
+        req = svc.submit_join_request(
+            caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id
+        )
         svc.approve_affiliation_request(request_id=req.id, reviewed_by=self.admin_user)
         with self.assertRaises(AccountsError):
-            svc.submit_join_request(caregiver_profile=self.caregiver, code=self.other_organization.code, tenant_id=self.tenant.id)
+            svc.submit_join_request(
+                caregiver_profile=self.caregiver, code=self.other_organization.code, tenant_id=self.tenant.id
+            )
 
     def test_preview_shows_only_public_safe_fields(self):
         preview = svc.preview_join_code_organization(code=self.organization.code, tenant_id=self.tenant.id)
@@ -135,13 +160,17 @@ class JoinByCodeTest(_FixtureMixin, TestCase):
         self.assertIsNone(svc.preview_join_code_organization(code="bad-code", tenant_id=self.tenant.id))
 
     def test_cancel_own_pending_request(self):
-        req = svc.submit_join_request(caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id)
+        req = svc.submit_join_request(
+            caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id
+        )
         svc.cancel_affiliation_request(request_id=req.id, caregiver_profile=self.caregiver)
         req.refresh_from_db()
         self.assertEqual(req.status, AffiliationStatus.CANCELLED)
 
     def test_cannot_cancel_another_caregivers_request(self):
-        req = svc.submit_join_request(caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id)
+        req = svc.submit_join_request(
+            caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id
+        )
         _, other_caregiver = self._make_caregiver(tenant=self.tenant, phone="09150000011")
         with self.assertRaises(AccountsError):
             svc.cancel_affiliation_request(request_id=req.id, caregiver_profile=other_caregiver)
@@ -151,7 +180,9 @@ class ApprovalRejectionTest(_FixtureMixin, TestCase):
     def setUp(self):
         self._build_fixture()
         self.request = svc.submit_join_request(
-            caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id,
+            caregiver_profile=self.caregiver,
+            code=self.organization.code,
+            tenant_id=self.tenant.id,
         )
 
     def test_approve_activates_membership_and_affiliates_caregiver(self):
@@ -174,7 +205,9 @@ class ApprovalRejectionTest(_FixtureMixin, TestCase):
         and untouched, it is never reactivated."""
         svc.approve_affiliation_request(request_id=self.request.id, reviewed_by=self.admin_user)
         first_membership = OrganizationMembership.objects.get(
-            organization=self.organization, user=self.caregiver_user, status=OrgMembershipStatus.ACTIVE,
+            organization=self.organization,
+            user=self.caregiver_user,
+            status=OrgMembershipStatus.ACTIVE,
         )
         svc.terminate_membership(membership_id=first_membership.id, terminated_by=self.admin_user, reason="Ended.")
         first_membership.refresh_from_db()
@@ -183,12 +216,15 @@ class ApprovalRejectionTest(_FixtureMixin, TestCase):
         self.assertEqual(first_membership.closure_reason, AffiliationClosureReason.TERMINATED_BY_COMPANY)
 
         second_request = svc.submit_join_request(
-            caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id,
+            caregiver_profile=self.caregiver,
+            code=self.organization.code,
+            tenant_id=self.tenant.id,
         )
         svc.approve_affiliation_request(request_id=second_request.id, reviewed_by=self.admin_user)
 
         rows = OrganizationMembership.objects.filter(
-            organization=self.organization, user=self.caregiver_user,
+            organization=self.organization,
+            user=self.caregiver_user,
         ).order_by("created_at")
         self.assertEqual(rows.count(), 2)
 
@@ -211,18 +247,24 @@ class InvitationTest(_FixtureMixin, TestCase):
 
     def test_invite_creates_pending_membership(self):
         membership = svc.invite_caregiver(
-            organization=self.organization, caregiver_phone=self.caregiver.phone, invited_by=self.admin_user,
+            organization=self.organization,
+            caregiver_phone=self.caregiver.phone,
+            invited_by=self.admin_user,
         )
         self.assertEqual(membership.status, OrgMembershipStatus.PENDING)
         self.assertEqual(membership.invited_by, self.admin_user)
 
     def test_invite_unknown_phone_refused(self):
         with self.assertRaises(AccountsError):
-            svc.invite_caregiver(organization=self.organization, caregiver_phone="09199999999", invited_by=self.admin_user)
+            svc.invite_caregiver(
+                organization=self.organization, caregiver_phone="09199999999", invited_by=self.admin_user
+            )
 
     def test_accept_invitation_activates_and_affiliates(self):
         membership = svc.invite_caregiver(
-            organization=self.organization, caregiver_phone=self.caregiver.phone, invited_by=self.admin_user,
+            organization=self.organization,
+            caregiver_phone=self.caregiver.phone,
+            invited_by=self.admin_user,
         )
         svc.accept_invitation(membership_id=membership.id, caregiver_profile=self.caregiver)
         membership.refresh_from_db()
@@ -232,7 +274,9 @@ class InvitationTest(_FixtureMixin, TestCase):
 
     def test_decline_invitation_leaves_caregiver_independent(self):
         membership = svc.invite_caregiver(
-            organization=self.organization, caregiver_phone=self.caregiver.phone, invited_by=self.admin_user,
+            organization=self.organization,
+            caregiver_phone=self.caregiver.phone,
+            invited_by=self.admin_user,
         )
         svc.decline_invitation(membership_id=membership.id, caregiver_profile=self.caregiver)
         membership.refresh_from_db()
@@ -241,7 +285,9 @@ class InvitationTest(_FixtureMixin, TestCase):
 
     def test_other_caregiver_cannot_accept_invitation(self):
         membership = svc.invite_caregiver(
-            organization=self.organization, caregiver_phone=self.caregiver.phone, invited_by=self.admin_user,
+            organization=self.organization,
+            caregiver_phone=self.caregiver.phone,
+            invited_by=self.admin_user,
         )
         _, other_caregiver = self._make_caregiver(tenant=self.tenant, phone="09150000012")
         with self.assertRaises(AccountsError):
@@ -249,7 +295,9 @@ class InvitationTest(_FixtureMixin, TestCase):
 
     def test_other_caregiver_cannot_decline_invitation(self):
         membership = svc.invite_caregiver(
-            organization=self.organization, caregiver_phone=self.caregiver.phone, invited_by=self.admin_user,
+            organization=self.organization,
+            caregiver_phone=self.caregiver.phone,
+            invited_by=self.admin_user,
         )
         _, other_caregiver = self._make_caregiver(tenant=self.tenant, phone="09150000013")
         with self.assertRaises(AccountsError):
@@ -257,28 +305,39 @@ class InvitationTest(_FixtureMixin, TestCase):
 
     def test_company_cancels_own_invitation(self):
         membership = svc.invite_caregiver(
-            organization=self.organization, caregiver_phone=self.caregiver.phone, invited_by=self.admin_user,
+            organization=self.organization,
+            caregiver_phone=self.caregiver.phone,
+            invited_by=self.admin_user,
         )
         svc.cancel_invitation(membership_id=membership.id, cancelled_by=self.admin_user)
         membership.refresh_from_db()
         self.assertEqual(membership.status, OrgMembershipStatus.REMOVED)
 
     def test_invite_when_already_actively_affiliated_elsewhere_refused(self):
-        req = svc.submit_join_request(caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id)
+        req = svc.submit_join_request(
+            caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id
+        )
         svc.approve_affiliation_request(request_id=req.id, reviewed_by=self.admin_user)
         with self.assertRaises(AccountsError):
             svc.invite_caregiver(
-                organization=self.other_organization, caregiver_phone=self.caregiver.phone, invited_by=self.other_admin_user,
+                organization=self.other_organization,
+                caregiver_phone=self.caregiver.phone,
+                invited_by=self.other_admin_user,
             )
 
     def test_duplicate_pending_invitation_rejected_idempotently(self):
-        svc.invite_caregiver(organization=self.organization, caregiver_phone=self.caregiver.phone, invited_by=self.admin_user)
+        svc.invite_caregiver(
+            organization=self.organization, caregiver_phone=self.caregiver.phone, invited_by=self.admin_user
+        )
         with self.assertRaises(AccountsError):
             svc.invite_caregiver(
-                organization=self.organization, caregiver_phone=self.caregiver.phone, invited_by=self.admin_user,
+                organization=self.organization,
+                caregiver_phone=self.caregiver.phone,
+                invited_by=self.admin_user,
             )
         self.assertEqual(
-            OrganizationMembership.objects.filter(organization=self.organization, user=self.caregiver_user).count(), 1,
+            OrganizationMembership.objects.filter(organization=self.organization, user=self.caregiver_user).count(),
+            1,
         )
 
     def test_terminate_reinvite_accept_creates_two_separate_membership_records(self):
@@ -287,7 +346,9 @@ class InvitationTest(_FixtureMixin, TestCase):
         records; the first remains terminal and unchanged; the second
         becomes active."""
         first_membership = svc.invite_caregiver(
-            organization=self.organization, caregiver_phone=self.caregiver.phone, invited_by=self.admin_user,
+            organization=self.organization,
+            caregiver_phone=self.caregiver.phone,
+            invited_by=self.admin_user,
         )
         svc.accept_invitation(membership_id=first_membership.id, caregiver_profile=self.caregiver)
         svc.terminate_membership(membership_id=first_membership.id, terminated_by=self.admin_user, reason="Ended.")
@@ -296,7 +357,9 @@ class InvitationTest(_FixtureMixin, TestCase):
         self.assertEqual(first_membership.status, OrgMembershipStatus.REMOVED)
 
         second_membership = svc.invite_caregiver(
-            organization=self.organization, caregiver_phone=self.caregiver.phone, invited_by=self.admin_user,
+            organization=self.organization,
+            caregiver_phone=self.caregiver.phone,
+            invited_by=self.admin_user,
         )
         self.assertNotEqual(second_membership.id, first_membership.id)
         svc.accept_invitation(membership_id=second_membership.id, caregiver_profile=self.caregiver)
@@ -316,12 +379,16 @@ class InvitationTest(_FixtureMixin, TestCase):
 class TerminationTest(_FixtureMixin, TestCase):
     def setUp(self):
         self._build_fixture()
-        req = svc.submit_join_request(caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id)
+        req = svc.submit_join_request(
+            caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id
+        )
         svc.approve_affiliation_request(request_id=req.id, reviewed_by=self.admin_user)
         self.membership = OrganizationMembership.objects.get(organization=self.organization, user=self.caregiver_user)
 
     def test_company_terminates_active_membership(self):
-        svc.terminate_membership(membership_id=self.membership.id, terminated_by=self.admin_user, reason="No longer needed.")
+        svc.terminate_membership(
+            membership_id=self.membership.id, terminated_by=self.admin_user, reason="No longer needed."
+        )
         self.membership.refresh_from_db()
         self.caregiver.refresh_from_db()
         self.assertEqual(self.membership.status, OrgMembershipStatus.REMOVED)
@@ -358,10 +425,14 @@ class TerminationTest(_FixtureMixin, TestCase):
         """PR #12 remediation (Blocker 1), requirement 6: two separate
         affiliation periods with the same company show up as two distinct
         rows in the history selector, not one merged/reactivated row."""
-        svc.terminate_membership(membership_id=self.membership.id, terminated_by=self.admin_user, reason="First cycle ended.")
+        svc.terminate_membership(
+            membership_id=self.membership.id, terminated_by=self.admin_user, reason="First cycle ended."
+        )
 
         second_request = svc.submit_join_request(
-            caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id,
+            caregiver_profile=self.caregiver,
+            code=self.organization.code,
+            tenant_id=self.tenant.id,
         )
         svc.approve_affiliation_request(request_id=second_request.id, reviewed_by=self.admin_user)
 
@@ -383,9 +454,7 @@ class TerminationTest(_FixtureMixin, TestCase):
 
         from apps.accounts.services.organization_staff import OrganizationStaffService
 
-        active_caregiver_ids = {
-            m.user_id for m in OrganizationStaffService.list_active_caregivers(self.organization)
-        }
+        active_caregiver_ids = {m.user_id for m in OrganizationStaffService.list_active_caregivers(self.organization)}
         self.assertNotIn(self.caregiver_user.id, active_caregiver_ids)
 
 
@@ -398,16 +467,22 @@ class ScopedVisibilityTest(_FixtureMixin, TestCase):
     def test_company_sees_only_its_own_pending_requests(self):
         svc.submit_join_request(caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id)
         _, other_caregiver = self._make_caregiver(tenant=self.tenant, phone="09150000015")
-        svc.submit_join_request(caregiver_profile=other_caregiver, code=self.other_organization.code, tenant_id=self.tenant.id)
+        svc.submit_join_request(
+            caregiver_profile=other_caregiver, code=self.other_organization.code, tenant_id=self.tenant.id
+        )
 
         own = svc.list_pending_requests_for_organization(self.organization)
         self.assertEqual({r.caregiver_profile_id for r in own}, {self.caregiver.id})
 
     def test_company_sees_only_its_own_pending_invitations(self):
-        svc.invite_caregiver(organization=self.organization, caregiver_phone=self.caregiver.phone, invited_by=self.admin_user)
+        svc.invite_caregiver(
+            organization=self.organization, caregiver_phone=self.caregiver.phone, invited_by=self.admin_user
+        )
         _, other_caregiver = self._make_caregiver(tenant=self.tenant, phone="09150000016")
         svc.invite_caregiver(
-            organization=self.other_organization, caregiver_phone=other_caregiver.phone, invited_by=self.other_admin_user,
+            organization=self.other_organization,
+            caregiver_phone=other_caregiver.phone,
+            invited_by=self.other_admin_user,
         )
 
         own = svc.list_pending_invitations_for_organization(self.organization)
@@ -416,7 +491,9 @@ class ScopedVisibilityTest(_FixtureMixin, TestCase):
     def test_caregiver_sees_only_their_own_requests(self):
         svc.submit_join_request(caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id)
         _, other_caregiver = self._make_caregiver(tenant=self.tenant, phone="09150000017")
-        svc.submit_join_request(caregiver_profile=other_caregiver, code=self.organization.code, tenant_id=self.tenant.id)
+        svc.submit_join_request(
+            caregiver_profile=other_caregiver, code=self.organization.code, tenant_id=self.tenant.id
+        )
 
         own = svc.list_affiliation_requests_for_caregiver(self.caregiver)
         self.assertEqual({r.caregiver_profile_id for r in own}, {self.caregiver.id})
@@ -437,7 +514,9 @@ class AffiliationConcurrencyTest(_FixtureMixin, TransactionTestCase):
         self._build_fixture()
 
     def test_simultaneous_approve_and_reject_only_one_wins(self):
-        req = svc.submit_join_request(caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id)
+        req = svc.submit_join_request(
+            caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id
+        )
         barrier = threading.Barrier(2)
         results = {}
 
@@ -480,7 +559,9 @@ class AffiliationConcurrencyTest(_FixtureMixin, TransactionTestCase):
 
     def test_simultaneous_accept_and_cancel_only_one_wins(self):
         membership = svc.invite_caregiver(
-            organization=self.organization, caregiver_phone=self.caregiver.phone, invited_by=self.admin_user,
+            organization=self.organization,
+            caregiver_phone=self.caregiver.phone,
+            invited_by=self.admin_user,
         )
         barrier = threading.Barrier(2)
         results = {}
@@ -531,9 +612,13 @@ class AffiliationConcurrencyTest(_FixtureMixin, TransactionTestCase):
         directly, without going through that constraint, so this still
         exercises the deeper, activation-time race across two independent
         OrganizationMembership rows."""
-        req_a = svc.submit_join_request(caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id)
+        req_a = svc.submit_join_request(
+            caregiver_profile=self.caregiver, code=self.organization.code, tenant_id=self.tenant.id
+        )
         membership_b = svc.invite_caregiver(
-            organization=self.other_organization, caregiver_phone=self.caregiver.phone, invited_by=self.other_admin_user,
+            organization=self.other_organization,
+            caregiver_phone=self.caregiver.phone,
+            invited_by=self.other_admin_user,
         )
         barrier = threading.Barrier(2)
         results = {}
@@ -566,6 +651,7 @@ class AffiliationConcurrencyTest(_FixtureMixin, TransactionTestCase):
         t2.join()
 
         active_count = OrganizationMembership.objects.filter(
-            user=self.caregiver_user, status=OrgMembershipStatus.ACTIVE,
+            user=self.caregiver_user,
+            status=OrgMembershipStatus.ACTIVE,
         ).count()
         self.assertEqual(active_count, 1)

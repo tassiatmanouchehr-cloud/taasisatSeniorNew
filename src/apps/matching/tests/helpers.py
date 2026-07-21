@@ -23,10 +23,16 @@ class MatchingTestCase(TestCase):
         self.other_tenant = Tenant.objects.create(slug=f"matching-other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
 
         self.category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
         self.other_category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Physiotherapy", slug="physio", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Physiotherapy",
+            slug="physio",
+            status=CatalogStatus.ACTIVE,
         )
 
         self.order = Order.objects.create(

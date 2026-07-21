@@ -30,13 +30,15 @@ class CreateSessionTest(ExecutionTestCase):
 
     def test_create_session_explicit_source_override(self):
         session = ExecutionService.create_session(
-            supplier_assignment=self.supplier_assignment, execution_source=ExecutionSource.MANUAL,
+            supplier_assignment=self.supplier_assignment,
+            execution_source=ExecutionSource.MANUAL,
         )
         self.assertEqual(session.execution_source, ExecutionSource.MANUAL)
 
     def test_create_session_stores_context_snapshot(self):
         session = ExecutionService.create_session(
-            supplier_assignment=self.supplier_assignment, context_snapshot={"note": "priority case"},
+            supplier_assignment=self.supplier_assignment,
+            context_snapshot={"note": "priority case"},
         )
         session.refresh_from_db()
         self.assertEqual(session.context_snapshot, {"note": "priority case"})
@@ -63,16 +65,15 @@ class CreateSessionTest(ExecutionTestCase):
         from django.db import IntegrityError, transaction
 
         ExecutionService.create_session(supplier_assignment=self.supplier_assignment)
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                ExecutionSession.objects.create(
-                    tenant_id=self.order.tenant_id,
-                    order=self.order,
-                    supplier_assignment=self.supplier_assignment,
-                    status=ExecutionSessionStatus.SCHEDULED,
-                    execution_source=ExecutionSource.MANUAL,
-                    execution_sequence=1,
-                )
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            ExecutionSession.objects.create(
+                tenant_id=self.order.tenant_id,
+                order=self.order,
+                supplier_assignment=self.supplier_assignment,
+                status=ExecutionSessionStatus.SCHEDULED,
+                execution_source=ExecutionSource.MANUAL,
+                execution_sequence=1,
+            )
 
 
 class StartSessionTest(ExecutionTestCase):

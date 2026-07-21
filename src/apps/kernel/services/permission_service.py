@@ -97,7 +97,9 @@ class PermissionService:
 
         now = timezone.now()
         assignments = RoleAssignment.objects.filter(
-            tenant_id=tenant_id, is_active=True, **actor_filter,
+            tenant_id=tenant_id,
+            is_active=True,
+            **actor_filter,
         ).select_related("role")
 
         for assignment in assignments:
@@ -168,9 +170,14 @@ class PermissionService:
             # this permission_key/scope" — the second case is the more
             # actionable signal (a scope or permission-grant mistake,
             # rather than a backfill that simply hasn't run yet).
-            has_any_role_assignment = cls._actor_filter(effective_actor) is not None and RoleAssignment.objects.filter(
-                tenant_id=tenant_id, is_active=True, **cls._actor_filter(effective_actor),
-            ).exists()
+            has_any_role_assignment = (
+                cls._actor_filter(effective_actor) is not None
+                and RoleAssignment.objects.filter(
+                    tenant_id=tenant_id,
+                    is_active=True,
+                    **cls._actor_filter(effective_actor),
+                ).exists()
+            )
             AuditService.log_security(
                 tenant_id=tenant_id,
                 action="rbac.permission.ownership_authorized",
@@ -179,10 +186,7 @@ class PermissionService:
                 actor_id=cls._actor_id(effective_actor),
                 actor_type="user",
                 after={"permission_key": permission_key, "scope": scope or {}},
-                reason=(
-                    "Actor authorized by a verified ownership check upstream, "
-                    "not by an RBAC role assignment."
-                ),
+                reason=("Actor authorized by a verified ownership check upstream, not by an RBAC role assignment."),
                 metadata={"has_any_role_assignment": has_any_role_assignment},
             )
             return

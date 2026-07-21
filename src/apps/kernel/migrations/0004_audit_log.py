@@ -11,7 +11,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("kernel", "0003_event_outbox"),
     ]
@@ -37,7 +36,20 @@ class Migration(migrations.Migration):
                 ("correlation_id", models.UUIDField(blank=True, db_index=True, null=True)),
                 ("ip_address", models.GenericIPAddressField(blank=True, null=True)),
                 ("user_agent", models.CharField(blank=True, max_length=500)),
-                ("audit_class", models.CharField(choices=[("standard", "Standard"), ("financial", "Financial"), ("security", "Security"), ("compliance", "Compliance")], db_index=True, default="standard", max_length=20)),
+                (
+                    "audit_class",
+                    models.CharField(
+                        choices=[
+                            ("standard", "Standard"),
+                            ("financial", "Financial"),
+                            ("security", "Security"),
+                            ("compliance", "Compliance"),
+                        ],
+                        db_index=True,
+                        default="standard",
+                        max_length=20,
+                    ),
+                ),
                 ("retention_policy", models.CharField(default="standard", max_length=50)),
                 ("metadata", models.JSONField(blank=True, default=dict)),
             ],

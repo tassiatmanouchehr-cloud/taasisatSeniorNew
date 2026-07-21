@@ -132,9 +132,7 @@ class CaregiverRegistrationForm(forms.Form):
     @property
     def has_company_request(self):
         """Check if caregiver wants company affiliation."""
-        return bool(
-            self.cleaned_data.get("company_code") or self.cleaned_data.get("company_name")
-        )
+        return bool(self.cleaned_data.get("company_code") or self.cleaned_data.get("company_name"))
 
 
 class CompanyRegistrationForm(forms.Form):

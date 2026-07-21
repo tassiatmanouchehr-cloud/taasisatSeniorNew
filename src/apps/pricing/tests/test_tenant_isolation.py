@@ -13,10 +13,16 @@ class PricingTenantIsolationTest(PricingTestCase):
         from apps.pricing.models import PricingRuleType
 
         PricingRuleService.create_rule(
-            tenant_id=self.tenant.id, name="A", rule_type=PricingRuleType.FIXED_AMOUNT, amount=Decimal("1"),
+            tenant_id=self.tenant.id,
+            name="A",
+            rule_type=PricingRuleType.FIXED_AMOUNT,
+            amount=Decimal("1"),
         )
         PricingRuleService.create_rule(
-            tenant_id=self.other_tenant.id, name="B", rule_type=PricingRuleType.FIXED_AMOUNT, amount=Decimal("2"),
+            tenant_id=self.other_tenant.id,
+            name="B",
+            rule_type=PricingRuleType.FIXED_AMOUNT,
+            amount=Decimal("2"),
         )
 
         self.assertEqual(PricingRule.objects.for_tenant(self.tenant.id).count(), 1)
@@ -31,7 +37,9 @@ class PricingTenantIsolationTest(PricingTestCase):
 
     def test_for_tenant_scopes_quotes(self):
         QuoteService.generate_quote(
-            tenant_id=self.tenant.id, service_category=self.category, base_amount=Decimal("1000"),
+            tenant_id=self.tenant.id,
+            service_category=self.category,
+            base_amount=Decimal("1000"),
         )
         self.assertEqual(Quote.objects.for_tenant(self.tenant.id).count(), 1)
         self.assertEqual(Quote.objects.for_tenant(self.other_tenant.id).count(), 0)
@@ -41,21 +49,29 @@ class PricingTenantIsolationTest(PricingTestCase):
 
         # A generous rule in another tenant must never leak into this tenant's quote.
         PricingRuleService.create_rule(
-            tenant_id=self.other_tenant.id, name="Other tenant discount", rule_type=PricingRuleType.PERCENTAGE_ADJUSTMENT,
+            tenant_id=self.other_tenant.id,
+            name="Other tenant discount",
+            rule_type=PricingRuleType.PERCENTAGE_ADJUSTMENT,
             percentage=Decimal("-90"),
         )
         quote = QuoteService.generate_quote(
-            tenant_id=self.tenant.id, service_category=self.category, base_amount=Decimal("100000"),
+            tenant_id=self.tenant.id,
+            service_category=self.category,
+            base_amount=Decimal("100000"),
         )
         self.assertEqual(quote.total_amount, Decimal("100000.00"))
 
     def test_other_tenants_promotions_do_not_affect_quote(self):
         other_promotion = PromotionService.create_promotion(tenant_id=self.other_tenant.id, name="Other tenant promo")
         PromotionService.add_effect(
-            promotion=other_promotion, effect_type=PromotionEffectType.FIXED_DISCOUNT, fixed_amount=Decimal("50000"),
+            promotion=other_promotion,
+            effect_type=PromotionEffectType.FIXED_DISCOUNT,
+            fixed_amount=Decimal("50000"),
         )
         quote = QuoteService.generate_quote(
-            tenant_id=self.tenant.id, service_category=self.category, base_amount=Decimal("100000"),
+            tenant_id=self.tenant.id,
+            service_category=self.category,
+            base_amount=Decimal("100000"),
         )
         self.assertEqual(quote.total_amount, Decimal("100000.00"))
 
@@ -63,7 +79,9 @@ class PricingTenantIsolationTest(PricingTestCase):
         from apps.pricing.models import PricingRuleType
 
         PricingRuleService.create_rule(
-            tenant_id=self.other_tenant.id, name="Other tenant base", rule_type=PricingRuleType.FIXED_AMOUNT,
+            tenant_id=self.other_tenant.id,
+            name="Other tenant base",
+            rule_type=PricingRuleType.FIXED_AMOUNT,
             amount=Decimal("999999"),
         )
         with self.assertRaises(PricingError):

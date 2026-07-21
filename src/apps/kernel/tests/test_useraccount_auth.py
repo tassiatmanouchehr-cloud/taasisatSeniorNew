@@ -15,7 +15,7 @@ from django.core.management import call_command
 from django.db import IntegrityError
 from django.test import Client, TestCase, override_settings
 
-from apps.kernel.models import Person, Tenant, UserAccount
+from apps.kernel.models import Tenant, UserAccount
 
 
 @override_settings(ALLOWED_HOSTS=["*"])

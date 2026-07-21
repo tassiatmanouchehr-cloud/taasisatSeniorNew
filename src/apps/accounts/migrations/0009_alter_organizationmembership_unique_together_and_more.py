@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("accounts", "0008_company_affiliation_termination"),
         ("kernel", "0011_role_assignment_active_scope_constraint"),

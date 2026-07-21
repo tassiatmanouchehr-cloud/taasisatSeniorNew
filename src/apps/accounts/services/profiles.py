@@ -1,8 +1,8 @@
 """Profile services — completion, elder, trusted contacts, multi-role identity."""
 
 from ..models.profiles import (
-    CustomerProfile,
     CaregiverProfile,
+    CustomerProfile,
     ElderProfile,
     OrganizationProfile,
     ProfileStatus,
@@ -27,7 +27,11 @@ def calculate_customer_profile_completion(profile: CustomerProfile) -> int:
 
 
 CUSTOMER_PROFILE_EDITABLE_FIELDS = (
-    "display_name", "city", "relation_to_elder", "preferred_contact_method", "notes",
+    "display_name",
+    "city",
+    "relation_to_elder",
+    "preferred_contact_method",
+    "notes",
 )
 
 
@@ -121,7 +125,8 @@ def ensure_customer_profile(user, *, phone=None, display_name=None, **kwargs) ->
     if user.person is None:
         raise ValueError("UserAccount must have a Person before a profile can be attached.")
     profile = CustomerProfile.objects.create(
-        user=user, person=user.person,
+        user=user,
+        person=user.person,
         phone=phone or user.phone,
         display_name=display_name or user.person.full_name,
         **kwargs,
@@ -146,7 +151,8 @@ def ensure_caregiver_profile(user, *, phone=None, display_name=None, **kwargs) -
         raise ValueError("UserAccount must have a Person before a profile can be attached.")
     kwargs.setdefault("status", ProfileStatus.DRAFT)
     profile = CaregiverProfile.objects.create(
-        user=user, person=user.person,
+        user=user,
+        person=user.person,
         phone=phone or user.phone,
         display_name=display_name or user.person.full_name,
         **kwargs,

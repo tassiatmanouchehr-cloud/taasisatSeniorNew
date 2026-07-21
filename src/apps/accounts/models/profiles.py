@@ -416,7 +416,9 @@ class OrganizationMembership(models.Model):
     )
     termination_reason = models.CharField(max_length=255, blank=True)
     closure_reason = models.CharField(
-        max_length=40, choices=AffiliationClosureReason.choices, blank=True,
+        max_length=40,
+        choices=AffiliationClosureReason.choices,
+        blank=True,
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

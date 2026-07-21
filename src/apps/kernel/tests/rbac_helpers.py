@@ -15,7 +15,9 @@ def make_actor(tenant: Tenant, *, phone=None, full_name="Test Actor") -> UserAcc
     return UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
 
 
-def grant_permissions(tenant: Tenant, user: UserAccount, permission_keys, *, scope_type="", scope_id=None, is_active=True, expires_at=None) -> RoleAssignment:
+def grant_permissions(
+    tenant: Tenant, user: UserAccount, permission_keys, *, scope_type="", scope_id=None, is_active=True, expires_at=None
+) -> RoleAssignment:
     role = Role.objects.create(
         tenant=tenant,
         name="Test Role",
@@ -23,7 +25,11 @@ def grant_permissions(tenant: Tenant, user: UserAccount, permission_keys, *, sco
         permissions=list(permission_keys),
     )
     return RoleAssignment.objects.create(
-        tenant=tenant, user=user, role=role,
-        scope_type=scope_type, scope_id=scope_id,
-        is_active=is_active, expires_at=expires_at,
+        tenant=tenant,
+        user=user,
+        role=role,
+        scope_type=scope_type,
+        scope_id=scope_id,
+        is_active=is_active,
+        expires_at=expires_at,
     )

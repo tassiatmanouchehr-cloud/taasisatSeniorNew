@@ -35,6 +35,7 @@ class AvailabilityAppSetupTest(TestCase):
         )
         changes = autodetector.changes(graph=loader.graph)
         self.assertNotIn(
-            "availability", changes,
+            "availability",
+            changes,
             f"Missing migrations detected for apps.availability: {changes.get('availability')}",
         )

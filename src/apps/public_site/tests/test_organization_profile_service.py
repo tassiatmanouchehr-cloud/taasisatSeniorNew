@@ -118,7 +118,9 @@ class OrganizationPublicProfileServiceTest(PublicSiteTestCase):
         logo is exposed through the public ViewModel via the field's own
         storage-URL abstraction — never a filesystem path."""
         supplier, organization = self._create_organization_supplier()
-        organization.logo.save("logo.png", SimpleUploadedFile("logo.png", _PNG_BYTES, content_type="image/png"), save=True)
+        organization.logo.save(
+            "logo.png", SimpleUploadedFile("logo.png", _PNG_BYTES, content_type="image/png"), save=True
+        )
         profile = OrganizationPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id)
         self.assertIsNotNone(profile)
         self.assertTrue(profile.logo_url)
@@ -140,12 +142,16 @@ class OrganizationPublicProfileServiceTest(PublicSiteTestCase):
         """A logo must never make an otherwise-ineligible organization
         publicly retrievable."""
         supplier, organization = self._create_organization_supplier(verification_status=VerificationStatus.UNVERIFIED)
-        organization.logo.save("logo.png", SimpleUploadedFile("logo.png", _PNG_BYTES, content_type="image/png"), save=True)
+        organization.logo.save(
+            "logo.png", SimpleUploadedFile("logo.png", _PNG_BYTES, content_type="image/png"), save=True
+        )
         self.assertIsNone(OrganizationPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id))
 
     def test_logo_does_not_bypass_visibility_policy_when_admin_deactivated(self):
         supplier, organization = self._create_organization_supplier(admin_is_active=False)
-        organization.logo.save("logo.png", SimpleUploadedFile("logo.png", _PNG_BYTES, content_type="image/png"), save=True)
+        organization.logo.save(
+            "logo.png", SimpleUploadedFile("logo.png", _PNG_BYTES, content_type="image/png"), save=True
+        )
         self.assertIsNone(OrganizationPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id))
 
     def test_tenant_isolation(self):
@@ -159,5 +165,15 @@ class OrganizationPublicProfileServiceTest(PublicSiteTestCase):
         supplier, _ = self._create_organization_supplier()
         profile = OrganizationPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id)
         field_names = {f.name for f in profile.__dataclass_fields__.values()}
-        for forbidden in ("staff", "membership", "document", "admin_user", "phone", "address", "code", "path", "storage"):
+        for forbidden in (
+            "staff",
+            "membership",
+            "document",
+            "admin_user",
+            "phone",
+            "address",
+            "code",
+            "path",
+            "storage",
+        ):
             self.assertFalse(any(forbidden in name for name in field_names))

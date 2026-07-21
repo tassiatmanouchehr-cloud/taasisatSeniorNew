@@ -28,23 +28,37 @@ class SupplierWorkSummaryQueryTest(TestCase):
     def setUp(self):
         self.tenant = Tenant.objects.create(slug=f"orders-sup-{uuid.uuid4().hex[:8]}", name="Orders Supplier Tenant")
         self.category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
         self.supplier = self._create_supplier()
         self.other_supplier = self._create_supplier()
 
     def _create_supplier(self) -> ServiceSupplier:
         return ServiceSupplier.objects.create(
-            tenant_id=self.tenant.id, supplier_type=SupplierType.INDEPENDENT_PROVIDER,
-            linked_entity_id=uuid.uuid4(), linked_entity_type="TestProfile", display_name="Test Supplier",
-            status=SupplierStatus.ACTIVE, availability_status=AvailabilityStatus.AVAILABLE,
-            verification_level=VerificationLevel.BASIC, service_categories=[],
+            tenant_id=self.tenant.id,
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+            linked_entity_id=uuid.uuid4(),
+            linked_entity_type="TestProfile",
+            display_name="Test Supplier",
+            status=SupplierStatus.ACTIVE,
+            availability_status=AvailabilityStatus.AVAILABLE,
+            verification_level=VerificationLevel.BASIC,
+            service_categories=[],
         )
 
     def _create_order(self) -> Order:
         return Order.objects.create(
-            tenant=self.tenant, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
-            service_category=self.category, description="x", city="tehran", address="addr", phone="0912",
+            tenant=self.tenant,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.NEW,
+            service_category=self.category,
+            description="x",
+            city="tehran",
+            address="addr",
+            phone="0912",
         )
 
     def test_no_orders_returns_zero_counts(self):
@@ -57,7 +71,9 @@ class SupplierWorkSummaryQueryTest(TestCase):
 
         counts = OrderQueryService.count_by_status_for_supplier(supplier=self.supplier, tenant_id=self.tenant.id)
         self.assertEqual(counts["upcoming"], 1)
-        upcoming = list(OrderQueryService.list_for_supplier(supplier=self.supplier, tenant_id=self.tenant.id, only="upcoming"))
+        upcoming = list(
+            OrderQueryService.list_for_supplier(supplier=self.supplier, tenant_id=self.tenant.id, only="upcoming")
+        )
         self.assertEqual([o.id for o in upcoming], [order.id])
 
     def test_current_order_counted_and_listed(self):
@@ -68,7 +84,9 @@ class SupplierWorkSummaryQueryTest(TestCase):
         counts = OrderQueryService.count_by_status_for_supplier(supplier=self.supplier, tenant_id=self.tenant.id)
         self.assertEqual(counts["current"], 1)
         self.assertEqual(counts["upcoming"], 0)
-        current = list(OrderQueryService.list_for_supplier(supplier=self.supplier, tenant_id=self.tenant.id, only="current"))
+        current = list(
+            OrderQueryService.list_for_supplier(supplier=self.supplier, tenant_id=self.tenant.id, only="current")
+        )
         self.assertEqual([o.id for o in current], [order.id])
 
     def test_completed_order_counted_and_listed(self):
@@ -119,17 +137,31 @@ class SupplierWorkSummaryQueryTest(TestCase):
     def test_cross_tenant_orders_never_leak(self):
         other_tenant = Tenant.objects.create(slug=f"orders-sup-other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
         other_category = ServiceCategory.objects.create(
-            tenant=other_tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=other_tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
         other_supplier_same_id_space = ServiceSupplier.objects.create(
-            tenant_id=other_tenant.id, supplier_type=SupplierType.INDEPENDENT_PROVIDER,
-            linked_entity_id=uuid.uuid4(), linked_entity_type="TestProfile", display_name="Other Tenant Supplier",
-            status=SupplierStatus.ACTIVE, availability_status=AvailabilityStatus.AVAILABLE,
-            verification_level=VerificationLevel.BASIC, service_categories=[],
+            tenant_id=other_tenant.id,
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+            linked_entity_id=uuid.uuid4(),
+            linked_entity_type="TestProfile",
+            display_name="Other Tenant Supplier",
+            status=SupplierStatus.ACTIVE,
+            availability_status=AvailabilityStatus.AVAILABLE,
+            verification_level=VerificationLevel.BASIC,
+            service_categories=[],
         )
         other_order = Order.objects.create(
-            tenant=other_tenant, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
-            service_category=other_category, description="x", city="tehran", address="addr", phone="0912",
+            tenant=other_tenant,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.NEW,
+            service_category=other_category,
+            description="x",
+            city="tehran",
+            address="addr",
+            phone="0912",
         )
         assign_supplier(order_id=other_order.id, supplier=other_supplier_same_id_space)
 

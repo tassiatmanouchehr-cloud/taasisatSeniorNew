@@ -30,7 +30,9 @@ class FinancialParty(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="financial_parties",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="financial_parties",
     )
 
     linked_entity_type = models.CharField(

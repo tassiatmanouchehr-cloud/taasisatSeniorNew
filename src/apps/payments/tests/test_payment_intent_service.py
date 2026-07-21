@@ -18,10 +18,14 @@ class PaymentIntentServiceTest(PaymentsTestCase):
     def test_create_intent_is_idempotent(self):
         key = "shared-idem-key"
         first = PaymentIntentService.create_intent(
-            payer_party=self.party, amount=Decimal("5000"), idempotency_key=key,
+            payer_party=self.party,
+            amount=Decimal("5000"),
+            idempotency_key=key,
         )
         second = PaymentIntentService.create_intent(
-            payer_party=self.party, amount=Decimal("5000"), idempotency_key=key,
+            payer_party=self.party,
+            amount=Decimal("5000"),
+            idempotency_key=key,
         )
 
         self.assertEqual(first.id, second.id)
@@ -30,30 +34,41 @@ class PaymentIntentServiceTest(PaymentsTestCase):
     def test_create_intent_rejects_zero_or_negative_amount(self):
         with self.assertRaises(PaymentError):
             PaymentIntentService.create_intent(
-                payer_party=self.party, amount=Decimal("0"), idempotency_key="zero-amount",
+                payer_party=self.party,
+                amount=Decimal("0"),
+                idempotency_key="zero-amount",
             )
 
         with self.assertRaises(PaymentError):
             PaymentIntentService.create_intent(
-                payer_party=self.party, amount=Decimal("-10"), idempotency_key="negative-amount",
+                payer_party=self.party,
+                amount=Decimal("-10"),
+                idempotency_key="negative-amount",
             )
 
     def test_create_intent_rejects_empty_currency(self):
         with self.assertRaises(PaymentError):
             PaymentIntentService.create_intent(
-                payer_party=self.party, amount=Decimal("100"), idempotency_key="empty-currency", currency="   ",
+                payer_party=self.party,
+                amount=Decimal("100"),
+                idempotency_key="empty-currency",
+                currency="   ",
             )
 
     def test_create_intent_requires_idempotency_key(self):
         with self.assertRaises(PaymentError):
             PaymentIntentService.create_intent(
-                payer_party=self.party, amount=Decimal("100"), idempotency_key="",
+                payer_party=self.party,
+                amount=Decimal("100"),
+                idempotency_key="",
             )
 
     def test_create_intent_rejects_unknown_provider(self):
         with self.assertRaises(PaymentError):
             PaymentIntentService.create_intent(
-                payer_party=self.party, amount=Decimal("100"), idempotency_key="bad-provider",
+                payer_party=self.party,
+                amount=Decimal("100"),
+                idempotency_key="bad-provider",
                 provider="STRIPE",
             )
 

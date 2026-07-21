@@ -58,7 +58,9 @@ def api_exception_handler(exc, context):
 
     if isinstance(exc, PermissionDenied):
         return _envelope(
-            code="permission_denied", message=str(exc) or "Permission denied.", status=403,
+            code="permission_denied",
+            message=str(exc) or "Permission denied.",
+            status=403,
         )
 
     if isinstance(exc, (Http404, ObjectDoesNotExist)):

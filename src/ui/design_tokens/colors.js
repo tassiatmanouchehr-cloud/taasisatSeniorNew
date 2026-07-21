@@ -65,7 +65,7 @@ module.exports = {
     500: 'var(--color-success-500)',
     600: 'var(--color-success-600)',
     700: 'var(--color-success-700)',
-    DEFAULT: 'var(--color-success-600)',
+    DEFAULT: 'var(--color-success-700)',
   },
   warning: {
     50: 'var(--color-warning-50)',
@@ -74,7 +74,7 @@ module.exports = {
     500: 'var(--color-warning-500)',
     600: 'var(--color-warning-600)',
     700: 'var(--color-warning-700)',
-    DEFAULT: 'var(--color-warning-600)',
+    DEFAULT: 'var(--color-warning-700)',
   },
   danger: {
     50: 'var(--color-danger-50)',
@@ -83,7 +83,7 @@ module.exports = {
     500: 'var(--color-danger-500)',
     600: 'var(--color-danger-600)',
     700: 'var(--color-danger-700)',
-    DEFAULT: 'var(--color-danger-600)',
+    DEFAULT: 'var(--color-danger-700)',
   },
   info: {
     50: 'var(--color-info-50)',

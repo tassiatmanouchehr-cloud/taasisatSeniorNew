@@ -56,7 +56,7 @@ class Person(models.Model):
     version = models.IntegerField(default=1)
 
     class Meta:
-        db_table = "kernel\".\"person"
+        db_table = 'kernel"."person'
         verbose_name = "Person"
         verbose_name_plural = "Persons"
 
@@ -148,7 +148,7 @@ class UserAccount(AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = []
 
     class Meta:
-        db_table = "kernel\".\"user_account"
+        db_table = 'kernel"."user_account'
         verbose_name = "User Account"
         verbose_name_plural = "User Accounts"
 

@@ -31,7 +31,8 @@ class GalleryUploadTest(ProviderPortalTestCase):
     def test_owner_can_upload_gallery_photo(self):
         self.login_as_provider()
         response = self.client.post(
-            reverse("provider_portal:profile-gallery"), {"image": _image_file(), "caption": "در حال کار"},
+            reverse("provider_portal:profile-gallery"),
+            {"image": _image_file(), "caption": "در حال کار"},
         )
         self.assertEqual(response.status_code, 302)
         caregiver = CaregiverProfile.objects.get(user=self.provider_user)

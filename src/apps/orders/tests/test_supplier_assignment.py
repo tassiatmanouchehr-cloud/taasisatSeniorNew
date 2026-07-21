@@ -26,29 +26,43 @@ class SupplierAssignmentTest(TestCase):
     def setUp(self):
         self.tenant = TenantService.get_default_tenant()
         self.category = ServiceCategory.objects.create(
-            tenant_id=self.tenant.id, name="Cat", slug="supplier-assign-cat", status=CatalogStatus.ACTIVE,
+            tenant_id=self.tenant.id,
+            name="Cat",
+            slug="supplier-assign-cat",
+            status=CatalogStatus.ACTIVE,
         )
 
         person = Person.objects.create(tenant=self.tenant, full_name="CG")
         user = UserAccount.objects.create_user(phone="09150000001", person=person, tenant=self.tenant)
         self.caregiver = CaregiverProfile.objects.create(
-            user=user, person=person, phone="09150000001", display_name="CG",
+            user=user,
+            person=person,
+            phone="09150000001",
+            display_name="CG",
         )
         self.supplier = get_or_create_supplier_for_caregiver(self.caregiver, tenant_id=self.tenant.id)
 
         admin_person = Person.objects.create(tenant=self.tenant, full_name="Org Admin")
         admin_user = UserAccount.objects.create_user(
-            phone="09150000002", person=admin_person, tenant=self.tenant,
+            phone="09150000002",
+            person=admin_person,
+            tenant=self.tenant,
         )
         self.organization = OrganizationProfile.objects.create(
-            name="Org", code="ORG-SUPP1", admin_user=admin_user, tenant=self.tenant,
+            name="Org",
+            code="ORG-SUPP1",
+            admin_user=admin_user,
+            tenant=self.tenant,
         )
         self.org_supplier = get_or_create_supplier_for_organization(self.organization, tenant_id=self.tenant.id)
 
     def _make_order(self, **overrides):
         defaults = dict(
-            service_category_id=self.category.id, description="x", phone="09121111111",
-            address="addr", tenant_id=self.tenant.id,
+            service_category_id=self.category.id,
+            description="x",
+            phone="09121111111",
+            address="addr",
+            tenant_id=self.tenant.id,
         )
         defaults.update(overrides)
         return create_operator_order(**defaults)

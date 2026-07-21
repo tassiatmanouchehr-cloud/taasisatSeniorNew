@@ -19,17 +19,24 @@ class BackfillOrganizationRoleAssignmentsTest(TestCase):
         self.tenant = Tenant.objects.create(slug=f"backfill-{uuid.uuid4().hex[:8]}", name="Backfill Tenant")
         self.admin_user = self._create_user(phone="09121150001")
         self.organization = OrganizationProfile.objects.create(
-            name="Care Co", code=f"care-{uuid.uuid4().hex[:8]}", admin_user=self.admin_user, tenant=self.tenant,
+            name="Care Co",
+            code=f"care-{uuid.uuid4().hex[:8]}",
+            admin_user=self.admin_user,
+            tenant=self.tenant,
         )
         self.membership = OrganizationMembership.objects.create(
-            organization=self.organization, user=self.admin_user,
-            role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+            organization=self.organization,
+            user=self.admin_user,
+            role_type=OrgMembershipRole.ADMIN,
+            status=OrgMembershipStatus.ACTIVE,
         )
 
         self.caregiver_user = self._create_user(phone="09121150002")
         OrganizationMembership.objects.create(
-            organization=self.organization, user=self.caregiver_user,
-            role_type=OrgMembershipRole.CAREGIVER, status=OrgMembershipStatus.ACTIVE,
+            organization=self.organization,
+            user=self.caregiver_user,
+            role_type=OrgMembershipRole.CAREGIVER,
+            status=OrgMembershipStatus.ACTIVE,
         )
 
     def _create_user(self, *, phone) -> UserAccount:
@@ -40,7 +47,10 @@ class BackfillOrganizationRoleAssignmentsTest(TestCase):
         call_command("backfill_organization_role_assignments")
         self.assertTrue(
             RoleAssignment.objects.filter(
-                user=self.admin_user, scope_type="organization", scope_id=self.organization.id, is_active=True,
+                user=self.admin_user,
+                scope_type="organization",
+                scope_id=self.organization.id,
+                is_active=True,
             ).exists(),
         )
 
@@ -52,7 +62,8 @@ class BackfillOrganizationRoleAssignmentsTest(TestCase):
         call_command("backfill_organization_role_assignments")
         call_command("backfill_organization_role_assignments")
         self.assertEqual(
-            RoleAssignment.objects.filter(user=self.admin_user, scope_type="organization").count(), 1,
+            RoleAssignment.objects.filter(user=self.admin_user, scope_type="organization").count(),
+            1,
         )
 
     def test_dry_run_writes_nothing(self):
@@ -61,11 +72,17 @@ class BackfillOrganizationRoleAssignmentsTest(TestCase):
 
     def test_skips_membership_with_null_tenant_organization_without_crashing(self):
         null_org = OrganizationProfile.objects.create(
-            name="Null Co", code=f"null-{uuid.uuid4().hex[:8]}", admin_user=self.admin_user, tenant=None,
+            name="Null Co",
+            code=f"null-{uuid.uuid4().hex[:8]}",
+            admin_user=self.admin_user,
+            tenant=None,
         )
         broken_user = self._create_user(phone="09121150003")
         OrganizationMembership.objects.create(
-            organization=null_org, user=broken_user, role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+            organization=null_org,
+            user=broken_user,
+            role_type=OrgMembershipRole.ADMIN,
+            status=OrgMembershipStatus.ACTIVE,
         )
 
         call_command("backfill_organization_role_assignments")

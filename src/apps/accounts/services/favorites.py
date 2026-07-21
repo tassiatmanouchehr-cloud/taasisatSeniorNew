@@ -54,7 +54,9 @@ class FavoritesService:
     def add_favorite(cls, customer, *, supplier_id, tenant_id, expected_supplier_types) -> Favorite:
         try:
             supplier = ServiceSupplier.objects.get(
-                id=supplier_id, tenant_id=tenant_id, status=SupplierStatus.ACTIVE,
+                id=supplier_id,
+                tenant_id=tenant_id,
+                status=SupplierStatus.ACTIVE,
                 supplier_type__in=expected_supplier_types,
             )
         except ServiceSupplier.DoesNotExist:

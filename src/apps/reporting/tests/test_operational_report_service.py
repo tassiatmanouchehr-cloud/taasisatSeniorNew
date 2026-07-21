@@ -20,19 +20,37 @@ class OperationalReportServiceTest(ReportingTestCase):
 
     def test_order_counts_with_additional_active_and_cancelled_orders(self):
         Order.objects.create(
-            tenant=self.tenant, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
-            service_category=self.category, customer_profile=self.customer_profile,
-            description="x", city="tehran", address="addr", phone="09120000001",
+            tenant=self.tenant,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.NEW,
+            service_category=self.category,
+            customer_profile=self.customer_profile,
+            description="x",
+            city="tehran",
+            address="addr",
+            phone="09120000001",
         )
         Order.objects.create(
-            tenant=self.tenant, source=OrderSource.OPERATOR, status=OrderStatus.CANCELLED,
-            service_category=self.category, customer_profile=self.customer_profile,
-            description="x", city="tehran", address="addr", phone="09120000002",
+            tenant=self.tenant,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.CANCELLED,
+            service_category=self.category,
+            customer_profile=self.customer_profile,
+            description="x",
+            city="tehran",
+            address="addr",
+            phone="09120000002",
         )
         Order.objects.create(
-            tenant=self.tenant, source=OrderSource.OPERATOR, status=OrderStatus.IN_PROGRESS,
-            service_category=self.category, customer_profile=self.customer_profile,
-            description="x", city="tehran", address="addr", phone="09120000003",
+            tenant=self.tenant,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.IN_PROGRESS,
+            service_category=self.category,
+            customer_profile=self.customer_profile,
+            description="x",
+            city="tehran",
+            address="addr",
+            phone="09120000003",
         )
 
         report = OperationalReportService.get_order_counts(self.tenant.id)
@@ -53,9 +71,15 @@ class OperationalReportServiceTest(ReportingTestCase):
 
     def test_tenant_isolation(self):
         Order.objects.create(
-            tenant=self.other_tenant, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
-            service_category=self.category, customer_profile=self.customer_profile,
-            description="x", city="tehran", address="addr", phone="09120000004",
+            tenant=self.other_tenant,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.NEW,
+            service_category=self.category,
+            customer_profile=self.customer_profile,
+            description="x",
+            city="tehran",
+            address="addr",
+            phone="09120000004",
         )
 
         report = OperationalReportService.get_order_counts(self.tenant.id)

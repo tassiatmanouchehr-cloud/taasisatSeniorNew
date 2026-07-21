@@ -30,7 +30,6 @@ from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_or
 from apps.kernel.models import Person, UserAccount
 from apps.kernel.models.supplier import SupplierStatus
 from apps.kernel.services.tenant_service import TenantService
-
 from apps.public_site.services.common import append_tenant_query
 
 from .helpers import PublicSiteTestCase
@@ -139,7 +138,8 @@ class CaregiverProfileTenantHintTest(PublicSiteTestCase):
 
     def test_correct_tenant_hint_returns_200_with_real_data(self):
         supplier, _ = self._create_caregiver_supplier(
-            display_name="مراقب چندمستأجری تست", verification_status="verified",
+            display_name="مراقب چندمستأجری تست",
+            verification_status="verified",
         )
 
         response = self.client.get(
@@ -266,7 +266,8 @@ class FindACaregiverViewTenantHintTest(PublicSiteTestCase):
         supplier, _ = self._create_caregiver_supplier(display_name="سازگاری جزئیات و فهرست تست")
 
         detail_response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         directory_response = self.client.get(reverse("public_site:find-a-caregiver"), {"tenant": self.tenant.slug})
 
@@ -360,7 +361,9 @@ class OrganizationProfileTenantHintTest(PublicSiteTestCase):
         buffer = io.BytesIO()
         Image.new("RGB", (1, 1), color=(0, 255, 0)).save(buffer, format="PNG")
         organization.logo.save(
-            "logo.png", SimpleUploadedFile("logo.png", buffer.getvalue(), content_type="image/png"), save=True,
+            "logo.png",
+            SimpleUploadedFile("logo.png", buffer.getvalue(), content_type="image/png"),
+            save=True,
         )
 
         response = self.client.get(
@@ -402,7 +405,9 @@ class OrganizationProfileTenantHintTest(PublicSiteTestCase):
         buffer = io.BytesIO()
         Image.new("RGB", (1, 1), color=(0, 255, 0)).save(buffer, format="PNG")
         organization_with.logo.save(
-            "logo.png", SimpleUploadedFile("logo.png", buffer.getvalue(), content_type="image/png"), save=True,
+            "logo.png",
+            SimpleUploadedFile("logo.png", buffer.getvalue(), content_type="image/png"),
+            save=True,
         )
 
         reset_queries()
@@ -442,7 +447,8 @@ class FindAnOrganizationViewTest(PublicSiteTestCase):
 
     def test_unverified_organization_not_listed(self):
         self._create_organization_supplier(
-            name="سازمان تأییدنشده تست", verification_status=VerificationStatus.UNVERIFIED,
+            name="سازمان تأییدنشده تست",
+            verification_status=VerificationStatus.UNVERIFIED,
         )
 
         response = self.client.get(reverse("public_site:organization-directory"))
@@ -533,7 +539,9 @@ class FindAnOrganizationViewTenantHintTest(PublicSiteTestCase):
         self.assertNotContains(response, "این نباید در فهرست دیده شود سازمان")
 
     def test_unverified_organization_not_listed_even_with_correct_tenant_hint(self):
-        self._create_organization_supplier(name="تأییدنشده تست سازمان", verification_status=VerificationStatus.UNVERIFIED)
+        self._create_organization_supplier(
+            name="تأییدنشده تست سازمان", verification_status=VerificationStatus.UNVERIFIED
+        )
 
         response = self.client.get(reverse("public_site:organization-directory"), {"tenant": self.tenant.slug})
 
@@ -565,10 +573,12 @@ class FindAnOrganizationViewTenantHintTest(PublicSiteTestCase):
         supplier, _ = self._create_organization_supplier(name="سازگاری جزئیات و فهرست تست سازمان")
 
         detail_response = self.client.get(
-            reverse("public_site:organization-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:organization-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         directory_response = self.client.get(
-            reverse("public_site:organization-directory"), {"tenant": self.tenant.slug},
+            reverse("public_site:organization-directory"),
+            {"tenant": self.tenant.slug},
         )
 
         self.assertEqual(detail_response.status_code, 200)
@@ -618,7 +628,8 @@ class DirectoryTenantLinkPropagationTest(PublicSiteTestCase):
 
         for href in card_hrefs:
             self.assertEqual(
-                self._tenant_param(href), self.tenant.slug,
+                self._tenant_param(href),
+                self.tenant.slug,
                 f"card link {href!r} does not carry the active tenant hint",
             )
             followed = self.client.get(href)
@@ -643,7 +654,8 @@ class DirectoryTenantLinkPropagationTest(PublicSiteTestCase):
         self._create_caregiver_supplier(display_name="فیلتر شهری تست", city="tehran")
 
         response = self.client.get(
-            reverse("public_site:find-a-caregiver"), {"tenant": self.tenant.slug, "city": "tehran"},
+            reverse("public_site:find-a-caregiver"),
+            {"tenant": self.tenant.slug, "city": "tehran"},
         )
         self.assertEqual(response.status_code, 200)
         self.assertIn(f'name="tenant" value="{self.tenant.slug}"', response.content.decode())
@@ -653,7 +665,8 @@ class DirectoryTenantLinkPropagationTest(PublicSiteTestCase):
         # ones included) — the destination must stay scoped to the same
         # tenant, not silently fall back to the default one.
         resubmitted = self.client.get(
-            reverse("public_site:find-a-caregiver"), {"tenant": self.tenant.slug, "city": "tehran"},
+            reverse("public_site:find-a-caregiver"),
+            {"tenant": self.tenant.slug, "city": "tehran"},
         )
         self.assertEqual(resubmitted.status_code, 200)
         self.assertContains(resubmitted, "فیلتر شهری تست")
@@ -662,7 +675,8 @@ class DirectoryTenantLinkPropagationTest(PublicSiteTestCase):
         self._create_caregiver_supplier(display_name="حذف فیلتر تست")
 
         response = self.client.get(
-            reverse("public_site:find-a-caregiver"), {"tenant": self.tenant.slug, "city": "no-such-city"},
+            reverse("public_site:find-a-caregiver"),
+            {"tenant": self.tenant.slug, "city": "no-such-city"},
         )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "مراقبی با این فیلترها یافت نشد")
@@ -693,7 +707,8 @@ class DirectoryTenantLinkPropagationTest(PublicSiteTestCase):
         self.assertNotContains(no_hint_response, "نباید نشت کند مراقب")
 
         wrong_hint_response = self.client.get(
-            reverse("public_site:find-a-caregiver"), {"tenant": other_tenant.slug},
+            reverse("public_site:find-a-caregiver"),
+            {"tenant": other_tenant.slug},
         )
         self.assertNotContains(wrong_hint_response, "نباید نشت کند مراقب")
 
@@ -734,7 +749,8 @@ class DirectoryTenantLinkPropagationTest(PublicSiteTestCase):
             self.assertEqual(followed.status_code, 200)
 
         empty_response = self.client.get(
-            reverse("public_site:organization-directory"), {"tenant": self.tenant.slug, "city": "no-such-city"},
+            reverse("public_site:organization-directory"),
+            {"tenant": self.tenant.slug, "city": "no-such-city"},
         )
         # See the caregiver test's identical comment: scoped to "?" to
         # avoid the static site-nav links to the bare
@@ -745,7 +761,8 @@ class DirectoryTenantLinkPropagationTest(PublicSiteTestCase):
 
     def test_unverified_organization_remains_absent_regardless_of_tenant_hint(self):
         self._create_organization_supplier(
-            name="سازمان تأییدنشده پیوند تست", verification_status=VerificationStatus.UNVERIFIED,
+            name="سازمان تأییدنشده پیوند تست",
+            verification_status=VerificationStatus.UNVERIFIED,
         )
 
         response = self.client.get(reverse("public_site:organization-directory"), {"tenant": self.tenant.slug})
@@ -767,7 +784,10 @@ class AppendTenantQueryHelperTest(TestCase):
         self.assertEqual(append_tenant_query("/find-a-caregiver/", ""), "/find-a-caregiver/")
 
     def test_appends_query_to_bare_path(self):
-        self.assertEqual(append_tenant_query("/find-a-caregiver/", "demo-senior-platform"), "/find-a-caregiver/?tenant=demo-senior-platform")
+        self.assertEqual(
+            append_tenant_query("/find-a-caregiver/", "demo-senior-platform"),
+            "/find-a-caregiver/?tenant=demo-senior-platform",
+        )
 
     def test_merges_into_existing_query_string_without_duplicating_marker(self):
         result = append_tenant_query("/find-a-caregiver/?type=agency&page=2", "demo-senior-platform")

@@ -51,9 +51,8 @@ class AssignmentDomainEventTest(BookingTestCase):
     def test_failed_assign_does_not_publish_an_event(self):
         other_tenant_supplier = self._create_supplier(tenant=self.other_tenant)
 
-        with self.captureOnCommitCallbacks(execute=True):
-            with self.assertRaises(AssignmentError):
-                AssignmentService.assign(order_id=self.order.id, supplier=other_tenant_supplier)
+        with self.captureOnCommitCallbacks(execute=True), self.assertRaises(AssignmentError):
+            AssignmentService.assign(order_id=self.order.id, supplier=other_tenant_supplier)
 
         self.assertFalse(
             AuditLog.objects.filter(tenant_id=self.tenant.id, action=f"domain_event.{ORDER_ASSIGNED}").exists(),

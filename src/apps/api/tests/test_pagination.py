@@ -1,7 +1,7 @@
 from django.test import SimpleTestCase
 
 from apps.api.errors import ApiError
-from apps.api.pagination import DEFAULT_LIMIT, MAX_LIMIT, Page, paginate, parse_pagination_params
+from apps.api.pagination import DEFAULT_LIMIT, MAX_LIMIT, paginate, parse_pagination_params
 
 
 class PaginateTest(SimpleTestCase):

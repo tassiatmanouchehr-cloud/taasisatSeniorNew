@@ -20,7 +20,10 @@ class OrderDomainEventTest(TestCase):
     def setUp(self):
         self.tenant = Tenant.objects.create(slug=f"orderevt-{uuid.uuid4().hex[:8]}", name="Order Event Tenant")
         self.category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
         self.customer_profile = self._create_customer()
 
@@ -74,9 +77,8 @@ class OrderDomainEventTest(TestCase):
         self.assertEqual(Notification.objects.filter(tenant=self.tenant).count(), 0)
 
     def test_failed_order_creation_does_not_publish_an_event(self):
-        with self.captureOnCommitCallbacks(execute=True):
-            with self.assertRaises(OrderValidationError):
-                create_public_order(**self._order_kwargs(description=""))
+        with self.captureOnCommitCallbacks(execute=True), self.assertRaises(OrderValidationError):
+            create_public_order(**self._order_kwargs(description=""))
 
         self.assertFalse(
             AuditLog.objects.filter(tenant_id=self.tenant.id, action=f"domain_event.{ORDER_CREATED}").exists(),

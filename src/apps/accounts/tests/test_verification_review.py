@@ -12,7 +12,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.test import TestCase, TransactionTestCase
 
-from apps.accounts.models.media import DocumentStatus, DocumentType, VerificationDocument
+from apps.accounts.models.media import DocumentStatus, DocumentType
 from apps.accounts.models.profiles import CaregiverProfile, OrganizationProfile
 from apps.accounts.permission_keys import ACCOUNTS_DOCUMENT_REVIEW
 from apps.accounts.services.document_service import DocumentService
@@ -48,7 +48,10 @@ class _VerificationFixtureMixin:
         person = Person.objects.create(tenant=tenant, full_name=f"{name} Admin")
         admin_user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         return OrganizationProfile.objects.create(
-            name=name, code=f"ORG-{uuid.uuid4().hex[:6].upper()}", admin_user=admin_user, tenant=tenant,
+            name=name,
+            code=f"ORG-{uuid.uuid4().hex[:6].upper()}",
+            admin_user=admin_user,
+            tenant=tenant,
         )
 
     def _create_user(self, *, tenant, full_name="Test User") -> UserAccount:
@@ -96,14 +99,18 @@ class ApproveTest(_VerificationFixtureMixin, TestCase):
 
     def test_authorized_reviewer_can_approve_caregiver_document(self):
         document = self._upload_caregiver_document()
-        result = VerificationReviewService.approve(document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer)
+        result = VerificationReviewService.approve(
+            document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer
+        )
         self.assertEqual(result.status, DocumentStatus.VERIFIED)
         self.assertEqual(result.reviewed_by_id, self.reviewer.id)
         self.assertIsNotNone(result.reviewed_at)
 
     def test_authorized_reviewer_can_approve_organization_document(self):
         document = self._upload_organization_document()
-        result = VerificationReviewService.approve(document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer)
+        result = VerificationReviewService.approve(
+            document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer
+        )
         self.assertEqual(result.status, DocumentStatus.VERIFIED)
 
 
@@ -115,7 +122,10 @@ class RejectTest(_VerificationFixtureMixin, TestCase):
     def test_authorized_reviewer_can_reject_with_reason(self):
         document = self._upload_caregiver_document()
         result = VerificationReviewService.reject(
-            document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="Blurry scan",
+            document_id=document.id,
+            tenant_id=self.tenant.id,
+            reviewer=self.reviewer,
+            reason="Blurry scan",
         )
         self.assertEqual(result.status, DocumentStatus.REJECTED)
         self.assertEqual(result.rejection_reason, "Blurry scan")
@@ -123,12 +133,16 @@ class RejectTest(_VerificationFixtureMixin, TestCase):
     def test_reject_requires_a_reason(self):
         document = self._upload_caregiver_document()
         with self.assertRaises(VerificationReviewError):
-            VerificationReviewService.reject(document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="")
+            VerificationReviewService.reject(
+                document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason=""
+            )
 
     def test_reject_requires_a_non_whitespace_reason(self):
         document = self._upload_caregiver_document()
         with self.assertRaises(VerificationReviewError):
-            VerificationReviewService.reject(document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="   ")
+            VerificationReviewService.reject(
+                document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="   "
+            )
 
 
 class RequestCorrectionTest(_VerificationFixtureMixin, TestCase):
@@ -139,7 +153,10 @@ class RequestCorrectionTest(_VerificationFixtureMixin, TestCase):
     def test_authorized_reviewer_can_request_correction(self):
         document = self._upload_caregiver_document()
         result = VerificationReviewService.request_correction(
-            document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="Upload the back side too",
+            document_id=document.id,
+            tenant_id=self.tenant.id,
+            reviewer=self.reviewer,
+            reason="Upload the back side too",
         )
         self.assertEqual(result.status, DocumentStatus.CORRECTION_REQUIRED)
         self.assertEqual(result.rejection_reason, "Upload the back side too")
@@ -147,20 +164,26 @@ class RequestCorrectionTest(_VerificationFixtureMixin, TestCase):
     def test_request_correction_requires_a_reason(self):
         document = self._upload_caregiver_document()
         with self.assertRaises(VerificationReviewError):
-            VerificationReviewService.request_correction(document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="")
+            VerificationReviewService.request_correction(
+                document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason=""
+            )
 
     def test_correction_required_returns_to_pending_on_resubmission(self):
         """CORRECTION_REQUIRED -> PENDING happens via the owner's existing
         upload/replace flow — no new code needed, only proof it still works."""
         document = self._upload_caregiver_document()
         VerificationReviewService.request_correction(
-            document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="Fix lighting",
+            document_id=document.id,
+            tenant_id=self.tenant.id,
+            reviewer=self.reviewer,
+            reason="Fix lighting",
         )
         document.refresh_from_db()
         self.assertEqual(document.status, DocumentStatus.CORRECTION_REQUIRED)
 
         DocumentService.replace_document(
-            document, file=SimpleUploadedFile("id2.pdf", PDF_BYTES, content_type="application/pdf"),
+            document,
+            file=SimpleUploadedFile("id2.pdf", PDF_BYTES, content_type="application/pdf"),
         )
         document.refresh_from_db()
         self.assertEqual(document.status, DocumentStatus.PENDING)
@@ -176,13 +199,17 @@ class IllegalTransitionTest(_VerificationFixtureMixin, TestCase):
         document = self._upload_caregiver_document()
         VerificationReviewService.approve(document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer)
         with self.assertRaises(VerificationReviewError):
-            VerificationReviewService.reject(document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="changed my mind")
+            VerificationReviewService.reject(
+                document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="changed my mind"
+            )
         document.refresh_from_db()
         self.assertEqual(document.status, DocumentStatus.VERIFIED)  # not silently overwritten
 
     def test_cannot_approve_an_already_rejected_document(self):
         document = self._upload_caregiver_document()
-        VerificationReviewService.reject(document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="bad scan")
+        VerificationReviewService.reject(
+            document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="bad scan"
+        )
         with self.assertRaises(VerificationReviewError):
             VerificationReviewService.approve(document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer)
 
@@ -194,16 +221,24 @@ class IdempotencyTest(_VerificationFixtureMixin, TestCase):
 
     def test_repeated_approve_is_idempotent(self):
         document = self._upload_caregiver_document()
-        first = VerificationReviewService.approve(document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer)
-        second = VerificationReviewService.approve(document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer)
+        first = VerificationReviewService.approve(
+            document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer
+        )
+        second = VerificationReviewService.approve(
+            document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer
+        )
         self.assertEqual(first.status, DocumentStatus.VERIFIED)
         self.assertEqual(second.status, DocumentStatus.VERIFIED)
 
     def test_repeated_reject_with_same_outcome_is_idempotent(self):
         document = self._upload_caregiver_document()
-        VerificationReviewService.reject(document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="bad scan")
+        VerificationReviewService.reject(
+            document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="bad scan"
+        )
         # Second call with a different reason is still a no-op on an already-REJECTED document.
-        result = VerificationReviewService.reject(document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="different reason")
+        result = VerificationReviewService.reject(
+            document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="different reason"
+        )
         self.assertEqual(result.status, DocumentStatus.REJECTED)
         self.assertEqual(result.rejection_reason, "bad scan")  # unchanged — no-op, not re-applied
 
@@ -220,7 +255,9 @@ class AuditRecordTest(_VerificationFixtureMixin, TestCase):
         VerificationReviewService.approve(document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer)
 
         entry = AuditLog.objects.filter(
-            tenant_id=self.tenant.id, resource_type="VerificationDocument", resource_id=document.id,
+            tenant_id=self.tenant.id,
+            resource_type="VerificationDocument",
+            resource_id=document.id,
         ).latest("occurred_at")
         self.assertEqual(entry.action, "accounts.document.verified")
         self.assertEqual(entry.before_snapshot, {"status": "pending"})
@@ -230,10 +267,14 @@ class AuditRecordTest(_VerificationFixtureMixin, TestCase):
         from apps.kernel.models.audit import AuditLog
 
         document = self._upload_caregiver_document()
-        VerificationReviewService.reject(document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="bad scan")
+        VerificationReviewService.reject(
+            document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="bad scan"
+        )
 
         entry = AuditLog.objects.filter(
-            tenant_id=self.tenant.id, resource_type="VerificationDocument", resource_id=document.id,
+            tenant_id=self.tenant.id,
+            resource_type="VerificationDocument",
+            resource_id=document.id,
         ).latest("occurred_at")
         self.assertEqual(entry.reason, "bad scan")
 
@@ -249,7 +290,9 @@ class CrossTenantAndSecurityTest(_VerificationFixtureMixin, TestCase):
         self._grant_review(other_reviewer, tenant=self.other_tenant)
 
         with self.assertRaises(AccountsError):
-            VerificationReviewService.approve(document_id=document.id, tenant_id=self.other_tenant.id, reviewer=other_reviewer)
+            VerificationReviewService.approve(
+                document_id=document.id, tenant_id=self.other_tenant.id, reviewer=other_reviewer
+            )
         document.refresh_from_db()
         self.assertEqual(document.status, DocumentStatus.PENDING)
 
@@ -263,7 +306,9 @@ class CrossTenantAndSecurityTest(_VerificationFixtureMixin, TestCase):
 
         document = self._upload_caregiver_document()
         with self.assertRaises(PermissionDenied):
-            VerificationReviewService.approve(document_id=document.id, tenant_id=self.tenant.id, reviewer=self.customer_actor)
+            VerificationReviewService.approve(
+                document_id=document.id, tenant_id=self.tenant.id, reviewer=self.customer_actor
+            )
         document.refresh_from_db()
         self.assertEqual(document.status, DocumentStatus.PENDING)
 
@@ -274,7 +319,9 @@ class CrossTenantAndSecurityTest(_VerificationFixtureMixin, TestCase):
         self._grant_review(self.caregiver.user)
 
         with self.assertRaises(VerificationReviewError):
-            VerificationReviewService.approve(document_id=document.id, tenant_id=self.tenant.id, reviewer=self.caregiver.user)
+            VerificationReviewService.approve(
+                document_id=document.id, tenant_id=self.tenant.id, reviewer=self.caregiver.user
+            )
         document.refresh_from_db()
         self.assertEqual(document.status, DocumentStatus.PENDING)
 
@@ -283,7 +330,9 @@ class CrossTenantAndSecurityTest(_VerificationFixtureMixin, TestCase):
         self._grant_review(self.organization.admin_user)
 
         with self.assertRaises(VerificationReviewError):
-            VerificationReviewService.approve(document_id=document.id, tenant_id=self.tenant.id, reviewer=self.organization.admin_user)
+            VerificationReviewService.approve(
+                document_id=document.id, tenant_id=self.tenant.id, reviewer=self.organization.admin_user
+            )
 
     def test_organization_user_without_permission_denied_from_unauthorized_review(self):
         from apps.kernel.services.errors import PermissionDenied
@@ -291,7 +340,9 @@ class CrossTenantAndSecurityTest(_VerificationFixtureMixin, TestCase):
         document = self._upload_organization_document()
         other_org = self._create_organization(tenant=self.tenant, name="Other Org")
         with self.assertRaises(PermissionDenied):
-            VerificationReviewService.approve(document_id=document.id, tenant_id=self.tenant.id, reviewer=other_org.admin_user)
+            VerificationReviewService.approve(
+                document_id=document.id, tenant_id=self.tenant.id, reviewer=other_org.admin_user
+            )
 
 
 class OwnerVisibilityTest(_VerificationFixtureMixin, TestCase):
@@ -302,7 +353,10 @@ class OwnerVisibilityTest(_VerificationFixtureMixin, TestCase):
     def test_owner_sees_status_and_correction_reason_via_existing_fields(self):
         document = self._upload_caregiver_document()
         VerificationReviewService.request_correction(
-            document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="Please upload a clearer photo",
+            document_id=document.id,
+            tenant_id=self.tenant.id,
+            reviewer=self.reviewer,
+            reason="Please upload a clearer photo",
         )
         # The owner-facing surface (DocumentService.list_for_caregiver, rendered
         # by document_upload.html) reads these same model fields directly.
@@ -342,9 +396,16 @@ class VerificationReviewConcurrencyTest(_VerificationFixtureMixin, TransactionTe
             try:
                 barrier.wait(timeout=10)
                 if target == "approve":
-                    VerificationReviewService.approve(document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer)
+                    VerificationReviewService.approve(
+                        document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer
+                    )
                 else:
-                    VerificationReviewService.reject(document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="concurrent reject")
+                    VerificationReviewService.reject(
+                        document_id=document.id,
+                        tenant_id=self.tenant.id,
+                        reviewer=self.reviewer,
+                        reason="concurrent reject",
+                    )
                 successes.append(target)
             except VerificationReviewError:
                 errors.append(target)

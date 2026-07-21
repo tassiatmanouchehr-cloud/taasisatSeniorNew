@@ -21,9 +21,14 @@ class OrderQueryService:
     def list_recent_for_customer(cls, *, customer_profile, tenant_id, limit):
         from ..models import Order
 
-        return Order.objects.for_tenant(tenant_id).filter(
-            customer_profile=customer_profile,
-        ).select_related("service_category").order_by("-created_at")[:limit]
+        return (
+            Order.objects.for_tenant(tenant_id)
+            .filter(
+                customer_profile=customer_profile,
+            )
+            .select_related("service_category")
+            .order_by("-created_at")[:limit]
+        )
 
     @classmethod
     def list_for_customer(cls, *, customer_profile, tenant_id, only=None):
@@ -34,9 +39,14 @@ class OrderQueryService:
         query-count regression test caught this)."""
         from ..models import FINAL_STATUSES, Order, OrderStatus
 
-        queryset = Order.objects.for_tenant(tenant_id).filter(
-            customer_profile=customer_profile,
-        ).select_related("service_category", "elder_profile").order_by("-created_at")
+        queryset = (
+            Order.objects.for_tenant(tenant_id)
+            .filter(
+                customer_profile=customer_profile,
+            )
+            .select_related("service_category", "elder_profile")
+            .order_by("-created_at")
+        )
 
         if only == "active":
             queryset = queryset.exclude(status__in=FINAL_STATUSES)
@@ -55,10 +65,16 @@ class OrderQueryService:
 
         from ..models import FINAL_STATUSES, Order
 
-        return Order.objects.for_tenant(tenant_id).filter(
-            customer_profile=customer_profile,
-            scheduled_for__gte=timezone.now(),
-        ).select_related("service_category").exclude(status__in=FINAL_STATUSES).order_by("scheduled_for")[:limit]
+        return (
+            Order.objects.for_tenant(tenant_id)
+            .filter(
+                customer_profile=customer_profile,
+                scheduled_for__gte=timezone.now(),
+            )
+            .select_related("service_category")
+            .exclude(status__in=FINAL_STATUSES)
+            .order_by("scheduled_for")[:limit]
+        )
 
     @classmethod
     def list_for_care_recipient(cls, *, customer_profile, elder_profile, tenant_id):
@@ -72,10 +88,15 @@ class OrderQueryService:
         otherwise cause reading order.service_category.name per row."""
         from ..models import Order
 
-        return Order.objects.for_tenant(tenant_id).filter(
-            customer_profile=customer_profile,
-            elder_profile=elder_profile,
-        ).select_related("service_category").order_by("-created_at")
+        return (
+            Order.objects.for_tenant(tenant_id)
+            .filter(
+                customer_profile=customer_profile,
+                elder_profile=elder_profile,
+            )
+            .select_related("service_category")
+            .order_by("-created_at")
+        )
 
     @classmethod
     def get_for_customer(cls, *, customer_profile, tenant_id, order_id):
@@ -99,9 +120,14 @@ class OrderQueryService:
         closed."""
         from ..models import FINAL_STATUSES, Order
 
-        return Order.objects.for_tenant(tenant_id).filter(
-            assigned_supplier__isnull=True,
-        ).exclude(status__in=FINAL_STATUSES).order_by("created_at")
+        return (
+            Order.objects.for_tenant(tenant_id)
+            .filter(
+                assigned_supplier__isnull=True,
+            )
+            .exclude(status__in=FINAL_STATUSES)
+            .order_by("created_at")
+        )
 
     @classmethod
     def list_recent_unassigned_for_tenant(cls, *, tenant_id, limit):
@@ -117,9 +143,14 @@ class OrderQueryService:
         Order.status's own existing values (see orders.models.OrderStatus)."""
         from ..models import Order, OrderStatus
 
-        queryset = Order.objects.for_tenant(tenant_id).filter(
-            assigned_supplier=supplier,
-        ).select_related("service_category").order_by("-created_at")
+        queryset = (
+            Order.objects.for_tenant(tenant_id)
+            .filter(
+                assigned_supplier=supplier,
+            )
+            .select_related("service_category")
+            .order_by("-created_at")
+        )
 
         if only == "current":
             queryset = queryset.filter(status=OrderStatus.IN_PROGRESS)
@@ -140,11 +171,15 @@ class OrderQueryService:
 
         from ..models import Order, OrderStatus
 
-        counts = Order.objects.for_tenant(tenant_id).filter(assigned_supplier=supplier).aggregate(
-            current=Count("id", filter=Q(status=OrderStatus.IN_PROGRESS)),
-            upcoming=Count("id", filter=Q(status=OrderStatus.WAITING_SERVICE)),
-            completed=Count("id", filter=Q(status=OrderStatus.COMPLETED)),
-            cancelled=Count("id", filter=Q(status=OrderStatus.CANCELLED)),
+        counts = (
+            Order.objects.for_tenant(tenant_id)
+            .filter(assigned_supplier=supplier)
+            .aggregate(
+                current=Count("id", filter=Q(status=OrderStatus.IN_PROGRESS)),
+                upcoming=Count("id", filter=Q(status=OrderStatus.WAITING_SERVICE)),
+                completed=Count("id", filter=Q(status=OrderStatus.COMPLETED)),
+                cancelled=Count("id", filter=Q(status=OrderStatus.CANCELLED)),
+            )
         )
         return {key: (value or 0) for key, value in counts.items()}
 
@@ -171,11 +206,16 @@ class OrderQueryService:
         specific "still claimable" list, exactly as before."""
         from ..models import FINAL_STATUSES, EligibilityStatus, Order
 
-        return Order.objects.for_tenant(tenant_id).filter(
-            assigned_supplier__isnull=True,
-            organization_eligibilities__organization=organization,
-            organization_eligibilities__status=EligibilityStatus.ACTIVE,
-        ).exclude(status__in=FINAL_STATUSES).order_by("created_at")
+        return (
+            Order.objects.for_tenant(tenant_id)
+            .filter(
+                assigned_supplier__isnull=True,
+                organization_eligibilities__organization=organization,
+                organization_eligibilities__status=EligibilityStatus.ACTIVE,
+            )
+            .exclude(status__in=FINAL_STATUSES)
+            .order_by("created_at")
+        )
 
     @classmethod
     def list_recent_eligible_for_organization(cls, *, organization, tenant_id, limit):
@@ -231,7 +271,8 @@ class CatalogQueryService:
             str(category.id): [
                 {"id": str(service_type.id), "name": service_type.name}
                 for service_type in ServiceType.objects.for_tenant(tenant_id).filter(
-                    category=category, status=CatalogStatus.ACTIVE,
+                    category=category,
+                    status=CatalogStatus.ACTIVE,
                 )
             ]
             for category in categories

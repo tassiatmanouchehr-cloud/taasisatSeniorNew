@@ -192,6 +192,4 @@ class AuditLog(models.Model):
 
     def delete(self, *args, **kwargs):
         """Prevent deletion of audit records."""
-        raise ValueError(
-            "AuditLog records cannot be deleted. They are append-only."
-        )
+        raise ValueError("AuditLog records cannot be deleted. They are append-only.")

@@ -22,7 +22,9 @@ class MultiRoleIdentityTest(TestCase):
         self.tenant = Tenant.objects.create(slug=f"t-{uuid.uuid4().hex[:8]}", name="T")
         self.person = Person.objects.create(tenant=self.tenant, full_name="Maryam Ahmadi")
         self.user = UserAccount.objects.create_user(
-            email="maryam@example.com", person=self.person, tenant=self.tenant,
+            email="maryam@example.com",
+            person=self.person,
+            tenant=self.tenant,
         )
 
     def test_one_person_can_have_caregiver_and_customer_profiles(self):
@@ -64,6 +66,7 @@ class MultiRoleIdentityTest(TestCase):
 
     def test_ensure_customer_profile_assigns_customer_role(self):
         from apps.kernel.models import Role
+
         Role.objects.get_or_create(tenant=self.tenant, slug="customer", defaults={"name": "Customer"})
 
         ensure_customer_profile(self.user)

@@ -124,7 +124,11 @@ class CaregiverGalleryServiceUpdateTest(_FixtureMixin, TestCase):
     def test_update_item(self):
         item = CaregiverGalleryService.add_item(self.caregiver, image=_image_file())
         updated = CaregiverGalleryService.update_item(
-            self.caregiver, item_id=item.id, caption="جدید", alt_text="توضیح", is_visible=False,
+            self.caregiver,
+            item_id=item.id,
+            caption="جدید",
+            alt_text="توضیح",
+            is_visible=False,
         )
         self.assertEqual(updated.caption, "جدید")
         self.assertEqual(updated.alt_text, "توضیح")
@@ -277,11 +281,10 @@ class CaregiverGalleryServiceTransactionSafetyTest(_FixtureMixin, TestCase):
         class _Marker(Exception):
             pass
 
-        with self.captureOnCommitCallbacks(execute=True) as callbacks:
-            with self.assertRaises(_Marker):
-                with transaction.atomic():
-                    CaregiverGalleryService.remove_item(self.caregiver, item_id=item_id)
-                    raise _Marker("force the enclosing transaction to roll back")
+        with self.captureOnCommitCallbacks(execute=True) as callbacks, self.assertRaises(_Marker):
+            with transaction.atomic():
+                CaregiverGalleryService.remove_item(self.caregiver, item_id=item_id)
+                raise _Marker("force the enclosing transaction to roll back")
 
         # The callback was registered, then discarded by the rollback —
         # it was never even captured, let alone executed.
@@ -308,13 +311,15 @@ class CaregiverGalleryServiceTransactionSafetyTest(_FixtureMixin, TestCase):
         item = CaregiverGalleryService.add_item(self.caregiver, image=_image_file())
         item_id = item.id
 
-        with mock.patch(
-            "django.core.files.storage.FileSystemStorage.delete",
-            side_effect=OSError("simulated storage failure"),
+        with (
+            mock.patch(
+                "django.core.files.storage.FileSystemStorage.delete",
+                side_effect=OSError("simulated storage failure"),
+            ),
+            self.assertLogs("apps.accounts.services.caregiver_gallery_service", level="ERROR") as logs,
         ):
-            with self.assertLogs("apps.accounts.services.caregiver_gallery_service", level="ERROR") as logs:
-                with self.captureOnCommitCallbacks(execute=True):
-                    CaregiverGalleryService.remove_item(self.caregiver, item_id=item_id)  # must not raise
+            with self.captureOnCommitCallbacks(execute=True):
+                CaregiverGalleryService.remove_item(self.caregiver, item_id=item_id)  # must not raise
 
         self.assertIn("Failed to delete orphaned gallery file", logs.output[0])
         # The row stays deleted — a storage failure never recreates it,
@@ -362,9 +367,8 @@ class CaregiverGalleryServiceImageSafetyTest(_FixtureMixin, TestCase):
         # Image.DecompressionBombError (raised by Pillow itself, not
         # simulated) is caught and mapped to the same controlled
         # AccountsError, never an unhandled 500.
-        with mock.patch("PIL.Image.MAX_IMAGE_PIXELS", 10):
-            with self.assertRaises(AccountsError):
-                CaregiverGalleryService.add_item(self.caregiver, image=_sized_image_file(100, 100))
+        with mock.patch("PIL.Image.MAX_IMAGE_PIXELS", 10), self.assertRaises(AccountsError):
+            CaregiverGalleryService.add_item(self.caregiver, image=_sized_image_file(100, 100))
         self.assertEqual(CaregiverGalleryItem.objects.filter(caregiver=self.caregiver).count(), 0)
 
     def test_corrupted_image_still_rejected(self):

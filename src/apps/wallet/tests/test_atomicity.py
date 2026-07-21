@@ -19,9 +19,8 @@ _SAVE_TARGET = "apps.wallet.models.Wallet.save"
 
 class WalletAtomicityTest(WalletTestCase):
     def test_credit_rolls_back_fully_on_late_failure(self):
-        with patch(_SAVE_TARGET, side_effect=RuntimeError("boom")):
-            with self.assertRaises(RuntimeError):
-                WalletTransactionService.credit(wallet_id=self.wallet.id, amount=Decimal("1000"))
+        with patch(_SAVE_TARGET, side_effect=RuntimeError("boom")), self.assertRaises(RuntimeError):
+            WalletTransactionService.credit(wallet_id=self.wallet.id, amount=Decimal("1000"))
 
         self.wallet.refresh_from_db()
         self.assertEqual(self.wallet.balance, Decimal("0.00"))
@@ -30,9 +29,8 @@ class WalletAtomicityTest(WalletTestCase):
     def test_debit_rolls_back_fully_on_late_failure(self):
         WalletTransactionService.credit(wallet_id=self.wallet.id, amount=Decimal("1000"))
 
-        with patch(_SAVE_TARGET, side_effect=RuntimeError("boom")):
-            with self.assertRaises(RuntimeError):
-                WalletTransactionService.debit(wallet_id=self.wallet.id, amount=Decimal("400"))
+        with patch(_SAVE_TARGET, side_effect=RuntimeError("boom")), self.assertRaises(RuntimeError):
+            WalletTransactionService.debit(wallet_id=self.wallet.id, amount=Decimal("400"))
 
         self.wallet.refresh_from_db()
         self.assertEqual(self.wallet.balance, Decimal("1000.00"))
@@ -55,7 +53,9 @@ class WalletAtomicityTest(WalletTestCase):
         """A pre-check miss (simulating a concurrent insert racing in) must fall back to the real row
         found via the DB's unique_together(wallet, idempotency_key) constraint, not raise or double-post."""
         existing = WalletTransactionService.credit(
-            wallet_id=self.wallet.id, amount=Decimal("100"), idempotency_key="race-key",
+            wallet_id=self.wallet.id,
+            amount=Decimal("100"),
+            idempotency_key="race-key",
         )
 
         real_filter = WalletTransaction.objects.filter
@@ -65,6 +65,7 @@ class WalletAtomicityTest(WalletTestCase):
             call_count["n"] += 1
             if call_count["n"] == 1:
                 from unittest.mock import MagicMock
+
                 miss = MagicMock()
                 miss.first.return_value = None
                 return miss
@@ -72,7 +73,9 @@ class WalletAtomicityTest(WalletTestCase):
 
         with patch.object(WalletTransaction.objects, "filter", side_effect=flaky_filter):
             txn = WalletTransactionService.credit(
-                wallet_id=self.wallet.id, amount=Decimal("100"), idempotency_key="race-key",
+                wallet_id=self.wallet.id,
+                amount=Decimal("100"),
+                idempotency_key="race-key",
             )
 
         self.assertEqual(txn.id, existing.id)

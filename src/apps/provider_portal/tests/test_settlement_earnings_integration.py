@@ -40,15 +40,19 @@ class SettlementEarningsIntegrationTest(ProviderPortalTestCase):
 
         payer_party = FinancialPartyService.resolve_party_for_customer(self.customer)
         intent = PaymentIntentService.create_intent(
-            payer_party=payer_party, amount=document.total_amount,
+            payer_party=payer_party,
+            amount=document.total_amount,
             idempotency_key=f"intent-{uuid.uuid4().hex[:12]}",
-            reference_type="Order", reference_id=self.order.id,
+            reference_type="Order",
+            reference_id=self.order.id,
         )
         attempt = PaymentIntentService.start_attempt(intent_id=intent.id)
         payload = {
             "provider_reference": attempt.provider_reference,
             "provider_event_id": f"evt-{uuid.uuid4().hex[:12]}",
-            "status": "SUCCEEDED", "amount": str(intent.amount), "currency": intent.currency,
+            "status": "SUCCEEDED",
+            "amount": str(intent.amount),
+            "currency": intent.currency,
         }
         PaymentCallbackService.process_callback(provider_reference=attempt.provider_reference, payload=payload)
 

@@ -47,16 +47,19 @@ class Command(BaseCommand):
         parser.add_argument("--enabled", required=True, help="true|false")
         parser.add_argument("--reason", required=True, help="Mandatory operational reason for this change.")
         parser.add_argument(
-            "--actor", required=True,
+            "--actor",
+            required=True,
             help="Explicit operator identity (e.g. 'ops:jane@example.com'). Never inferred.",
         )
         parser.add_argument("--correlation-id", default=None, help="Optional correlation UUID for this operation.")
         parser.add_argument(
-            "--source", default="management_command",
+            "--source",
+            default="management_command",
             help="Audit metadata: where this change originated from (default: management_command).",
         )
         parser.add_argument(
-            "--confirm-disable", action="store_true",
+            "--confirm-disable",
+            action="store_true",
             help="Required to disable enforcement. Disabling bypasses authorization checks platform-wide for this tenant.",
         )
 
@@ -99,16 +102,20 @@ class Command(BaseCommand):
             raise CommandError(str(exc)) from exc
 
         state_label = "ENABLED" if status.enabled else "DISABLED"
-        self.stdout.write(self.style.SUCCESS(
-            f"RBAC enforcement for tenant {tenant.slug} ({tenant.id}) is now "
-            f"{state_label} (source={status.source})."
-        ))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"RBAC enforcement for tenant {tenant.slug} ({tenant.id}) is now "
+                f"{state_label} (source={status.source})."
+            )
+        )
         if not status.enabled:
-            self.stdout.write(self.style.WARNING(
-                "WARNING: RBAC enforcement is DISABLED for this tenant. "
-                "Permission checks are bypassed platform-wide until re-enabled "
-                "with this same command."
-            ))
+            self.stdout.write(
+                self.style.WARNING(
+                    "WARNING: RBAC enforcement is DISABLED for this tenant. "
+                    "Permission checks are bypassed platform-wide until re-enabled "
+                    "with this same command."
+                )
+            )
 
     def _resolve_tenant(self, raw: str) -> Tenant:
         raw = (raw or "").strip()

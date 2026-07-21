@@ -61,14 +61,21 @@ class InvTenFixtureMixin:
     def _build_fixture(self):
         self.tenant = TenantService.get_default_tenant()
         self.category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Home Care", slug="home-care-inv10", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Home Care",
+            slug="home-care-inv10",
+            status=CatalogStatus.ACTIVE,
         )
 
     def _create_caregiver(self, *, status, phone="09145550001", display_name="Draft Caregiver"):
         person = Person.objects.create(tenant=self.tenant, full_name=display_name)
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=self.tenant)
         return CaregiverProfile.objects.create(
-            user=user, person=person, phone=phone, display_name=display_name, status=status,
+            user=user,
+            person=person,
+            phone=phone,
+            display_name=display_name,
+            status=status,
         )
 
     def _create_organization(self, *, status, phone="09145550002", code="INV10-ORG-1"):
@@ -77,22 +84,31 @@ class InvTenFixtureMixin:
         person = Person.objects.create(tenant=self.tenant, full_name="Org Admin")
         admin_user = UserAccount.objects.create_user(phone=phone, person=person, tenant=self.tenant)
         organization = OrganizationProfile.objects.create(
-            name="Draft Org", code=code, admin_user=admin_user, tenant=self.tenant, status=status,
+            name="Draft Org",
+            code=code,
+            admin_user=admin_user,
+            tenant=self.tenant,
+            status=status,
         )
         OrganizationMembership.objects.create(
-            organization=organization, user=admin_user, person=person,
-            role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+            organization=organization,
+            user=admin_user,
+            person=person,
+            role_type=OrgMembershipRole.ADMIN,
+            status=OrgMembershipStatus.ACTIVE,
         )
         return organization
 
     def _no_caregiver_supplier(self, caregiver) -> bool:
         return not ServiceSupplier.objects.filter(
-            linked_entity_id=caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+            linked_entity_id=caregiver.id,
+            linked_entity_type=CAREGIVER_LINKED_TYPE,
         ).exists()
 
     def _no_organization_supplier(self, organization) -> bool:
         return not ServiceSupplier.objects.filter(
-            linked_entity_id=organization.id, linked_entity_type=ORGANIZATION_LINKED_TYPE,
+            linked_entity_id=organization.id,
+            linked_entity_type=ORGANIZATION_LINKED_TYPE,
         ).exists()
 
 
@@ -111,7 +127,11 @@ class DraftCaregiverEditDoesNotCreateSupplierTest(InvTenFixtureMixin, TestCase):
 
     def test_update_professional_info_with_categories_creates_no_supplier(self):
         CaregiverProfileUpdateService.update_professional_info(
-            self.caregiver, bio="bio", specialty="nurse", years_experience=3, service_radius_km=5,
+            self.caregiver,
+            bio="bio",
+            specialty="nurse",
+            years_experience=3,
+            service_radius_km=5,
             service_category_ids=[str(self.category.id)],
         )
 
@@ -132,7 +152,8 @@ class ActiveCaregiverEditRemainsIdempotentlyValidTest(InvTenFixtureMixin, TestCa
         CaregiverProfileUpdateService.update_basic_info(self.caregiver, display_name="Active Name", city="tehran")
 
         supplier = ServiceSupplier.objects.get(
-            linked_entity_id=self.caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+            linked_entity_id=self.caregiver.id,
+            linked_entity_type=CAREGIVER_LINKED_TYPE,
         )
         self.assertEqual(supplier.display_name, "Active Name")
 
@@ -147,7 +168,9 @@ class DraftOrganizationEditDoesNotCreateSupplierTest(InvTenFixtureMixin, TestCas
 
     def test_update_service_categories_creates_no_supplier_for_draft_organization(self):
         OrganizationProfileUpdateService.update_service_categories(
-            self.organization, actor=self.organization.admin_user, service_category_ids=[str(self.category.id)],
+            self.organization,
+            actor=self.organization.admin_user,
+            service_category_ids=[str(self.category.id)],
         )
         self.assertTrue(self._no_organization_supplier(self.organization))
 
@@ -162,10 +185,13 @@ class ActiveOrganizationEditRemainsIdempotentlyValidTest(InvTenFixtureMixin, Tes
 
     def test_update_service_categories_repairs_missing_supplier_for_active_organization(self):
         OrganizationProfileUpdateService.update_service_categories(
-            self.organization, actor=self.organization.admin_user, service_category_ids=[str(self.category.id)],
+            self.organization,
+            actor=self.organization.admin_user,
+            service_category_ids=[str(self.category.id)],
         )
         supplier = ServiceSupplier.objects.get(
-            linked_entity_id=self.organization.id, linked_entity_type=ORGANIZATION_LINKED_TYPE,
+            linked_entity_id=self.organization.id,
+            linked_entity_type=ORGANIZATION_LINKED_TYPE,
         )
         self.assertEqual(supplier.service_categories, [str(self.category.id)])
 

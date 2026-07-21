@@ -30,9 +30,15 @@ class _EligibilityFixtureMixin:
         person = Person.objects.create(tenant=tenant, full_name=full_name)
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         return CaregiverProfile.objects.create(
-            user=user, person=person, phone=phone, display_name=full_name,
-            city="tehran", specialty="elderly-care", bio="Experienced caregiver.",
-            years_experience=5, service_radius_km=10,
+            user=user,
+            person=person,
+            phone=phone,
+            display_name=full_name,
+            city="tehran",
+            specialty="elderly-care",
+            bio="Experienced caregiver.",
+            years_experience=5,
+            service_radius_km=10,
         )
 
     def _create_organization(self, *, tenant, name="Test Org") -> OrganizationProfile:
@@ -40,9 +46,15 @@ class _EligibilityFixtureMixin:
         person = Person.objects.create(tenant=tenant, full_name=f"{name} Admin")
         admin_user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         return OrganizationProfile.objects.create(
-            name=name, code=f"ORG-{uuid.uuid4().hex[:6].upper()}", admin_user=admin_user, tenant=tenant,
-            city="tehran", phone="09120000000", address="Some address",
-            description="A senior-care company.", company_type="home_care",
+            name=name,
+            code=f"ORG-{uuid.uuid4().hex[:6].upper()}",
+            admin_user=admin_user,
+            tenant=tenant,
+            city="tehran",
+            phone="09120000000",
+            address="Some address",
+            description="A senior-care company.",
+            company_type="home_care",
         )
 
     def _create_user(self, *, tenant, full_name="Test User") -> UserAccount:
@@ -124,7 +136,10 @@ class CaregiverEligibilityTest(_EligibilityFixtureMixin, TestCase):
         file = SimpleUploadedFile("id.pdf", PDF_BYTES, content_type="application/pdf")
         doc = DocumentService.upload_caregiver_document(self.caregiver, document_type=DocumentType.IDENTITY, file=file)
         VerificationReviewService.request_correction(
-            document_id=doc.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="fix",
+            document_id=doc.id,
+            tenant_id=self.tenant.id,
+            reviewer=self.reviewer,
+            reason="fix",
         )
         result = ActivationEligibilityService.evaluate_caregiver(self.caregiver)
         self.assertFalse(result.eligible)

@@ -862,7 +862,8 @@ class SeedProductWalkthroughCanonicalTenantAlignmentTest(TestCase):
         _run_command()
         tenant = Tenant.objects.get(slug=DEMO_TENANT_SLUG)
         supplier = ServiceSupplier.objects.filter(
-            tenant_id=tenant.id, supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+            tenant_id=tenant.id,
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER,
         ).first()
 
         with override_settings(PUBLIC_SITE_TENANT_SLUG=None):
@@ -894,12 +895,19 @@ class SeedProductWalkthroughCanonicalTenantAlignmentTest(TestCase):
         other_tenant = Tenant.objects.create(slug=f"other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
         person = Person.objects.create(tenant=other_tenant, full_name="مراقب تنانت دیگر")
         user = UserAccount.objects.create_user(
-            phone=f"0915{uuid.uuid4().hex[:7]}", person=person, tenant=other_tenant,
+            phone=f"0915{uuid.uuid4().hex[:7]}",
+            person=person,
+            tenant=other_tenant,
         )
         profile = ensure_caregiver_profile(
-            user, phone=person.full_name, display_name="مراقب تنانت دیگر نباید دیده شود",
-            provider_type=CaregiverProviderType.INDEPENDENT, specialty="پرستار", city="tehran",
-            verification_status="verified", status="active",
+            user,
+            phone=person.full_name,
+            display_name="مراقب تنانت دیگر نباید دیده شود",
+            provider_type=CaregiverProviderType.INDEPENDENT,
+            specialty="پرستار",
+            city="tehran",
+            verification_status="verified",
+            status="active",
         )
         get_or_create_supplier_for_caregiver(profile, tenant_id=other_tenant.id)
 

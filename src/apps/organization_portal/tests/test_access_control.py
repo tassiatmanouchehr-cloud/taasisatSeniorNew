@@ -39,14 +39,25 @@ class AuthenticatedAdminAccessTest(OrganizationPortalTestCase):
             self.assertEqual(response.status_code, 200, path)
 
     def test_admin_of_another_organization_cannot_see_this_one(self):
-        from apps.accounts.models.profiles import OrganizationMembership, OrganizationProfile, OrgMembershipRole, OrgMembershipStatus
+        from apps.accounts.models.profiles import (
+            OrganizationMembership,
+            OrganizationProfile,
+            OrgMembershipRole,
+            OrgMembershipStatus,
+        )
 
         other_admin = self._create_user(tenant=self.other_tenant, phone="09121110099")
         other_org = OrganizationProfile.objects.create(
-            name="Other Co", code="other-co", admin_user=other_admin, tenant=self.other_tenant,
+            name="Other Co",
+            code="other-co",
+            admin_user=other_admin,
+            tenant=self.other_tenant,
         )
         OrganizationMembership.objects.create(
-            organization=other_org, user=other_admin, role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+            organization=other_org,
+            user=other_admin,
+            role_type=OrgMembershipRole.ADMIN,
+            status=OrgMembershipStatus.ACTIVE,
         )
         self.client.force_login(other_admin)
         response = self.client.get("/organization/")

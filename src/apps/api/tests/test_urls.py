@@ -36,8 +36,11 @@ class ApiUrlVersioningTest(TestCase):
 
     def test_no_unversioned_module_17b_routes_exist(self):
         for path in (
-            "/discovery/suppliers/", "/pricing/quotes/", "/reviews/",
-            "/wallet/balance/", "/payments/intents/",
+            "/discovery/suppliers/",
+            "/pricing/quotes/",
+            "/reviews/",
+            "/wallet/balance/",
+            "/payments/intents/",
         ):
             response = self.client.get(path)
             self.assertEqual(response.status_code, 404, path)

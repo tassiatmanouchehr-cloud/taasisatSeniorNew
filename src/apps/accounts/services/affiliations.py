@@ -110,7 +110,9 @@ def _resolve_join_code_organization(*, code, tenant_id):
     if not code:
         return None
     return OrganizationProfile.objects.filter(
-        code__iexact=code, tenant_id=tenant_id, status=ProfileStatus.ACTIVE,
+        code__iexact=code,
+        tenant_id=tenant_id,
+        status=ProfileStatus.ACTIVE,
     ).first()
 
 
@@ -145,11 +147,13 @@ def submit_join_request(*, caregiver_profile, code, tenant_id, caregiver_note=""
     didn't resolve (unknown code and an inactive company's code both look
     identical to the caregiver)."""
     if OrganizationMembership.objects.filter(
-        user=caregiver_profile.user, status=OrgMembershipStatus.ACTIVE,
+        user=caregiver_profile.user,
+        status=OrgMembershipStatus.ACTIVE,
     ).exists():
         raise AccountsError("This caregiver already has an active company affiliation.")
     if CompanyAffiliationRequest.objects.filter(
-        caregiver_profile=caregiver_profile, status=AffiliationStatus.PENDING,
+        caregiver_profile=caregiver_profile,
+        status=AffiliationStatus.PENDING,
     ).exists():
         raise AccountsError("A join request is already pending.")
 
@@ -228,7 +232,9 @@ def approve_affiliation_request(*, request_id, reviewed_by, reviewer_note=""):
         raise AccountsError("Cannot approve: organization has no tenant.")
 
     PermissionService.require(
-        None, ORGANIZATION_MEMBERSHIP_APPROVE, tenant_id=req.organization.tenant_id,
+        None,
+        ORGANIZATION_MEMBERSHIP_APPROVE,
+        tenant_id=req.organization.tenant_id,
         ownership_authorized_by=reviewed_by,
         scope={"scope_type": "organization", "scope_id": str(req.organization_id)},
     )
@@ -278,7 +284,11 @@ def approve_affiliation_request(*, request_id, reviewed_by, reviewer_note=""):
         module_id=MODULE_ID,
         actor_id=reviewed_by.person_id if reviewed_by else None,
         actor_type="user" if reviewed_by else "system",
-        after={"organization_id": str(req.organization_id), "user_id": str(membership.user_id), "role_type": membership.role_type},
+        after={
+            "organization_id": str(req.organization_id),
+            "user_id": str(membership.user_id),
+            "role_type": membership.role_type,
+        },
     )
 
     return req
@@ -299,7 +309,9 @@ def reject_affiliation_request(*, request_id, reviewed_by, reviewer_note=""):
 
     if req.organization:
         PermissionService.require(
-            None, ORGANIZATION_MEMBERSHIP_REJECT, tenant_id=req.organization.tenant_id,
+            None,
+            ORGANIZATION_MEMBERSHIP_REJECT,
+            tenant_id=req.organization.tenant_id,
             ownership_authorized_by=reviewed_by,
             scope={"scope_type": "organization", "scope_id": str(req.organization_id)},
         )
@@ -328,15 +340,21 @@ def invite_caregiver(*, organization, caregiver_phone, invited_by):
         raise AccountsError("Cannot invite: organization has no tenant.")
 
     PermissionService.require(
-        None, ORGANIZATION_MEMBERSHIP_INVITE, tenant_id=organization.tenant_id,
+        None,
+        ORGANIZATION_MEMBERSHIP_INVITE,
+        tenant_id=organization.tenant_id,
         ownership_authorized_by=invited_by,
         scope={"scope_type": "organization", "scope_id": str(organization.id)},
     )
 
     try:
         # Lock the caregiver's own profile row first — see module docstring.
-        caregiver = CaregiverProfile.objects.select_for_update().select_related("user", "person").get(
-            phone=caregiver_phone,
+        caregiver = (
+            CaregiverProfile.objects.select_for_update()
+            .select_related("user", "person")
+            .get(
+                phone=caregiver_phone,
+            )
         )
     except CaregiverProfile.DoesNotExist:
         raise AccountsError("No caregiver found with this phone number.") from None
@@ -386,7 +404,9 @@ def cancel_invitation(*, membership_id, cancelled_by):
         raise AccountsError("Only a pending invitation can be cancelled.")
 
     PermissionService.require(
-        None, ORGANIZATION_MEMBERSHIP_REJECT, tenant_id=membership.organization.tenant_id,
+        None,
+        ORGANIZATION_MEMBERSHIP_REJECT,
+        tenant_id=membership.organization.tenant_id,
         ownership_authorized_by=cancelled_by,
         scope={"scope_type": "organization", "scope_id": str(membership.organization_id)},
     )
@@ -398,7 +418,12 @@ def cancel_invitation(*, membership_id, cancelled_by):
     membership.closure_reason = AffiliationClosureReason.INVITATION_CANCELLED_BY_COMPANY
     membership.save(
         update_fields=[
-            "status", "terminated_at", "terminated_by", "termination_reason", "closure_reason", "updated_at",
+            "status",
+            "terminated_at",
+            "terminated_by",
+            "termination_reason",
+            "closure_reason",
+            "updated_at",
         ],
     )
 
@@ -471,7 +496,12 @@ def decline_invitation(*, membership_id, caregiver_profile):
     membership.closure_reason = AffiliationClosureReason.INVITATION_DECLINED_BY_CAREGIVER
     membership.save(
         update_fields=[
-            "status", "terminated_at", "terminated_by", "termination_reason", "closure_reason", "updated_at",
+            "status",
+            "terminated_at",
+            "terminated_by",
+            "termination_reason",
+            "closure_reason",
+            "updated_at",
         ],
     )
     return membership
@@ -490,7 +520,9 @@ def terminate_membership(*, membership_id, terminated_by, reason=""):
         raise AccountsError("Only an active membership can be terminated.")
 
     PermissionService.require(
-        None, ORGANIZATION_MEMBERSHIP_TERMINATE, tenant_id=membership.organization.tenant_id,
+        None,
+        ORGANIZATION_MEMBERSHIP_TERMINATE,
+        tenant_id=membership.organization.tenant_id,
         ownership_authorized_by=terminated_by,
         scope={"scope_type": "organization", "scope_id": str(membership.organization_id)},
     )
@@ -542,7 +574,12 @@ def _finalize_termination(membership, *, terminated_by, reason, closure_reason) 
     membership.closure_reason = closure_reason
     membership.save(
         update_fields=[
-            "status", "terminated_at", "terminated_by", "termination_reason", "closure_reason", "updated_at",
+            "status",
+            "terminated_at",
+            "terminated_by",
+            "termination_reason",
+            "closure_reason",
+            "updated_at",
         ],
     )
 
@@ -563,36 +600,66 @@ def _finalize_termination(membership, *, terminated_by, reason, closure_reason) 
 
 
 def list_pending_requests_for_organization(organization):
-    return CompanyAffiliationRequest.objects.filter(
-        organization=organization, status=AffiliationStatus.PENDING,
-    ).select_related("caregiver_profile").order_by("-requested_at")
+    return (
+        CompanyAffiliationRequest.objects.filter(
+            organization=organization,
+            status=AffiliationStatus.PENDING,
+        )
+        .select_related("caregiver_profile")
+        .order_by("-requested_at")
+    )
 
 
 def list_pending_invitations_for_organization(organization):
-    return OrganizationMembership.objects.filter(
-        organization=organization, status=OrgMembershipStatus.PENDING, invited_by__isnull=False,
-    ).select_related("user", "person").order_by("-created_at")
+    return (
+        OrganizationMembership.objects.filter(
+            organization=organization,
+            status=OrgMembershipStatus.PENDING,
+            invited_by__isnull=False,
+        )
+        .select_related("user", "person")
+        .order_by("-created_at")
+    )
 
 
 def list_membership_history_for_caregiver(caregiver_profile):
-    return OrganizationMembership.objects.filter(
-        user=caregiver_profile.user,
-    ).select_related("organization").order_by("-updated_at")
+    return (
+        OrganizationMembership.objects.filter(
+            user=caregiver_profile.user,
+        )
+        .select_related("organization")
+        .order_by("-updated_at")
+    )
 
 
 def list_pending_invitations_for_caregiver(caregiver_profile):
-    return OrganizationMembership.objects.filter(
-        user=caregiver_profile.user, status=OrgMembershipStatus.PENDING, invited_by__isnull=False,
-    ).select_related("organization").order_by("-created_at")
+    return (
+        OrganizationMembership.objects.filter(
+            user=caregiver_profile.user,
+            status=OrgMembershipStatus.PENDING,
+            invited_by__isnull=False,
+        )
+        .select_related("organization")
+        .order_by("-created_at")
+    )
 
 
 def list_affiliation_requests_for_caregiver(caregiver_profile):
-    return CompanyAffiliationRequest.objects.filter(
-        caregiver_profile=caregiver_profile,
-    ).select_related("organization").order_by("-requested_at")
+    return (
+        CompanyAffiliationRequest.objects.filter(
+            caregiver_profile=caregiver_profile,
+        )
+        .select_related("organization")
+        .order_by("-requested_at")
+    )
 
 
 def get_active_membership_for_caregiver(caregiver_profile):
-    return OrganizationMembership.objects.filter(
-        user=caregiver_profile.user, status=OrgMembershipStatus.ACTIVE,
-    ).select_related("organization").first()
+    return (
+        OrganizationMembership.objects.filter(
+            user=caregiver_profile.user,
+            status=OrgMembershipStatus.ACTIVE,
+        )
+        .select_related("organization")
+        .first()
+    )

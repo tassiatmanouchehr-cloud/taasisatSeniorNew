@@ -57,17 +57,12 @@ SCHEMAS = [
     "audit",
 ]
 
-CREATE_SCHEMAS_SQL = "\n".join(
-    f"CREATE SCHEMA IF NOT EXISTS {schema};" for schema in SCHEMAS
-)
+CREATE_SCHEMAS_SQL = "\n".join(f"CREATE SCHEMA IF NOT EXISTS {schema};" for schema in SCHEMAS)
 
-DROP_SCHEMAS_SQL = "\n".join(
-    f"DROP SCHEMA IF EXISTS {schema} CASCADE;" for schema in reversed(SCHEMAS)
-)
+DROP_SCHEMAS_SQL = "\n".join(f"DROP SCHEMA IF EXISTS {schema} CASCADE;" for schema in reversed(SCHEMAS))
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -192,9 +187,7 @@ class Migration(migrations.Migration):
                 ("password", models.CharField(max_length=128, verbose_name="password")),
                 (
                     "last_login",
-                    models.DateTimeField(
-                        blank=True, null=True, verbose_name="last login"
-                    ),
+                    models.DateTimeField(blank=True, null=True, verbose_name="last login"),
                 ),
                 (
                     "is_superuser",

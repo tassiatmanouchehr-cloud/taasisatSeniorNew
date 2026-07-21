@@ -14,7 +14,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("kernel", "0008_service_supplier"),
     ]
@@ -58,8 +57,7 @@ class Migration(migrations.Migration):
                         'FOREIGN KEY ("tenant_id") REFERENCES "kernel"."tenant" ("id");'
                     ),
                     reverse_sql=(
-                        'ALTER TABLE "kernel"."service_supplier" '
-                        'DROP CONSTRAINT "service_supplier_tenant_id_fkey";'
+                        'ALTER TABLE "kernel"."service_supplier" DROP CONSTRAINT "service_supplier_tenant_id_fkey";'
                     ),
                 ),
             ],

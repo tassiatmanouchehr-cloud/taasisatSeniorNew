@@ -137,7 +137,10 @@ class PolicyService:
 
         logger.info(
             "Policy version created: %s v%d (type=%s, status=%s)",
-            name, version_number, policy_type, status,
+            name,
+            version_number,
+            policy_type,
+            status,
         )
 
         return version
@@ -180,7 +183,8 @@ class PolicyService:
 
         logger.info(
             "Policy version activated: %s v%d",
-            policy_def.name, version.version_number,
+            policy_def.name,
+            version.version_number,
         )
 
         return version
@@ -234,13 +238,17 @@ class PolicyService:
             return None
 
         # Find active version within effective date range
-        version = PolicyVersion.objects.filter(
-            policy=policy_def,
-            status=PolicyVersionStatus.ACTIVE,
-            effective_from__lte=at_time,
-        ).filter(
-            models_q_effective_until(at_time),
-        ).first()
+        version = (
+            PolicyVersion.objects.filter(
+                policy=policy_def,
+                status=PolicyVersionStatus.ACTIVE,
+                effective_from__lte=at_time,
+            )
+            .filter(
+                models_q_effective_until(at_time),
+            )
+            .first()
+        )
 
         return version
 

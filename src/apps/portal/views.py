@@ -242,7 +242,9 @@ def favorites_view(request):
     customer, tenant_id = _guard(request)
     favorites = FavoritesService.list_favorites_for_customer(customer)
     page = CustomerFavoritesPresentationService.build_list_view(
-        favorites=favorites, tenant_id=tenant_id, page=request.GET.get("page", 1),
+        favorites=favorites,
+        tenant_id=tenant_id,
+        page=request.GET.get("page", 1),
     )
     return render(
         request,

@@ -42,8 +42,10 @@ class DomainEventTest(TestCase):
 
     def test_payload_defaults_to_empty_dict_when_omitted(self):
         event = DomainEvent(
-            event_type="OrderCreated", tenant_id=uuid.uuid4(),
-            aggregate_type="Order", aggregate_id=uuid.uuid4(),
+            event_type="OrderCreated",
+            tenant_id=uuid.uuid4(),
+            aggregate_type="Order",
+            aggregate_id=uuid.uuid4(),
         )
         self.assertEqual(event.payload, {})
 

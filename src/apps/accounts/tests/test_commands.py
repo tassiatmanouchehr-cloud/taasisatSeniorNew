@@ -26,10 +26,18 @@ class SeedAuthRolesTest(TestCase):
         call_command("seed_auth_roles")
         tenant = Tenant.objects.get(slug="salmandyar")
         expected = {
-            "platform_owner", "platform_admin", "platform_operator",
-            "platform_support", "platform_accounting", "platform_security",
-            "platform_it", "customer", "independent_caregiver",
-            "organization_caregiver", "organization_admin", "organization_operator",
+            "platform_owner",
+            "platform_admin",
+            "platform_operator",
+            "platform_support",
+            "platform_accounting",
+            "platform_security",
+            "platform_it",
+            "customer",
+            "independent_caregiver",
+            "organization_caregiver",
+            "organization_admin",
+            "organization_operator",
         }
         actual = set(Role.objects.filter(tenant=tenant).values_list("slug", flat=True))
         self.assertEqual(actual, expected)

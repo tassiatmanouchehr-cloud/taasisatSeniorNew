@@ -94,7 +94,13 @@ class CaregiverGalleryService:
 
     @classmethod
     def update_item(
-        cls, caregiver, *, item_id, caption: str = "", alt_text: str = "", is_visible: bool = True,
+        cls,
+        caregiver,
+        *,
+        item_id,
+        caption: str = "",
+        alt_text: str = "",
+        is_visible: bool = True,
     ) -> CaregiverGalleryItem:
         cleaned_caption = cls._clean_text(caption, label="Caption")
         cleaned_alt = cls._clean_text(alt_text, label="Alt text")

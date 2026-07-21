@@ -42,7 +42,10 @@ class SetRbacEnforcementEnableTest(TestCase):
         for spelling in ("true", "TRUE", "1", "yes"):
             with self.subTest(spelling=spelling):
                 RBACConfiguration.set_enforcement_enabled(
-                    tenant_id=self.tenant.id, enabled=False, actor_display="setup", reason="setup",
+                    tenant_id=self.tenant.id,
+                    enabled=False,
+                    actor_display="setup",
+                    reason="setup",
                 )
                 _run(tenant=str(self.tenant.id), enabled=spelling, reason="r", actor="ops:jane")
                 self.assertTrue(RBACConfiguration.get_enforcement_enabled(tenant_id=self.tenant.id))
@@ -54,8 +57,11 @@ class SetRbacEnforcementDisableConfirmationTest(TestCase):
 
     def test_disable_succeeds_only_with_explicit_confirmation(self):
         output = _run(
-            tenant=str(self.tenant.id), enabled="false", reason="emergency bypass, approved",
-            actor="ops:jane", confirm_disable=True,
+            tenant=str(self.tenant.id),
+            enabled="false",
+            reason="emergency bypass, approved",
+            actor="ops:jane",
+            confirm_disable=True,
         )
         self.assertIn("DISABLED", output)
         self.assertIn("WARNING", output)
@@ -149,11 +155,16 @@ class SetRbacEnforcementOutputTest(TestCase):
 
     def test_output_does_not_leak_unrelated_configuration_data(self):
         RBACConfiguration.set_enforcement_enabled(
-            tenant_id=self.tenant.id, enabled=False, actor_display="setup",
+            tenant_id=self.tenant.id,
+            enabled=False,
+            actor_display="setup",
             reason="unrelated secret setup reason - do not print",
         )
         output = _run(
-            tenant=str(self.tenant.id), enabled="true", reason="restore", actor="ops:jane",
+            tenant=str(self.tenant.id),
+            enabled="true",
+            reason="restore",
+            actor="ops:jane",
         )
         self.assertNotIn("unrelated secret setup reason", output)
         self.assertIn(str(self.tenant.slug), output)

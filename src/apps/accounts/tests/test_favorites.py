@@ -37,7 +37,8 @@ class _FixtureMixin:
 
         self.supplier, self.caregiver = self._create_caregiver_supplier(tenant=self.tenant)
         self.other_tenant_supplier, _ = self._create_caregiver_supplier(
-            tenant=self.other_tenant, display_name="Cross Tenant Caregiver",
+            tenant=self.other_tenant,
+            display_name="Cross Tenant Caregiver",
         )
         self.org_supplier, _ = self._create_organization_supplier(tenant=self.tenant)
 
@@ -62,7 +63,11 @@ class _FixtureMixin:
         admin_person = Person.objects.create(tenant=tenant, full_name="Org Admin")
         admin_user = UserAccount.objects.create_user(phone=admin_phone, person=admin_person, tenant=tenant)
         organization = OrganizationProfile.objects.create(
-            name=name, code=f"fav-org-{uuid.uuid4().hex[:8]}", admin_user=admin_user, tenant=tenant, status="active",
+            name=name,
+            code=f"fav-org-{uuid.uuid4().hex[:8]}",
+            admin_user=admin_user,
+            tenant=tenant,
+            status="active",
         )
         supplier = get_or_create_supplier_for_organization(organization, tenant_id=tenant.id)
         supplier.status = SupplierStatus.ACTIVE
@@ -86,9 +91,8 @@ class FavoriteModelConstraintTest(_FixtureMixin, TestCase):
 
     def test_unique_constraint_prevents_duplicate_row(self):
         Favorite.objects.create(customer_profile=self.customer, supplier=self.supplier)
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                Favorite.objects.create(customer_profile=self.customer, supplier=self.supplier)
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Favorite.objects.create(customer_profile=self.customer, supplier=self.supplier)
 
     def test_same_supplier_can_be_favorited_by_different_customers(self):
         Favorite.objects.create(customer_profile=self.customer, supplier=self.supplier)
@@ -142,7 +146,9 @@ class FavoritesServiceAddTest(_FixtureMixin, TestCase):
             side_effect=IntegrityError("simulated race"),
         ):
             favorite = FavoritesService.add_favorite(
-                self.customer, supplier_id=self.supplier.id, tenant_id=self.tenant.id,
+                self.customer,
+                supplier_id=self.supplier.id,
+                tenant_id=self.tenant.id,
                 expected_supplier_types=CAREGIVER_SUPPLIER_TYPES,
             )
         self.assertEqual(Favorite.objects.filter(customer_profile=self.customer).count(), 1)

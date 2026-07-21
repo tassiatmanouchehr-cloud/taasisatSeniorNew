@@ -19,8 +19,6 @@ from ..models.profiles import (
     OrganizationProfile,
     OrgMembershipRole,
     OrgMembershipStatus,
-    PlatformTeamArea,
-    PlatformTeamMember,
     ProfileStatus,
 )
 from .organizations import find_organization_by_code_or_name
@@ -35,7 +33,9 @@ def assign_role(*, tenant, user, role_slug):
     role = Role.objects.filter(tenant=tenant, slug=role_slug).first()
     if role:
         RoleAssignment.objects.get_or_create(
-            tenant=tenant, user=user, role=role,
+            tenant=tenant,
+            user=user,
+            role=role,
             defaults={"scope_type": "platform"},
         )
 
@@ -47,7 +47,6 @@ def _generate_org_code(name: str) -> str:
 
 
 class RegistrationService:
-
     @classmethod
     @transaction.atomic
     def create_customer(cls, *, phone, full_name, city="", relation_to_elder=""):
@@ -55,8 +54,12 @@ class RegistrationService:
         person = Person.objects.create(tenant=tenant, full_name=full_name)
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         profile = CustomerProfile.objects.create(
-            user=user, person=person, phone=phone, display_name=full_name,
-            city=city, relation_to_elder=relation_to_elder,
+            user=user,
+            person=person,
+            phone=phone,
+            display_name=full_name,
+            city=city,
+            relation_to_elder=relation_to_elder,
         )
         assign_role(tenant=tenant, user=user, role_slug="customer")
         logger.info("Customer created: %s (%s)", full_name, phone)
@@ -69,8 +72,13 @@ class RegistrationService:
         person = Person.objects.create(tenant=tenant, full_name=full_name)
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         profile = CaregiverProfile.objects.create(
-            user=user, person=person, phone=phone, display_name=full_name,
-            specialty=specialty, city=city, status=ProfileStatus.DRAFT,
+            user=user,
+            person=person,
+            phone=phone,
+            display_name=full_name,
+            specialty=specialty,
+            city=city,
+            status=ProfileStatus.DRAFT,
         )
         assign_role(tenant=tenant, user=user, role_slug="independent_caregiver")
 
@@ -89,20 +97,30 @@ class RegistrationService:
 
     @classmethod
     @transaction.atomic
-    def create_company_admin(cls, *, phone, admin_name, admin_role_title="", company_name, company_type="", city="", team_size=""):
+    def create_company_admin(
+        cls, *, phone, admin_name, admin_role_title="", company_name, company_type="", city="", team_size=""
+    ):
         tenant = TenantService.get_default_tenant()
         person = Person.objects.create(tenant=tenant, full_name=admin_name)
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         org_code = _generate_org_code(company_name)
 
         organization = OrganizationProfile.objects.create(
-            name=company_name, code=org_code, admin_user=user,
-            company_type=company_type, city=city, phone=phone,
-            team_size=team_size, tenant=tenant, status=ProfileStatus.DRAFT,
+            name=company_name,
+            code=org_code,
+            admin_user=user,
+            company_type=company_type,
+            city=city,
+            phone=phone,
+            team_size=team_size,
+            tenant=tenant,
+            status=ProfileStatus.DRAFT,
         )
 
         OrganizationMembership.objects.create(
-            organization=organization, user=user, person=person,
+            organization=organization,
+            user=user,
+            person=person,
             role_type=OrgMembershipRole.ADMIN,
             status=OrgMembershipStatus.ACTIVE,
             joined_at=timezone.now(),

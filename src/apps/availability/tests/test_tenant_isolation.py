@@ -16,16 +16,25 @@ class AvailabilityTenantIsolationTest(AvailabilityTestCase):
 
     def test_working_window_tenant_matches_supplier_tenant(self):
         window = AvailabilityMutationService.add_working_window(
-            supplier=self.supplier, day_of_week=0, start_time=dt.time(9, 0), end_time=dt.time(17, 0),
+            supplier=self.supplier,
+            day_of_week=0,
+            start_time=dt.time(9, 0),
+            end_time=dt.time(17, 0),
         )
         self.assertEqual(window.tenant_id, self.supplier.tenant_id)
 
     def test_for_tenant_scopes_working_windows(self):
         AvailabilityMutationService.add_working_window(
-            supplier=self.supplier, day_of_week=0, start_time=dt.time(9, 0), end_time=dt.time(17, 0),
+            supplier=self.supplier,
+            day_of_week=0,
+            start_time=dt.time(9, 0),
+            end_time=dt.time(17, 0),
         )
         AvailabilityMutationService.add_working_window(
-            supplier=self.other_supplier, day_of_week=0, start_time=dt.time(9, 0), end_time=dt.time(17, 0),
+            supplier=self.other_supplier,
+            day_of_week=0,
+            start_time=dt.time(9, 0),
+            end_time=dt.time(17, 0),
         )
 
         self.assertEqual(ProviderWorkingWindow.objects.for_tenant(self.tenant.id).count(), 1)
@@ -36,7 +45,9 @@ class AvailabilityTenantIsolationTest(AvailabilityTestCase):
 
         start = timezone.now()
         AvailabilityMutationService.add_blocked_period(
-            supplier=self.supplier, start_at=start, end_at=start + timezone.timedelta(hours=1),
+            supplier=self.supplier,
+            start_at=start,
+            end_at=start + timezone.timedelta(hours=1),
         )
 
         self.assertEqual(AvailabilityBlockedPeriod.objects.for_tenant(self.tenant.id).count(), 1)

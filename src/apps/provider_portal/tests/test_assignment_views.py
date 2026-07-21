@@ -63,7 +63,8 @@ class DeclineAssignmentViewTest(ProviderPortalTestCase):
         self.login_as_provider()
 
         response = self.client.post(
-            f"/provider/assignments/{self.order.id}/decline/", {"reason": "Too far"},
+            f"/provider/assignments/{self.order.id}/decline/",
+            {"reason": "Too far"},
         )
         self.assertRedirects(response, "/provider/assignments/")
 
@@ -75,7 +76,8 @@ class DeclineAssignmentViewTest(ProviderPortalTestCase):
         cross_tenant_assignment = self.assign_cross_tenant_order_to_supplier()
         self.login_as_provider()
         response = self.client.post(
-            f"/provider/assignments/{self.other_tenant_order.id}/decline/", {"reason": "Too far"},
+            f"/provider/assignments/{self.other_tenant_order.id}/decline/",
+            {"reason": "Too far"},
         )
         self.assertEqual(response.status_code, 404)
 
@@ -128,14 +130,16 @@ class CrossTenantVisitExecutionViewTest(ProviderPortalTestCase):
         from apps.booking.services.provider_actions import ProviderAssignmentActionService
 
         ProviderAssignmentActionService.confirm(
-            assignment_id=self.cross_tenant_assignment.id, actor=self.other_tenant_provider_user,
+            assignment_id=self.cross_tenant_assignment.id,
+            actor=self.other_tenant_provider_user,
         )
         from apps.execution.models import ExecutionSource
         from apps.execution.services.session_service import ExecutionService
 
         self.cross_tenant_assignment.refresh_from_db()
         self.cross_tenant_session = ExecutionService.create_session(
-            supplier_assignment=self.cross_tenant_assignment, execution_source=ExecutionSource.BOOKING,
+            supplier_assignment=self.cross_tenant_assignment,
+            execution_source=ExecutionSource.BOOKING,
         )
         self.login_as_provider()
 
@@ -156,7 +160,8 @@ class CrossTenantVisitExecutionViewTest(ProviderPortalTestCase):
         from apps.execution.services.provider_actions import ProviderExecutionService
 
         ProviderExecutionService.start_visit(
-            session_id=self.cross_tenant_session.id, actor=self.other_tenant_provider_user,
+            session_id=self.cross_tenant_session.id,
+            actor=self.other_tenant_provider_user,
         )
         response = self.client.post(f"/provider/assignments/{self.other_tenant_order.id}/complete/")
         self.assertEqual(response.status_code, 404)

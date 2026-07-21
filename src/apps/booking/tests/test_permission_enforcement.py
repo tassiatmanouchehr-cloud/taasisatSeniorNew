@@ -21,7 +21,9 @@ class AssignmentPermissionEnforcementTest(BookingTestCase):
     def test_assign_denied_without_permission(self):
         with self.assertRaises(PermissionDenied):
             AssignmentService.assign(
-                order_id=self.order.id, supplier=self.supplier, assigned_by=self.unauthorized_actor,
+                order_id=self.order.id,
+                supplier=self.supplier,
+                assigned_by=self.unauthorized_actor,
             )
 
         self.assertEqual(SupplierAssignment.objects.filter(order=self.order).count(), 0)
@@ -33,7 +35,9 @@ class AssignmentPermissionEnforcementTest(BookingTestCase):
         grant_permissions(self.tenant, self.unauthorized_actor, ["booking.assignment.assign"])
 
         assignment = AssignmentService.assign(
-            order_id=self.order.id, supplier=self.supplier, assigned_by=self.unauthorized_actor,
+            order_id=self.order.id,
+            supplier=self.supplier,
+            assigned_by=self.unauthorized_actor,
         )
 
         self.assertIsNotNone(assignment.pk)
@@ -60,7 +64,9 @@ class ReplacePermissionEnforcementTest(BookingTestCase):
     def test_replace_denied_without_permission(self):
         with self.assertRaises(PermissionDenied):
             AssignmentService.replace(
-                order_id=self.order.id, new_supplier=self.new_supplier, assigned_by=self.unauthorized_actor,
+                order_id=self.order.id,
+                new_supplier=self.new_supplier,
+                assigned_by=self.unauthorized_actor,
             )
 
         self.order.refresh_from_db()
@@ -70,7 +76,9 @@ class ReplacePermissionEnforcementTest(BookingTestCase):
         grant_permissions(self.tenant, self.unauthorized_actor, ["booking.assignment.assign"])
 
         AssignmentService.replace(
-            order_id=self.order.id, new_supplier=self.new_supplier, assigned_by=self.unauthorized_actor,
+            order_id=self.order.id,
+            new_supplier=self.new_supplier,
+            assigned_by=self.unauthorized_actor,
         )
 
         self.order.refresh_from_db()

@@ -70,9 +70,7 @@ class FeatureFlagServiceTest(TestCase):
         self.tenant_id = uuid.uuid4()
 
     def test_nonexistent_flag_returns_false(self):
-        result = FeatureFlagService.is_enabled(
-            "nonexistent.flag", tenant_id=self.tenant_id, use_cache=False
-        )
+        result = FeatureFlagService.is_enabled("nonexistent.flag", tenant_id=self.tenant_id, use_cache=False)
         self.assertFalse(result)
 
     def test_boolean_flag_enabled(self):
@@ -84,9 +82,7 @@ class FeatureFlagServiceTest(TestCase):
             status=FlagStatus.ENABLED,
             is_enabled=True,
         )
-        result = FeatureFlagService.is_enabled(
-            "feature.active", tenant_id=self.tenant_id, use_cache=False
-        )
+        result = FeatureFlagService.is_enabled("feature.active", tenant_id=self.tenant_id, use_cache=False)
         self.assertTrue(result)
 
     def test_boolean_flag_disabled_status(self):
@@ -98,9 +94,7 @@ class FeatureFlagServiceTest(TestCase):
             status=FlagStatus.DRAFT,
             is_enabled=True,  # is_enabled True but status not 'enabled'
         )
-        result = FeatureFlagService.is_enabled(
-            "feature.draft", tenant_id=self.tenant_id, use_cache=False
-        )
+        result = FeatureFlagService.is_enabled("feature.draft", tenant_id=self.tenant_id, use_cache=False)
         self.assertFalse(result)
 
     def test_kill_switch_overrides(self):
@@ -113,9 +107,7 @@ class FeatureFlagServiceTest(TestCase):
             is_enabled=True,
             kill_switch=True,
         )
-        result = FeatureFlagService.is_enabled(
-            "feature.killed", tenant_id=self.tenant_id, use_cache=False
-        )
+        result = FeatureFlagService.is_enabled("feature.killed", tenant_id=self.tenant_id, use_cache=False)
         self.assertFalse(result)
 
     def test_percentage_flag_deterministic(self):
@@ -149,8 +141,7 @@ class FeatureFlagServiceTest(TestCase):
             actor_blocklist=[str(blocked_actor)],
         )
         result = FeatureFlagService.is_enabled(
-            "feature.blocked", tenant_id=self.tenant_id,
-            actor_id=blocked_actor, use_cache=False
+            "feature.blocked", tenant_id=self.tenant_id, actor_id=blocked_actor, use_cache=False
         )
         self.assertFalse(result)
 
@@ -166,7 +157,6 @@ class FeatureFlagServiceTest(TestCase):
             actor_allowlist=[str(allowed_actor)],
         )
         result = FeatureFlagService.is_enabled(
-            "feature.allowed", tenant_id=self.tenant_id,
-            actor_id=allowed_actor, use_cache=False
+            "feature.allowed", tenant_id=self.tenant_id, actor_id=allowed_actor, use_cache=False
         )
         self.assertTrue(result)

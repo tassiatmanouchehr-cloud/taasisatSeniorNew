@@ -8,9 +8,15 @@ class ShareLinkViewsTest(PortalTestCase):
     def setUp(self):
         super().setUp()
         self.order = create_public_order(
-            service_category_id=self.category.id, description="x", phone="09120000000",
-            address="addr", city="tehran", customer_profile=self.customer,
-            elder_profile=self.care_recipient, created_by=self.customer.user, tenant_id=self.tenant.id,
+            service_category_id=self.category.id,
+            description="x",
+            phone="09120000000",
+            address="addr",
+            city="tehran",
+            customer_profile=self.customer,
+            elder_profile=self.care_recipient,
+            created_by=self.customer.user,
+            tenant_id=self.tenant.id,
         )
 
     def test_create_share_link(self):
@@ -38,9 +44,15 @@ class SharedOrderPublicViewTest(PortalTestCase):
     def setUp(self):
         super().setUp()
         self.order = create_public_order(
-            service_category_id=self.category.id, description="x", phone="09120000000",
-            address="addr", city="tehran", customer_profile=self.customer,
-            elder_profile=self.care_recipient, created_by=self.customer.user, tenant_id=self.tenant.id,
+            service_category_id=self.category.id,
+            description="x",
+            phone="09120000000",
+            address="addr",
+            city="tehran",
+            customer_profile=self.customer,
+            elder_profile=self.care_recipient,
+            created_by=self.customer.user,
+            tenant_id=self.tenant.id,
         )
 
     def test_shared_order_view_requires_no_login(self):

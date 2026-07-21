@@ -24,7 +24,8 @@ class CaregiverBuildCardsForSupplierIdsTest(PublicSiteTestCase):
         other_supplier, _ = self._create_caregiver_supplier(display_name="مراقب دو")
 
         cards = CaregiverDirectoryService.build_cards_for_supplier_ids(
-            [supplier.id, other_supplier.id], tenant_id=self.tenant.id,
+            [supplier.id, other_supplier.id],
+            tenant_id=self.tenant.id,
         )
 
         self.assertEqual(set(cards.keys()), {supplier.id, other_supplier.id})
@@ -38,14 +39,16 @@ class CaregiverBuildCardsForSupplierIdsTest(PublicSiteTestCase):
 
     def test_suspended_supplier_is_silently_omitted(self):
         supplier, _ = self._create_caregiver_supplier(
-            display_name="غیرفعال", supplier_status=SupplierStatus.SUSPENDED,
+            display_name="غیرفعال",
+            supplier_status=SupplierStatus.SUSPENDED,
         )
         cards = CaregiverDirectoryService.build_cards_for_supplier_ids([supplier.id], tenant_id=self.tenant.id)
         self.assertEqual(cards, {})
 
     def test_wrong_tenant_supplier_is_silently_omitted(self):
-        from apps.kernel.models import Tenant
         import uuid
+
+        from apps.kernel.models import Tenant
 
         other_tenant = Tenant.objects.create(slug=f"cg-other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
         old_tenant = self.tenant
@@ -54,7 +57,8 @@ class CaregiverBuildCardsForSupplierIdsTest(PublicSiteTestCase):
         self.tenant = old_tenant
 
         cards = CaregiverDirectoryService.build_cards_for_supplier_ids(
-            [cross_supplier.id], tenant_id=self.tenant.id,
+            [cross_supplier.id],
+            tenant_id=self.tenant.id,
         )
         self.assertEqual(cards, {})
 
@@ -79,7 +83,8 @@ class OrganizationBuildCardsForSupplierIdsTest(PublicSiteTestCase):
         other_supplier, _ = self._create_organization_supplier(name="سازمان دو")
 
         cards = OrganizationDirectoryService.build_cards_for_supplier_ids(
-            [supplier.id, other_supplier.id], tenant_id=self.tenant.id,
+            [supplier.id, other_supplier.id],
+            tenant_id=self.tenant.id,
         )
 
         self.assertEqual(set(cards.keys()), {supplier.id, other_supplier.id})

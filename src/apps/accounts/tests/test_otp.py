@@ -1,7 +1,6 @@
 """Tests for OTP service."""
 
 from datetime import timedelta
-from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 from django.utils import timezone
@@ -15,9 +14,7 @@ class OTPServiceTest(TestCase):
     """Test OTP generation, hashing, and verification."""
 
     def test_request_otp_creates_challenge(self):
-        challenge, dev_code = OTPService.request_otp(
-            phone="09121234567", purpose=OTPPurpose.LOGIN
-        )
+        challenge, dev_code = OTPService.request_otp(phone="09121234567", purpose=OTPPurpose.LOGIN)
         self.assertIsNotNone(challenge)
         self.assertIsNotNone(dev_code)
         self.assertEqual(len(dev_code), 5)
@@ -28,47 +25,33 @@ class OTPServiceTest(TestCase):
         self.assertFalse(challenge.is_consumed)
 
     def test_verify_otp_success(self):
-        challenge, dev_code = OTPService.request_otp(
-            phone="09121234567", purpose=OTPPurpose.LOGIN
-        )
-        result = OTPService.verify_otp(
-            phone="09121234567", code=dev_code, purpose=OTPPurpose.LOGIN
-        )
+        challenge, dev_code = OTPService.request_otp(phone="09121234567", purpose=OTPPurpose.LOGIN)
+        result = OTPService.verify_otp(phone="09121234567", code=dev_code, purpose=OTPPurpose.LOGIN)
         self.assertTrue(result)
         challenge.refresh_from_db()
         self.assertIsNotNone(challenge.consumed_at)
 
     def test_verify_otp_wrong_code(self):
         OTPService.request_otp(phone="09121234567", purpose=OTPPurpose.LOGIN)
-        result = OTPService.verify_otp(
-            phone="09121234567", code="00000", purpose=OTPPurpose.LOGIN
-        )
+        result = OTPService.verify_otp(phone="09121234567", code="00000", purpose=OTPPurpose.LOGIN)
         self.assertFalse(result)
 
     def test_verify_otp_expired(self):
-        challenge, dev_code = OTPService.request_otp(
-            phone="09121234567", purpose=OTPPurpose.LOGIN
-        )
+        challenge, dev_code = OTPService.request_otp(phone="09121234567", purpose=OTPPurpose.LOGIN)
         # Force expiry
         challenge.expires_at = timezone.now() - timedelta(seconds=1)
         challenge.save()
 
-        result = OTPService.verify_otp(
-            phone="09121234567", code=dev_code, purpose=OTPPurpose.LOGIN
-        )
+        result = OTPService.verify_otp(phone="09121234567", code=dev_code, purpose=OTPPurpose.LOGIN)
         self.assertFalse(result)
 
     def test_verify_otp_max_attempts(self):
-        challenge, dev_code = OTPService.request_otp(
-            phone="09121234567", purpose=OTPPurpose.LOGIN
-        )
+        challenge, dev_code = OTPService.request_otp(phone="09121234567", purpose=OTPPurpose.LOGIN)
         # Exhaust attempts
         challenge.attempts = challenge.max_attempts
         challenge.save()
 
-        result = OTPService.verify_otp(
-            phone="09121234567", code=dev_code, purpose=OTPPurpose.LOGIN
-        )
+        result = OTPService.verify_otp(phone="09121234567", code=dev_code, purpose=OTPPurpose.LOGIN)
         self.assertFalse(result)
 
     def test_rate_limit_cooldown(self):

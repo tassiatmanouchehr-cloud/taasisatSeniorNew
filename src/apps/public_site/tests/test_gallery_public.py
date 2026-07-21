@@ -53,14 +53,16 @@ class PublicGalleryVisibilityTest(PublicSiteTestCase):
 
     def test_draft_caregiver_profile_exposes_no_gallery(self):
         supplier, caregiver = self._create_caregiver_supplier(
-            verification_status="verified", profile_status="draft",
+            verification_status="verified",
+            profile_status="draft",
         )
         CaregiverGalleryService.add_item(caregiver, image=_image_file())
         self.assertIsNone(CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id))
 
     def test_suspended_caregiver_profile_exposes_no_gallery(self):
         supplier, caregiver = self._create_caregiver_supplier(
-            verification_status="verified", profile_status="suspended",
+            verification_status="verified",
+            profile_status="suspended",
         )
         CaregiverGalleryService.add_item(caregiver, image=_image_file())
         self.assertIsNone(CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id))
@@ -72,11 +74,13 @@ class PublicGalleryVisibilityTest(PublicSiteTestCase):
 
     def test_hidden_caregiver_profile_gallery_absent_from_html(self):
         supplier, caregiver = self._create_caregiver_supplier(
-            verification_status="verified", profile_status="draft",
+            verification_status="verified",
+            profile_status="draft",
         )
         item = CaregiverGalleryService.add_item(caregiver, image=_image_file(), caption="خصوصی")
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         self.assertEqual(response.status_code, 404)
         self.assertNotContains(response, "خصوصی", status_code=404)
@@ -86,7 +90,8 @@ class PublicGalleryVisibilityTest(PublicSiteTestCase):
         supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
         CaregiverGalleryService.add_item(caregiver, image=_image_file())
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         self.assertNotContains(response, "MEDIA_ROOT")
         # The served URL is the storage's public URL (media/...), never a
@@ -98,7 +103,8 @@ class PublicGalleryVisibilityTest(PublicSiteTestCase):
         supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
         CaregiverGalleryService.add_item(caregiver, image=_image_file(), caption="<script>alert(1)</script>")
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         self.assertNotContains(response, "<script>alert(1)</script>")
         self.assertContains(response, "&lt;script&gt;")
@@ -106,7 +112,8 @@ class PublicGalleryVisibilityTest(PublicSiteTestCase):
     def test_another_caregivers_gallery_never_appears(self):
         supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
         _, other_caregiver = self._create_caregiver_supplier(
-            display_name="مراقب دیگر", verification_status="verified",
+            display_name="مراقب دیگر",
+            verification_status="verified",
         )
         CaregiverGalleryService.add_item(other_caregiver, image=_image_file(), caption="متعلق به دیگری")
         profile = CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id)
@@ -138,11 +145,13 @@ class PublicGalleryOrderingTest(PublicSiteTestCase):
         first = CaregiverGalleryService.add_item(caregiver, image=_image_file("a.png"), caption="اول")
         second = CaregiverGalleryService.add_item(caregiver, image=_image_file("b.png"), caption="دوم")
         CaregiverGalleryService.reorder(
-            caregiver, ordered_item_ids=[first.id, second.id, third.id],
+            caregiver,
+            ordered_item_ids=[first.id, second.id, third.id],
         )
 
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         html = response.content.decode()
 
@@ -161,7 +170,8 @@ class PublicGalleryPresentationTest(PublicSiteTestCase):
         CaregiverGalleryService.add_item(caregiver, image=_image_file(), caption="نمونه")
 
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
 
         self.assertContains(response, "sm:grid-cols-2")
@@ -172,7 +182,8 @@ class PublicGalleryPresentationTest(PublicSiteTestCase):
         CaregiverGalleryService.add_item(caregiver, image=_image_file(), caption="قابل دسترس")
 
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
 
         self.assertContains(response, "<button")
@@ -183,7 +194,8 @@ class PublicGalleryPresentationTest(PublicSiteTestCase):
         CaregiverGalleryService.add_item(caregiver, image=_image_file())
 
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
 
         self.assertContains(response, 'role="dialog"')
@@ -194,7 +206,8 @@ class PublicGalleryPresentationTest(PublicSiteTestCase):
         supplier, _caregiver = self._create_caregiver_supplier(verification_status="verified")
 
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -212,7 +225,8 @@ class PublicGalleryPresentationTest(PublicSiteTestCase):
         CaregiverGalleryService.add_item(caregiver, image=_image_file())
 
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
 
         self.assertNotContains(response, "x-trap")
@@ -222,7 +236,8 @@ class PublicGalleryPresentationTest(PublicSiteTestCase):
         CaregiverGalleryService.add_item(caregiver, image=_image_file())
 
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
 
         self.assertContains(response, 'aria-label="نمای بزرگ‌شده تصویر گالری"')
@@ -232,7 +247,8 @@ class PublicGalleryPresentationTest(PublicSiteTestCase):
         CaregiverGalleryService.add_item(caregiver, image=_image_file())
 
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         content = response.content.decode()
 
@@ -241,7 +257,7 @@ class PublicGalleryPresentationTest(PublicSiteTestCase):
         # keyboard-focusable and Enter/Space-activatable by construction,
         # with no tabindex hack required.
         close_button_start = content.index('aria-label="بستن"')
-        preceding_markup = content[max(0, close_button_start - 400):close_button_start]
+        preceding_markup = content[max(0, close_button_start - 400) : close_button_start]
         self.assertIn("<button", preceding_markup)
         self.assertIn('x-ref="lightboxClose"', preceding_markup)
 
@@ -255,7 +271,8 @@ class PublicGalleryPresentationTest(PublicSiteTestCase):
         CaregiverGalleryService.add_item(caregiver, image=_image_file())
 
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
 
         self.assertContains(response, "openLightbox(")

@@ -61,8 +61,7 @@ def _caregiver_card_hrefs(page_html):
     are not caregiver cards. Mirrors the FR-016 test suite's own
     precision fix for exactly this class of false positive."""
     return [
-        h for h in _hrefs_matching(page_html, "/find-a-caregiver/")
-        if re.match(r"^/find-a-caregiver/[0-9a-f-]{36}/", h)
+        h for h in _hrefs_matching(page_html, "/find-a-caregiver/") if re.match(r"^/find-a-caregiver/[0-9a-f-]{36}/", h)
     ]
 
 
@@ -129,7 +128,9 @@ class PublicSiteCanonicalTenantResolutionTest(PublicSiteTestCase):
         self.assertTrue(organization_nav_hrefs)
         for href in caregiver_nav_hrefs + organization_nav_hrefs:
             self.assertEqual(
-                _tenant_param(href), self.tenant.slug, f"nav link {href!r} lost the configured tenant context",
+                _tenant_param(href),
+                self.tenant.slug,
+                f"nav link {href!r} lost the configured tenant context",
             )
 
     def test_directory_page_nav_links_carry_configured_public_tenant(self):

@@ -87,7 +87,10 @@ class CloseSessionTest(ExecutionTestCase):
         from apps.orders.services.order_creation import create_operator_order
 
         order2 = create_operator_order(
-            service_category_id=self.category.id, description="x", phone="0912", address="addr",
+            service_category_id=self.category.id,
+            description="x",
+            phone="0912",
+            address="addr",
             tenant_id=self.tenant.id,
         )
         assignment2 = AssignmentService.assign(order_id=order2.id, supplier=other_supplier)

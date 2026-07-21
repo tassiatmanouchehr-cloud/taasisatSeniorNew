@@ -16,7 +16,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("orders", "0004_enforce_tenant_and_remove_legacy"),
         ("kernel", "0008_service_supplier"),
@@ -97,8 +96,7 @@ class Migration(migrations.Migration):
                         'FOREIGN KEY ("tenant_id") REFERENCES "kernel"."tenant" ("id");'
                     ),
                     reverse_sql=(
-                        'ALTER TABLE "orders_service_type" '
-                        'DROP CONSTRAINT "orders_service_type_tenant_id_fkey";'
+                        'ALTER TABLE "orders_service_type" DROP CONSTRAINT "orders_service_type_tenant_id_fkey";'
                     ),
                 ),
                 migrations.RunSQL(
@@ -107,10 +105,7 @@ class Migration(migrations.Migration):
                         'ADD CONSTRAINT "orders_order_tenant_id_fkey" '
                         'FOREIGN KEY ("tenant_id") REFERENCES "kernel"."tenant" ("id");'
                     ),
-                    reverse_sql=(
-                        'ALTER TABLE "orders_order" '
-                        'DROP CONSTRAINT "orders_order_tenant_id_fkey";'
-                    ),
+                    reverse_sql=('ALTER TABLE "orders_order" DROP CONSTRAINT "orders_order_tenant_id_fkey";'),
                 ),
                 migrations.RunSQL(
                     sql=(
@@ -119,8 +114,7 @@ class Migration(migrations.Migration):
                         'FOREIGN KEY ("tenant_id") REFERENCES "kernel"."tenant" ("id");'
                     ),
                     reverse_sql=(
-                        'ALTER TABLE "orders_status_history" '
-                        'DROP CONSTRAINT "orders_status_history_tenant_id_fkey";'
+                        'ALTER TABLE "orders_status_history" DROP CONSTRAINT "orders_status_history_tenant_id_fkey";'
                     ),
                 ),
             ],

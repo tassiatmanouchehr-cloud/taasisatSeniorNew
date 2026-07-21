@@ -66,8 +66,11 @@ class DiscoveryRankingServiceTest(DiscoveryTestCase):
 
         breakdown = ranked[0].score_breakdown
         for key in (
-            "verification_component", "reputation_component",
-            "availability_component", "capacity_component", "total_score",
+            "verification_component",
+            "reputation_component",
+            "availability_component",
+            "capacity_component",
+            "total_score",
         ):
             self.assertIn(key, breakdown)
 

@@ -115,22 +115,31 @@ class CaregiverExperienceServiceTest(_FixtureMixin, TestCase):
 
     def test_create_experience(self):
         entry = CaregiverExperienceService.create(
-            self.caregiver, title="Home Care Nurse", organization_name="Care Co",
-            start_date=datetime.date(2020, 1, 1), end_date=datetime.date(2022, 1, 1),
+            self.caregiver,
+            title="Home Care Nurse",
+            organization_name="Care Co",
+            start_date=datetime.date(2020, 1, 1),
+            end_date=datetime.date(2022, 1, 1),
         )
         self.assertEqual(entry.caregiver_id, self.caregiver.id)
         self.assertFalse(entry.is_current)
 
     def test_current_experience_does_not_require_end_date(self):
         entry = CaregiverExperienceService.create(
-            self.caregiver, title="Home Care Nurse", start_date=datetime.date(2020, 1, 1), is_current=True,
+            self.caregiver,
+            title="Home Care Nurse",
+            start_date=datetime.date(2020, 1, 1),
+            is_current=True,
         )
         self.assertIsNone(entry.end_date)
 
     def test_end_date_before_start_date_refused(self):
         with self.assertRaises(AccountsError):
             CaregiverExperienceService.create(
-                self.caregiver, title="X", start_date=datetime.date(2022, 1, 1), end_date=datetime.date(2020, 1, 1),
+                self.caregiver,
+                title="X",
+                start_date=datetime.date(2022, 1, 1),
+                end_date=datetime.date(2020, 1, 1),
             )
 
     def test_blank_title_refused(self):
@@ -143,10 +152,15 @@ class CaregiverExperienceServiceTest(_FixtureMixin, TestCase):
 
     def test_update_experience(self):
         entry = CaregiverExperienceService.create(
-            self.caregiver, title="Old Title", start_date=datetime.date(2020, 1, 1),
+            self.caregiver,
+            title="Old Title",
+            start_date=datetime.date(2020, 1, 1),
         )
         updated = CaregiverExperienceService.update(
-            self.caregiver, experience_id=entry.id, title="New Title", start_date=datetime.date(2020, 1, 1),
+            self.caregiver,
+            experience_id=entry.id,
+            title="New Title",
+            start_date=datetime.date(2020, 1, 1),
         )
         self.assertEqual(updated.title, "New Title")
 
@@ -156,35 +170,52 @@ class CaregiverExperienceServiceTest(_FixtureMixin, TestCase):
 
     def test_create_with_visibility_false(self):
         entry = CaregiverExperienceService.create(
-            self.caregiver, title="X", start_date=datetime.date(2020, 1, 1), is_visible=False,
+            self.caregiver,
+            title="X",
+            start_date=datetime.date(2020, 1, 1),
+            is_visible=False,
         )
         self.assertFalse(entry.is_visible)
 
     def test_update_can_hide_experience(self):
         entry = CaregiverExperienceService.create(self.caregiver, title="X", start_date=datetime.date(2020, 1, 1))
         updated = CaregiverExperienceService.update(
-            self.caregiver, experience_id=entry.id, title="X",
-            start_date=datetime.date(2020, 1, 1), is_visible=False,
+            self.caregiver,
+            experience_id=entry.id,
+            title="X",
+            start_date=datetime.date(2020, 1, 1),
+            is_visible=False,
         )
         self.assertFalse(updated.is_visible)
 
     def test_update_can_reshow_hidden_experience(self):
         entry = CaregiverExperienceService.create(
-            self.caregiver, title="X", start_date=datetime.date(2020, 1, 1), is_visible=False,
+            self.caregiver,
+            title="X",
+            start_date=datetime.date(2020, 1, 1),
+            is_visible=False,
         )
         updated = CaregiverExperienceService.update(
-            self.caregiver, experience_id=entry.id, title="X",
-            start_date=datetime.date(2020, 1, 1), is_visible=True,
+            self.caregiver,
+            experience_id=entry.id,
+            title="X",
+            start_date=datetime.date(2020, 1, 1),
+            is_visible=True,
         )
         self.assertTrue(updated.is_visible)
 
     def test_cannot_update_another_caregivers_experience(self):
         entry = CaregiverExperienceService.create(
-            self.other_caregiver, title="X", start_date=datetime.date(2020, 1, 1),
+            self.other_caregiver,
+            title="X",
+            start_date=datetime.date(2020, 1, 1),
         )
         with self.assertRaises(AccountsError):
             CaregiverExperienceService.update(
-                self.caregiver, experience_id=entry.id, title="Hacked", start_date=datetime.date(2020, 1, 1),
+                self.caregiver,
+                experience_id=entry.id,
+                title="Hacked",
+                start_date=datetime.date(2020, 1, 1),
             )
 
     def test_delete_experience(self):
@@ -194,7 +225,9 @@ class CaregiverExperienceServiceTest(_FixtureMixin, TestCase):
 
     def test_cannot_delete_another_caregivers_experience(self):
         entry = CaregiverExperienceService.create(
-            self.other_caregiver, title="X", start_date=datetime.date(2020, 1, 1),
+            self.other_caregiver,
+            title="X",
+            start_date=datetime.date(2020, 1, 1),
         )
         with self.assertRaises(AccountsError):
             CaregiverExperienceService.delete(self.caregiver, experience_id=entry.id)
@@ -224,14 +257,20 @@ class PublicCredentialSelectorTest(_FixtureMixin, TestCase):
     def test_rejected_document_does_not_appear(self):
         doc = self._upload(DocumentType.IDENTITY)
         VerificationReviewService.reject(
-            document_id=doc.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="bad scan",
+            document_id=doc.id,
+            tenant_id=self.tenant.id,
+            reviewer=self.reviewer,
+            reason="bad scan",
         )
         self.assertEqual(PublicCredentialSelector.for_caregiver(self.caregiver), ())
 
     def test_correction_required_document_does_not_appear(self):
         doc = self._upload(DocumentType.IDENTITY)
         VerificationReviewService.request_correction(
-            document_id=doc.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="fix",
+            document_id=doc.id,
+            tenant_id=self.tenant.id,
+            reviewer=self.reviewer,
+            reason="fix",
         )
         self.assertEqual(PublicCredentialSelector.for_caregiver(self.caregiver), ())
 

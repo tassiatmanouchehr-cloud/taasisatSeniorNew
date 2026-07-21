@@ -15,17 +15,29 @@ class ShareLinkTestCase(TestCase):
     def setUp(self):
         self.tenant = Tenant.objects.create(slug=f"share-{uuid.uuid4().hex[:8]}", name="Share Test Tenant")
         self.category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
         person = Person.objects.create(tenant=self.tenant, full_name="Customer")
         self.user = UserAccount.objects.create_user(phone="09120000010", person=person, tenant=self.tenant)
         self.customer = CustomerProfile.objects.create(
-            user=self.user, person=person, phone="09120000010", display_name="Customer",
+            user=self.user,
+            person=person,
+            phone="09120000010",
+            display_name="Customer",
         )
         self.order = Order.objects.create(
-            tenant=self.tenant, source=OrderSource.PUBLIC, status=OrderStatus.PENDING_OPERATOR_REVIEW,
-            service_category=self.category, customer_profile=self.customer,
-            description="Need home care", city="tehran", address="Some address", phone="09120000010",
+            tenant=self.tenant,
+            source=OrderSource.PUBLIC,
+            status=OrderStatus.PENDING_OPERATOR_REVIEW,
+            service_category=self.category,
+            customer_profile=self.customer,
+            description="Need home care",
+            city="tehran",
+            address="Some address",
+            phone="09120000010",
         )
 
 
@@ -101,9 +113,15 @@ class RevokeShareLinkTest(ShareLinkTestCase):
 
     def test_revoke_is_scoped_to_the_given_order(self):
         other_order = Order.objects.create(
-            tenant=self.tenant, source=OrderSource.PUBLIC, status=OrderStatus.PENDING_OPERATOR_REVIEW,
-            service_category=self.category, customer_profile=self.customer,
-            description="Other", city="tehran", address="Other address", phone="09120000010",
+            tenant=self.tenant,
+            source=OrderSource.PUBLIC,
+            status=OrderStatus.PENDING_OPERATOR_REVIEW,
+            service_category=self.category,
+            customer_profile=self.customer,
+            description="Other",
+            city="tehran",
+            address="Other address",
+            phone="09120000010",
         )
         link = OrderShareLinkService.create(order=self.order)
         with self.assertRaises(OrderShareLinkError):

@@ -47,7 +47,9 @@ class Command(BaseCommand):
         tenant = TenantService.get_default_tenant()
         call_command("seed_auth_roles")  # ensure the role slugs we assign below exist
 
-        owner = self._get_or_create_user(tenant, "owner@salmandyar.local", "مالک پلتفرم", is_staff=True, is_superuser=True)
+        owner = self._get_or_create_user(
+            tenant, "owner@salmandyar.local", "مالک پلتفرم", is_staff=True, is_superuser=True
+        )
         assign_role(tenant=tenant, user=owner, role_slug="platform_owner")
 
         org_admin = self._get_or_create_user(tenant, "admin@company.local", "مدیر سازمان نمونه")
@@ -97,7 +99,9 @@ class Command(BaseCommand):
         )
         if created:
             OrganizationMembership.objects.get_or_create(
-                organization=org, user=admin_user, role_type=OrgMembershipRole.ADMIN,
+                organization=org,
+                user=admin_user,
+                role_type=OrgMembershipRole.ADMIN,
                 defaults={"person": admin_user.person, "status": OrgMembershipStatus.ACTIVE},
             )
         # Core Profile-ServiceSupplier Invariant Remediation, Phase 9: this
@@ -110,10 +114,13 @@ class Command(BaseCommand):
 
     def _ensure_org_caregiver_profile(self, user, organization) -> CaregiverProfile:
         profile = ensure_caregiver_profile(
-            user, provider_type=CaregiverProviderType.ORGANIZATION_AFFILIATED,
+            user,
+            provider_type=CaregiverProviderType.ORGANIZATION_AFFILIATED,
         )
         OrganizationMembership.objects.get_or_create(
-            organization=organization, user=user, role_type=OrgMembershipRole.CAREGIVER,
+            organization=organization,
+            user=user,
+            role_type=OrgMembershipRole.CAREGIVER,
             defaults={"person": user.person, "status": OrgMembershipStatus.ACTIVE},
         )
         return profile

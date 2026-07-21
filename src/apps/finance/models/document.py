@@ -72,40 +72,66 @@ class FinancialDocument(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="financial_documents",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="financial_documents",
     )
 
     document_type = models.CharField(max_length=30, choices=FinancialDocumentType.choices, db_index=True)
 
     order = models.ForeignKey(
-        "orders.Order", on_delete=models.SET_NULL, null=True, blank=True, related_name="financial_documents",
+        "orders.Order",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="financial_documents",
     )
     execution_session = models.ForeignKey(
-        "execution.ExecutionSession", on_delete=models.SET_NULL, null=True, blank=True,
+        "execution.ExecutionSession",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="financial_documents",
     )
 
     issuer_party = models.ForeignKey(
-        "finance.FinancialParty", on_delete=models.PROTECT, related_name="issued_documents",
+        "finance.FinancialParty",
+        on_delete=models.PROTECT,
+        related_name="issued_documents",
     )
     payer_party = models.ForeignKey(
-        "finance.FinancialParty", on_delete=models.PROTECT, related_name="payable_documents",
+        "finance.FinancialParty",
+        on_delete=models.PROTECT,
+        related_name="payable_documents",
     )
     beneficiary_party = models.ForeignKey(
-        "finance.FinancialParty", on_delete=models.SET_NULL, null=True, blank=True,
+        "finance.FinancialParty",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="beneficiary_documents",
     )
 
     status = models.CharField(
-        max_length=20, choices=FinancialDocumentStatus.choices,
-        default=FinancialDocumentStatus.DRAFT, db_index=True,
+        max_length=20,
+        choices=FinancialDocumentStatus.choices,
+        default=FinancialDocumentStatus.DRAFT,
+        db_index=True,
     )
 
     currency = models.CharField(max_length=10, default=DEFAULT_CURRENCY)
-    subtotal_amount = models.DecimalField(max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, default=Decimal("0"))
-    discount_amount = models.DecimalField(max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, default=Decimal("0"))
-    tax_amount = models.DecimalField(max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, default=Decimal("0"))
-    total_amount = models.DecimalField(max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, default=Decimal("0"))
+    subtotal_amount = models.DecimalField(
+        max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, default=Decimal("0")
+    )
+    discount_amount = models.DecimalField(
+        max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, default=Decimal("0")
+    )
+    tax_amount = models.DecimalField(
+        max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, default=Decimal("0")
+    )
+    total_amount = models.DecimalField(
+        max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, default=Decimal("0")
+    )
 
     pricing_snapshot = models.JSONField(default=dict, blank=True)
     metadata = models.JSONField(default=dict, blank=True)
@@ -163,10 +189,14 @@ class FinancialDocumentItem(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="financial_document_items",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="financial_document_items",
     )
     document = models.ForeignKey(
-        "finance.FinancialDocument", on_delete=models.CASCADE, related_name="items",
+        "finance.FinancialDocument",
+        on_delete=models.CASCADE,
+        related_name="items",
     )
 
     item_type = models.CharField(max_length=20, choices=FinancialDocumentItemType.choices)

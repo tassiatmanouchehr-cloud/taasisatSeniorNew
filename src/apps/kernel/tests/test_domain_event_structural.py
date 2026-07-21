@@ -27,25 +27,32 @@ class DomainEventStructuralTest(TestCase):
             with open(path, encoding="utf-8") as fh:
                 source = fh.read()
             self.assertNotIn(
-                "kernel.events", source, f"{path} must not import apps.kernel.events — views must not publish events",
+                "kernel.events",
+                source,
+                f"{path} must not import apps.kernel.events — views must not publish events",
             )
             self.assertNotIn(
-                "publish(", source, f"{path} must not call publish() — only the service layer may publish events",
+                "publish(",
+                source,
+                f"{path} must not call publish() — only the service layer may publish events",
             )
 
     def test_kernel_events_package_does_not_import_notifications(self):
         source = inspect.getsource(kernel_events)
         import_lines = [
-            line.strip() for line in source.splitlines()
+            line.strip()
+            for line in source.splitlines()
             if line.strip().startswith("from ") or line.strip().startswith("import ")
         ]
         for line in import_lines:
             self.assertNotIn(
-                "notifications", line,
+                "notifications",
+                line,
                 "apps/kernel/events/__init__.py must not import apps.notifications (avoids circular imports)",
             )
             self.assertNotIn(
-                "handlers", line,
+                "handlers",
+                line,
                 "apps/kernel/events/__init__.py must not eagerly import handlers.py "
                 "(that module depends on apps.notifications and must load lazily via AppConfig.ready())",
             )

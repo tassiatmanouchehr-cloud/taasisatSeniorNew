@@ -52,12 +52,12 @@ rows (and their `reason`/`notes`) are never read here at all. See
 `traceability/ARCHITECTURE_DECISION_LOG.md` ADM-020 Decision 4.
 """
 
+from apps.accounts.services.favorites import FavoritesService
 from apps.accounts.services.public_credential_selector import PublicCredentialSelector
 from apps.accounts.services.supplier_bridge import resolve_supplier_entity
 from apps.availability.models import PERSIAN_DAY_LABELS
 from apps.availability.services.query_service import AvailabilityQueryService
 from apps.kernel.models.supplier import ServiceSupplier, SupplierStatus
-from apps.accounts.services.favorites import FavoritesService
 from apps.kernel.services.tenant_service import TenantService
 from apps.orders.services.queries import CatalogQueryService
 from apps.reviews.models import Review, ReviewModerationStatus
@@ -232,7 +232,12 @@ class CaregiverPublicProfileService:
 
     @staticmethod
     def _highlights(
-        *, years_experience, skills, credentials, completed_jobs: int, review_count: int,
+        *,
+        years_experience,
+        skills,
+        credentials,
+        completed_jobs: int,
+        review_count: int,
     ) -> ProfessionalHighlightsViewModel:
         return ProfessionalHighlightsViewModel(
             years_experience=years_experience,

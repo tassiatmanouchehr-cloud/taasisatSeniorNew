@@ -53,8 +53,12 @@ def approve_public_order(*, order_id, reviewed_by, assigned_supplier=None):
     order.save(update_fields=["status", "reviewed_by", "approved_at", "assigned_supplier", "updated_at"])
 
     OrderStatusHistory.objects.create(
-        order=order, tenant_id=order.tenant_id, from_status=OrderStatus.PENDING_OPERATOR_REVIEW,
-        to_status=to_status, changed_by=reviewed_by, reason="تایید توسط اپراتور",
+        order=order,
+        tenant_id=order.tenant_id,
+        from_status=OrderStatus.PENDING_OPERATOR_REVIEW,
+        to_status=to_status,
+        changed_by=reviewed_by,
+        reason="تایید توسط اپراتور",
     )
     return order
 
@@ -71,8 +75,12 @@ def assign_supplier(*, order_id, supplier, changed_by=None):
     order.save(update_fields=["status", "assigned_supplier", "updated_at"])
 
     OrderStatusHistory.objects.create(
-        order=order, tenant_id=order.tenant_id, from_status=from_status, to_status=OrderStatus.WAITING_SERVICE,
-        changed_by=changed_by, reason="تخصیص تامین‌کننده",
+        order=order,
+        tenant_id=order.tenant_id,
+        from_status=from_status,
+        to_status=OrderStatus.WAITING_SERVICE,
+        changed_by=changed_by,
+        reason="تخصیص تامین‌کننده",
     )
     return order
 
@@ -89,8 +97,12 @@ def remove_supplier(*, order_id, changed_by=None):
     order.save(update_fields=["status", "assigned_supplier", "updated_at"])
 
     OrderStatusHistory.objects.create(
-        order=order, tenant_id=order.tenant_id, from_status=from_status, to_status=OrderStatus.NEW,
-        changed_by=changed_by, reason="حذف تامین‌کننده",
+        order=order,
+        tenant_id=order.tenant_id,
+        from_status=from_status,
+        to_status=OrderStatus.NEW,
+        changed_by=changed_by,
+        reason="حذف تامین‌کننده",
     )
     return order
 
@@ -107,8 +119,12 @@ def replace_supplier(*, order_id, new_supplier, changed_by=None):
     order.save(update_fields=["status", "assigned_supplier", "updated_at"])
 
     OrderStatusHistory.objects.create(
-        order=order, tenant_id=order.tenant_id, from_status=from_status, to_status=OrderStatus.WAITING_SERVICE,
-        changed_by=changed_by, reason="جایگزینی تامین‌کننده",
+        order=order,
+        tenant_id=order.tenant_id,
+        from_status=from_status,
+        to_status=OrderStatus.WAITING_SERVICE,
+        changed_by=changed_by,
+        reason="جایگزینی تامین‌کننده",
     )
     return order
 
@@ -154,8 +170,12 @@ def request_cancellation(*, order_id, requested_by, reason=""):
     order.save(update_fields=["status", "cancellation_requested_by", "cancellation_reason", "updated_at"])
 
     OrderStatusHistory.objects.create(
-        order=order, tenant_id=order.tenant_id, from_status=from_status, to_status=OrderStatus.CANCELLATION_REQUESTED,
-        changed_by=requested_by, reason=reason or "درخواست لغو",
+        order=order,
+        tenant_id=order.tenant_id,
+        from_status=from_status,
+        to_status=OrderStatus.CANCELLATION_REQUESTED,
+        changed_by=requested_by,
+        reason=reason or "درخواست لغو",
     )
     return order
 

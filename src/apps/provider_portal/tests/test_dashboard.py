@@ -30,8 +30,11 @@ class NotificationsViewTest(ProviderPortalTestCase):
         from apps.notifications.models import Notification, NotificationChannel, NotificationStatus
 
         Notification.objects.create(
-            tenant=self.tenant, recipient=self.provider_user.person_id,
-            channel=NotificationChannel.IN_APP, status=NotificationStatus.PENDING, payload={},
+            tenant=self.tenant,
+            recipient=self.provider_user.person_id,
+            channel=NotificationChannel.IN_APP,
+            status=NotificationStatus.PENDING,
+            payload={},
         )
         self.login_as_provider()
         response = self.client.get("/provider/notifications/?filter=unread")

@@ -40,7 +40,8 @@ class CapacityService:
     @classmethod
     def get_active_engagement_count(cls, *, supplier) -> int:
         return SupplierAssignment.objects.filter(
-            supplier=supplier, status__in=_ACTIVE_ASSIGNMENT_STATUSES,
+            supplier=supplier,
+            status__in=_ACTIVE_ASSIGNMENT_STATUSES,
         ).count()
 
     @classmethod
@@ -69,7 +70,8 @@ class CapacityService:
 
         rules_by_supplier_id = dict(
             CapacityRule.objects.filter(
-                supplier_id__in=supplier_ids, is_active=True,
+                supplier_id__in=supplier_ids,
+                is_active=True,
             ).values_list("supplier_id", "max_concurrent_assignments"),
         )
         if not rules_by_supplier_id:
@@ -77,8 +79,12 @@ class CapacityService:
 
         engagement_counts = dict(
             SupplierAssignment.objects.filter(
-                supplier_id__in=rules_by_supplier_id, status__in=_ACTIVE_ASSIGNMENT_STATUSES,
-            ).values("supplier_id").annotate(count=Count("id")).values_list("supplier_id", "count"),
+                supplier_id__in=rules_by_supplier_id,
+                status__in=_ACTIVE_ASSIGNMENT_STATUSES,
+            )
+            .values("supplier_id")
+            .annotate(count=Count("id"))
+            .values_list("supplier_id", "count"),
         )
 
         return {

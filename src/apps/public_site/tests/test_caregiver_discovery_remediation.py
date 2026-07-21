@@ -131,7 +131,8 @@ class CaregiverAvatarPublicVisibilityTest(PublicSiteTestCase):
         buffer = io.BytesIO()
         Image.new("RGB", (10, 10), color=(1, 2, 3)).save(buffer, format="PNG")
         ProfileMediaService.set_caregiver_avatar(
-            caregiver, SimpleUploadedFile("avatar.png", buffer.getvalue(), content_type="image/png"),
+            caregiver,
+            SimpleUploadedFile("avatar.png", buffer.getvalue(), content_type="image/png"),
         )
 
     def test_profile_page_renders_uploaded_avatar_image(self):
@@ -139,7 +140,8 @@ class CaregiverAvatarPublicVisibilityTest(PublicSiteTestCase):
         self._upload_avatar(caregiver)
 
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
 
         self.assertContains(response, "<img")
@@ -158,7 +160,8 @@ class CaregiverAvatarPublicVisibilityTest(PublicSiteTestCase):
         self.assertFalse(caregiver.avatar)
 
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -175,6 +178,7 @@ class CaregiverAvatarPublicVisibilityTest(PublicSiteTestCase):
         # A second, unrelated tenant must never resolve this supplier id at all.
         foreign_tenant = Tenant.objects.create(slug=f"foreign-{uuid_module.uuid4().hex[:8]}", name="Foreign")
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": foreign_tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": foreign_tenant.slug},
         )
         self.assertEqual(response.status_code, 404)

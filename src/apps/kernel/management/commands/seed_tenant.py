@@ -108,9 +108,11 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.SUCCESS(f"Granted permissions to {role.slug}: {missing}"))
             if role_def.slug == "platform-owner":
                 platform_owner_role = role
-        self.stdout.write(self.style.SUCCESS(
-            f"Roles: {roles_created} created, {len(DEV_BOOTSTRAP_ROLES) - roles_created} already existed",
-        ))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Roles: {roles_created} created, {len(DEV_BOOTSTRAP_ROLES) - roles_created} already existed",
+            )
+        )
 
         # 3. Create Person + superuser
         person, person_created = Person.objects.get_or_create(
@@ -140,7 +142,9 @@ class Command(BaseCommand):
         # 4. Assign platform-owner to the seeded admin so /admin-portal/ works too
         # (is_superuser alone grants nothing under PermissionService — RBAC is fail-closed).
         _, assignment_created = RoleAssignment.objects.get_or_create(
-            tenant=tenant, user=user, role=platform_owner_role,
+            tenant=tenant,
+            user=user,
+            role=platform_owner_role,
             defaults={"scope_type": "platform"},
         )
         if assignment_created:

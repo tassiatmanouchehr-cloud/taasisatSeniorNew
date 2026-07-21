@@ -42,7 +42,10 @@ class _ResubmissionFixtureMixin:
         person = Person.objects.create(tenant=tenant, full_name=f"{name} Admin")
         admin_user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         return OrganizationProfile.objects.create(
-            name=name, code=f"ORG-{uuid.uuid4().hex[:6].upper()}", admin_user=admin_user, tenant=tenant,
+            name=name,
+            code=f"ORG-{uuid.uuid4().hex[:6].upper()}",
+            admin_user=admin_user,
+            tenant=tenant,
         )
 
     def _create_user(self, *, tenant, full_name="Test User") -> UserAccount:
@@ -67,7 +70,10 @@ class ResubmissionFromCorrectionRequiredTest(_ResubmissionFixtureMixin, TestCase
     def test_correction_required_returns_to_pending_on_owner_resubmit(self):
         document = self._upload(caregiver=self.caregiver)
         VerificationReviewService.request_correction(
-            document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="upload back side",
+            document_id=document.id,
+            tenant_id=self.tenant.id,
+            reviewer=self.reviewer,
+            reason="upload back side",
         )
         document.refresh_from_db()
         self.assertEqual(document.status, DocumentStatus.CORRECTION_REQUIRED)
@@ -80,7 +86,10 @@ class ResubmissionFromCorrectionRequiredTest(_ResubmissionFixtureMixin, TestCase
     def test_rejected_document_can_also_be_resubmitted(self):
         document = self._upload(caregiver=self.caregiver)
         VerificationReviewService.reject(
-            document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="bad scan",
+            document_id=document.id,
+            tenant_id=self.tenant.id,
+            reviewer=self.reviewer,
+            reason="bad scan",
         )
         DocumentService.resubmit(document, actor=self.caregiver.user, file=self._new_file())
         document.refresh_from_db()
@@ -126,7 +135,10 @@ class OwnershipAndTenantIsolationTest(_ResubmissionFixtureMixin, TestCase):
         organization = self._create_organization(tenant=self.tenant)
         document = self._upload(organization=organization, document_type=DocumentType.REGISTRATION)
         VerificationReviewService.request_correction(
-            document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="fix",
+            document_id=document.id,
+            tenant_id=self.tenant.id,
+            reviewer=self.reviewer,
+            reason="fix",
         )
         DocumentService.resubmit(document, actor=organization.admin_user, file=self._new_file())
         document.refresh_from_db()
@@ -140,24 +152,34 @@ class AuditHistoryPreservedTest(_ResubmissionFixtureMixin, TestCase):
     def test_original_review_reason_survives_in_audit_log_after_resubmission(self):
         document = self._upload(caregiver=self.caregiver)
         VerificationReviewService.request_correction(
-            document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="upload back side",
+            document_id=document.id,
+            tenant_id=self.tenant.id,
+            reviewer=self.reviewer,
+            reason="upload back side",
         )
         DocumentService.resubmit(document, actor=self.caregiver.user, file=self._new_file())
 
         correction_entry = AuditLog.objects.get(
-            tenant_id=self.tenant.id, resource_id=document.id, action="accounts.document.correction_required",
+            tenant_id=self.tenant.id,
+            resource_id=document.id,
+            action="accounts.document.correction_required",
         )
         self.assertEqual(correction_entry.reason, "upload back side")  # never overwritten by resubmission
 
     def test_resubmission_itself_is_audited(self):
         document = self._upload(caregiver=self.caregiver)
         VerificationReviewService.request_correction(
-            document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="fix",
+            document_id=document.id,
+            tenant_id=self.tenant.id,
+            reviewer=self.reviewer,
+            reason="fix",
         )
         DocumentService.resubmit(document, actor=self.caregiver.user, file=self._new_file())
 
         resubmit_entry = AuditLog.objects.filter(
-            tenant_id=self.tenant.id, resource_id=document.id, action="accounts.document.resubmitted",
+            tenant_id=self.tenant.id,
+            resource_id=document.id,
+            action="accounts.document.resubmitted",
         ).latest("occurred_at")
         self.assertEqual(resubmit_entry.before_snapshot, {"status": "correction_required"})
         self.assertEqual(resubmit_entry.after_snapshot, {"status": "pending"})
@@ -172,7 +194,10 @@ class ResubmissionConcurrencyTest(_ResubmissionFixtureMixin, TransactionTestCase
     def test_concurrent_resubmissions_are_serialized_not_corrupted(self):
         document = self._upload(caregiver=self.caregiver)
         VerificationReviewService.reject(
-            document_id=document.id, tenant_id=self.tenant.id, reviewer=self.reviewer, reason="bad",
+            document_id=document.id,
+            tenant_id=self.tenant.id,
+            reviewer=self.reviewer,
+            reason="bad",
         )
         barrier = threading.Barrier(2)
         errors = []

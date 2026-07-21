@@ -30,10 +30,12 @@ class ProviderReportsSampleView(ApiView):
         reports = ProviderReportService.list_reports(tenant_id)
         page = paginate(reports, limit=limit, offset=offset)
         serializer = ProviderPerformanceReportSerializer(page.results, many=True)
-        return Response({
-            "results": serializer.data,
-            "limit": page.limit,
-            "offset": page.offset,
-            "total_count": page.total_count,
-            "has_more": page.has_more,
-        })
+        return Response(
+            {
+                "results": serializer.data,
+                "limit": page.limit,
+                "offset": page.offset,
+                "total_count": page.total_count,
+                "has_more": page.has_more,
+            }
+        )

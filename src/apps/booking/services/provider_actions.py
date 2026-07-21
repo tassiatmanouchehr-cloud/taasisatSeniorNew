@@ -57,8 +57,13 @@ class ProviderAssignmentActionService:
     def _resolve_owned_assignment(cls, *, assignment_id, actor) -> SupplierAssignment:
         supplier = resolve_supplier_for_user(actor)
         try:
-            return SupplierAssignment.objects.for_tenant(supplier.tenant_id).select_related("order").get(
-                id=assignment_id, supplier=supplier,
+            return (
+                SupplierAssignment.objects.for_tenant(supplier.tenant_id)
+                .select_related("order")
+                .get(
+                    id=assignment_id,
+                    supplier=supplier,
+                )
             )
         except SupplierAssignment.DoesNotExist:
             raise ProviderAssignmentActionError("Assignment not found.")

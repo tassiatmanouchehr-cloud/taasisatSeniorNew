@@ -23,8 +23,8 @@
             font-semibold select-none overflow-hidden
             {% if type == 'org' %}rounded-lg{% else %}rounded-full{% endif %}
             {% if ring %}ring-2 ring-surface{% endif %}
-            {% if color == 'primary' %}bg-primary-100 text-primary-700 dark:bg-primary-50 dark:text-primary-400
-            {% elif color == 'secondary' %}bg-secondary-100 text-secondary-700 dark:bg-secondary-200 dark:text-secondary-400
+            {% if color == 'primary' %}bg-primary-100 text-primary-700 dark:bg-primary-50 dark:text-primary-700
+            {% elif color == 'secondary' %}bg-secondary-100 text-secondary-700 dark:bg-secondary-200 dark:text-secondary-600
             {% elif color == 'success' %}bg-success-100 text-success-700 dark:bg-success-50 dark:text-success-600
             {% elif color == 'warning' %}bg-warning-100 text-warning-700 dark:bg-warning-50 dark:text-warning-600
             {% elif color == 'danger' %}bg-danger-100 text-danger-700 dark:bg-danger-50 dark:text-danger-600
@@ -35,7 +35,7 @@
             {% elif size == 'lg' %}w-12 h-12 text-base
             {% elif size == 'xl' %}w-16 h-16 text-lg
             {% endif %}"
-     {% if name %}aria-label="{{ name }}"{% endif %}
+     {% if name %}aria-label="{{ name }}"{% else %}aria-label="{% if type == 'placeholder' %}آواتار{% else %}کاربر{% endif %}"{% endif %}
      role="img">
 
   {% if src %}

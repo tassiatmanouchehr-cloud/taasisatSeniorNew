@@ -19,7 +19,6 @@ References:
 import logging
 
 from celery import shared_task
-from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
@@ -52,8 +51,7 @@ def publish_outbox_events(self, batch_size=100):
 
     # Get pending events + failed events ready for retry
     events = EventOutbox.objects.filter(
-        Q(status=EventStatus.PENDING)
-        | Q(status=EventStatus.FAILED, next_retry_at__lte=now)
+        Q(status=EventStatus.PENDING) | Q(status=EventStatus.FAILED, next_retry_at__lte=now)
     ).order_by("created_at")[:batch_size]
 
     if not events:
@@ -70,13 +68,16 @@ def publish_outbox_events(self, batch_size=100):
         except Exception as e:
             logger.error(
                 "Failed to queue event %s for dispatch: %s",
-                event.id, str(e),
+                event.id,
+                str(e),
             )
             failed += 1
 
     logger.info(
         "Outbox publisher: queued %d events, %d failures (batch=%d)",
-        processed, failed, batch_size,
+        processed,
+        failed,
+        batch_size,
     )
 
 
@@ -125,7 +126,9 @@ def dispatch_single_event(self, event_id: str):
 
         logger.debug(
             "Event dispatched: %s (type=%s, tenant=%s)",
-            event.id, event.event_type, event.tenant_id,
+            event.id,
+            event.event_type,
+            event.tenant_id,
         )
 
     except Exception as e:
@@ -134,7 +137,11 @@ def dispatch_single_event(self, event_id: str):
 
         logger.warning(
             "Event dispatch failed: %s (type=%s, attempt=%d/%d, error=%s)",
-            event.id, event.event_type, event.retry_count, event.max_retries, error_msg,
+            event.id,
+            event.event_type,
+            event.retry_count,
+            event.max_retries,
+            error_msg,
         )
 
         # Re-raise for Celery retry if not dead-lettered
@@ -168,9 +175,9 @@ def cleanup_dead_letter_events(days_old=30):
     count = dead_letters.count()
     if count > 0:
         logger.warning(
-            "Dead letter cleanup: %d events older than %d days found. "
-            "Review required before archival.",
-            count, days_old,
+            "Dead letter cleanup: %d events older than %d days found. Review required before archival.",
+            count,
+            days_old,
         )
         # Future: Archive to cold storage, notify ops team
         # For now: just log for visibility
@@ -190,7 +197,6 @@ def refresh_config_cache():
 
     Runs every 5 minutes via Celery Beat.
     """
-    from django.core.cache import cache
 
     # The Django cache backend handles TTL-based expiry automatically.
     # This task exists as a placeholder for future cache warming
@@ -217,5 +223,6 @@ def _dispatch_to_consumers(event):
     # by the outbox system even without downstream consumers.
     logger.debug(
         "Event dispatched (no consumers registered): %s [%s]",
-        event.event_type, event.id,
+        event.event_type,
+        event.id,
     )

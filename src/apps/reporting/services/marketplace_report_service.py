@@ -42,9 +42,7 @@ class MarketplaceReportService:
             .annotate(count=Count("id"))
             .order_by("-count", "service_category__name")[:limit]
         )
-        category_distribution = {
-            (row["service_category__name"] or "Unknown"): row["count"] for row in category_rows
-        }
+        category_distribution = {(row["service_category__name"] or "Unknown"): row["count"] for row in category_rows}
 
         return MarketplaceStatsReport(
             tenant_id=tenant_id,

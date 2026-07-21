@@ -17,7 +17,9 @@ class PromotionServiceTest(PricingTestCase):
     def test_add_percentage_discount_effect(self):
         promotion = PromotionService.create_promotion(tenant_id=self.tenant.id, name="Spring Sale")
         effect = PromotionService.add_effect(
-            promotion=promotion, effect_type=PromotionEffectType.PERCENTAGE_DISCOUNT, percentage=Decimal("10"),
+            promotion=promotion,
+            effect_type=PromotionEffectType.PERCENTAGE_DISCOUNT,
+            percentage=Decimal("10"),
         )
         self.assertEqual(effect.percentage, Decimal("10"))
         self.assertEqual(effect.tenant_id, self.tenant.id)
@@ -50,7 +52,8 @@ class PromotionServiceTest(PricingTestCase):
     def test_first_order_only_condition_has_no_extra_requirements(self):
         promotion = PromotionService.create_promotion(tenant_id=self.tenant.id, name="Welcome Discount")
         condition = PromotionService.add_condition(
-            promotion=promotion, condition_type=PromotionConditionType.FIRST_ORDER_ONLY,
+            promotion=promotion,
+            condition_type=PromotionConditionType.FIRST_ORDER_ONLY,
         )
         self.assertEqual(condition.condition_type, PromotionConditionType.FIRST_ORDER_ONLY)
 

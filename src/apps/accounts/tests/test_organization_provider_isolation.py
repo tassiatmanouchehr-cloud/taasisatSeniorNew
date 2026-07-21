@@ -29,25 +29,38 @@ from apps.kernel.models.supplier import SupplierType
 
 class CrossOrganizationAffiliatedProviderTest(TestCase):
     def setUp(self):
-        self.tenant = Tenant.objects.create(slug=f"crossorgprov-{uuid.uuid4().hex[:8]}", name="Cross Org Provider Tenant")
+        self.tenant = Tenant.objects.create(
+            slug=f"crossorgprov-{uuid.uuid4().hex[:8]}", name="Cross Org Provider Tenant"
+        )
 
         self.org_a_admin = self._create_user(phone="09140000030")
         self.org_a = OrganizationProfile.objects.create(
-            name="Org A", code=f"org-a-{uuid.uuid4().hex[:6]}", admin_user=self.org_a_admin, tenant=self.tenant,
+            name="Org A",
+            code=f"org-a-{uuid.uuid4().hex[:6]}",
+            admin_user=self.org_a_admin,
+            tenant=self.tenant,
         )
         self.org_b_admin = self._create_user(phone="09140000031")
         self.org_b = OrganizationProfile.objects.create(
-            name="Org B", code=f"org-b-{uuid.uuid4().hex[:6]}", admin_user=self.org_b_admin, tenant=self.tenant,
+            name="Org B",
+            code=f"org-b-{uuid.uuid4().hex[:6]}",
+            admin_user=self.org_b_admin,
+            tenant=self.tenant,
         )
 
         self.affiliated_user = self._create_user(phone="09140000032")
         self.affiliated_caregiver = CaregiverProfile.objects.create(
-            user=self.affiliated_user, person=self.affiliated_user.person, phone="09140000032",
-            display_name="Org A Staff", provider_type=CaregiverProviderType.ORGANIZATION_AFFILIATED,
+            user=self.affiliated_user,
+            person=self.affiliated_user.person,
+            phone="09140000032",
+            display_name="Org A Staff",
+            provider_type=CaregiverProviderType.ORGANIZATION_AFFILIATED,
         )
         self.membership = OrganizationMembership.objects.create(
-            organization=self.org_a, user=self.affiliated_user,
-            role_type=OrgMembershipRole.CAREGIVER, status=OrgMembershipStatus.ACTIVE,
+            organization=self.org_a,
+            user=self.affiliated_user,
+            role_type=OrgMembershipRole.CAREGIVER,
+            status=OrgMembershipStatus.ACTIVE,
         )
 
     def _create_user(self, *, phone) -> UserAccount:
@@ -55,7 +68,9 @@ class CrossOrganizationAffiliatedProviderTest(TestCase):
         return UserAccount.objects.create_user(phone=phone, person=person, tenant=self.tenant)
 
     def test_owning_organization_resolves_its_affiliated_staff_to_organization_provider_supplier(self):
-        supplier = OrganizationStaffService.resolve_staff_supplier(organization=self.org_a, membership_id=self.membership.id)
+        supplier = OrganizationStaffService.resolve_staff_supplier(
+            organization=self.org_a, membership_id=self.membership.id
+        )
         self.assertEqual(supplier.supplier_type, SupplierType.ORGANIZATION_PROVIDER)
 
     def test_other_organization_cannot_resolve_this_affiliated_staff(self):

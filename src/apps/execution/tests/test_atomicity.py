@@ -17,24 +17,28 @@ from .helpers import ExecutionTestCase
 
 class ExecutionAtomicityTest(ExecutionTestCase):
     def test_create_session_rolls_back_fully_on_late_failure(self):
-        with patch(
-            "apps.execution.services.session_service.EventPublisher.publish",
-            side_effect=RuntimeError("boom"),
+        with (
+            patch(
+                "apps.execution.services.session_service.EventPublisher.publish",
+                side_effect=RuntimeError("boom"),
+            ),
+            self.assertRaises(RuntimeError),
         ):
-            with self.assertRaises(RuntimeError):
-                ExecutionService.create_session(supplier_assignment=self.supplier_assignment)
+            ExecutionService.create_session(supplier_assignment=self.supplier_assignment)
 
         self.assertEqual(ExecutionSession.objects.filter(order=self.order).count(), 0)
 
     def test_start_session_rolls_back_fully_on_late_failure(self):
         session = ExecutionService.create_session(supplier_assignment=self.supplier_assignment)
 
-        with patch(
-            "apps.execution.services.session_service.EventPublisher.publish",
-            side_effect=RuntimeError("boom"),
+        with (
+            patch(
+                "apps.execution.services.session_service.EventPublisher.publish",
+                side_effect=RuntimeError("boom"),
+            ),
+            self.assertRaises(RuntimeError),
         ):
-            with self.assertRaises(RuntimeError):
-                ExecutionService.start_session(session_id=session.id)
+            ExecutionService.start_session(session_id=session.id)
 
         session.refresh_from_db()
         self.assertEqual(session.status, ExecutionSessionStatus.SCHEDULED)
@@ -45,12 +49,14 @@ class ExecutionAtomicityTest(ExecutionTestCase):
         session = ExecutionService.create_session(supplier_assignment=self.supplier_assignment)
         ExecutionService.start_session(session_id=session.id)
 
-        with patch(
-            "apps.execution.services.session_service.EventPublisher.publish",
-            side_effect=RuntimeError("boom"),
+        with (
+            patch(
+                "apps.execution.services.session_service.EventPublisher.publish",
+                side_effect=RuntimeError("boom"),
+            ),
+            self.assertRaises(RuntimeError),
         ):
-            with self.assertRaises(RuntimeError):
-                ExecutionService.complete_session(session_id=session.id)
+            ExecutionService.complete_session(session_id=session.id)
 
         session.refresh_from_db()
         self.assertEqual(session.status, ExecutionSessionStatus.IN_PROGRESS)
@@ -60,12 +66,14 @@ class ExecutionAtomicityTest(ExecutionTestCase):
         ExecutionService.start_session(session_id=session.id)
         ExecutionService.complete_session(session_id=session.id)
 
-        with patch(
-            "apps.execution.services.session_service.EventPublisher.publish",
-            side_effect=RuntimeError("boom"),
+        with (
+            patch(
+                "apps.execution.services.session_service.EventPublisher.publish",
+                side_effect=RuntimeError("boom"),
+            ),
+            self.assertRaises(RuntimeError),
         ):
-            with self.assertRaises(RuntimeError):
-                ExecutionService.close_session(session_id=session.id)
+            ExecutionService.close_session(session_id=session.id)
 
         session.refresh_from_db()
         self.assertEqual(session.status, ExecutionSessionStatus.PROVIDER_COMPLETED)

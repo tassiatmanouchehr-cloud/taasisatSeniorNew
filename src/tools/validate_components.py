@@ -23,31 +23,29 @@ Exit code:
 """
 
 import argparse
-import os
 import re
 import sys
 from collections import defaultdict
 from pathlib import Path
 
 # Component directories
-COMPONENT_DIRS = ['ui/components/forms/', 'ui/components/feedback/',
-                  'ui/components/overlays/', 'ui/components/data/']
-LAYOUT_DIRS = ['ui/layouts/']
-BUSINESS_TEMPLATE_DIRS = ['templates/']
+COMPONENT_DIRS = ["ui/components/forms/", "ui/components/feedback/", "ui/components/overlays/", "ui/components/data/"]
+LAYOUT_DIRS = ["ui/layouts/"]
+BUSINESS_TEMPLATE_DIRS = ["templates/"]
 
 # Exclusions
-EXCLUDE_DIRS = ['templates/showcase/', 'node_modules/', '.venv/']
+EXCLUDE_DIRS = ["templates/showcase/", "node_modules/", ".venv/"]
 
 # Patterns
 INLINE_STYLE = re.compile(r'style\s*=\s*["\'](?!{)', re.IGNORECASE)
 INCLUDE_TAG = re.compile(r'{%\s*include\s*["\']([^"\']+)["\']')
-COMMENT_BLOCK = re.compile(r'({#.*?#}|{%\s*comment\s*%}.*?{%\s*endcomment\s*%})', re.DOTALL)
-PROPS_SECTION = re.compile(r'Props|Usage|Parameters|Arguments', re.IGNORECASE)
+COMMENT_BLOCK = re.compile(r"({#.*?#}|{%\s*comment\s*%}.*?{%\s*endcomment\s*%})", re.DOTALL)
+PROPS_SECTION = re.compile(r"Props|Usage|Parameters|Arguments", re.IGNORECASE)
 
 
 def strip_template_comments(content: str) -> str:
     """Remove Django comments before scanning executable includes."""
-    return COMMENT_BLOCK.sub('', content)
+    return COMMENT_BLOCK.sub("", content)
 
 
 def is_excluded(filepath: str) -> bool:
@@ -64,24 +62,29 @@ def scan_inline_styles(root: Path) -> list:
         dir_path = root / scan_dir
         if not dir_path.exists():
             continue
-        for filepath in dir_path.rglob('*.html'):
+        for filepath in dir_path.rglob("*.html"):
             rel = str(filepath.relative_to(root))
             if is_excluded(rel):
                 continue
-            with open(filepath, 'r', encoding='utf-8') as f:
+            with open(filepath, encoding="utf-8") as f:
                 for line_num, line in enumerate(f, 1):
-                    if line.strip().startswith('{#') or line.strip().startswith('<!--'):
+                    if line.strip().startswith("{#") or line.strip().startswith("<!--"):
                         continue
                     if INLINE_STYLE.search(line):
                         # Allow style with Django template variable (dynamic)
-                        if '{{' in line and 'style' in line:
+                        if "{{" in line and "style" in line:
                             continue
-                        violations.append({
-                            'file': rel,
-                            'line': line_num,
-                            'type': 'INLINE_STYLE',
-                            'context': line.strip()[:100],
-                        })
+                        # Allow display:none used for Alpine x-show/x-cloak initial state
+                        if 'style="display: none;"' in line or "style='display: none;'" in line:
+                            continue
+                        violations.append(
+                            {
+                                "file": rel,
+                                "line": line_num,
+                                "type": "INLINE_STYLE",
+                                "context": line.strip()[:100],
+                            }
+                        )
     return violations
 
 
@@ -94,9 +97,9 @@ def scan_component_docs(root: Path) -> tuple:
         dir_path = root / comp_dir
         if not dir_path.exists():
             continue
-        for filepath in dir_path.rglob('*.html'):
+        for filepath in dir_path.rglob("*.html"):
             rel = str(filepath.relative_to(root))
-            with open(filepath, 'r', encoding='utf-8') as f:
+            with open(filepath, encoding="utf-8") as f:
                 content = f.read()
 
             # Check for comment block with Props/Usage documentation
@@ -118,14 +121,14 @@ def build_dependency_graph(root: Path) -> dict:
         dir_path = root / scan_dir
         if not dir_path.exists():
             continue
-        for filepath in dir_path.rglob('*.html'):
+        for filepath in dir_path.rglob("*.html"):
             all_templates.append(filepath)
 
     for filepath in all_templates:
         rel = str(filepath.relative_to(root))
         if is_excluded(rel):
             continue
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, encoding="utf-8") as f:
             content = f.read()
         includes = INCLUDE_TAG.findall(strip_template_comments(content))
         for inc in includes:
@@ -144,34 +147,36 @@ def detect_duplicated_patterns(root: Path) -> list:
         dir_path = root / comp_dir
         if not dir_path.exists():
             continue
-        for filepath in dir_path.rglob('*.html'):
+        for filepath in dir_path.rglob("*.html"):
             rel = str(filepath.relative_to(root))
-            with open(filepath, 'r', encoding='utf-8') as f:
+            with open(filepath, encoding="utf-8") as f:
                 for line_num, line in enumerate(f, 1):
                     for match in class_pattern.finditer(line):
                         class_str = match.group(1).strip()
                         # Normalize: sort classes for comparison
-                        normalized = ' '.join(sorted(class_str.split()))
+                        normalized = " ".join(sorted(class_str.split()))
                         if len(normalized) > 60:  # Only flag long duplicated patterns
                             seen_classes[normalized].append(f"{rel}:{line_num}")
 
     duplicates = []
     for class_str, locations in seen_classes.items():
         if len(locations) > 2:  # Same long class string in 3+ places = potential issue
-            duplicates.append({
-                'classes': class_str[:80] + '...',
-                'count': len(locations),
-                'locations': locations[:5],
-            })
+            duplicates.append(
+                {
+                    "classes": class_str[:80] + "...",
+                    "count": len(locations),
+                    "locations": locations[:5],
+                }
+            )
 
     return duplicates
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Component architecture validation')
-    parser.add_argument('--report', action='store_true', help='Show dependency graph')
-    parser.add_argument('--docs', action='store_true', help='Validate documentation')
-    parser.add_argument('--root', default='.', help='Project root')
+    parser = argparse.ArgumentParser(description="Component architecture validation")
+    parser.add_argument("--report", action="store_true", help="Show dependency graph")
+    parser.add_argument("--docs", action="store_true", help="Validate documentation")
+    parser.add_argument("--root", default=".", help="Project root")
     args = parser.parse_args()
 
     root = Path(args.root)
@@ -213,7 +218,7 @@ def main():
 
     # Report
     print(f"\n{'=' * 60}")
-    print(f"  COMPONENT VALIDATION REPORT")
+    print("  COMPONENT VALIDATION REPORT")
     print(f"{'=' * 60}")
     print(f"\n  Components documented: {len(documented)}/{len(documented) + len(undocumented)}")
     print(f"  Inline style violations: {len(inline_violations)}")
@@ -237,11 +242,11 @@ def main():
         print(f"\n❌ COMPONENT VALIDATION FAILED: {len(errors)} errors")
         sys.exit(1)
     else:
-        print(f"\n✅ COMPONENT VALIDATION PASSED")
+        print("\n✅ COMPONENT VALIDATION PASSED")
         if warnings:
             print(f"   ({len(warnings)} warnings — run with --docs to see details)")
         sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

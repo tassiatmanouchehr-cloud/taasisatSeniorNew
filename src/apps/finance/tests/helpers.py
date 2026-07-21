@@ -26,7 +26,10 @@ class FinanceTestCase(TestCase):
         self.other_tenant = Tenant.objects.create(slug=f"finance-other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
 
         self.category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
 
         self.customer_profile = self._create_customer(tenant=self.tenant)
@@ -51,7 +54,10 @@ class FinanceTestCase(TestCase):
         person = Person.objects.create(tenant=tenant, full_name=display_name)
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         return CustomerProfile.objects.create(
-            user=user, person=person, phone=phone, display_name=display_name,
+            user=user,
+            person=person,
+            phone=phone,
+            display_name=display_name,
         )
 
     def _create_supplier(self, *, tenant=None, **kwargs) -> ServiceSupplier:

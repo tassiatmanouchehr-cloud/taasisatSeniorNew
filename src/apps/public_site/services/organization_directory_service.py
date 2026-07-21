@@ -66,7 +66,10 @@ class OrganizationDirectoryService:
         tenant_id = tenant_id or TenantService.get_default_tenant_id()
 
         candidates, attrs_by_id = cls._filter_candidates(
-            tenant_id=tenant_id, text=text, city=city, service_category_id=service_category_id,
+            tenant_id=tenant_id,
+            text=text,
+            city=city,
+            service_category_id=service_category_id,
         )
         candidates_by_id = {supplier.id: supplier for supplier in candidates}
         ranked = DiscoveryRankingService.rank(tenant_id=tenant_id, suppliers=candidates)
@@ -75,7 +78,9 @@ class OrganizationDirectoryService:
         # _build_filters() (service_options) and _build_card()
         # (service_names), the same KL-012-avoidance shape as every other
         # bulk lookup in this class.
-        categories = tuple(CatalogQueryService.list_active_categories(tenant_id=tenant_id).order_by("sort_order", "name"))
+        categories = tuple(
+            CatalogQueryService.list_active_categories(tenant_id=tenant_id).order_by("sort_order", "name")
+        )
 
         total_count = len(ranked)
         total_pages = max(1, math.ceil(total_count / PAGE_SIZE))
@@ -85,11 +90,15 @@ class OrganizationDirectoryService:
         page_supplier_ids = [item.supplier_id for item in page_items if item.supplier_id in candidates_by_id]
 
         card_data = cls._bulk_card_data(
-            suppliers=[candidates_by_id[supplier_id] for supplier_id in page_supplier_ids], categories=categories,
+            suppliers=[candidates_by_id[supplier_id] for supplier_id in page_supplier_ids],
+            categories=categories,
         )
         cards = tuple(
             cls._build_card(
-                candidates_by_id[supplier_id], attrs_by_id[supplier_id], card_data=card_data, tenant_slug=tenant_slug,
+                candidates_by_id[supplier_id],
+                attrs_by_id[supplier_id],
+                card_data=card_data,
+                tenant_slug=tenant_slug,
             )
             for supplier_id in page_supplier_ids
         )
@@ -131,7 +140,10 @@ class OrganizationDirectoryService:
         any active filter (mirrors CaregiverDirectoryService.available_cities())."""
         tenant_id = tenant_id or TenantService.get_default_tenant_id()
         _candidates, attrs_by_id = cls._filter_candidates(
-            tenant_id=tenant_id, text="", city=None, service_category_id=None,
+            tenant_id=tenant_id,
+            text="",
+            city=None,
+            service_category_id=None,
         )
         return common.distinct_cities_from_attrs(attrs_by_id.values())
 
@@ -150,14 +162,18 @@ class OrganizationDirectoryService:
 
         suppliers = list(
             ServiceSupplier.objects.filter(
-                id__in=supplier_ids, tenant_id=tenant_id, status=SupplierStatus.ACTIVE,
+                id__in=supplier_ids,
+                tenant_id=tenant_id,
+                status=SupplierStatus.ACTIVE,
                 supplier_type=SupplierType.ORGANIZATION,
             ),
         )
         attrs_by_id = common.bulk_supplier_attrs(suppliers)
         eligible = [supplier for supplier in suppliers if common.is_publicly_visible_attrs(attrs_by_id[supplier.id])]
 
-        categories = tuple(CatalogQueryService.list_active_categories(tenant_id=tenant_id).order_by("sort_order", "name"))
+        categories = tuple(
+            CatalogQueryService.list_active_categories(tenant_id=tenant_id).order_by("sort_order", "name")
+        )
         card_data = cls._bulk_card_data(suppliers=eligible, categories=categories)
         return {
             supplier.id: cls._build_card(supplier, attrs_by_id[supplier.id], card_data=card_data)
@@ -212,7 +228,9 @@ class OrganizationDirectoryService:
     @classmethod
     def _build_card(cls, supplier, attrs, *, card_data, tenant_slug=None) -> OrganizationCardViewModel:
         rating = card_data["ratings"].get(supplier.id) or RatingSummaryViewModel(
-            average=None, review_count=0, stars_rounded=0,
+            average=None,
+            review_count=0,
+            stars_rounded=0,
         )
         entity = card_data["entities_by_supplier_id"].get(supplier.id)
         active_provider_count = card_data["active_provider_counts"].get(entity.id, 0) if entity else 0
@@ -248,8 +266,15 @@ class OrganizationDirectoryService:
 
     @classmethod
     def _build_filters(
-        cls, *, tenant_id, text, city, service_category_id, categories,
-        tenant_slug=None, base_url="/find-an-organization/",
+        cls,
+        *,
+        tenant_id,
+        text,
+        city,
+        service_category_id,
+        categories,
+        tenant_slug=None,
+        base_url="/find-an-organization/",
     ):
         cities = cls.available_cities(tenant_id=tenant_id)
         normalized_city = " ".join((city or "").split()).casefold() or None
@@ -257,7 +282,9 @@ class OrganizationDirectoryService:
         city_options = tuple(
             FilterOptionViewModel(value=c, label=c, selected=(normalized_city == c.casefold())) for c in cities
         )
-        is_recognized_service = any(str(cat.id) == str(service_category_id) for cat in categories) if service_category_id else False
+        is_recognized_service = (
+            any(str(cat.id) == str(service_category_id) for cat in categories) if service_category_id else False
+        )
         service_options = tuple(
             FilterOptionViewModel(value=str(cat.id), label=cat.name, selected=(str(cat.id) == str(service_category_id)))
             for cat in categories

@@ -70,19 +70,33 @@ class _SettlementFixtureMixin:
         self.other_tenant = Tenant.objects.create(slug=f"settle-other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
 
         self.category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
         self.customer_profile = self._create_customer(tenant=self.tenant)
         self.order = Order.objects.create(
-            tenant=self.tenant, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
-            service_category=self.category, customer_profile=self.customer_profile,
-            description="Need home care", city="tehran", address="Some address", phone="09120000000",
+            tenant=self.tenant,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.NEW,
+            service_category=self.category,
+            customer_profile=self.customer_profile,
+            description="Need home care",
+            city="tehran",
+            address="Some address",
+            phone="09120000000",
         )
         self.supplier = ServiceSupplier.objects.create(
-            tenant_id=self.tenant.id, supplier_type=SupplierType.INDEPENDENT_PROVIDER,
-            linked_entity_id=uuid.uuid4(), linked_entity_type="TestProfile", display_name="Test Supplier",
-            status=SupplierStatus.ACTIVE, availability_status=AvailabilityStatus.AVAILABLE,
-            verification_level=VerificationLevel.BASIC, service_categories=[str(self.category.id)],
+            tenant_id=self.tenant.id,
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+            linked_entity_id=uuid.uuid4(),
+            linked_entity_type="TestProfile",
+            display_name="Test Supplier",
+            status=SupplierStatus.ACTIVE,
+            availability_status=AvailabilityStatus.AVAILABLE,
+            verification_level=VerificationLevel.BASIC,
+            service_categories=[str(self.category.id)],
         )
         self.supplier_assignment = AssignmentService.assign(order_id=self.order.id, supplier=self.supplier)
         self.order.refresh_from_db()
@@ -93,15 +107,18 @@ class _SettlementFixtureMixin:
         self.execution_session = ExecutionService.close_session(session_id=session.id)
 
         self.document = FinancialDocumentService.create_invoice_from_execution(
-            execution_session_id=self.execution_session.id, items=self._invoice_items(),
+            execution_session_id=self.execution_session.id,
+            items=self._invoice_items(),
         )
         self.total_amount = self.document.total_amount
 
         self.payer_party = FinancialPartyService.resolve_party_for_customer(self.customer_profile)
         self.intent = PaymentIntentService.create_intent(
-            payer_party=self.payer_party, amount=self.total_amount,
+            payer_party=self.payer_party,
+            amount=self.total_amount,
             idempotency_key=f"intent-{uuid.uuid4().hex[:12]}",
-            reference_type="Order", reference_id=self.order.id,
+            reference_type="Order",
+            reference_id=self.order.id,
         )
 
     def _create_customer(self, *, tenant, display_name="Test Customer", phone=None) -> CustomerProfile:
@@ -127,35 +144,55 @@ class _SettlementFixtureMixin:
             "currency": self.intent.currency,
         }
         return PaymentCallbackService.process_callback(
-            provider_reference=attempt.provider_reference, payload=payload,
+            provider_reference=attempt.provider_reference,
+            payload=payload,
         )
 
     def _disable_escrow(self):
         config_key = ConfigurationKey.objects.create(
-            key="financial.escrow.enabled", owner_module="M05",
-            scope_level=ScopeLevel.TENANT, value_type=ValueType.BOOLEAN, default_value=True,
+            key="financial.escrow.enabled",
+            owner_module="M05",
+            scope_level=ScopeLevel.TENANT,
+            value_type=ValueType.BOOLEAN,
+            default_value=True,
         )
         ConfigurationValue.objects.create(
-            tenant_id=self.tenant.id, config_key=config_key, scope_type=ScopeLevel.TENANT,
-            value=False, is_active=True,
+            tenant_id=self.tenant.id,
+            config_key=config_key,
+            scope_type=ScopeLevel.TENANT,
+            value=False,
+            is_active=True,
         )
 
-    def _create_supplier(self, *, tenant=None, supplier_type=SupplierType.INDEPENDENT_PROVIDER, display_name="Other Supplier"):
+    def _create_supplier(
+        self, *, tenant=None, supplier_type=SupplierType.INDEPENDENT_PROVIDER, display_name="Other Supplier"
+    ):
         tenant = tenant or self.tenant
         return ServiceSupplier.objects.create(
-            tenant_id=tenant.id, supplier_type=supplier_type,
-            linked_entity_id=uuid.uuid4(), linked_entity_type="TestProfile", display_name=display_name,
-            status=SupplierStatus.ACTIVE, availability_status=AvailabilityStatus.AVAILABLE,
-            verification_level=VerificationLevel.BASIC, service_categories=[str(self.category.id)],
+            tenant_id=tenant.id,
+            supplier_type=supplier_type,
+            linked_entity_id=uuid.uuid4(),
+            linked_entity_type="TestProfile",
+            display_name=display_name,
+            status=SupplierStatus.ACTIVE,
+            availability_status=AvailabilityStatus.AVAILABLE,
+            verification_level=VerificationLevel.BASIC,
+            service_categories=[str(self.category.id)],
         )
 
     def _create_order(self, *, tenant=None, customer_profile=None, description="Order"):
         tenant = tenant or self.tenant
         customer_profile = customer_profile or self.customer_profile
         return Order.objects.create(
-            tenant=tenant, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
-            service_category=self.category, customer_profile=customer_profile,
-            description=description, city="tehran", address="Some address", phone="09120000000",
+            tenant=tenant,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.NEW,
+            service_category=self.category,
+            customer_profile=customer_profile,
+            description=description,
+            city="tehran",
+            address="Some address",
+            phone="09120000000",
         )
 
     def _settleable_order_and_intent(self, *, supplier_type=SupplierType.INDEPENDENT_PROVIDER):
@@ -173,13 +210,16 @@ class _SettlementFixtureMixin:
         execution_session = ExecutionService.close_session(session_id=session.id)
 
         document = FinancialDocumentService.create_invoice_from_execution(
-            execution_session_id=execution_session.id, items=self._invoice_items(),
+            execution_session_id=execution_session.id,
+            items=self._invoice_items(),
         )
 
         intent = PaymentIntentService.create_intent(
-            payer_party=self.payer_party, amount=document.total_amount,
+            payer_party=self.payer_party,
+            amount=document.total_amount,
             idempotency_key=f"intent-{uuid.uuid4().hex[:12]}",
-            reference_type="Order", reference_id=order.id,
+            reference_type="Order",
+            reference_id=order.id,
         )
         intent.status = PaymentsPaymentStatus.SUCCEEDED
         intent.save(update_fields=["status"])
@@ -230,7 +270,8 @@ class SettlementHappyPathTest(SettlementOrchestrationTestCase):
         )
         self.assertTrue(
             AuditLog.objects.filter(
-                tenant_id=self.tenant.id, action="domain_event.ProviderEarningsCredited",
+                tenant_id=self.tenant.id,
+                action="domain_event.ProviderEarningsCredited",
             ).exists(),
         )
 
@@ -261,13 +302,17 @@ class SettlementIdempotencyTest(SettlementOrchestrationTestCase):
         attempt = PaymentIntentService.start_attempt(intent_id=self.intent.id)
         event_id = f"evt-{uuid.uuid4().hex[:12]}"
         payload = {
-            "provider_reference": attempt.provider_reference, "provider_event_id": event_id,
-            "status": "SUCCEEDED", "amount": str(self.intent.amount), "currency": self.intent.currency,
+            "provider_reference": attempt.provider_reference,
+            "provider_event_id": event_id,
+            "status": "SUCCEEDED",
+            "amount": str(self.intent.amount),
+            "currency": self.intent.currency,
         }
 
         PaymentCallbackService.process_callback(provider_reference=attempt.provider_reference, payload=payload)
         result = PaymentCallbackService.process_callback(
-            provider_reference=attempt.provider_reference, payload=payload,
+            provider_reference=attempt.provider_reference,
+            payload=payload,
         )
 
         self.assertTrue(result.idempotent_replay)
@@ -298,7 +343,8 @@ class SettlementEscrowPolicyTest(SettlementOrchestrationTestCase):
 class SettlementFailureModeTest(SettlementOrchestrationTestCase):
     def test_non_order_reference_type_raises_settlement_error(self):
         intent = PaymentIntentService.create_intent(
-            payer_party=self.payer_party, amount=Decimal("1000"),
+            payer_party=self.payer_party,
+            amount=Decimal("1000"),
             idempotency_key=f"intent-{uuid.uuid4().hex[:12]}",
         )
         intent.status = PaymentsPaymentStatus.SUCCEEDED
@@ -309,23 +355,36 @@ class SettlementFailureModeTest(SettlementOrchestrationTestCase):
 
     def test_missing_financial_document_raises_settlement_error(self):
         order = Order.objects.create(
-            tenant=self.tenant, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
-            service_category=self.category, customer_profile=self.customer_profile,
-            description="No invoice yet", city="tehran", address="Some address", phone="09120000000",
+            tenant=self.tenant,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.NEW,
+            service_category=self.category,
+            customer_profile=self.customer_profile,
+            description="No invoice yet",
+            city="tehran",
+            address="Some address",
+            phone="09120000000",
         )
         supplier = ServiceSupplier.objects.create(
-            tenant_id=self.tenant.id, supplier_type=SupplierType.INDEPENDENT_PROVIDER,
-            linked_entity_id=uuid.uuid4(), linked_entity_type="TestProfile", display_name="Other Supplier",
-            status=SupplierStatus.ACTIVE, availability_status=AvailabilityStatus.AVAILABLE,
-            verification_level=VerificationLevel.BASIC, service_categories=[str(self.category.id)],
+            tenant_id=self.tenant.id,
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+            linked_entity_id=uuid.uuid4(),
+            linked_entity_type="TestProfile",
+            display_name="Other Supplier",
+            status=SupplierStatus.ACTIVE,
+            availability_status=AvailabilityStatus.AVAILABLE,
+            verification_level=VerificationLevel.BASIC,
+            service_categories=[str(self.category.id)],
         )
         AssignmentService.assign(order_id=order.id, supplier=supplier)
         order.refresh_from_db()
 
         intent = PaymentIntentService.create_intent(
-            payer_party=self.payer_party, amount=Decimal("1000"),
+            payer_party=self.payer_party,
+            amount=Decimal("1000"),
             idempotency_key=f"intent-{uuid.uuid4().hex[:12]}",
-            reference_type="Order", reference_id=order.id,
+            reference_type="Order",
+            reference_id=order.id,
         )
         intent.status = PaymentsPaymentStatus.SUCCEEDED
         intent.save(update_fields=["status"])
@@ -336,33 +395,49 @@ class SettlementFailureModeTest(SettlementOrchestrationTestCase):
     def test_callback_settlement_failure_does_not_break_callback_acceptance(self):
         """A settlement failure (e.g. no FinancialDocument) must not surface as a callback error."""
         order = Order.objects.create(
-            tenant=self.tenant, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
-            service_category=self.category, customer_profile=self.customer_profile,
-            description="No invoice yet", city="tehran", address="Some address", phone="09120000000",
+            tenant=self.tenant,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.NEW,
+            service_category=self.category,
+            customer_profile=self.customer_profile,
+            description="No invoice yet",
+            city="tehran",
+            address="Some address",
+            phone="09120000000",
         )
         supplier = ServiceSupplier.objects.create(
-            tenant_id=self.tenant.id, supplier_type=SupplierType.INDEPENDENT_PROVIDER,
-            linked_entity_id=uuid.uuid4(), linked_entity_type="TestProfile", display_name="Other Supplier",
-            status=SupplierStatus.ACTIVE, availability_status=AvailabilityStatus.AVAILABLE,
-            verification_level=VerificationLevel.BASIC, service_categories=[str(self.category.id)],
+            tenant_id=self.tenant.id,
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+            linked_entity_id=uuid.uuid4(),
+            linked_entity_type="TestProfile",
+            display_name="Other Supplier",
+            status=SupplierStatus.ACTIVE,
+            availability_status=AvailabilityStatus.AVAILABLE,
+            verification_level=VerificationLevel.BASIC,
+            service_categories=[str(self.category.id)],
         )
         AssignmentService.assign(order_id=order.id, supplier=supplier)
         order.refresh_from_db()
 
         intent = PaymentIntentService.create_intent(
-            payer_party=self.payer_party, amount=Decimal("1000"),
+            payer_party=self.payer_party,
+            amount=Decimal("1000"),
             idempotency_key=f"intent-{uuid.uuid4().hex[:12]}",
-            reference_type="Order", reference_id=order.id,
+            reference_type="Order",
+            reference_id=order.id,
         )
         attempt = PaymentIntentService.start_attempt(intent_id=intent.id)
         payload = {
             "provider_reference": attempt.provider_reference,
             "provider_event_id": f"evt-{uuid.uuid4().hex[:12]}",
-            "status": "SUCCEEDED", "amount": str(intent.amount), "currency": intent.currency,
+            "status": "SUCCEEDED",
+            "amount": str(intent.amount),
+            "currency": intent.currency,
         }
 
         result = PaymentCallbackService.process_callback(
-            provider_reference=attempt.provider_reference, payload=payload,
+            provider_reference=attempt.provider_reference,
+            payload=payload,
         )
 
         self.assertEqual(result.status, PaymentsPaymentStatus.SUCCEEDED)
@@ -409,8 +484,10 @@ class SettlementLedgerExtensionPointTest(SettlementOrchestrationTestCase):
         # posts its own ledger group and must not collide with the (payment_transaction,
         # account_code) rows the real settlement above already posted for its own payment.
         second_payment = PaymentService.record_payment(
-            payer_party_id=self.payer_party.id, receiver_party_id=beneficiary_party.id,
-            amount=Decimal("1000000.00"), payment_method=PaymentMethod.ONLINE,
+            payer_party_id=self.payer_party.id,
+            receiver_party_id=beneficiary_party.id,
+            amount=Decimal("1000000.00"),
+            payment_method=PaymentMethod.ONLINE,
             provider_reference=f"extension-point-{uuid.uuid4().hex[:12]}",
         )
 
@@ -418,13 +495,20 @@ class SettlementLedgerExtensionPointTest(SettlementOrchestrationTestCase):
         commission = Decimal("100000.00")
         net = gross - commission
         adjustment = SettlementAdjustmentResult(
-            gross_amount=gross, net_amount=net, commission_amount=commission,
-            tax_amount=Decimal("0.00"), discount_recovery_amount=Decimal("0.00"), adjustments=[],
+            gross_amount=gross,
+            net_amount=net,
+            commission_amount=commission,
+            tax_amount=Decimal("0.00"),
+            discount_recovery_amount=Decimal("0.00"),
+            adjustments=[],
         )
 
         entries = SettlementOrchestrationService._post_ledger_entries(
-            tenant_id=self.tenant.id, order=self.order, payment=second_payment,
-            adjustment=adjustment, beneficiary_party=beneficiary_party,
+            tenant_id=self.tenant.id,
+            order=self.order,
+            payment=second_payment,
+            adjustment=adjustment,
+            beneficiary_party=beneficiary_party,
         )
 
         self.assertEqual(len(entries), 3)
@@ -441,9 +525,11 @@ class SettlementNoBeneficiaryTest(SettlementOrchestrationTestCase):
     def test_order_without_assigned_supplier_raises_settlement_error(self):
         order = self._create_order(description="Unassigned order")
         intent = PaymentIntentService.create_intent(
-            payer_party=self.payer_party, amount=Decimal("1000"),
+            payer_party=self.payer_party,
+            amount=Decimal("1000"),
             idempotency_key=f"intent-{uuid.uuid4().hex[:12]}",
-            reference_type="Order", reference_id=order.id,
+            reference_type="Order",
+            reference_id=order.id,
         )
         intent.status = PaymentsPaymentStatus.SUCCEEDED
         intent.save(update_fields=["status"])
@@ -460,20 +546,31 @@ class SettlementCrossTenantReferenceTest(SettlementOrchestrationTestCase):
     def test_intent_referencing_an_order_in_a_different_tenant_raises_settlement_error(self):
         other_customer = self._create_customer(tenant=self.other_tenant, display_name="Other Tenant Customer")
         other_category = ServiceCategory.objects.create(
-            tenant=self.other_tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.other_tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
         foreign_order = Order.objects.create(
-            tenant=self.other_tenant, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
-            service_category=other_category, customer_profile=other_customer,
-            description="Belongs to another tenant", city="tehran", address="Some address", phone="09120000000",
+            tenant=self.other_tenant,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.NEW,
+            service_category=other_category,
+            customer_profile=other_customer,
+            description="Belongs to another tenant",
+            city="tehran",
+            address="Some address",
+            phone="09120000000",
         )
 
         # self.intent belongs to self.tenant; reference_id points at an Order that
         # genuinely exists, but only inside other_tenant.
         intent = PaymentIntentService.create_intent(
-            payer_party=self.payer_party, amount=Decimal("1000"),
+            payer_party=self.payer_party,
+            amount=Decimal("1000"),
             idempotency_key=f"intent-{uuid.uuid4().hex[:12]}",
-            reference_type="Order", reference_id=foreign_order.id,
+            reference_type="Order",
+            reference_id=foreign_order.id,
         )
         intent.status = PaymentsPaymentStatus.SUCCEEDED
         intent.save(update_fields=["status"])
@@ -516,7 +613,8 @@ class SettlementCallbackStatusTest(SettlementOrchestrationTestCase):
             "currency": self.intent.currency,
         }
         return PaymentCallbackService.process_callback(
-            provider_reference=attempt.provider_reference, payload=payload,
+            provider_reference=attempt.provider_reference,
+            payload=payload,
         )
 
     def test_failed_callback_does_not_trigger_settlement(self):
@@ -551,12 +649,14 @@ class SettlementRollbackTest(SettlementOrchestrationTestCase):
         self.intent.save(update_fields=["status"])
 
     def test_rollback_after_ledger_posting_failure(self):
-        with mock.patch(
-            "apps.payments.services.settlement_orchestration_service.LedgerService.post_entries",
-            side_effect=RuntimeError("simulated ledger failure"),
+        with (
+            mock.patch(
+                "apps.payments.services.settlement_orchestration_service.LedgerService.post_entries",
+                side_effect=RuntimeError("simulated ledger failure"),
+            ),
+            self.assertRaises(RuntimeError),
         ):
-            with self.assertRaises(RuntimeError):
-                SettlementOrchestrationService.settle_payment_intent(payment_intent_id=self.intent.id)
+            SettlementOrchestrationService.settle_payment_intent(payment_intent_id=self.intent.id)
 
         # The PaymentTransaction created earlier in the same atomic call must not survive.
         self.assertFalse(PaymentTransaction.objects.filter(provider_reference=str(self.intent.id)).exists())
@@ -567,12 +667,14 @@ class SettlementRollbackTest(SettlementOrchestrationTestCase):
         self.assertNotEqual(self.document.status, FinancialDocumentStatus.PAID)
 
     def test_rollback_after_wallet_credit_failure(self):
-        with mock.patch(
-            "apps.payments.services.settlement_orchestration_service.WalletTransactionService.credit",
-            side_effect=RuntimeError("simulated wallet failure"),
+        with (
+            mock.patch(
+                "apps.payments.services.settlement_orchestration_service.WalletTransactionService.credit",
+                side_effect=RuntimeError("simulated wallet failure"),
+            ),
+            self.assertRaises(RuntimeError),
         ):
-            with self.assertRaises(RuntimeError):
-                SettlementOrchestrationService.settle_payment_intent(payment_intent_id=self.intent.id)
+            SettlementOrchestrationService.settle_payment_intent(payment_intent_id=self.intent.id)
 
         # Both the PaymentTransaction AND the ledger entries created earlier in the
         # same atomic call must not survive — not just the wallet credit itself.
@@ -628,12 +730,14 @@ class SettlementConcurrencyTest(_SettlementFixtureMixin, TransactionTestCase):
         # already-committed result once it acquires the row lock) — what must never
         # happen is more than one PaymentTransaction, ledger group, or wallet credit.
         self.assertEqual(
-            PaymentTransaction.objects.filter(provider_reference=str(self.intent.id)).count(), 1,
+            PaymentTransaction.objects.filter(provider_reference=str(self.intent.id)).count(),
+            1,
             f"expected exactly one PaymentTransaction; thread errors (if any): {errors}",
         )
         beneficiary_party = FinancialPartyService.resolve_party_for_supplier(self.supplier)
         self.assertEqual(
-            LedgerEntry.objects.filter(party=beneficiary_party, account_code=ACCOUNT_RECEIVABLE_SETTLED).count(), 1,
+            LedgerEntry.objects.filter(party=beneficiary_party, account_code=ACCOUNT_RECEIVABLE_SETTLED).count(),
+            1,
         )
         wallet = Wallet.objects.get(tenant_id=self.tenant.id, party=beneficiary_party)
         self.assertEqual(WalletTransaction.objects.filter(wallet=wallet).count(), 1)

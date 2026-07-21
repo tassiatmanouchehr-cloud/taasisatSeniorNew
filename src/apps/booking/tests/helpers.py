@@ -24,7 +24,10 @@ class BookingTestCase(TestCase):
         self.other_tenant = Tenant.objects.create(slug=f"booking-other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
 
         self.category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
 
         self.order = Order.objects.create(
@@ -67,7 +70,9 @@ class BookingTestCase(TestCase):
     def _create_match_candidate(self, *, supplier, order=None, eligible=True, status=None) -> MatchCandidate:
         order = order or self.order
         match_round = MatchRound.objects.create(
-            tenant_id=self.tenant.id, order=order, status=MatchRoundStatus.COMPLETED,
+            tenant_id=self.tenant.id,
+            order=order,
+            status=MatchRoundStatus.COMPLETED,
         )
         return MatchCandidate.objects.create(
             tenant_id=self.tenant.id,

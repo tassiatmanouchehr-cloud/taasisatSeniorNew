@@ -27,21 +27,33 @@ class MatchRound(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="match_rounds",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="match_rounds",
     )
     order = models.ForeignKey(
-        "orders.Order", on_delete=models.CASCADE, related_name="match_rounds",
+        "orders.Order",
+        on_delete=models.CASCADE,
+        related_name="match_rounds",
     )
     status = models.CharField(
-        max_length=20, choices=MatchRoundStatus.choices, default=MatchRoundStatus.RUNNING, db_index=True,
+        max_length=20,
+        choices=MatchRoundStatus.choices,
+        default=MatchRoundStatus.RUNNING,
+        db_index=True,
     )
     triggered_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
     )
     started_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     config_snapshot = models.JSONField(
-        default=dict, blank=True,
+        default=dict,
+        blank=True,
         help_text="Snapshot of matching configuration at run time (immune to later config changes).",
     )
     failure_reason = models.TextField(blank=True)
@@ -84,31 +96,42 @@ class MatchCandidate(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="match_candidates",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="match_candidates",
     )
     match_round = models.ForeignKey(
-        MatchRound, on_delete=models.CASCADE, related_name="candidates",
+        MatchRound,
+        on_delete=models.CASCADE,
+        related_name="candidates",
     )
     supplier = models.ForeignKey(
-        "kernel.ServiceSupplier", on_delete=models.CASCADE, related_name="match_candidacies",
+        "kernel.ServiceSupplier",
+        on_delete=models.CASCADE,
+        related_name="match_candidacies",
     )
 
     eligible = models.BooleanField(default=False)
     eligibility_code = models.CharField(max_length=40, choices=EligibilityCode.choices)
     eligibility_reason = models.JSONField(
-        default=dict, blank=True,
+        default=dict,
+        blank=True,
         help_text="Structured explanation for the eligibility_code (ADR-02-07: explainable eligibility).",
     )
 
     rank_score = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True)
     score_breakdown = models.JSONField(
-        default=dict, blank=True,
+        default=dict,
+        blank=True,
         help_text="Per-component contributions to rank_score, for transparency/debugging.",
     )
     rank_position = models.IntegerField(null=True, blank=True)
 
     status = models.CharField(
-        max_length=20, choices=MatchCandidateStatus.choices, default=MatchCandidateStatus.GENERATED, db_index=True,
+        max_length=20,
+        choices=MatchCandidateStatus.choices,
+        default=MatchCandidateStatus.GENERATED,
+        db_index=True,
     )
 
     created_at = models.DateTimeField(auto_now_add=True)

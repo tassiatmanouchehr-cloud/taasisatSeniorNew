@@ -43,7 +43,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("kernel", "0010_useraccount_email_unique"),
     ]

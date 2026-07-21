@@ -22,16 +22,24 @@ class TenantIsolationTest(TestCase):
         self.tenant_b = Tenant.objects.create(slug="tenant-b", name="Tenant B")
 
         self.cat_a = ServiceCategory.objects.create(
-            tenant_id=self.tenant_a.id, name="Care A", slug="care", status=CatalogStatus.ACTIVE,
+            tenant_id=self.tenant_a.id,
+            name="Care A",
+            slug="care",
+            status=CatalogStatus.ACTIVE,
         )
         self.cat_b = ServiceCategory.objects.create(
-            tenant_id=self.tenant_b.id, name="Care B", slug="care", status=CatalogStatus.ACTIVE,
+            tenant_id=self.tenant_b.id,
+            name="Care B",
+            slug="care",
+            status=CatalogStatus.ACTIVE,
         )
 
     def _order_kwargs(self, **overrides):
         defaults = dict(
             service_category_id=self.cat_a.id,
-            description="Test order", phone="09121111111", address="Test address",
+            description="Test order",
+            phone="09121111111",
+            address="Test address",
             tenant_id=self.tenant_a.id,
         )
         defaults.update(overrides)
@@ -42,11 +50,13 @@ class TenantIsolationTest(TestCase):
         self.assertEqual(ServiceCategory.objects.filter(slug="care").count(), 2)
 
     def test_duplicate_slug_same_tenant_rejected(self):
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                ServiceCategory.objects.create(
-                    tenant_id=self.tenant_a.id, name="Dup", slug="care", status=CatalogStatus.ACTIVE,
-                )
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            ServiceCategory.objects.create(
+                tenant_id=self.tenant_a.id,
+                name="Dup",
+                slug="care",
+                status=CatalogStatus.ACTIVE,
+            )
 
     def test_order_creation_scopes_to_requested_tenant(self):
         order = create_public_order(**self._order_kwargs())
@@ -58,7 +68,10 @@ class TenantIsolationTest(TestCase):
 
     def test_cross_tenant_service_type_rejected(self):
         type_b = ServiceType.objects.create(
-            tenant_id=self.tenant_b.id, category=self.cat_b, name="T", slug="t",
+            tenant_id=self.tenant_b.id,
+            category=self.cat_b,
+            name="T",
+            slug="t",
             status=CatalogStatus.ACTIVE,
         )
         with self.assertRaises(OrderValidationError):

@@ -38,18 +38,23 @@ class Command(BaseCommand):
         from apps.accounts.services.organization_rbac import OrganizationRoleSyncError, OrganizationRoleSyncService
 
         memberships = OrganizationMembership.objects.filter(
-            role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+            role_type=OrgMembershipRole.ADMIN,
+            status=OrgMembershipStatus.ACTIVE,
         ).select_related("organization", "user")
 
         if options["dry_run"]:
             skipped = [m for m in memberships if m.organization.tenant_id is None or m.user.tenant_id is None]
             eligible = len(memberships) - len(skipped)
-            self.stdout.write(f"[dry-run] Would sync {eligible} membership(s); would skip {len(skipped)} (missing tenant).")
+            self.stdout.write(
+                f"[dry-run] Would sync {eligible} membership(s); would skip {len(skipped)} (missing tenant)."
+            )
             for m in skipped:
-                self.stdout.write(self.style.WARNING(
-                    f"[dry-run] Skip membership {m.id}: organization={m.organization_id} has no tenant, "
-                    "or user has no tenant.",
-                ))
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"[dry-run] Skip membership {m.id}: organization={m.organization_id} has no tenant, "
+                        "or user has no tenant.",
+                    )
+                )
             return
 
         synced = 0
@@ -66,6 +71,8 @@ class Command(BaseCommand):
                 errors += 1
                 self.stdout.write(self.style.ERROR(f"Error syncing membership {membership.id}: {exc}"))
 
-        self.stdout.write(self.style.SUCCESS(
-            f"Backfill complete: {synced} synced, {skipped} skipped (missing tenant), {errors} errors.",
-        ))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Backfill complete: {synced} synced, {skipped} skipped (missing tenant), {errors} errors.",
+            )
+        )

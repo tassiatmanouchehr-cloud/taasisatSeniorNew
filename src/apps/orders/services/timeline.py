@@ -30,7 +30,10 @@ class OrderTimelineService:
 
         reached = {"created"}
         if order.status in (
-            OrderStatus.NEW, OrderStatus.WAITING_SERVICE, OrderStatus.IN_PROGRESS, OrderStatus.COMPLETED,
+            OrderStatus.NEW,
+            OrderStatus.WAITING_SERVICE,
+            OrderStatus.IN_PROGRESS,
+            OrderStatus.COMPLETED,
         ):
             reached.add("matching")
         if order.assigned_supplier_id:

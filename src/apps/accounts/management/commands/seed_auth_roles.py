@@ -56,7 +56,6 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Roles seeded: {created_count} created, "
-                f"{len(DEFAULT_TENANT_ROLES) - created_count} already existed."
+                f"Roles seeded: {created_count} created, {len(DEFAULT_TENANT_ROLES) - created_count} already existed."
             )
         )

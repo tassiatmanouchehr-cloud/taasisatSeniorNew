@@ -78,8 +78,13 @@ class Phase2FullLifecycleAcceptanceTest(PublicSiteTestCase):
         person = Person.objects.create(tenant=self.tenant, full_name="مراقب چرخه کامل")
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=self.tenant)
         caregiver = CaregiverProfile.objects.create(
-            user=user, person=person, phone=phone, display_name="مراقب چرخه کامل",
-            city="tehran", specialty="مراقبت سالمند", status=ProfileStatus.DRAFT,
+            user=user,
+            person=person,
+            phone=phone,
+            display_name="مراقب چرخه کامل",
+            city="tehran",
+            specialty="مراقبت سالمند",
+            status=ProfileStatus.DRAFT,
         )
         from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_caregiver
 
@@ -93,8 +98,11 @@ class Phase2FullLifecycleAcceptanceTest(PublicSiteTestCase):
 
         # 2) Edit bio/specialty (owner-only mutation boundary: only this caregiver's own row changes).
         CaregiverProfileUpdateService.update_professional_info(
-            caregiver, bio="سال‌ها تجربه در مراقبت از سالمندان.", specialty="مراقبت تخصصی سالمند",
-            years_experience=6, service_radius_km=15,
+            caregiver,
+            bio="سال‌ها تجربه در مراقبت از سالمندان.",
+            specialty="مراقبت تخصصی سالمند",
+            years_experience=6,
+            service_radius_km=15,
         )
 
         # 3) Skills — one visible, one hidden.
@@ -104,18 +112,33 @@ class Phase2FullLifecycleAcceptanceTest(PublicSiteTestCase):
 
         # 4) Experience — one visible, one hidden.
         CaregiverExperienceService.create(
-            caregiver, title="پرستار خانگی", organization_name="کلینیک نمونه",
-            start_date=datetime.date(2020, 1, 1), end_date=None, is_current=True,
-            description="مراقبت روزانه از سالمندان.", is_visible=True,
+            caregiver,
+            title="پرستار خانگی",
+            organization_name="کلینیک نمونه",
+            start_date=datetime.date(2020, 1, 1),
+            end_date=None,
+            is_current=True,
+            description="مراقبت روزانه از سالمندان.",
+            is_visible=True,
         )
         hidden_experience = CaregiverExperienceService.create(
-            caregiver, title="سابقه پنهان", organization_name="", start_date=datetime.date(2018, 1, 1),
-            end_date=datetime.date(2019, 1, 1), is_current=False, description="", is_visible=True,
+            caregiver,
+            title="سابقه پنهان",
+            organization_name="",
+            start_date=datetime.date(2018, 1, 1),
+            end_date=datetime.date(2019, 1, 1),
+            is_current=False,
+            description="",
+            is_visible=True,
         )
         CaregiverExperienceService.update(
-            caregiver, experience_id=hidden_experience.id, title="سابقه پنهان",
-            start_date=datetime.date(2018, 1, 1), end_date=datetime.date(2019, 1, 1),
-            is_current=False, is_visible=False,
+            caregiver,
+            experience_id=hidden_experience.id,
+            title="سابقه پنهان",
+            start_date=datetime.date(2018, 1, 1),
+            end_date=datetime.date(2019, 1, 1),
+            is_current=False,
+            is_visible=False,
         )
 
         # 5) Gallery — one visible, one hidden.
@@ -125,26 +148,31 @@ class Phase2FullLifecycleAcceptanceTest(PublicSiteTestCase):
 
         # 6) Weekly availability — a working window on Monday.
         AvailabilityMutationService.add_working_window(
-            supplier=supplier, day_of_week=DayOfWeek.MONDAY,
-            start_time=datetime.time(9, 0), end_time=datetime.time(17, 0),
+            supplier=supplier,
+            day_of_week=DayOfWeek.MONDAY,
+            start_time=datetime.time(9, 0),
+            end_time=datetime.time(17, 0),
         )
 
         # 7) Both required documents (IDENTITY, BACKGROUND_CHECK) approved — required for
         # activation itself, and each contributes a public credential summary once approved.
         identity_doc = DocumentService.upload_caregiver_document(
-            caregiver, document_type=DocumentType.IDENTITY,
+            caregiver,
+            document_type=DocumentType.IDENTITY,
             file=SimpleUploadedFile("identity.pdf", PDF_BYTES, content_type="application/pdf"),
         )
         VerificationReviewService.approve(document_id=identity_doc.id, tenant_id=self.tenant.id, reviewer=reviewer)
         background_doc = DocumentService.upload_caregiver_document(
-            caregiver, document_type=DocumentType.BACKGROUND_CHECK,
+            caregiver,
+            document_type=DocumentType.BACKGROUND_CHECK,
             file=SimpleUploadedFile("bg.pdf", PDF_BYTES, content_type="application/pdf"),
         )
         VerificationReviewService.approve(document_id=background_doc.id, tenant_id=self.tenant.id, reviewer=reviewer)
 
         # 8) A third, non-required credential (QUALIFICATION) left pending — never public.
         pending_doc = DocumentService.upload_caregiver_document(
-            caregiver, document_type=DocumentType.QUALIFICATION,
+            caregiver,
+            document_type=DocumentType.QUALIFICATION,
             file=SimpleUploadedFile("qualification.pdf", PDF_BYTES, content_type="application/pdf"),
         )
 
@@ -162,7 +190,8 @@ class Phase2FullLifecycleAcceptanceTest(PublicSiteTestCase):
         self.client.force_login(cust_user)
 
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
@@ -208,7 +237,8 @@ class Phase2FullLifecycleAcceptanceTest(PublicSiteTestCase):
 
         # 11) A second, ineligible (unverified) caregiver appears nowhere publicly.
         hidden_supplier, _ = self._create_caregiver_supplier(
-            display_name="مراقب پنهان", verification_status="unverified",
+            display_name="مراقب پنهان",
+            verification_status="unverified",
         )
         self.assertIsNone(CaregiverPublicProfileService.get_profile(hidden_supplier.id, tenant_id=self.tenant.id))
         self.assertNotIn(
@@ -220,7 +250,8 @@ class Phase2FullLifecycleAcceptanceTest(PublicSiteTestCase):
             {c.display_name for c in HomePageService.get_home_view(tenant_id=self.tenant.id).featured_caregivers},
         )
         hidden_response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[hidden_supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[hidden_supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         self.assertEqual(hidden_response.status_code, 404)
 
@@ -250,7 +281,9 @@ class Phase2DashboardIsolationAcceptanceTest(PublicSiteTestCase):
         CaregiverSkillService.add_skill(caregiver_b, name="مهارت ب")
 
         dashboard_a = CaregiverDashboardPresentationService.build_for_supplier(
-            supplier=supplier_a, caregiver=caregiver_a, tenant_id=self.tenant.id,
+            supplier=supplier_a,
+            caregiver=caregiver_a,
+            tenant_id=self.tenant.id,
             reputation=ReputationService.get_reputation_summary(supplier_a),
             performance=ProviderReportService.get_report_for_supplier(self.tenant.id, supplier_a.id),
         )
@@ -283,7 +316,9 @@ class Phase2QueryBudgetAcceptanceTest(PublicSiteTestCase):
     def _seed(self, count, *, city="tehran", name_prefix="caregiver"):
         for i in range(count):
             self._create_caregiver_supplier(
-                display_name=f"{name_prefix}-{i}", city=city, verification_status="verified",
+                display_name=f"{name_prefix}-{i}",
+                city=city,
+                verification_status="verified",
             )
 
     def _query_count(self, callable_):
@@ -339,19 +374,25 @@ class Phase2QueryBudgetAcceptanceTest(PublicSiteTestCase):
     def test_service_category_filter_query_count_is_a_stable_maximum(self):
         for i in range(20):
             self._create_caregiver_supplier(
-                display_name=f"cat-{i}", service_category_ids=[str(self.category.id)],
+                display_name=f"cat-{i}",
+                service_category_ids=[str(self.category.id)],
                 verification_status="verified",
             )
         count_at_20 = self._query_count(
-            lambda: CaregiverDirectoryService.search(tenant_id=self.tenant.id, service_category_id=str(self.category.id)),
+            lambda: CaregiverDirectoryService.search(
+                tenant_id=self.tenant.id, service_category_id=str(self.category.id)
+            ),
         )
         for i in range(80):
             self._create_caregiver_supplier(
-                display_name=f"cat-more-{i}", service_category_ids=[str(self.category.id)],
+                display_name=f"cat-more-{i}",
+                service_category_ids=[str(self.category.id)],
                 verification_status="verified",
             )
         count_at_100 = self._query_count(
-            lambda: CaregiverDirectoryService.search(tenant_id=self.tenant.id, service_category_id=str(self.category.id)),
+            lambda: CaregiverDirectoryService.search(
+                tenant_id=self.tenant.id, service_category_id=str(self.category.id)
+            ),
         )
         self.assertEqual(count_at_20, count_at_100)
 
@@ -408,12 +449,14 @@ class Phase2QueryBudgetAcceptanceTest(PublicSiteTestCase):
         page = CaregiverDirectoryService.search(tenant_id=self.tenant.id)
         home = HomePageService.get_home_view(tenant_id=self.tenant.id)
         self.assertEqual(page.pagination.total_count, 20)
-        self.assertNotIn("hidden-unverified", {c.display_name for c in page.caregivers} | {
-            c.display_name for c in home.featured_caregivers
-        })
-        self.assertNotIn("hidden-draft", {c.display_name for c in page.caregivers} | {
-            c.display_name for c in home.featured_caregivers
-        })
+        self.assertNotIn(
+            "hidden-unverified",
+            {c.display_name for c in page.caregivers} | {c.display_name for c in home.featured_caregivers},
+        )
+        self.assertNotIn(
+            "hidden-draft",
+            {c.display_name for c in page.caregivers} | {c.display_name for c in home.featured_caregivers},
+        )
 
     # -- 9: rating/review summary remains correct --
 
@@ -431,13 +474,18 @@ class Phase2QueryBudgetAcceptanceTest(PublicSiteTestCase):
 
     def test_service_category_filter_returns_only_matching_caregivers(self):
         other_category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="خدمت دیگر", slug="other-service", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="خدمت دیگر",
+            slug="other-service",
+            status=CatalogStatus.ACTIVE,
         )
         self._create_caregiver_supplier(
-            display_name="matches-category", service_category_ids=[str(self.category.id)],
+            display_name="matches-category",
+            service_category_ids=[str(self.category.id)],
         )
         self._create_caregiver_supplier(
-            display_name="different-category", service_category_ids=[str(other_category.id)],
+            display_name="different-category",
+            service_category_ids=[str(other_category.id)],
         )
         page = CaregiverDirectoryService.search(tenant_id=self.tenant.id, service_category_id=str(self.category.id))
         names = {c.display_name for c in page.caregivers}

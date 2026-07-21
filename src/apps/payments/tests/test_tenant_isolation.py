@@ -14,7 +14,9 @@ class PaymentTenantIsolationTest(PaymentsTestCase):
         self.other_customer = self._create_customer(tenant=self.other_tenant, display_name="Other Customer")
         self.other_party = FinancialPartyService.resolve_party_for_customer(self.other_customer)
         self.other_intent = PaymentIntentService.create_intent(
-            payer_party=self.other_party, amount=Decimal("2000"), idempotency_key="other-tenant-intent",
+            payer_party=self.other_party,
+            amount=Decimal("2000"),
+            idempotency_key="other-tenant-intent",
         )
 
         self.attempt = PaymentIntentService.start_attempt(intent_id=self.intent.id)
@@ -39,10 +41,14 @@ class PaymentTenantIsolationTest(PaymentsTestCase):
     def test_idempotency_key_is_scoped_per_tenant(self):
         # Same idempotency_key string, different tenants -> two distinct intents.
         first = PaymentIntentService.create_intent(
-            payer_party=self.party, amount=Decimal("100"), idempotency_key="shared-key",
+            payer_party=self.party,
+            amount=Decimal("100"),
+            idempotency_key="shared-key",
         )
         second = PaymentIntentService.create_intent(
-            payer_party=self.other_party, amount=Decimal("100"), idempotency_key="shared-key",
+            payer_party=self.other_party,
+            amount=Decimal("100"),
+            idempotency_key="shared-key",
         )
 
         self.assertNotEqual(first.id, second.id)

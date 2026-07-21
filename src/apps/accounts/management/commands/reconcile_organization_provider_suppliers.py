@@ -46,7 +46,8 @@ class Command(BaseCommand):
 
         for caregiver in caregivers:
             supplier = SupplierRegistry.find_by_linked_entity(
-                linked_entity_id=caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+                linked_entity_id=caregiver.id,
+                linked_entity_type=CAREGIVER_LINKED_TYPE,
             )
             if supplier is None:
                 no_supplier_yet += 1
@@ -67,6 +68,8 @@ class Command(BaseCommand):
             reconciled += 1
 
         verb = "Would reconcile" if options["dry_run"] else "Reconciled"
-        self.stdout.write(self.style.SUCCESS(
-            f"{verb}: {reconciled}. Already correct: {already_correct}. No supplier yet: {no_supplier_yet}.",
-        ))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"{verb}: {reconciled}. Already correct: {already_correct}. No supplier yet: {no_supplier_yet}.",
+            )
+        )

@@ -1,12 +1,10 @@
 """Organization services — membership, lookup."""
 
-from django.db.models import Q
 from django.utils import timezone
 
 from ..models.profiles import (
     OrganizationMembership,
     OrganizationProfile,
-    OrgMembershipRole,
     OrgMembershipStatus,
 )
 

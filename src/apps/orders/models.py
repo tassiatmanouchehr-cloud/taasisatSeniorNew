@@ -11,10 +11,10 @@ from django.utils import timezone
 
 from apps.common.managers import TenantScopedManager
 
-
 # ============================================================
 # Service Catalog
 # ============================================================
+
 
 class CatalogStatus(models.TextChoices):
     ACTIVE = "active", "Active"
@@ -24,7 +24,9 @@ class CatalogStatus(models.TextChoices):
 class ServiceCategory(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="service_categories",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="service_categories",
     )
     name = models.CharField(max_length=255)
     slug = models.SlugField(max_length=100)
@@ -50,7 +52,9 @@ class ServiceCategory(models.Model):
 class ServiceType(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="service_types",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="service_types",
     )
     category = models.ForeignKey(ServiceCategory, on_delete=models.CASCADE, related_name="service_types")
     name = models.CharField(max_length=255)
@@ -77,6 +81,7 @@ class ServiceType(models.Model):
 # ============================================================
 # Order
 # ============================================================
+
 
 class OrderSource(models.TextChoices):
     PUBLIC = "public", "Public/Customer"
@@ -109,6 +114,7 @@ ORDER_NUMBER_MAX_ATTEMPTS = 5
 def _generate_order_number():
     """Generate a human-readable order number: ORD-YYYYMMDD-XXXXXX."""
     from django.utils.crypto import get_random_string
+
     date_part = timezone.now().strftime("%Y%m%d")
     random_part = get_random_string(ORDER_NUMBER_SUFFIX_LENGTH, "0123456789")
     return f"ORD-{date_part}-{random_part}"
@@ -124,7 +130,9 @@ def _is_order_number_collision(exc):
 class Order(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="orders",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="orders",
     )
     order_number = models.CharField(max_length=30, unique=True, db_index=True)
     source = models.CharField(max_length=20, choices=OrderSource.choices)
@@ -132,18 +140,32 @@ class Order(models.Model):
 
     # Customer/Elder
     customer_profile = models.ForeignKey(
-        "accounts.CustomerProfile", on_delete=models.SET_NULL, null=True, blank=True, related_name="orders",
+        "accounts.CustomerProfile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="orders",
     )
     elder_profile = models.ForeignKey(
-        "accounts.ElderProfile", on_delete=models.SET_NULL, null=True, blank=True, related_name="orders",
+        "accounts.ElderProfile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="orders",
     )
     trusted_contact = models.ForeignKey(
-        "accounts.TrustedContact", on_delete=models.SET_NULL, null=True, blank=True, related_name="orders",
+        "accounts.TrustedContact",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="orders",
     )
 
     # Service
     service_category = models.ForeignKey(ServiceCategory, on_delete=models.PROTECT, related_name="orders")
-    service_type = models.ForeignKey(ServiceType, on_delete=models.SET_NULL, null=True, blank=True, related_name="orders")
+    service_type = models.ForeignKey(
+        ServiceType, on_delete=models.SET_NULL, null=True, blank=True, related_name="orders"
+    )
 
     # Details
     description = models.TextField()
@@ -158,13 +180,23 @@ class Order(models.Model):
     # See assigned_provider/assigned_organization properties below for
     # read-only, backward-compatible access to the resolved profile.
     assigned_supplier = models.ForeignKey(
-        "kernel.ServiceSupplier", on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_orders",
+        "kernel.ServiceSupplier",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_orders",
     )
 
     # Actors
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="created_orders")
-    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="reviewed_orders")
-    cancellation_requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="created_orders"
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="reviewed_orders"
+    )
+    cancellation_requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
 
     # Timestamps
     approved_at = models.DateTimeField(null=True, blank=True)
@@ -255,6 +287,7 @@ class Order(models.Model):
 # grant() call.
 # ============================================================
 
+
 class EligibilityStatus(models.TextChoices):
     ACTIVE = "active", "Active"
     WITHDRAWN = "withdrawn", "Withdrawn"
@@ -263,26 +296,42 @@ class EligibilityStatus(models.TextChoices):
 class OrderOrganizationEligibility(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="order_organization_eligibilities",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="order_organization_eligibilities",
     )
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="organization_eligibilities")
     organization = models.ForeignKey(
-        "accounts.OrganizationProfile", on_delete=models.CASCADE, related_name="order_eligibilities",
+        "accounts.OrganizationProfile",
+        on_delete=models.CASCADE,
+        related_name="order_eligibilities",
     )
     status = models.CharField(
-        max_length=20, choices=EligibilityStatus.choices, default=EligibilityStatus.ACTIVE, db_index=True,
+        max_length=20,
+        choices=EligibilityStatus.choices,
+        default=EligibilityStatus.ACTIVE,
+        db_index=True,
     )
     source = models.CharField(
-        max_length=20, default="manual",
+        max_length=20,
+        default="manual",
         help_text="Always 'manual' in this Epic — every row is an explicit grant() call. "
-                   "Plain string, not an enum: constraining it now would be speculative.",
+        "Plain string, not an enum: constraining it now would be speculative.",
     )
     granted_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
     )
     granted_at = models.DateTimeField(auto_now_add=True)
     revoked_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
     )
     revoked_at = models.DateTimeField(null=True, blank=True)
     metadata = models.JSONField(default=dict, blank=True)
@@ -305,7 +354,9 @@ class OrderOrganizationEligibility(models.Model):
 class OrderStatusHistory(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="order_status_history",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="order_status_history",
     )
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="status_history")
     from_status = models.CharField(max_length=30, blank=True)
@@ -339,20 +390,28 @@ class OrderStatusHistory(models.Model):
 # reviewer doesn't mistake the omission for an oversight.
 # ============================================================
 
+
 def _generate_share_token():
     import secrets
+
     return secrets.token_urlsafe(32)
 
 
 class OrderShareLink(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="order_share_links",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="order_share_links",
     )
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="share_links")
     token = models.CharField(max_length=64, unique=True, db_index=True, default=_generate_share_token)
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
     )
     expires_at = models.DateTimeField(help_text="Link stops working after this time, even if never revoked.")
     revoked_at = models.DateTimeField(null=True, blank=True)
@@ -381,7 +440,8 @@ class OrderShareLink(models.Model):
         link (e.g. opened from two devices at once) never lose an update,
         unlike a read-modify-write `self.access_count += 1`."""
         type(self).objects.filter(pk=self.pk).update(
-            access_count=F("access_count") + 1, last_accessed_at=timezone.now(),
+            access_count=F("access_count") + 1,
+            last_accessed_at=timezone.now(),
         )
         self.refresh_from_db(fields=["access_count", "last_accessed_at"])
 
@@ -395,22 +455,24 @@ class OrderOfferStatus(models.TextChoices):
     """Lifecycle states for a supplier-submitted offer on an order."""
 
     SUBMITTED = "submitted", "Submitted"
-    SELECTED = "selected", "Selected"       # 30-minute hold active
-    ACCEPTED = "accepted", "Accepted"       # Finalized (payment success in later phases)
-    EXPIRED = "expired", "Expired"          # Hold timed out
-    WITHDRAWN = "withdrawn", "Withdrawn"    # Supplier withdrew
-    REJECTED = "rejected", "Rejected"       # Superseded by another selection
-    CANCELLED = "cancelled", "Cancelled"    # Order cancelled while offer was active
+    SELECTED = "selected", "Selected"  # 30-minute hold active
+    ACCEPTED = "accepted", "Accepted"  # Finalized (payment success in later phases)
+    EXPIRED = "expired", "Expired"  # Hold timed out
+    WITHDRAWN = "withdrawn", "Withdrawn"  # Supplier withdrew
+    REJECTED = "rejected", "Rejected"  # Superseded by another selection
+    CANCELLED = "cancelled", "Cancelled"  # Order cancelled while offer was active
 
 
 # Terminal states — no further transitions allowed.
-OFFER_TERMINAL_STATUSES = frozenset({
-    OrderOfferStatus.ACCEPTED,
-    OrderOfferStatus.EXPIRED,
-    OrderOfferStatus.WITHDRAWN,
-    OrderOfferStatus.REJECTED,
-    OrderOfferStatus.CANCELLED,
-})
+OFFER_TERMINAL_STATUSES = frozenset(
+    {
+        OrderOfferStatus.ACCEPTED,
+        OrderOfferStatus.EXPIRED,
+        OrderOfferStatus.WITHDRAWN,
+        OrderOfferStatus.REJECTED,
+        OrderOfferStatus.CANCELLED,
+    }
+)
 
 
 class OrderOffer(models.Model):
@@ -425,13 +487,19 @@ class OrderOffer(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="order_offers",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="order_offers",
     )
     order = models.ForeignKey(
-        Order, on_delete=models.CASCADE, related_name="offers",
+        Order,
+        on_delete=models.CASCADE,
+        related_name="offers",
     )
     supplier = models.ForeignKey(
-        "kernel.ServiceSupplier", on_delete=models.CASCADE, related_name="order_offers",
+        "kernel.ServiceSupplier",
+        on_delete=models.CASCADE,
+        related_name="order_offers",
     )
 
     # Offer content — DecimalField(14,2) matches repository canonical money representation
@@ -443,18 +511,27 @@ class OrderOffer(models.Model):
 
     # Lifecycle
     status = models.CharField(
-        max_length=20, choices=OrderOfferStatus.choices,
-        default=OrderOfferStatus.SUBMITTED, db_index=True,
+        max_length=20,
+        choices=OrderOfferStatus.choices,
+        default=OrderOfferStatus.SUBMITTED,
+        db_index=True,
     )
 
     # Ownership
     submitted_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="+",
     )
 
     # Hold tracking (only meaningful when status=SELECTED)
     selected_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
     )
     selected_at = models.DateTimeField(null=True, blank=True)
     hold_expires_at = models.DateTimeField(null=True, blank=True)

@@ -25,7 +25,9 @@ class PricingConfiguration:
     @classmethod
     def get_weekend_days(cls, *, tenant_id: uuid.UUID) -> list[int]:
         value = ConfigResolver.get_or_default(
-            WEEKEND_DAYS_KEY, tenant_id=tenant_id, default=DEFAULT_WEEKEND_DAYS,
+            WEEKEND_DAYS_KEY,
+            tenant_id=tenant_id,
+            default=DEFAULT_WEEKEND_DAYS,
         )
         if isinstance(value, list) and all(isinstance(v, int) for v in value):
             return value

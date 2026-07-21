@@ -38,7 +38,8 @@ class SettlementService:
     def calculate_net_position(cls, *, tenant_id, period_start=None, period_end=None) -> dict:
         """Returns {party_id (uuid): Decimal net amount}. Positive = party is owed money."""
         obligations = FinancialObligation.objects.filter(
-            tenant_id=tenant_id, status=ObligationStatus.RESOLVED,
+            tenant_id=tenant_id,
+            status=ObligationStatus.RESOLVED,
         )
         if period_start:
             obligations = obligations.filter(resolved_at__gte=period_start)
@@ -54,11 +55,15 @@ class SettlementService:
 
     @classmethod
     @transaction.atomic
-    def create_batch(cls, *, tenant_id, currency=None, period_start=None, period_end=None, actor=None) -> SettlementBatch:
+    def create_batch(
+        cls, *, tenant_id, currency=None, period_start=None, period_end=None, actor=None
+    ) -> SettlementBatch:
         PermissionService.require(actor, FINANCE_SETTLEMENT_CREATE_BATCH, tenant_id=tenant_id)
 
         net_positions = cls.calculate_net_position(
-            tenant_id=tenant_id, period_start=period_start, period_end=period_end,
+            tenant_id=tenant_id,
+            period_start=period_start,
+            period_end=period_end,
         )
         resolved_currency = currency or DEFAULT_CURRENCY
 

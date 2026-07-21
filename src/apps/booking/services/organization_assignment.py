@@ -108,14 +108,17 @@ class OrganizationAssignmentService:
 
         try:
             supplier = OrganizationStaffService.resolve_staff_supplier(
-                organization=organization, membership_id=membership_id,
+                organization=organization,
+                membership_id=membership_id,
             )
         except AccountsError as exc:
             raise OrganizationAssignmentError(str(exc))
 
         try:
             assignment = AssignmentService.assign(
-                order_id=order_id, supplier=supplier, assignment_source=AssignmentSource.MANUAL,
+                order_id=order_id,
+                supplier=supplier,
+                assignment_source=AssignmentSource.MANUAL,
                 ownership_authorized_by=actor,
                 scope={"scope_type": "organization", "scope_id": str(organization.id)},
             )

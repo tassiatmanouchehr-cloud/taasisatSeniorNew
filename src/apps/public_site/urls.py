@@ -17,7 +17,11 @@ urlpatterns = [
     path("caregivers/", views.caregivers, name="caregivers"),
     path("find-a-caregiver/", views.find_a_caregiver, name="find-a-caregiver"),
     path("find-a-caregiver/<uuid:supplier_id>/", views.caregiver_profile, name="caregiver-profile"),
-    path("find-a-caregiver/<uuid:supplier_id>/favorite/", views.caregiver_favorite_toggle, name="caregiver-favorite-toggle"),
+    path(
+        "find-a-caregiver/<uuid:supplier_id>/favorite/",
+        views.caregiver_favorite_toggle,
+        name="caregiver-favorite-toggle",
+    ),
     path("organizations/", views.organizations, name="organizations"),
     path("find-an-organization/", views.find_an_organization, name="organization-directory"),
     path("find-an-organization/<uuid:supplier_id>/", views.organization_profile, name="organization-profile"),

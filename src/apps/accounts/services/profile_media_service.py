@@ -56,7 +56,8 @@ from django.db import transaction
 from apps.kernel.permissions.keys import ORGANIZATION_PROFILE_UPDATE
 from apps.kernel.services.permission_service import PermissionService
 
-from .image_validation import ALLOWED_IMAGE_FORMATS, MAX_IMAGE_BYTES, validate_image as _validate_image
+from .image_validation import ALLOWED_IMAGE_FORMATS, MAX_IMAGE_BYTES
+from .image_validation import validate_image as _validate_image
 
 # Re-exported for any existing importer of this module's own constants —
 # the validation logic itself now lives in .image_validation (Sprint 2.2),

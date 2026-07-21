@@ -35,9 +35,15 @@ class ReviewSubmissionService:
         """Read-only: every Review this person has written — Epic 07
         (Customer Portal Completion), the customer "reviews I've written"
         page. Never mutates anything."""
-        return Review.objects.filter(
-            tenant_id=tenant_id, reviewer_person_id=reviewer_person_id,
-        ).select_related("order", "supplier").prefetch_related("ratings").order_by("-created_at")
+        return (
+            Review.objects.filter(
+                tenant_id=tenant_id,
+                reviewer_person_id=reviewer_person_id,
+            )
+            .select_related("order", "supplier")
+            .prefetch_related("ratings")
+            .order_by("-created_at")
+        )
 
     @classmethod
     def is_order_reviewable(cls, order) -> bool:
@@ -52,7 +58,9 @@ class ReviewSubmissionService:
 
     @classmethod
     @transaction.atomic
-    def submit_review(cls, *, order, reviewer_person_id, dimension_scores: dict, written_text="", metadata=None) -> Review:
+    def submit_review(
+        cls, *, order, reviewer_person_id, dimension_scores: dict, written_text="", metadata=None
+    ) -> Review:
         if order.status != OrderStatus.COMPLETED:
             raise ReviewError(
                 f"Reviews are only allowed for completed orders (order is '{order.status}').",
@@ -100,9 +108,11 @@ class ReviewSubmissionService:
             metadata=metadata or {},
         )
 
-        ReviewRating.objects.bulk_create([
-            ReviewRating(tenant_id=order.tenant_id, review=review, dimension=dimension, score=score)
-            for dimension, score in dimension_scores.items()
-        ])
+        ReviewRating.objects.bulk_create(
+            [
+                ReviewRating(tenant_id=order.tenant_id, review=review, dimension=dimension, score=score)
+                for dimension, score in dimension_scores.items()
+            ]
+        )
 
         return review

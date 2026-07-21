@@ -165,7 +165,8 @@ class ProviderProfilePresentationService:
             gallery_count=caregiver.gallery_items.count(),
             gallery_limit=cls._gallery_limit(),
             highlights=cls._highlights(
-                caregiver, public_credential_count=len(public_credential_labels),
+                caregiver,
+                public_credential_count=len(public_credential_labels),
             ),
         )
 
@@ -222,7 +223,9 @@ class ProviderProfilePresentationService:
         # who has never reached ACTIVE has no ServiceSupplier to read
         # from — merely visiting this edit page must not incidentally
         # create one. Its selection is simply empty until activation.
-        selected_ids: set[str] = set() if supplier is None else {str(cid) for cid in (supplier.service_categories or [])}
+        selected_ids: set[str] = (
+            set() if supplier is None else {str(cid) for cid in (supplier.service_categories or [])}
+        )
         categories = CatalogQueryService.list_active_categories(tenant_id=tenant_id).order_by("sort_order", "name")
         options = tuple(
             ServiceCategoryOptionViewModel(value=str(cat.id), label=cat.name, selected=str(cat.id) in selected_ids)

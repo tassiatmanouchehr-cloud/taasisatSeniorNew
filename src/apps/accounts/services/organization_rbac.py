@@ -66,8 +66,13 @@ class OrganizationRoleSyncService:
         permission list existed still ends up with every required key,
         without ever removing a tenant-customized addition."""
         role, _ = Role.objects.get_or_create(
-            tenant=tenant, slug=ORGANIZATION_ADMIN_ROLE_SLUG,
-            defaults={"name": ORGANIZATION_ADMIN_ROLE_NAME, "is_system": True, "permissions": list(ORGANIZATION_ADMIN_PERMISSIONS)},
+            tenant=tenant,
+            slug=ORGANIZATION_ADMIN_ROLE_SLUG,
+            defaults={
+                "name": ORGANIZATION_ADMIN_ROLE_NAME,
+                "is_system": True,
+                "permissions": list(ORGANIZATION_ADMIN_PERMISSIONS),
+            },
         )
         missing = [key for key in ORGANIZATION_ADMIN_PERMISSIONS if key not in role.permissions]
         if missing:
@@ -102,8 +107,11 @@ class OrganizationRoleSyncService:
 
         granted_by_person_id = membership.approved_by.person_id if membership.approved_by_id else None
         assignment, created = RoleAssignment.objects.select_for_update().get_or_create(
-            tenant_id=tenant_id, user=membership.user, role=role,
-            scope_type="organization", scope_id=membership.organization_id,
+            tenant_id=tenant_id,
+            user=membership.user,
+            role=role,
+            scope_type="organization",
+            scope_id=membership.organization_id,
             defaults={"is_active": should_be_active, "granted_by": granted_by_person_id},
         )
         if assignment.is_active != should_be_active:
@@ -115,8 +123,10 @@ class OrganizationRoleSyncService:
 
     @classmethod
     def _audit(cls, *, membership, assignment, created, is_active) -> None:
-        action = "organization.role_assignment.created" if created else (
-            "organization.role_assignment.activated" if is_active else "organization.role_assignment.deactivated"
+        action = (
+            "organization.role_assignment.created"
+            if created
+            else ("organization.role_assignment.activated" if is_active else "organization.role_assignment.deactivated")
         )
         AuditService.log(
             tenant_id=assignment.tenant_id,

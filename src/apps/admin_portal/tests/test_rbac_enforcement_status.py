@@ -59,12 +59,18 @@ class RbacEnforcementStatusContentTest(AdminPortalTestCase):
         self.assertContains(response, "پیش‌فرض ضمنی")
 
         RBACConfiguration.set_enforcement_enabled(
-            tenant_id=self.tenant.id, enabled=True, actor_display="ops:test", reason="explicit confirm",
+            tenant_id=self.tenant.id,
+            enabled=True,
+            actor_display="ops:test",
+            reason="explicit confirm",
         )
 
     def test_disabled_warning_visible_when_enforcement_disabled(self):
         RBACConfiguration.set_enforcement_enabled(
-            tenant_id=self.tenant.id, enabled=False, actor_display="ops:test", reason="incident",
+            tenant_id=self.tenant.id,
+            enabled=False,
+            actor_display="ops:test",
+            reason="incident",
         )
 
         response = self.client.get(URL)
@@ -74,7 +80,10 @@ class RbacEnforcementStatusContentTest(AdminPortalTestCase):
 
     def test_override_source_displayed_after_explicit_change(self):
         RBACConfiguration.set_enforcement_enabled(
-            tenant_id=self.tenant.id, enabled=False, actor_display="ops:test", reason="incident",
+            tenant_id=self.tenant.id,
+            enabled=False,
+            actor_display="ops:test",
+            reason="incident",
         )
 
         response = self.client.get(URL)
@@ -87,13 +96,15 @@ class RbacEnforcementStatusContentTest(AdminPortalTestCase):
         response = self.client.get(URL)
         content = response.content.decode()
         self.assertNotIn("<form", content)
-        self.assertNotIn("type=\"submit\"", content)
-        self.assertNotIn("method=\"post\"", content.lower())
+        self.assertNotIn('type="submit"', content)
+        self.assertNotIn('method="post"', content.lower())
 
     def test_no_cross_tenant_data_disclosure(self):
         other_tenant = self.other_tenant
         RBACConfiguration.set_enforcement_enabled(
-            tenant_id=other_tenant.id, enabled=False, actor_display="ops:other",
+            tenant_id=other_tenant.id,
+            enabled=False,
+            actor_display="ops:other",
             reason="other tenant incident - must not leak",
         )
 

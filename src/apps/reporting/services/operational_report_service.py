@@ -19,12 +19,7 @@ class OperationalReportService:
 
     @classmethod
     def get_order_counts(cls, tenant_id: uuid.UUID) -> OrderCountsReport:
-        rows = (
-            Order.objects.for_tenant(tenant_id)
-            .values("status")
-            .annotate(count=Count("id"))
-            .order_by("status")
-        )
+        rows = Order.objects.for_tenant(tenant_id).values("status").annotate(count=Count("id")).order_by("status")
 
         by_status = {row["status"]: row["count"] for row in rows}
 

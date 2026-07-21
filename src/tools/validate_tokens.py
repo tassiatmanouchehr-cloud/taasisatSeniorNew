@@ -33,47 +33,36 @@ Exit code:
 """
 
 import argparse
-import os
 import re
 import sys
 from pathlib import Path
 
 # Directories to scan
-TEMPLATE_DIRS = ['templates/', 'ui/components/', 'ui/layouts/']
-CSS_DIRS = ['ui/css/']
+TEMPLATE_DIRS = ["templates/", "ui/components/", "ui/layouts/"]
+CSS_DIRS = ["ui/css/"]
 
 # Directories to EXCLUDE (these define tokens, not consume them)
-EXCLUDE_DIRS = ['ui/themes/', 'ui/design_tokens/', 'node_modules/', '.venv/', 'tests/']
-EXCLUDE_FILES = ['tailwind.config.js', 'postcss.config.js']
+EXCLUDE_DIRS = ["ui/themes/", "ui/design_tokens/", "node_modules/", ".venv/", "tests/"]
+EXCLUDE_FILES = ["tailwind.config.js", "postcss.config.js"]
 
 # Patterns that indicate hardcoded values (violations)
-HEX_COLOR = re.compile(r'(?<![\w-])#(?:[0-9a-fA-F]{3}){1,2}(?![0-9a-fA-F])')
-RGB_COLOR = re.compile(r'rgba?\s*\(\s*\d+', re.IGNORECASE)
-HSL_COLOR = re.compile(r'hsla?\s*\(\s*\d+', re.IGNORECASE)
+HEX_COLOR = re.compile(r"(?<![\w-])#(?:[0-9a-fA-F]{3}){1,2}(?![0-9a-fA-F])")
+RGB_COLOR = re.compile(r"rgba?\s*\(\s*\d+", re.IGNORECASE)
+HSL_COLOR = re.compile(r"hsla?\s*\(\s*\d+", re.IGNORECASE)
 
 # Inline style patterns with hardcoded values
 INLINE_STYLE_SPACING = re.compile(
-    r'style\s*=\s*["\'][^"\']*(?:margin|padding|gap|top|bottom|left|right|width|height)\s*:\s*\d+px',
-    re.IGNORECASE
+    r'style\s*=\s*["\'][^"\']*(?:margin|padding|gap|top|bottom|left|right|width|height)\s*:\s*\d+px', re.IGNORECASE
 )
-INLINE_STYLE_RADIUS = re.compile(
-    r'style\s*=\s*["\'][^"\']*border-radius\s*:\s*\d+',
-    re.IGNORECASE
-)
-INLINE_STYLE_SHADOW = re.compile(
-    r'style\s*=\s*["\'][^"\']*box-shadow\s*:',
-    re.IGNORECASE
-)
-INLINE_STYLE_ZINDEX = re.compile(
-    r'style\s*=\s*["\'][^"\']*z-index\s*:\s*\d+',
-    re.IGNORECASE
-)
+INLINE_STYLE_RADIUS = re.compile(r'style\s*=\s*["\'][^"\']*border-radius\s*:\s*\d+', re.IGNORECASE)
+INLINE_STYLE_SHADOW = re.compile(r'style\s*=\s*["\'][^"\']*box-shadow\s*:', re.IGNORECASE)
+INLINE_STYLE_ZINDEX = re.compile(r'style\s*=\s*["\'][^"\']*z-index\s*:\s*\d+', re.IGNORECASE)
 
 # Exceptions: contexts where colors ARE allowed
 SVG_PATH_DATA = re.compile(r'd\s*=\s*"[^"]*"')  # SVG path data
 SVG_VIEWBOX = re.compile(r'viewBox\s*=\s*"[^"]*"')
 STROKE_WIDTH = re.compile(r'stroke-width\s*=\s*"[^"]*"')
-CSS_VAR_REF = re.compile(r'var\s*\(\s*--')  # var(--color-xxx) is allowed
+CSS_VAR_REF = re.compile(r"var\s*\(\s*--")  # var(--color-xxx) is allowed
 TAILWIND_CLASS_CONTEXT = re.compile(r'class\s*=\s*"[^"]*"')
 
 
@@ -92,7 +81,7 @@ def is_in_svg_context(line: str, match_start: int) -> bool:
     """Check if a match is inside an SVG d= attribute or viewBox."""
     # Check if the hex color is part of SVG path data
     before = line[:match_start]
-    if 'd="' in before and '"' not in before[before.rfind('d="') + 3:]:
+    if 'd="' in before and '"' not in before[before.rfind('d="') + 3 :]:
         return True
     return False
 
@@ -101,12 +90,12 @@ def is_in_comment(line: str) -> bool:
     """Check if the line is a comment."""
     stripped = line.strip()
     return (
-        stripped.startswith('<!--')
-        or stripped.startswith('*')
-        or stripped.startswith('/*')
-        or stripped.startswith('//')
-        or stripped.startswith('{#')
-        or stripped.startswith('#')
+        stripped.startswith("<!--")
+        or stripped.startswith("*")
+        or stripped.startswith("/*")
+        or stripped.startswith("//")
+        or stripped.startswith("{#")
+        or stripped.startswith("#")
     )
 
 
@@ -115,9 +104,9 @@ def scan_file(filepath: str, strict: bool = False) -> list:
     violations = []
 
     try:
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, encoding="utf-8") as f:
             lines = f.readlines()
-    except (UnicodeDecodeError, IOError):
+    except (OSError, UnicodeDecodeError):
         return violations
 
     for line_num, line in enumerate(lines, 1):
@@ -126,7 +115,7 @@ def scan_file(filepath: str, strict: bool = False) -> list:
             continue
 
         # Skip lines that are CSS variable definitions (in theme files)
-        if '--color-' in line or '--shadow-' in line or '--ring-' in line:
+        if "--color-" in line or "--shadow-" in line or "--ring-" in line:
             continue
 
         # Check HEX colors
@@ -135,83 +124,96 @@ def scan_file(filepath: str, strict: bool = False) -> list:
             if is_in_svg_context(line, match.start()):
                 continue
             # Skip if it's a CSS variable value (defining tokens)
-            if 'var(' in line[max(0, match.start()-20):match.start()]:
+            if "var(" in line[max(0, match.start() - 20) : match.start()]:
                 continue
-            violations.append({
-                'file': filepath,
-                'line': line_num,
-                'type': 'HARDCODED_HEX',
-                'value': match.group(),
-                'context': line.strip()[:100],
-            })
+            violations.append(
+                {
+                    "file": filepath,
+                    "line": line_num,
+                    "type": "HARDCODED_HEX",
+                    "value": match.group(),
+                    "context": line.strip()[:100],
+                }
+            )
 
         # Check RGB/RGBA (but not in var() context or CSS variable definitions)
         for match in RGB_COLOR.finditer(line):
-            if CSS_VAR_REF.search(line[max(0, match.start()-10):match.start()]):
+            if CSS_VAR_REF.search(line[max(0, match.start() - 10) : match.start()]):
                 continue
-            violations.append({
-                'file': filepath,
-                'line': line_num,
-                'type': 'HARDCODED_RGB',
-                'value': match.group()[:30],
-                'context': line.strip()[:100],
-            })
+            violations.append(
+                {
+                    "file": filepath,
+                    "line": line_num,
+                    "type": "HARDCODED_RGB",
+                    "value": match.group()[:30],
+                    "context": line.strip()[:100],
+                }
+            )
 
         # Check HSL/HSLA
         for match in HSL_COLOR.finditer(line):
-            if CSS_VAR_REF.search(line[max(0, match.start()-10):match.start()]):
+            if CSS_VAR_REF.search(line[max(0, match.start() - 10) : match.start()]):
                 continue
-            violations.append({
-                'file': filepath,
-                'line': line_num,
-                'type': 'HARDCODED_HSL',
-                'value': match.group()[:30],
-                'context': line.strip()[:100],
-            })
+            violations.append(
+                {
+                    "file": filepath,
+                    "line": line_num,
+                    "type": "HARDCODED_HSL",
+                    "value": match.group()[:30],
+                    "context": line.strip()[:100],
+                }
+            )
 
         # Check inline style violations (only in HTML templates)
-        if filepath.endswith('.html'):
+        if filepath.endswith(".html"):
             if INLINE_STYLE_SPACING.search(line):
-                violations.append({
-                    'file': filepath,
-                    'line': line_num,
-                    'type': 'INLINE_SPACING',
-                    'value': 'hardcoded px value in style attribute',
-                    'context': line.strip()[:100],
-                })
+                violations.append(
+                    {
+                        "file": filepath,
+                        "line": line_num,
+                        "type": "INLINE_SPACING",
+                        "value": "hardcoded px value in style attribute",
+                        "context": line.strip()[:100],
+                    }
+                )
             if INLINE_STYLE_RADIUS.search(line):
-                violations.append({
-                    'file': filepath,
-                    'line': line_num,
-                    'type': 'INLINE_RADIUS',
-                    'value': 'hardcoded border-radius in style',
-                    'context': line.strip()[:100],
-                })
+                violations.append(
+                    {
+                        "file": filepath,
+                        "line": line_num,
+                        "type": "INLINE_RADIUS",
+                        "value": "hardcoded border-radius in style",
+                        "context": line.strip()[:100],
+                    }
+                )
             if INLINE_STYLE_SHADOW.search(line):
-                violations.append({
-                    'file': filepath,
-                    'line': line_num,
-                    'type': 'INLINE_SHADOW',
-                    'value': 'hardcoded box-shadow in style',
-                    'context': line.strip()[:100],
-                })
+                violations.append(
+                    {
+                        "file": filepath,
+                        "line": line_num,
+                        "type": "INLINE_SHADOW",
+                        "value": "hardcoded box-shadow in style",
+                        "context": line.strip()[:100],
+                    }
+                )
             if INLINE_STYLE_ZINDEX.search(line):
-                violations.append({
-                    'file': filepath,
-                    'line': line_num,
-                    'type': 'INLINE_ZINDEX',
-                    'value': 'hardcoded z-index in style',
-                    'context': line.strip()[:100],
-                })
+                violations.append(
+                    {
+                        "file": filepath,
+                        "line": line_num,
+                        "type": "INLINE_ZINDEX",
+                        "value": "hardcoded z-index in style",
+                        "context": line.strip()[:100],
+                    }
+                )
 
     return violations
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Validate Design Token usage')
-    parser.add_argument('--strict', action='store_true',
-                        help='Also scan CSS files (not just templates)')
-    parser.add_argument('--root', default='.', help='Project root directory')
+    parser = argparse.ArgumentParser(description="Validate Design Token usage")
+    parser.add_argument("--strict", action="store_true", help="Also scan CSS files (not just templates)")
+    parser.add_argument("--root", default=".", help="Project root directory")
     args = parser.parse_args()
 
     root = Path(args.root)
@@ -228,8 +230,8 @@ def main():
         dir_path = root / scan_dir
         if not dir_path.exists():
             continue
-        for filepath in dir_path.rglob('*'):
-            if filepath.is_file() and filepath.suffix in ('.html', '.css'):
+        for filepath in dir_path.rglob("*"):
+            if filepath.is_file() and filepath.suffix in (".html", ".css"):
                 rel_path = str(filepath.relative_to(root))
                 if not is_excluded(rel_path):
                     files_to_scan.append(str(filepath))
@@ -255,12 +257,12 @@ def main():
         sys.exit(1)
     else:
         files_checked = len(files_to_scan)
-        print(f"\n✅ DESIGN TOKEN VALIDATION PASSED")
+        print("\n✅ DESIGN TOKEN VALIDATION PASSED")
         print(f"   Files checked: {files_checked}")
-        print(f"   Violations: 0")
-        print(f"   All values come from Design Tokens or Tailwind classes.")
+        print("   Violations: 0")
+        print("   All values come from Design Tokens or Tailwind classes.")
         sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -95,7 +95,8 @@ class CaregiverFavoriteToggleTest(_CustomerMixin, PublicSiteTestCase, TestCase):
     def test_redirect_target_ignores_client_supplied_next_parameter(self):
         self.client.force_login(self.customer.user)
         response = self.client.post(
-            self.toggle_url, {"action": "add", "next": "https://evil.example.com/phish"},
+            self.toggle_url,
+            {"action": "add", "next": "https://evil.example.com/phish"},
         )
         self.assertEqual(response["Location"], self.profile_url)
 
@@ -127,7 +128,9 @@ class CaregiverFavoriteToggleTest(_CustomerMixin, PublicSiteTestCase, TestCase):
         org_supplier, _ = self._create_organization_supplier()
         self.client.force_login(self.customer.user)
         response = self.client.post(
-            f"/find-a-caregiver/{org_supplier.id}/favorite/", {"action": "add"}, follow=True,
+            f"/find-a-caregiver/{org_supplier.id}/favorite/",
+            {"action": "add"},
+            follow=True,
         )
         self.assertEqual(response.redirect_chain[0][1], 302)
         self.assertNotEqual(response.status_code, 404)
@@ -186,7 +189,9 @@ class OrganizationFavoriteToggleTest(_CustomerMixin, PublicSiteTestCase, TestCas
         caregiver_supplier, _ = self._create_caregiver_supplier()
         self.client.force_login(self.customer.user)
         response = self.client.post(
-            f"/find-an-organization/{caregiver_supplier.id}/favorite/", {"action": "add"}, follow=True,
+            f"/find-an-organization/{caregiver_supplier.id}/favorite/",
+            {"action": "add"},
+            follow=True,
         )
         self.assertEqual(response.redirect_chain[0][1], 302)
         self.assertNotEqual(response.status_code, 404)

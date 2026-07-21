@@ -12,7 +12,8 @@ class SettlementServiceTest(FinanceTestCase):
     def _resolve_invoice(self):
         session = self._close_execution_session()
         document = FinancialDocumentService.create_invoice_from_execution(
-            execution_session_id=session.id, items=self._invoice_items(),
+            execution_session_id=session.id,
+            items=self._invoice_items(),
         )
         document = FinancialDocumentService.issue_document(document_id=document.id)
         obligation = ObligationService.create_obligations_for_document(document_id=document.id)
@@ -50,7 +51,8 @@ class SettlementServiceTest(FinanceTestCase):
     def test_create_batch_excludes_unresolved_obligations(self):
         session = self._close_execution_session()
         document = FinancialDocumentService.create_invoice_from_execution(
-            execution_session_id=session.id, items=self._invoice_items(),
+            execution_session_id=session.id,
+            items=self._invoice_items(),
         )
         document = FinancialDocumentService.issue_document(document_id=document.id)
         ObligationService.create_obligations_for_document(document_id=document.id)

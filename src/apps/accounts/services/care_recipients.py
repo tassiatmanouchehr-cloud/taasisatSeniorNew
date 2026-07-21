@@ -35,10 +35,24 @@ from apps.kernel.events.publisher import publish as publish_domain_event
 from .errors import AccountsError
 
 CARE_RECIPIENT_FIELDS = (
-    "full_name", "gender", "birth_date", "relationship", "phone", "city", "address",
-    "care_needs", "medical_notes", "disabilities", "allergies", "mobility_level",
-    "preferred_caregiver_gender", "preferred_language", "communication_notes",
-    "emergency_contact_name", "emergency_contact_phone", "emergency_notes",
+    "full_name",
+    "gender",
+    "birth_date",
+    "relationship",
+    "phone",
+    "city",
+    "address",
+    "care_needs",
+    "medical_notes",
+    "disabilities",
+    "allergies",
+    "mobility_level",
+    "preferred_caregiver_gender",
+    "preferred_language",
+    "communication_notes",
+    "emergency_contact_name",
+    "emergency_contact_phone",
+    "emergency_notes",
 )
 
 
@@ -95,7 +109,10 @@ class CareRecipientService:
 
         is_primary = not customer_profile.elder_profiles.exists()
         care_recipient = ElderProfile.objects.create(
-            customer_profile=customer_profile, full_name=full_name, is_primary=is_primary, **fields,
+            customer_profile=customer_profile,
+            full_name=full_name,
+            is_primary=is_primary,
+            **fields,
         )
         _publish(CARE_RECIPIENT_CREATED, customer_profile=customer_profile, care_recipient=care_recipient)
         return care_recipient
@@ -112,7 +129,8 @@ class CareRecipientService:
         care_recipient.save(update_fields=[*fields.keys(), "updated_at"])
         _publish(
             CARE_RECIPIENT_UPDATED,
-            customer_profile=care_recipient.customer_profile, care_recipient=care_recipient,
+            customer_profile=care_recipient.customer_profile,
+            care_recipient=care_recipient,
         )
         return care_recipient
 
@@ -127,6 +145,7 @@ class CareRecipientService:
         care_recipient.save(update_fields=["status", "updated_at"])
         _publish(
             CARE_RECIPIENT_ARCHIVED,
-            customer_profile=care_recipient.customer_profile, care_recipient=care_recipient,
+            customer_profile=care_recipient.customer_profile,
+            care_recipient=care_recipient,
         )
         return care_recipient

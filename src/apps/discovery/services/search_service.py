@@ -42,7 +42,8 @@ class SupplierSearchService:
 
         if query.requested_start is not None and query.requested_end is not None:
             candidates = [
-                supplier for supplier in candidates
+                supplier
+                for supplier in candidates
                 if cls._is_available_for_range(supplier, query.requested_start, query.requested_end)
             ]
 
@@ -66,7 +67,8 @@ class SupplierSearchService:
         normalized_city = city.strip().casefold()
         entities_by_supplier_id = resolve_supplier_entities_bulk(candidates)
         return [
-            supplier for supplier in candidates
+            supplier
+            for supplier in candidates
             if (getattr(entities_by_supplier_id.get(supplier.id), "city", "") or "").strip().casefold()
             == normalized_city
         ]

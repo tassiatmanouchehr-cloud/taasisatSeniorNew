@@ -26,14 +26,18 @@ class WalletConfiguration:
     @classmethod
     def get_overdraft_enabled(cls, *, tenant_id: uuid.UUID) -> bool:
         value = ConfigResolver.get_or_default(
-            OVERDRAFT_ENABLED_KEY, tenant_id=tenant_id, default=DEFAULT_OVERDRAFT_ENABLED,
+            OVERDRAFT_ENABLED_KEY,
+            tenant_id=tenant_id,
+            default=DEFAULT_OVERDRAFT_ENABLED,
         )
         return cls._to_bool(value, DEFAULT_OVERDRAFT_ENABLED)
 
     @classmethod
     def get_default_currency(cls, *, tenant_id: uuid.UUID) -> str:
         value = ConfigResolver.get_or_default(
-            DEFAULT_CURRENCY_KEY, tenant_id=tenant_id, default=DEFAULT_CURRENCY,
+            DEFAULT_CURRENCY_KEY,
+            tenant_id=tenant_id,
+            default=DEFAULT_CURRENCY,
         )
         if isinstance(value, str) and value:
             return value
@@ -42,7 +46,9 @@ class WalletConfiguration:
     @classmethod
     def get_max_manual_adjustment(cls, *, tenant_id: uuid.UUID) -> Decimal | None:
         value = ConfigResolver.get_or_default(
-            MAX_MANUAL_ADJUSTMENT_KEY, tenant_id=tenant_id, default=DEFAULT_MAX_MANUAL_ADJUSTMENT,
+            MAX_MANUAL_ADJUSTMENT_KEY,
+            tenant_id=tenant_id,
+            default=DEFAULT_MAX_MANUAL_ADJUSTMENT,
         )
         if value is None:
             return None

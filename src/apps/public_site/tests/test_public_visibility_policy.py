@@ -27,7 +27,8 @@ class CanonicalVisibilityAcrossSurfacesTest(PublicSiteTestCase):
         self.assertIsNone(CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id))
 
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         self.assertEqual(response.status_code, 404)
 
@@ -42,7 +43,8 @@ class CanonicalVisibilityAcrossSurfacesTest(PublicSiteTestCase):
         self.assertIsNotNone(CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id))
 
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         self.assertEqual(response.status_code, 200)
 
@@ -52,19 +54,25 @@ class CanonicalVisibilityAcrossSurfacesTest(PublicSiteTestCase):
 
     def test_draft_caregiver_hidden_on_every_surface(self):
         supplier, _ = self._create_caregiver_supplier(
-            display_name="پیش‌نویس", verification_status="verified", profile_status="draft",
+            display_name="پیش‌نویس",
+            verification_status="verified",
+            profile_status="draft",
         )
         self._assert_hidden_everywhere(supplier, display_name="پیش‌نویس")
 
     def test_suspended_caregiver_hidden_on_every_surface(self):
         supplier, _ = self._create_caregiver_supplier(
-            display_name="معلق", verification_status="verified", profile_status="suspended",
+            display_name="معلق",
+            verification_status="verified",
+            profile_status="suspended",
         )
         self._assert_hidden_everywhere(supplier, display_name="معلق")
 
     def test_archived_caregiver_hidden_on_every_surface(self):
         supplier, _ = self._create_caregiver_supplier(
-            display_name="آرشیوشده", verification_status="verified", profile_status="archived",
+            display_name="آرشیوشده",
+            verification_status="verified",
+            profile_status="archived",
         )
         self._assert_hidden_everywhere(supplier, display_name="آرشیوشده")
 
@@ -78,7 +86,8 @@ class CanonicalVisibilityAcrossSurfacesTest(PublicSiteTestCase):
 
     def test_inactive_account_caregiver_hidden_on_every_surface(self):
         supplier, caregiver = self._create_caregiver_supplier(
-            display_name="حساب غیرفعال", verification_status="verified",
+            display_name="حساب غیرفعال",
+            verification_status="verified",
         )
         caregiver.user.is_active = False
         caregiver.user.save(update_fields=["is_active"])
@@ -100,7 +109,9 @@ class ListingCountAndPrivacyTest(PublicSiteTestCase):
     def test_hidden_profiles_do_not_inflate_directory_count(self):
         self._create_caregiver_supplier(display_name="دیده می‌شود", verification_status="verified")
         self._create_caregiver_supplier(display_name="پنهان ۱", verification_status="unverified")
-        self._create_caregiver_supplier(display_name="پنهان ۲", profile_status="suspended", verification_status="verified")
+        self._create_caregiver_supplier(
+            display_name="پنهان ۲", profile_status="suspended", verification_status="verified"
+        )
 
         page = CaregiverDirectoryService.search(tenant_id=self.tenant.id)
         self.assertEqual(page.pagination.total_count, 1)
@@ -117,7 +128,8 @@ class ListingCountAndPrivacyTest(PublicSiteTestCase):
 
     def test_directory_listing_excludes_private_contact_fields(self):
         supplier, caregiver = self._create_caregiver_supplier(
-            display_name="مراقب نمونه دو", verification_status="verified",
+            display_name="مراقب نمونه دو",
+            verification_status="verified",
         )
         response = self.client.get(reverse("public_site:find-a-caregiver"), {"tenant": self.tenant.slug})
         self.assertNotContains(response, caregiver.phone)

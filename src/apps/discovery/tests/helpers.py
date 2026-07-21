@@ -23,16 +23,28 @@ class DiscoveryTestCase(TestCase):
         self.other_tenant = Tenant.objects.create(slug=f"disc-other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
 
         self.category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
         self.other_category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Companionship", slug="companionship", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Companionship",
+            slug="companionship",
+            status=CatalogStatus.ACTIVE,
         )
 
     def _create_supplier(
-        self, *, tenant=None, supplier_type=SupplierType.INDEPENDENT_PROVIDER,
-        status=SupplierStatus.ACTIVE, availability_status=AvailabilityStatus.AVAILABLE,
-        verification_level=VerificationLevel.BASIC, service_categories=None, **kwargs,
+        self,
+        *,
+        tenant=None,
+        supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+        status=SupplierStatus.ACTIVE,
+        availability_status=AvailabilityStatus.AVAILABLE,
+        verification_level=VerificationLevel.BASIC,
+        service_categories=None,
+        **kwargs,
     ) -> ServiceSupplier:
         tenant = tenant or self.tenant
         defaults = {
@@ -59,7 +71,11 @@ class DiscoveryTestCase(TestCase):
         person = Person.objects.create(tenant=tenant, full_name=display_name)
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         caregiver = CaregiverProfile.objects.create(
-            user=user, person=person, phone=phone, display_name=display_name, city=city,
+            user=user,
+            person=person,
+            phone=phone,
+            display_name=display_name,
+            city=city,
         )
         supplier = get_or_create_supplier_for_caregiver(caregiver, tenant_id=tenant.id)
         supplier.service_categories = [str(self.category.id)]

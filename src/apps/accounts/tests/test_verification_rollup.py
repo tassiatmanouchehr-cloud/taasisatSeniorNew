@@ -10,7 +10,7 @@ from django.db import connection
 from django.test import TestCase, TransactionTestCase
 from django.utils import timezone
 
-from apps.accounts.models.media import DocumentStatus, DocumentType
+from apps.accounts.models.media import DocumentType
 from apps.accounts.models.profiles import CaregiverProfile, OrganizationProfile, VerificationStatus
 from apps.accounts.permission_keys import ACCOUNTS_DOCUMENT_REVIEW
 from apps.accounts.services.document_service import DocumentService
@@ -41,7 +41,10 @@ class _RollupFixtureMixin:
         person = Person.objects.create(tenant=tenant, full_name=f"{name} Admin")
         admin_user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         return OrganizationProfile.objects.create(
-            name=name, code=f"ORG-{uuid.uuid4().hex[:6].upper()}", admin_user=admin_user, tenant=tenant,
+            name=name,
+            code=f"ORG-{uuid.uuid4().hex[:6].upper()}",
+            admin_user=admin_user,
+            tenant=tenant,
         )
 
     def _create_user(self, *, tenant, full_name="Test User") -> UserAccount:
@@ -213,7 +216,9 @@ class RollupConcurrencyTest(_RollupFixtureMixin, TransactionTestCase):
         def _approve(document_id):
             try:
                 barrier.wait(timeout=10)
-                VerificationReviewService.approve(document_id=document_id, tenant_id=self.tenant.id, reviewer=self.reviewer)
+                VerificationReviewService.approve(
+                    document_id=document_id, tenant_id=self.tenant.id, reviewer=self.reviewer
+                )
             except Exception as exc:  # noqa: BLE001
                 errors.append(exc)
             finally:

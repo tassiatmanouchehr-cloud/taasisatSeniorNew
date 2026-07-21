@@ -32,17 +32,23 @@ class ObligationService:
     def create_obligations_for_document(cls, *, document_id) -> FinancialObligation:
         from apps.kernel.services.event_publisher import EventPublisher
 
-        document = FinancialDocument.objects.select_related("payer_party", "issuer_party").select_for_update().get(
-            id=document_id,
+        document = (
+            FinancialDocument.objects.select_related("payer_party", "issuer_party")
+            .select_for_update()
+            .get(
+                id=document_id,
+            )
         )
 
         if document.status not in _OBLIGATION_ELIGIBLE_STATUSES:
             raise FinanceError(
-                f"Cannot create obligations for a document in '{document.status}' status; "
-                "it must be ISSUED or LOCKED.",
+                f"Cannot create obligations for a document in '{document.status}' status; it must be ISSUED or LOCKED.",
             )
 
-        if document.payer_party.tenant_id != document.tenant_id or document.issuer_party.tenant_id != document.tenant_id:
+        if (
+            document.payer_party.tenant_id != document.tenant_id
+            or document.issuer_party.tenant_id != document.tenant_id
+        ):
             raise FinanceError("Document parties do not belong to the document's tenant.")
 
         obligation = FinancialObligation.objects.create(

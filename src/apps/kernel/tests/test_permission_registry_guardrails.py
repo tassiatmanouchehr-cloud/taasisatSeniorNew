@@ -57,7 +57,8 @@ class NoRawLiteralPermissionKeysTest(SimpleTestCase):
                 offenders.append(f"{path.relative_to(APPS_DIR)}: {match.group(0)!r}")
 
         self.assertEqual(
-            offenders, [],
+            offenders,
+            [],
             f"Found PermissionService.require()/.check() called with a raw string literal: {offenders}",
         )
 
@@ -89,10 +90,15 @@ class RegistryValidationTest(SimpleTestCase):
 
     def test_duplicate_key_registration_raises(self):
         with self.assertRaises(PermissionRegistryError):
-            PermissionRegistry.register(PermissionKey(
-                key="booking.assignment.assign", domain="booking", resource="assignment", action="assign",
-                description="duplicate",
-            ))
+            PermissionRegistry.register(
+                PermissionKey(
+                    key="booking.assignment.assign",
+                    domain="booking",
+                    resource="assignment",
+                    action="assign",
+                    description="duplicate",
+                )
+            )
 
     def test_malformed_key_rejected(self):
         with self.assertRaises(PermissionRegistryError):
@@ -151,12 +157,27 @@ class NoDependencyCycleFromPermissionsPackageTest(SimpleTestCase):
 
     def test_permissions_package_imports_nothing_from_business_apps(self):
         import ast
-        import inspect
 
         business_apps = (
-            "accounts", "orders", "matching", "booking", "execution", "finance", "wallet",
-            "payments", "notifications", "reporting", "api", "portal", "provider_portal",
-            "organization_portal", "admin_portal", "availability", "pricing", "discovery", "reviews",
+            "accounts",
+            "orders",
+            "matching",
+            "booking",
+            "execution",
+            "finance",
+            "wallet",
+            "payments",
+            "notifications",
+            "reporting",
+            "api",
+            "portal",
+            "provider_portal",
+            "organization_portal",
+            "admin_portal",
+            "availability",
+            "pricing",
+            "discovery",
+            "reviews",
         )
         permissions_dir = APPS_DIR / "kernel" / "permissions"
         for path in _python_files(under=permissions_dir):

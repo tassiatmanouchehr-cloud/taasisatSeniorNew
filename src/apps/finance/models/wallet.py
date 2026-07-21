@@ -38,14 +38,20 @@ class WalletAccount(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="wallet_accounts",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="wallet_accounts",
     )
     party = models.ForeignKey(
-        "finance.FinancialParty", on_delete=models.PROTECT, related_name="wallets",
+        "finance.FinancialParty",
+        on_delete=models.PROTECT,
+        related_name="wallets",
     )
 
     currency = models.CharField(max_length=10, default=DEFAULT_CURRENCY)
-    balance = models.DecimalField(max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, default=Decimal("0"))
+    balance = models.DecimalField(
+        max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, default=Decimal("0")
+    )
     status = models.CharField(max_length=20, choices=WalletStatus.choices, default=WalletStatus.ACTIVE)
     metadata = models.JSONField(default=dict, blank=True)
 
@@ -68,10 +74,14 @@ class WalletTransaction(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="wallet_transactions",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="wallet_transactions",
     )
     wallet = models.ForeignKey(
-        "finance.WalletAccount", on_delete=models.PROTECT, related_name="transactions",
+        "finance.WalletAccount",
+        on_delete=models.PROTECT,
+        related_name="transactions",
     )
 
     transaction_type = models.CharField(max_length=20, choices=WalletTransactionType.choices)
@@ -79,11 +89,17 @@ class WalletTransaction(models.Model):
     balance_after = models.DecimalField(max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES)
 
     source_document = models.ForeignKey(
-        "finance.FinancialDocument", on_delete=models.SET_NULL, null=True, blank=True,
+        "finance.FinancialDocument",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="wallet_transactions",
     )
     payment_transaction = models.ForeignKey(
-        "finance.PaymentTransaction", on_delete=models.SET_NULL, null=True, blank=True,
+        "finance.PaymentTransaction",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="wallet_transactions",
     )
     metadata = models.JSONField(default=dict, blank=True)

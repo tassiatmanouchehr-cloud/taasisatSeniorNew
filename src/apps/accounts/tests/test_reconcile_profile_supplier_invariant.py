@@ -24,14 +24,22 @@ class ReconcileProfileSupplierInvariantCommandTest(TestCase):
         person = Person.objects.create(tenant=self.tenant, full_name="Reconcile Caregiver")
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=self.tenant)
         return CaregiverProfile.objects.create(
-            user=user, person=person, phone=phone, display_name="Reconcile Caregiver", status=status,
+            user=user,
+            person=person,
+            phone=phone,
+            display_name="Reconcile Caregiver",
+            status=status,
         )
 
     def _create_organization(self, *, status, phone="09146660002"):
         person = Person.objects.create(tenant=self.tenant, full_name="Reconcile Org Admin")
         admin_user = UserAccount.objects.create_user(phone=phone, person=person, tenant=self.tenant)
         return OrganizationProfile.objects.create(
-            name="Reconcile Org", code="RECON-ORG-1", admin_user=admin_user, tenant=self.tenant, status=status,
+            name="Reconcile Org",
+            code="RECON-ORG-1",
+            admin_user=admin_user,
+            tenant=self.tenant,
+            status=status,
         )
 
     def _call(self, *args):
@@ -45,7 +53,8 @@ class ReconcileProfileSupplierInvariantCommandTest(TestCase):
 
         self.assertFalse(
             ServiceSupplier.objects.filter(
-                linked_entity_id=caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+                linked_entity_id=caregiver.id,
+                linked_entity_type=CAREGIVER_LINKED_TYPE,
             ).exists(),
         )
         self.assertIn("Would repair", output)
@@ -56,7 +65,8 @@ class ReconcileProfileSupplierInvariantCommandTest(TestCase):
         self._call()
 
         supplier = ServiceSupplier.objects.get(
-            linked_entity_id=caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+            linked_entity_id=caregiver.id,
+            linked_entity_type=CAREGIVER_LINKED_TYPE,
         )
         self.assertEqual(supplier.status, SupplierStatus.ACTIVE)
         self.assertEqual(supplier.supplier_type, SupplierType.INDEPENDENT_PROVIDER)
@@ -64,9 +74,12 @@ class ReconcileProfileSupplierInvariantCommandTest(TestCase):
     def test_status_drift_is_corrected(self):
         organization = self._create_organization(status=ProfileStatus.ACTIVE)
         supplier = SupplierRegistry.get_or_create_supplier(
-            tenant_id=self.tenant.id, linked_entity_id=organization.id,
-            linked_entity_type=ORGANIZATION_LINKED_TYPE, supplier_type=SupplierType.ORGANIZATION,
-            display_name=organization.name, status=SupplierStatus.PENDING,
+            tenant_id=self.tenant.id,
+            linked_entity_id=organization.id,
+            linked_entity_type=ORGANIZATION_LINKED_TYPE,
+            supplier_type=SupplierType.ORGANIZATION,
+            display_name=organization.name,
+            status=SupplierStatus.PENDING,
         )
         output = self._call()
 
@@ -77,9 +90,12 @@ class ReconcileProfileSupplierInvariantCommandTest(TestCase):
     def test_already_correct_row_is_unchanged(self):
         caregiver = self._create_caregiver(status=ProfileStatus.ACTIVE)
         supplier = SupplierRegistry.get_or_create_supplier(
-            tenant_id=self.tenant.id, linked_entity_id=caregiver.id,
-            linked_entity_type=CAREGIVER_LINKED_TYPE, supplier_type=SupplierType.INDEPENDENT_PROVIDER,
-            display_name=caregiver.display_name, status=SupplierStatus.ACTIVE,
+            tenant_id=self.tenant.id,
+            linked_entity_id=caregiver.id,
+            linked_entity_type=CAREGIVER_LINKED_TYPE,
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+            display_name=caregiver.display_name,
+            status=SupplierStatus.ACTIVE,
         )
         version_before = supplier.version
 
@@ -105,16 +121,20 @@ class ReconcileProfileSupplierInvariantCommandTest(TestCase):
         mismatched_tenant = Tenant.objects.create(slug="reconcile-mismatch-tenant", name="Mismatch Tenant")
         organization = self._create_organization(status=ProfileStatus.ACTIVE)
         ServiceSupplier.objects.create(
-            tenant_id=mismatched_tenant.id, linked_entity_id=organization.id,
-            linked_entity_type=ORGANIZATION_LINKED_TYPE, supplier_type=SupplierType.ORGANIZATION,
-            display_name=organization.name, status=SupplierStatus.PENDING,
+            tenant_id=mismatched_tenant.id,
+            linked_entity_id=organization.id,
+            linked_entity_type=ORGANIZATION_LINKED_TYPE,
+            supplier_type=SupplierType.ORGANIZATION,
+            display_name=organization.name,
+            status=SupplierStatus.PENDING,
         )
         output = self._call()
 
         self.assertIn("TENANT MISMATCH", output)
         self.assertIn("invalid=", output)
         supplier = ServiceSupplier.objects.get(
-            linked_entity_id=organization.id, linked_entity_type=ORGANIZATION_LINKED_TYPE,
+            linked_entity_id=organization.id,
+            linked_entity_type=ORGANIZATION_LINKED_TYPE,
         )
         self.assertEqual(supplier.tenant_id, mismatched_tenant.id, "must not silently rewrite either side")
         self.assertEqual(supplier.status, SupplierStatus.PENDING, "must not repair a tenant-mismatched row")
@@ -131,9 +151,12 @@ class ReconcileProfileSupplierInvariantCommandTest(TestCase):
         caregiver.provider_type = CaregiverProviderType.ORGANIZATION_AFFILIATED
         caregiver.save(update_fields=["provider_type"])
         supplier = SupplierRegistry.get_or_create_supplier(
-            tenant_id=self.tenant.id, linked_entity_id=caregiver.id,
-            linked_entity_type=CAREGIVER_LINKED_TYPE, supplier_type=SupplierType.INDEPENDENT_PROVIDER,
-            display_name=caregiver.display_name, status=SupplierStatus.ACTIVE,
+            tenant_id=self.tenant.id,
+            linked_entity_id=caregiver.id,
+            linked_entity_type=CAREGIVER_LINKED_TYPE,
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+            display_name=caregiver.display_name,
+            status=SupplierStatus.ACTIVE,
         )
 
         output = self._call()
@@ -143,20 +166,24 @@ class ReconcileProfileSupplierInvariantCommandTest(TestCase):
         self.assertIn("invalid=", output)
         supplier.refresh_from_db()
         self.assertEqual(
-            supplier.supplier_type, SupplierType.INDEPENDENT_PROVIDER, "must not repair supplier_type itself",
+            supplier.supplier_type,
+            SupplierType.INDEPENDENT_PROVIDER,
+            "must not repair supplier_type itself",
         )
 
     def test_repeated_execution_is_idempotent(self):
         caregiver = self._create_caregiver(status=ProfileStatus.ACTIVE)
         self._call()
         first_count = ServiceSupplier.objects.filter(
-            linked_entity_id=caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+            linked_entity_id=caregiver.id,
+            linked_entity_type=CAREGIVER_LINKED_TYPE,
         ).count()
 
         second_output = self._call()
 
         second_count = ServiceSupplier.objects.filter(
-            linked_entity_id=caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+            linked_entity_id=caregiver.id,
+            linked_entity_type=CAREGIVER_LINKED_TYPE,
         ).count()
         self.assertEqual(first_count, 1)
         self.assertEqual(second_count, 1)

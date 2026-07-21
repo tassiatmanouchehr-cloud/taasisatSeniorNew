@@ -89,7 +89,9 @@ class FakeProviderCallbackView(ApiView):
         try:
             attempt = PaymentAttempt.objects.get(provider_reference=provider_reference)
         except PaymentAttempt.DoesNotExist:
-            raise ApiError(code="not_found", message="No payment attempt found for that provider_reference.", status_code=404)
+            raise ApiError(
+                code="not_found", message="No payment attempt found for that provider_reference.", status_code=404
+            )
 
         if attempt.provider != PaymentProvider.FAKE:
             raise ApiError(
@@ -109,9 +111,11 @@ class FakeProviderCallbackView(ApiView):
             },
         )
 
-        return Response({
-            "intent_id": str(result.intent_id),
-            "attempt_id": str(result.attempt_id) if result.attempt_id else None,
-            "status": result.status,
-            "idempotent_replay": result.idempotent_replay,
-        })
+        return Response(
+            {
+                "intent_id": str(result.intent_id),
+                "attempt_id": str(result.attempt_id) if result.attempt_id else None,
+                "status": result.status,
+                "idempotent_replay": result.idempotent_replay,
+            }
+        )

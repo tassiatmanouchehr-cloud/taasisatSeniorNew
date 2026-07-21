@@ -9,9 +9,7 @@
 
   <section class="space-y-4">
     <h2 class="text-lg font-semibold text-text border-b border-border pb-2">مسیر (Breadcrumb)</h2>
-    {% with items='[{"label":"خانه","href":"/"},{"label":"سفارش‌ها","href":"#"},{"label":"سفارش ۱۲۳۴"}]' %}
-    {% include "ui/components/data/breadcrumb.html" %}
-    {% endwith %}
+    {% include "ui/components/data/breadcrumb.html" with items=breadcrumb_items %}
   </section>
 
   <section class="space-y-4">

@@ -13,7 +13,9 @@ def _set_tenant_config(tenant_id, key, value, value_type=ValueType.BOOLEAN):
         defaults={"owner_module": "M14", "value_type": value_type, "scope_level": ScopeLevel.TENANT},
     )
     ConfigurationValue.objects.update_or_create(
-        tenant_id=tenant_id, config_key=config_key, scope_type=ScopeLevel.TENANT,
+        tenant_id=tenant_id,
+        config_key=config_key,
+        scope_type=ScopeLevel.TENANT,
         defaults={"value": value, "is_active": True},
     )
 
@@ -125,7 +127,8 @@ class WalletTransactionServiceTest(WalletTestCase):
         WalletTransactionService.promotion_credit(wallet_id=self.wallet.id, amount=Decimal("5"))
 
         total = sum(
-            (t.amount for t in WalletTransaction.objects.filter(wallet=self.wallet)), Decimal("0"),
+            (t.amount for t in WalletTransaction.objects.filter(wallet=self.wallet)),
+            Decimal("0"),
         )
         self.wallet.refresh_from_db()
         self.assertEqual(self.wallet.balance, total)
@@ -139,10 +142,14 @@ class WalletTransactionServiceTest(WalletTestCase):
 
     def test_idempotency_key_prevents_duplicate_transaction(self):
         first = WalletTransactionService.credit(
-            wallet_id=self.wallet.id, amount=Decimal("100"), idempotency_key="op-123",
+            wallet_id=self.wallet.id,
+            amount=Decimal("100"),
+            idempotency_key="op-123",
         )
         second = WalletTransactionService.credit(
-            wallet_id=self.wallet.id, amount=Decimal("100"), idempotency_key="op-123",
+            wallet_id=self.wallet.id,
+            amount=Decimal("100"),
+            idempotency_key="op-123",
         )
 
         self.assertEqual(first.id, second.id)

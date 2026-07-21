@@ -54,14 +54,17 @@ class ReputationServiceTest(ReviewsTestCase):
     def test_deterministic_aggregate_across_multiple_reviews(self):
         order2 = self._create_order(tenant=self.tenant, category=self.category, customer_profile=self.customer_profile)
         from apps.booking.services.assignment_service import AssignmentService
+
         assignment2 = AssignmentService.assign(order_id=order2.id, supplier=self.supplier)
 
         self._submit_and_approve(
-            order=self.order, supplier_assignment=self.supplier_assignment,
+            order=self.order,
+            supplier_assignment=self.supplier_assignment,
             dimension_scores=self._dimension_scores(QUALITY=5, PUNCTUALITY=5, PROFESSIONALISM=5, COMMUNICATION=5),
         )
         self._submit_and_approve(
-            order=order2, supplier_assignment=assignment2,
+            order=order2,
+            supplier_assignment=assignment2,
             dimension_scores=self._dimension_scores(QUALITY=3, PUNCTUALITY=3, PROFESSIONALISM=3, COMMUNICATION=3),
         )
 
@@ -77,7 +80,8 @@ class ReputationServiceTest(ReviewsTestCase):
 
     def test_supplier_reputation_score_is_updated(self):
         self._submit_and_approve(
-            order=self.order, supplier_assignment=self.supplier_assignment,
+            order=self.order,
+            supplier_assignment=self.supplier_assignment,
             dimension_scores=self._dimension_scores(QUALITY=5, PUNCTUALITY=5, PROFESSIONALISM=5, COMMUNICATION=5),
         )
 
@@ -88,7 +92,8 @@ class ReputationServiceTest(ReviewsTestCase):
         original_version = self.supplier.version
 
         self._submit_and_approve(
-            order=self.order, supplier_assignment=self.supplier_assignment,
+            order=self.order,
+            supplier_assignment=self.supplier_assignment,
             dimension_scores=self._dimension_scores(),
         )
 
@@ -102,7 +107,8 @@ class ReputationServiceTest(ReviewsTestCase):
 
     def test_get_reputation_summary_after_approval(self):
         self._submit_and_approve(
-            order=self.order, supplier_assignment=self.supplier_assignment,
+            order=self.order,
+            supplier_assignment=self.supplier_assignment,
             dimension_scores=self._dimension_scores(),
         )
 
@@ -117,12 +123,16 @@ class ReputationServiceTest(ReviewsTestCase):
             supplier_type=SupplierType.ORGANIZATION,
             display_name="Org Supplier",
         )
-        org_order = self._create_order(tenant=self.tenant, category=self.category, customer_profile=self.customer_profile)
+        org_order = self._create_order(
+            tenant=self.tenant, category=self.category, customer_profile=self.customer_profile
+        )
         from apps.booking.services.assignment_service import AssignmentService
+
         org_assignment = AssignmentService.assign(order_id=org_order.id, supplier=org_supplier)
 
         self._submit_and_approve(
-            order=org_order, supplier_assignment=org_assignment,
+            order=org_order,
+            supplier_assignment=org_assignment,
             dimension_scores=self._dimension_scores(QUALITY=4, PUNCTUALITY=4, PROFESSIONALISM=4, COMMUNICATION=4),
         )
 
@@ -137,7 +147,8 @@ class ReputationServiceTest(ReviewsTestCase):
         self.assertEqual(self.supplier.supplier_type, SupplierType.INDEPENDENT_PROVIDER)
 
         self._submit_and_approve(
-            order=self.order, supplier_assignment=self.supplier_assignment,
+            order=self.order,
+            supplier_assignment=self.supplier_assignment,
             dimension_scores=self._dimension_scores(QUALITY=2, PUNCTUALITY=2, PROFESSIONALISM=2, COMMUNICATION=2),
         )
 
@@ -146,7 +157,8 @@ class ReputationServiceTest(ReviewsTestCase):
 
     def test_snapshot_is_one_per_supplier(self):
         self._submit_and_approve(
-            order=self.order, supplier_assignment=self.supplier_assignment,
+            order=self.order,
+            supplier_assignment=self.supplier_assignment,
             dimension_scores=self._dimension_scores(),
         )
         ReputationService.recalculate_reputation(self.supplier)
@@ -174,7 +186,8 @@ class ListRecentReviewsWithReviewerNamesTest(ReviewsTestCase):
 
     def test_approved_review_appears_with_reviewer_name(self):
         approved = self._submit_and_approve(
-            order=self.order, supplier_assignment=self.supplier_assignment,
+            order=self.order,
+            supplier_assignment=self.supplier_assignment,
             dimension_scores=self._dimension_scores(),
         )
 
@@ -214,13 +227,18 @@ class ListRecentReviewsWithReviewerNamesTest(ReviewsTestCase):
         from apps.booking.services.assignment_service import AssignmentService
 
         self._submit_and_approve(
-            order=self.order, supplier_assignment=self.supplier_assignment,
+            order=self.order,
+            supplier_assignment=self.supplier_assignment,
             dimension_scores=self._dimension_scores(),
         )
         for _ in range(2):
-            order = self._create_order(tenant=self.tenant, category=self.category, customer_profile=self.customer_profile)
+            order = self._create_order(
+                tenant=self.tenant, category=self.category, customer_profile=self.customer_profile
+            )
             assignment = AssignmentService.assign(order_id=order.id, supplier=self.supplier)
-            self._submit_and_approve(order=order, supplier_assignment=assignment, dimension_scores=self._dimension_scores())
+            self._submit_and_approve(
+                order=order, supplier_assignment=assignment, dimension_scores=self._dimension_scores()
+            )
 
         rows = ReputationService.list_recent_reviews_with_reviewer_names(self.supplier, limit=2)
         self.assertEqual(len(rows), 2)

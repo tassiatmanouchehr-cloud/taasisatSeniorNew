@@ -15,8 +15,16 @@ urlpatterns = [
     path("staff/<uuid:membership_id>/terminate/", views.staff_terminate_view, name="staff-terminate"),
     path("staff/invite/", views.invite_caregiver_view, name="staff-invite"),
     path("staff/invitations/<uuid:membership_id>/cancel/", views.invitation_cancel_view, name="invitation-cancel"),
-    path("staff/requests/<uuid:request_id>/approve/", views.affiliation_request_approve_view, name="affiliation-request-approve"),
-    path("staff/requests/<uuid:request_id>/reject/", views.affiliation_request_reject_view, name="affiliation-request-reject"),
+    path(
+        "staff/requests/<uuid:request_id>/approve/",
+        views.affiliation_request_approve_view,
+        name="affiliation-request-approve",
+    ),
+    path(
+        "staff/requests/<uuid:request_id>/reject/",
+        views.affiliation_request_reject_view,
+        name="affiliation-request-reject",
+    ),
     path("assignments/", views.assignment_center_view, name="assignment-center"),
     path("assignments/<uuid:order_id>/assign/", views.assign_staff_view, name="assign-staff"),
     path("capacity/", views.capacity_view, name="capacity"),

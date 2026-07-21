@@ -94,7 +94,10 @@ class CaregiverDirectoryService:
         card_data = cls._bulk_card_data(tenant_id=tenant_id, supplier_ids=page_supplier_ids)
         cards = tuple(
             cls._build_card(
-                candidates_by_id[supplier_id], attrs_by_id[supplier_id], card_data=card_data, tenant_slug=tenant_slug,
+                candidates_by_id[supplier_id],
+                attrs_by_id[supplier_id],
+                card_data=card_data,
+                tenant_slug=tenant_slug,
             )
             for supplier_id in page_supplier_ids
         )
@@ -168,7 +171,10 @@ class CaregiverDirectoryService:
         card_data = cls._bulk_card_data(tenant_id=tenant_id, supplier_ids=featured_supplier_ids)
         return tuple(
             cls._build_card(
-                candidates_by_id[supplier_id], attrs_by_id[supplier_id], card_data=card_data, tenant_slug=tenant_slug,
+                candidates_by_id[supplier_id],
+                attrs_by_id[supplier_id],
+                card_data=card_data,
+                tenant_slug=tenant_slug,
             )
             for supplier_id in featured_supplier_ids
         )
@@ -192,7 +198,9 @@ class CaregiverDirectoryService:
 
         suppliers = list(
             ServiceSupplier.objects.filter(
-                id__in=supplier_ids, tenant_id=tenant_id, status=SupplierStatus.ACTIVE,
+                id__in=supplier_ids,
+                tenant_id=tenant_id,
+                status=SupplierStatus.ACTIVE,
                 supplier_type__in=CAREGIVER_SUPPLIER_TYPES,
             ),
         )
@@ -247,7 +255,9 @@ class CaregiverDirectoryService:
     @classmethod
     def _build_card(cls, supplier, attrs, *, card_data, tenant_slug=None) -> CaregiverCardViewModel:
         rating = card_data["ratings"].get(supplier.id) or RatingSummaryViewModel(
-            average=None, review_count=0, stars_rounded=0,
+            average=None,
+            review_count=0,
+            stars_rounded=0,
         )
         return CaregiverCardViewModel(
             supplier_id=supplier.id,
@@ -267,14 +277,23 @@ class CaregiverDirectoryService:
             rating=rating,
             completed_jobs=card_data["completed_jobs"].get(supplier.id, 0),
             profile_url=common.append_tenant_query(
-                reverse("public_site:caregiver-profile", args=[supplier.id]), tenant_slug,
+                reverse("public_site:caregiver-profile", args=[supplier.id]),
+                tenant_slug,
             ),
         )
 
     @classmethod
     def _build_filters(
-        cls, *, tenant_id, text, city, supplier_type, service_category_id, availability_status,
-        tenant_slug=None, base_url="/find-a-caregiver/",
+        cls,
+        *,
+        tenant_id,
+        text,
+        city,
+        supplier_type,
+        service_category_id,
+        availability_status,
+        tenant_slug=None,
+        base_url="/find-a-caregiver/",
     ):
         cities = cls.available_cities(tenant_id=tenant_id)
         normalized_city = " ".join((city or "").split()).casefold() or None

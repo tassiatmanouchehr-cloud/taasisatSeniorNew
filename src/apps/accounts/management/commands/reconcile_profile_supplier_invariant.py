@@ -73,7 +73,6 @@ class Command(BaseCommand):
             OrganizationProfile,
             ProfileStatus,
         )
-        from apps.accounts.services.profile_activation_service import ProfileActivationService
         from apps.accounts.services.supplier_bridge import (
             CAREGIVER_LINKED_TYPE,
             ORGANIZATION_LINKED_TYPE,
@@ -118,7 +117,8 @@ class Command(BaseCommand):
             linked_type = _linked_type_for(profile)
             profile_tenant_id = _tenant_id_for(profile)
             supplier = SupplierRegistry.find_by_linked_entity(
-                linked_entity_id=profile.id, linked_entity_type=linked_type,
+                linked_entity_id=profile.id,
+                linked_entity_type=linked_type,
             )
 
             if supplier is None:
@@ -174,7 +174,8 @@ class Command(BaseCommand):
         # 2. Non-ACTIVE profiles that already carry an ACTIVE supplier — detect only.
         for caregiver in CaregiverProfile.objects.exclude(status=ProfileStatus.ACTIVE).select_related("person"):
             supplier = SupplierRegistry.find_by_linked_entity(
-                linked_entity_id=caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+                linked_entity_id=caregiver.id,
+                linked_entity_type=CAREGIVER_LINKED_TYPE,
             )
             if supplier is None:
                 counts["skipped"] += 1
@@ -188,7 +189,8 @@ class Command(BaseCommand):
                 counts["skipped"] += 1
         for organization in OrganizationProfile.objects.exclude(status=ProfileStatus.ACTIVE):
             supplier = SupplierRegistry.find_by_linked_entity(
-                linked_entity_id=organization.id, linked_entity_type=ORGANIZATION_LINKED_TYPE,
+                linked_entity_id=organization.id,
+                linked_entity_type=ORGANIZATION_LINKED_TYPE,
             )
             if supplier is None:
                 counts["skipped"] += 1
@@ -227,22 +229,30 @@ class Command(BaseCommand):
                 invalid_details.append(
                     f"MALFORMED linked_entity_type={supplier.linked_entity_type!r} on supplier {supplier.id}",
                 )
-            elif supplier.linked_entity_type == CAREGIVER_LINKED_TYPE and supplier.linked_entity_id not in caregiver_ids:
+            elif (
+                supplier.linked_entity_type == CAREGIVER_LINKED_TYPE and supplier.linked_entity_id not in caregiver_ids
+            ):
                 counts["invalid"] += 1
-                invalid_details.append(f"ORPHAN supplier {supplier.id}: no CaregiverProfile {supplier.linked_entity_id}")
+                invalid_details.append(
+                    f"ORPHAN supplier {supplier.id}: no CaregiverProfile {supplier.linked_entity_id}"
+                )
             elif (
                 supplier.linked_entity_type == ORGANIZATION_LINKED_TYPE
                 and supplier.linked_entity_id not in organization_ids
             ):
                 counts["invalid"] += 1
-                invalid_details.append(f"ORPHAN supplier {supplier.id}: no OrganizationProfile {supplier.linked_entity_id}")
+                invalid_details.append(
+                    f"ORPHAN supplier {supplier.id}: no OrganizationProfile {supplier.linked_entity_id}"
+                )
 
         for line in invalid_details:
             self.stdout.write(self.style.WARNING(line))
 
         verb = "Would repair" if dry_run else "Repaired"
-        self.stdout.write(self.style.SUCCESS(
-            f"{verb}: created={counts['created']} reconciled={counts['reconciled']} "
-            f"already_correct={counts['already_correct']} skipped={counts['skipped']} "
-            f"invalid={counts['invalid']} failed={counts['failed']}",
-        ))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"{verb}: created={counts['created']} reconciled={counts['reconciled']} "
+                f"already_correct={counts['already_correct']} skipped={counts['skipped']} "
+                f"invalid={counts['invalid']} failed={counts['failed']}",
+            )
+        )

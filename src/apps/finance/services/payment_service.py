@@ -85,8 +85,12 @@ class PaymentService:
             if collected_by_party.tenant_id != tenant_id:
                 raise FinanceError("collected_by_party does not belong to the payer's tenant.")
 
-        resolved_currency = currency or (source_document.currency if source_document else None) \
-            or (obligation.currency if obligation else None) or DEFAULT_CURRENCY
+        resolved_currency = (
+            currency
+            or (source_document.currency if source_document else None)
+            or (obligation.currency if obligation else None)
+            or DEFAULT_CURRENCY
+        )
 
         payment = PaymentTransaction.objects.create(
             tenant_id=tenant_id,

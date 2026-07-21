@@ -32,7 +32,8 @@ class SeedDemoAccountsSupplierSyncTest(TestCase):
         self.assertEqual(organization.status, ProfileStatus.ACTIVE)
 
         supplier = ServiceSupplier.objects.get(
-            linked_entity_id=organization.id, linked_entity_type=ORGANIZATION_LINKED_TYPE,
+            linked_entity_id=organization.id,
+            linked_entity_type=ORGANIZATION_LINKED_TYPE,
         )
         self.assertEqual(supplier.status, SupplierStatus.ACTIVE)
         self.assertEqual(supplier.supplier_type, SupplierType.ORGANIZATION)
@@ -50,7 +51,8 @@ class SeedDemoAccountsSupplierSyncTest(TestCase):
         self.assertEqual(caregiver.status, ProfileStatus.DRAFT)
         self.assertFalse(
             ServiceSupplier.objects.filter(
-                linked_entity_id=caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+                linked_entity_id=caregiver.id,
+                linked_entity_type=CAREGIVER_LINKED_TYPE,
             ).exists(),
         )
 
@@ -60,7 +62,8 @@ class SeedDemoAccountsSupplierSyncTest(TestCase):
         profile_count_1 = OrganizationProfile.objects.count()
         user_count_1 = UserAccount.objects.count()
         supplier_count_1 = ServiceSupplier.objects.filter(
-            linked_entity_id=organization.id, linked_entity_type=ORGANIZATION_LINKED_TYPE,
+            linked_entity_id=organization.id,
+            linked_entity_type=ORGANIZATION_LINKED_TYPE,
         ).count()
 
         call_command("seed_demo_accounts")
@@ -69,7 +72,8 @@ class SeedDemoAccountsSupplierSyncTest(TestCase):
         self.assertEqual(UserAccount.objects.count(), user_count_1)
         self.assertEqual(
             ServiceSupplier.objects.filter(
-                linked_entity_id=organization.id, linked_entity_type=ORGANIZATION_LINKED_TYPE,
+                linked_entity_id=organization.id,
+                linked_entity_type=ORGANIZATION_LINKED_TYPE,
             ).count(),
             supplier_count_1,
         )
@@ -79,13 +83,15 @@ class SeedDemoAccountsSupplierSyncTest(TestCase):
         call_command("seed_demo_accounts")
         organization = OrganizationProfile.objects.get(code="DEMO-COMPANY")
         supplier_id_1 = ServiceSupplier.objects.get(
-            linked_entity_id=organization.id, linked_entity_type=ORGANIZATION_LINKED_TYPE,
+            linked_entity_id=organization.id,
+            linked_entity_type=ORGANIZATION_LINKED_TYPE,
         ).id
 
         call_command("seed_demo_accounts")
 
         supplier_id_2 = ServiceSupplier.objects.get(
-            linked_entity_id=organization.id, linked_entity_type=ORGANIZATION_LINKED_TYPE,
+            linked_entity_id=organization.id,
+            linked_entity_type=ORGANIZATION_LINKED_TYPE,
         ).id
         self.assertEqual(supplier_id_1, supplier_id_2)
 
@@ -108,7 +114,8 @@ class SeedDemoPeopleSupplierSyncTest(TestCase):
         self.assertEqual(caregiver.status, ProfileStatus.ACTIVE)
 
         supplier = ServiceSupplier.objects.get(
-            linked_entity_id=caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+            linked_entity_id=caregiver.id,
+            linked_entity_type=CAREGIVER_LINKED_TYPE,
         )
         self.assertEqual(supplier.status, SupplierStatus.ACTIVE)
         self.assertEqual(supplier.supplier_type, SupplierType.INDEPENDENT_PROVIDER)
@@ -120,7 +127,8 @@ class SeedDemoPeopleSupplierSyncTest(TestCase):
         organization = self._organization()
         self.assertEqual(organization.status, ProfileStatus.ACTIVE)
         supplier = ServiceSupplier.objects.get(
-            linked_entity_id=organization.id, linked_entity_type=ORGANIZATION_LINKED_TYPE,
+            linked_entity_id=organization.id,
+            linked_entity_type=ORGANIZATION_LINKED_TYPE,
         )
         self.assertEqual(supplier.status, SupplierStatus.ACTIVE)
         self.assertEqual(supplier.supplier_type, SupplierType.ORGANIZATION)
@@ -132,7 +140,8 @@ class SeedDemoPeopleSupplierSyncTest(TestCase):
         self.assertEqual(caregiver.status, ProfileStatus.ACTIVE)
         self.assertTrue(
             ServiceSupplier.objects.filter(
-                linked_entity_id=caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+                linked_entity_id=caregiver.id,
+                linked_entity_type=CAREGIVER_LINKED_TYPE,
                 status=SupplierStatus.ACTIVE,
             ).exists(),
         )
@@ -156,13 +165,15 @@ class SeedDemoPeopleSupplierSyncTest(TestCase):
         call_command("seed_demo_people")
         caregiver = self._independent_caregiver()
         supplier_id_1 = ServiceSupplier.objects.get(
-            linked_entity_id=caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+            linked_entity_id=caregiver.id,
+            linked_entity_type=CAREGIVER_LINKED_TYPE,
         ).id
 
         call_command("seed_demo_people")
 
         supplier_id_2 = ServiceSupplier.objects.get(
-            linked_entity_id=caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+            linked_entity_id=caregiver.id,
+            linked_entity_type=CAREGIVER_LINKED_TYPE,
         ).id
         self.assertEqual(supplier_id_1, supplier_id_2)
 
@@ -179,14 +190,21 @@ class SeedDemoOrdersDoesNotCreateSupplierForDraftCaregiverTest(TestCase):
     def setUp(self):
         self.tenant = TenantService.get_default_tenant()
         self.category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Home Care", slug="home-care-seed-orders", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Home Care",
+            slug="home-care-seed-orders",
+            status=CatalogStatus.ACTIVE,
         )
 
     def _create_caregiver(self, *, status, phone):
         person = Person.objects.create(tenant=self.tenant, full_name="Seed Order Caregiver")
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=self.tenant)
         return CaregiverProfile.objects.create(
-            user=user, person=person, phone=phone, display_name="Seed Order Caregiver", status=status,
+            user=user,
+            person=person,
+            phone=phone,
+            display_name="Seed Order Caregiver",
+            status=status,
         )
 
     def test_draft_caregiver_created_first_gets_no_supplier(self):
@@ -197,12 +215,14 @@ class SeedDemoOrdersDoesNotCreateSupplierForDraftCaregiverTest(TestCase):
 
         self.assertFalse(
             ServiceSupplier.objects.filter(
-                linked_entity_id=draft_caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+                linked_entity_id=draft_caregiver.id,
+                linked_entity_type=CAREGIVER_LINKED_TYPE,
             ).exists(),
         )
         self.assertTrue(
             ServiceSupplier.objects.filter(
-                linked_entity_id=active_caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+                linked_entity_id=active_caregiver.id,
+                linked_entity_type=CAREGIVER_LINKED_TYPE,
                 status=SupplierStatus.ACTIVE,
             ).exists(),
         )

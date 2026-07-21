@@ -35,25 +35,38 @@ class FinancialObligation(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="financial_obligations",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="financial_obligations",
     )
     source_document = models.ForeignKey(
-        "finance.FinancialDocument", on_delete=models.PROTECT, related_name="obligations",
+        "finance.FinancialDocument",
+        on_delete=models.PROTECT,
+        related_name="obligations",
     )
     debtor_party = models.ForeignKey(
-        "finance.FinancialParty", on_delete=models.PROTECT, related_name="obligations_owed",
+        "finance.FinancialParty",
+        on_delete=models.PROTECT,
+        related_name="obligations_owed",
     )
     creditor_party = models.ForeignKey(
-        "finance.FinancialParty", on_delete=models.PROTECT, related_name="obligations_receivable",
+        "finance.FinancialParty",
+        on_delete=models.PROTECT,
+        related_name="obligations_receivable",
     )
 
     amount = models.DecimalField(max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES)
     currency = models.CharField(max_length=10, default=DEFAULT_CURRENCY)
     obligation_type = models.CharField(
-        max_length=30, choices=ObligationType.choices, default=ObligationType.INVOICE_PAYMENT,
+        max_length=30,
+        choices=ObligationType.choices,
+        default=ObligationType.INVOICE_PAYMENT,
     )
     status = models.CharField(
-        max_length=20, choices=ObligationStatus.choices, default=ObligationStatus.CREATED, db_index=True,
+        max_length=20,
+        choices=ObligationStatus.choices,
+        default=ObligationStatus.CREATED,
+        db_index=True,
     )
 
     due_at = models.DateTimeField(null=True, blank=True)
@@ -73,7 +86,9 @@ class FinancialObligation(models.Model):
         ]
 
     def __str__(self):
-        return f"Obligation {self.id}: {self.debtor_party_id} owes {self.creditor_party_id} {self.amount} [{self.status}]"
+        return (
+            f"Obligation {self.id}: {self.debtor_party_id} owes {self.creditor_party_id} {self.amount} [{self.status}]"
+        )
 
     @property
     def resolved_amount(self) -> Decimal:

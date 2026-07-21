@@ -29,29 +29,29 @@ from pathlib import Path
 
 # Theme files to validate
 THEME_FILES = {
-    'light': 'ui/themes/light.css',
-    'dark': 'ui/themes/dark.css',
+    "light": "ui/themes/light.css",
+    "dark": "ui/themes/dark.css",
 }
 
 # Required variable prefixes (at minimum, both themes must define these groups)
 REQUIRED_PREFIXES = [
-    '--color-primary-',
-    '--color-secondary-',
-    '--color-accent-',
-    '--color-success-',
-    '--color-warning-',
-    '--color-danger-',
-    '--color-info-',
-    '--color-surface',
-    '--color-background',
-    '--color-border',
-    '--color-text',
-    '--shadow-',
-    '--ring-',
+    "--color-primary-",
+    "--color-secondary-",
+    "--color-accent-",
+    "--color-success-",
+    "--color-warning-",
+    "--color-danger-",
+    "--color-info-",
+    "--color-surface",
+    "--color-background",
+    "--color-border",
+    "--color-text",
+    "--shadow-",
+    "--ring-",
 ]
 
 # CSS variable extraction pattern
-CSS_VAR_DEFINITION = re.compile(r'(--[\w-]+)\s*:\s*([^;]+);')
+CSS_VAR_DEFINITION = re.compile(r"(--[\w-]+)\s*:\s*([^;]+);")
 
 
 def extract_variables(filepath: str) -> dict:
@@ -60,7 +60,7 @@ def extract_variables(filepath: str) -> dict:
     duplicates = []
 
     try:
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, encoding="utf-8") as f:
             content = f.read()
     except FileNotFoundError:
         return variables
@@ -78,22 +78,30 @@ def extract_variables(filepath: str) -> dict:
 def validate_naming(variables: dict) -> list:
     """Check variable naming conventions."""
     issues = []
-    valid_prefixes = ('--color-', '--shadow-', '--ring-', '--sidebar-',
-                      '--navbar-', '--content-', '--input-', '--border-')
+    valid_prefixes = (
+        "--color-",
+        "--shadow-",
+        "--ring-",
+        "--sidebar-",
+        "--navbar-",
+        "--content-",
+        "--input-",
+        "--border-",
+    )
 
     for var_name in variables:
         if not any(var_name.startswith(p) for p in valid_prefixes):
             # Allow structural variables from base.css
-            if not var_name.startswith('--motion-'):
+            if not var_name.startswith("--motion-"):
                 issues.append(f"Non-standard variable name: {var_name}")
 
     return issues
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Validate theme CSS variables')
-    parser.add_argument('--verbose', action='store_true', help='Show all variables')
-    parser.add_argument('--root', default='.', help='Project root directory')
+    parser = argparse.ArgumentParser(description="Validate theme CSS variables")
+    parser.add_argument("--verbose", action="store_true", help="Show all variables")
+    parser.add_argument("--root", default=".", help="Project root directory")
     args = parser.parse_args()
 
     root = Path(args.root)
@@ -111,13 +119,13 @@ def main():
 
     if errors:
         # Fatal — can't continue without theme files
-        print(f"\n❌ THEME VALIDATION FAILED\n")
+        print("\n❌ THEME VALIDATION FAILED\n")
         for err in errors:
             print(f"  ERROR: {err}")
         sys.exit(1)
 
-    light_vars = themes.get('light', {})
-    dark_vars = themes.get('dark', {})
+    light_vars = themes.get("light", {})
+    dark_vars = themes.get("dark", {})
 
     # Check 1: Required prefixes exist in both themes
     for prefix in REQUIRED_PREFIXES:
@@ -148,13 +156,13 @@ def main():
 
     # Report
     print(f"\n{'=' * 60}")
-    print(f"  THEME VALIDATION REPORT")
+    print("  THEME VALIDATION REPORT")
     print(f"{'=' * 60}")
     print(f"\n  Light theme: {light_count} variables ({THEME_FILES['light']})")
     print(f"  Dark theme:  {dark_count} variables ({THEME_FILES['dark']})")
 
     if args.verbose:
-        print(f"\n  Light variables:")
+        print("\n  Light variables:")
         for v in sorted(light_vars.keys()):
             status = "✓" if v in dark_vars else "✗ MISSING IN DARK"
             print(f"    {status} {v}")
@@ -175,10 +183,10 @@ def main():
         print(f"\n❌ THEME VALIDATION FAILED: {len(errors)} errors")
         sys.exit(1)
     else:
-        print(f"\n✅ THEME VALIDATION PASSED")
+        print("\n✅ THEME VALIDATION PASSED")
         print(f"   Light: {light_count} vars | Dark: {dark_count} vars | Consistent: ✓")
         sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

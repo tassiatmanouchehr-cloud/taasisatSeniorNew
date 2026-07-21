@@ -48,13 +48,22 @@ class ProviderReportService:
         # Two independent aggregates (not combined in one query) — SupplierAssignment and
         # ExecutionSession are separate one-to-many relations; joining both at once would
         # fan out and inflate the assignment counts.
-        assignment_counts = SupplierAssignment.objects.for_tenant(tenant_id).filter(supplier=supplier).aggregate(
-            total=Count("id"),
-            active=Count("id", filter=Q(status__in=_ACTIVE_ASSIGNMENT_STATUSES)),
+        assignment_counts = (
+            SupplierAssignment.objects.for_tenant(tenant_id)
+            .filter(supplier=supplier)
+            .aggregate(
+                total=Count("id"),
+                active=Count("id", filter=Q(status__in=_ACTIVE_ASSIGNMENT_STATUSES)),
+            )
         )
-        completed_services = ExecutionSession.objects.for_tenant(tenant_id).filter(
-            supplier_assignment__supplier=supplier, status=ExecutionSessionStatus.CLOSED,
-        ).count()
+        completed_services = (
+            ExecutionSession.objects.for_tenant(tenant_id)
+            .filter(
+                supplier_assignment__supplier=supplier,
+                status=ExecutionSessionStatus.CLOSED,
+            )
+            .count()
+        )
 
         try:
             snapshot = ReputationSnapshot.objects.filter(tenant_id=tenant_id).get(supplier=supplier)

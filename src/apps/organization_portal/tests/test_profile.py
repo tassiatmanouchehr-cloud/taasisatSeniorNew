@@ -230,11 +230,16 @@ class OrganizationMediaUploadTest(OrganizationPortalTestCase):
         lookup, so a second organization is structurally unreachable."""
         other_admin = self._create_user(tenant=self.tenant, phone="09121110097")
         other_org = OrganizationProfile.objects.create(
-            name="Other Org", code=f"other-{uuid.uuid4().hex[:8]}", admin_user=other_admin, tenant=self.tenant,
+            name="Other Org",
+            code=f"other-{uuid.uuid4().hex[:8]}",
+            admin_user=other_admin,
+            tenant=self.tenant,
         )
         OrganizationMembership.objects.create(
-            organization=other_org, user=other_admin,
-            role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+            organization=other_org,
+            user=other_admin,
+            role_type=OrgMembershipRole.ADMIN,
+            status=OrgMembershipStatus.ACTIVE,
         )
 
         self.login_as_admin()

@@ -20,40 +20,60 @@ class ProviderPortalTestCase(TestCase):
         self.other_tenant = Tenant.objects.create(slug=f"provportal-other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
 
         self.category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
 
         self.provider_user, self.supplier = self._create_provider(tenant=self.tenant)
         self.other_provider_user, self.other_supplier = self._create_provider(
-            tenant=self.tenant, phone="09129990001",
+            tenant=self.tenant,
+            phone="09129990001",
         )
 
         self.customer = self._create_customer(tenant=self.tenant)
         self.care_recipient = CareRecipientService.create(customer_profile=self.customer, full_name="مادر بزرگ")
 
         self.order = create_public_order(
-            service_category_id=self.category.id, description="x", phone="0912",
-            address="addr", city="tehran", customer_profile=self.customer,
-            elder_profile=self.care_recipient, created_by=self.customer.user, tenant_id=self.tenant.id,
+            service_category_id=self.category.id,
+            description="x",
+            phone="0912",
+            address="addr",
+            city="tehran",
+            customer_profile=self.customer,
+            elder_profile=self.care_recipient,
+            created_by=self.customer.user,
+            tenant_id=self.tenant.id,
         )
 
         # A second, wholly independent tenant — its own category, provider,
         # customer, care recipient, and order — for cross-tenant isolation
         # tests (Enterprise Architecture Review follow-up, finding #4).
         self.other_tenant_category = ServiceCategory.objects.create(
-            tenant=self.other_tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.other_tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
         self.other_tenant_provider_user, self.other_tenant_supplier = self._create_provider(
-            tenant=self.other_tenant, phone="09129990002",
+            tenant=self.other_tenant,
+            phone="09129990002",
         )
         self.other_tenant_customer = self._create_customer(tenant=self.other_tenant, phone="09129990003")
         self.other_tenant_care_recipient = CareRecipientService.create(
-            customer_profile=self.other_tenant_customer, full_name="Other Tenant Recipient",
+            customer_profile=self.other_tenant_customer,
+            full_name="Other Tenant Recipient",
         )
         self.other_tenant_order = create_public_order(
-            service_category_id=self.other_tenant_category.id, description="x", phone="0912",
-            address="addr", city="tehran", customer_profile=self.other_tenant_customer,
-            elder_profile=self.other_tenant_care_recipient, created_by=self.other_tenant_customer.user,
+            service_category_id=self.other_tenant_category.id,
+            description="x",
+            phone="0912",
+            address="addr",
+            city="tehran",
+            customer_profile=self.other_tenant_customer,
+            elder_profile=self.other_tenant_care_recipient,
+            created_by=self.other_tenant_customer.user,
             tenant_id=self.other_tenant.id,
         )
 

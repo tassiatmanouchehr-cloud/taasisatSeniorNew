@@ -45,7 +45,10 @@ class OrderShareLinkService:
 
         expires_at = timezone.now() + (valid_for or DEFAULT_VALIDITY)
         link = OrderShareLink.objects.create(
-            tenant_id=order.tenant_id, order=order, created_by=created_by, expires_at=expires_at,
+            tenant_id=order.tenant_id,
+            order=order,
+            created_by=created_by,
+            expires_at=expires_at,
         )
         event = DomainEvent(
             event_type=SHARE_LINK_CREATED,

@@ -42,7 +42,8 @@ class SupplierSyncOnActivationTest(_ActivationFixtureMixin, TestCase):
         ProfileActivationService.activate_caregiver(self.caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer)
 
         supplier = SupplierRegistry.find_by_linked_entity(
-            linked_entity_id=self.caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+            linked_entity_id=self.caregiver.id,
+            linked_entity_type=CAREGIVER_LINKED_TYPE,
         )
         self.assertIsNotNone(supplier)
         self.assertEqual(supplier.supplier_type, SupplierType.INDEPENDENT_PROVIDER)
@@ -50,10 +51,13 @@ class SupplierSyncOnActivationTest(_ActivationFixtureMixin, TestCase):
     def test_organization_activation_creates_correct_supplier(self):
         self._approve_required_organization_documents()
         ProfileActivationService.activate_organization(
-            self.organization.id, tenant_id=self.tenant.id, actor=self.reviewer,
+            self.organization.id,
+            tenant_id=self.tenant.id,
+            actor=self.reviewer,
         )
         supplier = SupplierRegistry.find_by_linked_entity(
-            linked_entity_id=self.organization.id, linked_entity_type=ORGANIZATION_LINKED_TYPE,
+            linked_entity_id=self.organization.id,
+            linked_entity_type=ORGANIZATION_LINKED_TYPE,
         )
         self.assertIsNotNone(supplier)
         self.assertEqual(supplier.supplier_type, SupplierType.ORGANIZATION)
@@ -62,17 +66,21 @@ class SupplierSyncOnActivationTest(_ActivationFixtureMixin, TestCase):
         self._approve_required_caregiver_documents()
         ProfileActivationService.activate_caregiver(self.caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer)
         supplier = SupplierRegistry.find_by_linked_entity(
-            linked_entity_id=self.caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+            linked_entity_id=self.caregiver.id,
+            linked_entity_type=CAREGIVER_LINKED_TYPE,
         )
         self.assertEqual(supplier.tenant_id, self.tenant.id)
 
     def test_activation_supplier_uses_the_correct_linked_entity_type(self):
         self._approve_required_organization_documents()
         ProfileActivationService.activate_organization(
-            self.organization.id, tenant_id=self.tenant.id, actor=self.reviewer,
+            self.organization.id,
+            tenant_id=self.tenant.id,
+            actor=self.reviewer,
         )
         supplier = SupplierRegistry.find_by_linked_entity(
-            linked_entity_id=self.organization.id, linked_entity_type=ORGANIZATION_LINKED_TYPE,
+            linked_entity_id=self.organization.id,
+            linked_entity_type=ORGANIZATION_LINKED_TYPE,
         )
         self.assertEqual(supplier.linked_entity_type, ORGANIZATION_LINKED_TYPE)
 
@@ -80,7 +88,8 @@ class SupplierSyncOnActivationTest(_ActivationFixtureMixin, TestCase):
         self._approve_required_caregiver_documents()
         ProfileActivationService.activate_caregiver(self.caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer)
         supplier = SupplierRegistry.find_by_linked_entity(
-            linked_entity_id=self.caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+            linked_entity_id=self.caregiver.id,
+            linked_entity_type=CAREGIVER_LINKED_TYPE,
         )
         self.assertEqual(supplier.status, SupplierStatus.ACTIVE)
 
@@ -90,7 +99,8 @@ class SupplierSyncOnActivationTest(_ActivationFixtureMixin, TestCase):
         ProfileActivationService.activate_caregiver(self.caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer)
 
         count = ServiceSupplier.objects.filter(
-            linked_entity_id=self.caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+            linked_entity_id=self.caregiver.id,
+            linked_entity_type=CAREGIVER_LINKED_TYPE,
         ).count()
         self.assertEqual(count, 1)
 
@@ -142,46 +152,61 @@ class ActivationSupplierSyncFailureTest(_ActivationFixtureMixin, TestCase):
         self._approve_required_caregiver_documents()
 
     def test_sync_failure_rolls_back_profile_activation(self):
-        with patch(
-            "apps.accounts.services.profile_activation_service.sync_supplier_for_profile_activation",
-            side_effect=RuntimeError("simulated supplier sync failure"),
+        with (
+            patch(
+                "apps.accounts.services.profile_activation_service.sync_supplier_for_profile_activation",
+                side_effect=RuntimeError("simulated supplier sync failure"),
+            ),
+            self.assertRaises(RuntimeError),
         ):
-            with self.assertRaises(RuntimeError):
-                ProfileActivationService.activate_caregiver(
-                    self.caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer,
-                )
+            ProfileActivationService.activate_caregiver(
+                self.caregiver.id,
+                tenant_id=self.tenant.id,
+                actor=self.reviewer,
+            )
 
         self.caregiver.refresh_from_db()
         self.assertEqual(self.caregiver.status, ProfileStatus.DRAFT)
 
     def test_sync_failure_leaves_no_activation_audit_entry(self):
-        with patch(
-            "apps.accounts.services.profile_activation_service.sync_supplier_for_profile_activation",
-            side_effect=RuntimeError("simulated supplier sync failure"),
+        with (
+            patch(
+                "apps.accounts.services.profile_activation_service.sync_supplier_for_profile_activation",
+                side_effect=RuntimeError("simulated supplier sync failure"),
+            ),
+            self.assertRaises(RuntimeError),
         ):
-            with self.assertRaises(RuntimeError):
-                ProfileActivationService.activate_caregiver(
-                    self.caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer,
-                )
+            ProfileActivationService.activate_caregiver(
+                self.caregiver.id,
+                tenant_id=self.tenant.id,
+                actor=self.reviewer,
+            )
 
         count = AuditLog.objects.filter(
-            tenant_id=self.tenant.id, resource_type="CaregiverProfile", resource_id=self.caregiver.id,
+            tenant_id=self.tenant.id,
+            resource_type="CaregiverProfile",
+            resource_id=self.caregiver.id,
             action="accounts.profile.activated",
         ).count()
         self.assertEqual(count, 0)
 
     def test_sync_failure_leaves_no_partial_supplier_mutation(self):
-        with patch(
-            "apps.accounts.services.profile_activation_service.sync_supplier_for_profile_activation",
-            side_effect=RuntimeError("simulated supplier sync failure"),
+        with (
+            patch(
+                "apps.accounts.services.profile_activation_service.sync_supplier_for_profile_activation",
+                side_effect=RuntimeError("simulated supplier sync failure"),
+            ),
+            self.assertRaises(RuntimeError),
         ):
-            with self.assertRaises(RuntimeError):
-                ProfileActivationService.activate_caregiver(
-                    self.caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer,
-                )
+            ProfileActivationService.activate_caregiver(
+                self.caregiver.id,
+                tenant_id=self.tenant.id,
+                actor=self.reviewer,
+            )
 
         exists = ServiceSupplier.objects.filter(
-            linked_entity_id=self.caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+            linked_entity_id=self.caregiver.id,
+            linked_entity_type=CAREGIVER_LINKED_TYPE,
         ).exists()
         self.assertFalse(exists)
 
@@ -198,7 +223,9 @@ class IdempotentActivationSupplierRepairTest(_ActivationFixtureMixin, TestCase):
 
     def _activation_audit_count(self, *, resource_type, resource_id):
         return AuditLog.objects.filter(
-            tenant_id=self.tenant.id, resource_type=resource_type, resource_id=resource_id,
+            tenant_id=self.tenant.id,
+            resource_type=resource_type,
+            resource_id=resource_id,
             action="accounts.profile.activated",
         ).count()
 
@@ -206,17 +233,21 @@ class IdempotentActivationSupplierRepairTest(_ActivationFixtureMixin, TestCase):
         caregiver = self._create_caregiver(tenant=self.tenant, status=ProfileStatus.ACTIVE)
         self.assertFalse(
             ServiceSupplier.objects.filter(
-                linked_entity_id=caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+                linked_entity_id=caregiver.id,
+                linked_entity_type=CAREGIVER_LINKED_TYPE,
             ).exists(),
         )
 
         result = ProfileActivationService.activate_caregiver(
-            caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer,
+            caregiver.id,
+            tenant_id=self.tenant.id,
+            actor=self.reviewer,
         )
 
         self.assertFalse(result.transitioned)
         supplier = ServiceSupplier.objects.get(
-            linked_entity_id=caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+            linked_entity_id=caregiver.id,
+            linked_entity_type=CAREGIVER_LINKED_TYPE,
         )
         self.assertEqual(supplier.status, SupplierStatus.ACTIVE)
         self.assertEqual(self._activation_audit_count(resource_type="CaregiverProfile", resource_id=caregiver.id), 0)
@@ -224,13 +255,18 @@ class IdempotentActivationSupplierRepairTest(_ActivationFixtureMixin, TestCase):
     def test_drifted_supplier_is_reconciled_for_already_active_caregiver(self):
         caregiver = self._create_caregiver(tenant=self.tenant, status=ProfileStatus.ACTIVE)
         supplier = SupplierRegistry.get_or_create_supplier(
-            tenant_id=self.tenant.id, linked_entity_id=caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
-            supplier_type=SupplierType.INDEPENDENT_PROVIDER, display_name=caregiver.display_name,
+            tenant_id=self.tenant.id,
+            linked_entity_id=caregiver.id,
+            linked_entity_type=CAREGIVER_LINKED_TYPE,
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+            display_name=caregiver.display_name,
             status=SupplierStatus.SUSPENDED,
         )
 
         result = ProfileActivationService.activate_caregiver(
-            caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer,
+            caregiver.id,
+            tenant_id=self.tenant.id,
+            actor=self.reviewer,
         )
 
         self.assertFalse(result.transitioned)
@@ -242,47 +278,61 @@ class IdempotentActivationSupplierRepairTest(_ActivationFixtureMixin, TestCase):
         organization = self._create_organization(tenant=self.tenant, status=ProfileStatus.ACTIVE)
         self.assertFalse(
             ServiceSupplier.objects.filter(
-                linked_entity_id=organization.id, linked_entity_type=ORGANIZATION_LINKED_TYPE,
+                linked_entity_id=organization.id,
+                linked_entity_type=ORGANIZATION_LINKED_TYPE,
             ).exists(),
         )
 
         result = ProfileActivationService.activate_organization(
-            organization.id, tenant_id=self.tenant.id, actor=self.reviewer,
+            organization.id,
+            tenant_id=self.tenant.id,
+            actor=self.reviewer,
         )
 
         self.assertFalse(result.transitioned)
         supplier = ServiceSupplier.objects.get(
-            linked_entity_id=organization.id, linked_entity_type=ORGANIZATION_LINKED_TYPE,
+            linked_entity_id=organization.id,
+            linked_entity_type=ORGANIZATION_LINKED_TYPE,
         )
         self.assertEqual(supplier.status, SupplierStatus.ACTIVE)
         self.assertEqual(
-            self._activation_audit_count(resource_type="OrganizationProfile", resource_id=organization.id), 0,
+            self._activation_audit_count(resource_type="OrganizationProfile", resource_id=organization.id),
+            0,
         )
 
     def test_drifted_supplier_is_reconciled_for_already_active_organization(self):
         organization = self._create_organization(tenant=self.tenant, status=ProfileStatus.ACTIVE)
         supplier = SupplierRegistry.get_or_create_supplier(
-            tenant_id=self.tenant.id, linked_entity_id=organization.id, linked_entity_type=ORGANIZATION_LINKED_TYPE,
-            supplier_type=SupplierType.ORGANIZATION, display_name=organization.name,
+            tenant_id=self.tenant.id,
+            linked_entity_id=organization.id,
+            linked_entity_type=ORGANIZATION_LINKED_TYPE,
+            supplier_type=SupplierType.ORGANIZATION,
+            display_name=organization.name,
             status=SupplierStatus.PENDING,
         )
 
         result = ProfileActivationService.activate_organization(
-            organization.id, tenant_id=self.tenant.id, actor=self.reviewer,
+            organization.id,
+            tenant_id=self.tenant.id,
+            actor=self.reviewer,
         )
 
         self.assertFalse(result.transitioned)
         supplier.refresh_from_db()
         self.assertEqual(supplier.status, SupplierStatus.ACTIVE)
         self.assertEqual(
-            self._activation_audit_count(resource_type="OrganizationProfile", resource_id=organization.id), 0,
+            self._activation_audit_count(resource_type="OrganizationProfile", resource_id=organization.id),
+            0,
         )
 
     def test_already_correct_supplier_is_not_rewritten_on_idempotent_call(self):
         caregiver = self._create_caregiver(tenant=self.tenant, status=ProfileStatus.ACTIVE)
         supplier = SupplierRegistry.get_or_create_supplier(
-            tenant_id=self.tenant.id, linked_entity_id=caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
-            supplier_type=SupplierType.INDEPENDENT_PROVIDER, display_name=caregiver.display_name,
+            tenant_id=self.tenant.id,
+            linked_entity_id=caregiver.id,
+            linked_entity_type=CAREGIVER_LINKED_TYPE,
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+            display_name=caregiver.display_name,
             status=SupplierStatus.ACTIVE,
         )
         version_before = supplier.version
@@ -295,18 +345,23 @@ class IdempotentActivationSupplierRepairTest(_ActivationFixtureMixin, TestCase):
     def test_sync_failure_on_idempotent_path_rolls_back_and_leaves_no_audit(self):
         caregiver = self._create_caregiver(tenant=self.tenant, status=ProfileStatus.ACTIVE)
 
-        with patch(
-            "apps.accounts.services.profile_activation_service.sync_supplier_for_profile_activation",
-            side_effect=RuntimeError("simulated supplier sync failure"),
+        with (
+            patch(
+                "apps.accounts.services.profile_activation_service.sync_supplier_for_profile_activation",
+                side_effect=RuntimeError("simulated supplier sync failure"),
+            ),
+            self.assertRaises(RuntimeError),
         ):
-            with self.assertRaises(RuntimeError):
-                ProfileActivationService.activate_caregiver(
-                    caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer,
-                )
+            ProfileActivationService.activate_caregiver(
+                caregiver.id,
+                tenant_id=self.tenant.id,
+                actor=self.reviewer,
+            )
 
         self.assertFalse(
             ServiceSupplier.objects.filter(
-                linked_entity_id=caregiver.id, linked_entity_type=CAREGIVER_LINKED_TYPE,
+                linked_entity_id=caregiver.id,
+                linked_entity_type=CAREGIVER_LINKED_TYPE,
             ).exists(),
         )
         self.assertEqual(self._activation_audit_count(resource_type="CaregiverProfile", resource_id=caregiver.id), 0)
@@ -340,7 +395,9 @@ class ActivationToPublicDirectoryIntegrationTest(_ActivationFixtureMixin, TestCa
 
         self._approve_required_organization_documents()
         ProfileActivationService.activate_organization(
-            self.organization.id, tenant_id=self.tenant.id, actor=self.reviewer,
+            self.organization.id,
+            tenant_id=self.tenant.id,
+            actor=self.reviewer,
         )
 
         page = OrganizationDirectoryService.search(tenant_id=self.tenant.id)
@@ -362,7 +419,8 @@ class ActivationToPublicDirectoryIntegrationTest(_ActivationFixtureMixin, TestCa
         ProfileActivationService.activate_caregiver(self.caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer)
         self.caregiver.refresh_from_db()
         self.assertEqual(
-            self.caregiver.verification_status, "verified",
+            self.caregiver.verification_status,
+            "verified",
             "activation eligibility requires approved documents, which roll up to verified",
         )
 
@@ -378,10 +436,14 @@ class ActivationToPublicDirectoryIntegrationTest(_ActivationFixtureMixin, TestCa
         for doc_type in (DocumentType.IDENTITY, DocumentType.BACKGROUND_CHECK):
             file = SimpleUploadedFile(f"{doc_type}.pdf", PDF_BYTES, content_type="application/pdf")
             doc = DocumentService.upload_caregiver_document(other_caregiver, document_type=doc_type, file=file)
-            VerificationReviewService.approve(document_id=doc.id, tenant_id=self.other_tenant.id, reviewer=other_reviewer)
+            VerificationReviewService.approve(
+                document_id=doc.id, tenant_id=self.other_tenant.id, reviewer=other_reviewer
+            )
 
         ProfileActivationService.activate_caregiver(
-            other_caregiver.id, tenant_id=self.other_tenant.id, actor=other_reviewer,
+            other_caregiver.id,
+            tenant_id=self.other_tenant.id,
+            actor=other_reviewer,
         )
 
         page = CaregiverDirectoryService.search(tenant_id=self.tenant.id)

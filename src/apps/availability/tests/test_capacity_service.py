@@ -16,7 +16,10 @@ class CapacityServiceTest(AvailabilityTestCase):
     def setUp(self):
         super().setUp()
         self.category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
 
     def _make_order(self):

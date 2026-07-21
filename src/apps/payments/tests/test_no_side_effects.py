@@ -35,7 +35,8 @@ class PaymentNoSideEffectsTest(PaymentsTestCase):
         wallet_txn_count_before = WalletTransaction.objects.count()
 
         PaymentCallbackService.process_callback(
-            provider_reference=attempt.provider_reference, payload=payload,
+            provider_reference=attempt.provider_reference,
+            payload=payload,
         )
 
         self.assertEqual(Wallet.objects.count(), wallet_count_before)
@@ -49,7 +50,8 @@ class PaymentNoSideEffectsTest(PaymentsTestCase):
         balance_before = legacy_wallet.balance
 
         PaymentCallbackService.process_callback(
-            provider_reference=attempt.provider_reference, payload=payload,
+            provider_reference=attempt.provider_reference,
+            payload=payload,
         )
 
         legacy_wallet.refresh_from_db()
@@ -63,7 +65,8 @@ class PaymentNoSideEffectsTest(PaymentsTestCase):
         count_before = PaymentTransaction.objects.count()
 
         PaymentCallbackService.process_callback(
-            provider_reference=attempt.provider_reference, payload=payload,
+            provider_reference=attempt.provider_reference,
+            payload=payload,
         )
 
         self.assertEqual(PaymentTransaction.objects.count(), count_before)

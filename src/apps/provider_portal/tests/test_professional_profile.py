@@ -192,7 +192,10 @@ class ExperienceManagementTest(ProviderPortalTestCase):
     def test_owner_can_reshow_hidden_experience_via_edit_form(self):
         caregiver = CaregiverProfile.objects.get(user=self.provider_user)
         entry = CaregiverExperienceService.create(
-            caregiver, title="X", start_date=datetime.date(2020, 1, 1), is_visible=False,
+            caregiver,
+            title="X",
+            start_date=datetime.date(2020, 1, 1),
+            is_visible=False,
         )
         self.login_as_provider()
         response = self.client.post(
@@ -267,7 +270,8 @@ class DocumentExpiringSoonBadgeTest(ProviderPortalTestCase):
         grant_permissions(self.tenant, reviewer, [ACCOUNTS_DOCUMENT_REVIEW])
 
         doc = DocumentService.upload_caregiver_document(
-            caregiver, document_type=DocumentType.IDENTITY,
+            caregiver,
+            document_type=DocumentType.IDENTITY,
             file=SimpleUploadedFile("id.pdf", b"%PDF-1.4 x", content_type="application/pdf"),
         )
         VerificationReviewService.approve(document_id=doc.id, tenant_id=self.tenant.id, reviewer=reviewer)

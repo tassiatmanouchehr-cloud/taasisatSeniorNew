@@ -17,11 +17,20 @@ class ProviderAssignmentActionTestCase(TestCase):
     def setUp(self):
         self.tenant = Tenant.objects.create(slug=f"provact-{uuid.uuid4().hex[:8]}", name="Provider Action Tenant")
         self.category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
         self.order = Order.objects.create(
-            tenant=self.tenant, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
-            service_category=self.category, description="x", city="tehran", address="addr", phone="0912",
+            tenant=self.tenant,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.NEW,
+            service_category=self.category,
+            description="x",
+            city="tehran",
+            address="addr",
+            phone="0912",
         )
         self.provider_user, self.supplier = self._create_provider()
         self.other_provider_user, self.other_supplier = self._create_provider(phone="09123334455")
@@ -71,13 +80,17 @@ class ConfirmAssignmentTest(ProviderAssignmentActionTestCase):
 class DeclineAssignmentTest(ProviderAssignmentActionTestCase):
     def test_decline_transitions_to_declined(self):
         result = ProviderAssignmentActionService.decline(
-            assignment_id=self.assignment.id, actor=self.provider_user, reason="Too far",
+            assignment_id=self.assignment.id,
+            actor=self.provider_user,
+            reason="Too far",
         )
         self.assertEqual(result.status, SupplierAssignmentStatus.DECLINED)
 
     def test_decline_stores_reason_in_metadata(self):
         ProviderAssignmentActionService.decline(
-            assignment_id=self.assignment.id, actor=self.provider_user, reason="Too far",
+            assignment_id=self.assignment.id,
+            actor=self.provider_user,
+            reason="Too far",
         )
         self.assignment.refresh_from_db()
         self.assertEqual(self.assignment.metadata.get("decline_reason"), "Too far")
@@ -127,19 +140,37 @@ class CrossTenantAssignmentIsolationTest(TestCase):
         self.tenant_b = Tenant.objects.create(slug=f"tenb-{uuid.uuid4().hex[:8]}", name="Tenant B")
 
         self.category_a = ServiceCategory.objects.create(
-            tenant=self.tenant_a, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant_a,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
         self.category_b = ServiceCategory.objects.create(
-            tenant=self.tenant_b, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant_b,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
 
         self.order_a = Order.objects.create(
-            tenant=self.tenant_a, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
-            service_category=self.category_a, description="x", city="tehran", address="addr", phone="0912",
+            tenant=self.tenant_a,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.NEW,
+            service_category=self.category_a,
+            description="x",
+            city="tehran",
+            address="addr",
+            phone="0912",
         )
         self.order_b = Order.objects.create(
-            tenant=self.tenant_b, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
-            service_category=self.category_b, description="x", city="tehran", address="addr", phone="0912",
+            tenant=self.tenant_b,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.NEW,
+            service_category=self.category_b,
+            description="x",
+            city="tehran",
+            address="addr",
+            phone="0912",
         )
 
         self.provider_a, self.supplier_a = self._create_provider(tenant=self.tenant_a, phone="09121110001")
@@ -168,7 +199,9 @@ class CrossTenantAssignmentIsolationTest(TestCase):
 
         with self.assertRaises(ProviderAssignmentNotFoundError):
             ProviderAssignmentQueryService.get_for_supplier(
-                supplier=self.supplier_a, tenant_id=self.tenant_a.id, order_id=self.order_b.id,
+                supplier=self.supplier_a,
+                tenant_id=self.tenant_a.id,
+                order_id=self.order_b.id,
             )
 
     def test_confirm_cannot_reach_another_tenants_assignment(self):

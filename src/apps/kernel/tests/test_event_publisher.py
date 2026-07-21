@@ -35,6 +35,7 @@ class EventPublisherTest(TestCase):
     def _recording_handler(self, name):
         def handler(event):
             self.calls.append(name)
+
         return handler
 
     def test_publish_dispatches_to_single_registered_handler(self):
@@ -76,7 +77,8 @@ class EventPublisherTest(TestCase):
 
         self.assertTrue(
             AuditLog.objects.filter(
-                tenant_id=self.tenant.id, action=f"domain_event.{EVENT_TYPE}",
+                tenant_id=self.tenant.id,
+                action=f"domain_event.{EVENT_TYPE}",
             ).exists(),
         )
 
@@ -113,7 +115,8 @@ class EventPublisherTest(TestCase):
         publish(self._event())
 
         self.assertEqual(
-            AuditLog.objects.filter(tenant_id=self.tenant.id, action=f"domain_event.{EVENT_TYPE}").count(), 2,
+            AuditLog.objects.filter(tenant_id=self.tenant.id, action=f"domain_event.{EVENT_TYPE}").count(),
+            2,
         )
 
     def test_publish_is_tenant_scoped_in_audit(self):

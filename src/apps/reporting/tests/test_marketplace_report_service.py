@@ -18,11 +18,15 @@ class MarketplaceReportServiceTest(ReportingTestCase):
 
     def test_organization_count_is_tenant_scoped(self):
         OrganizationProfile.objects.create(
-            name="Org A", code=f"org-{self.tenant.id.hex[:8]}", admin_user=self.customer_profile.user,
+            name="Org A",
+            code=f"org-{self.tenant.id.hex[:8]}",
+            admin_user=self.customer_profile.user,
             tenant=self.tenant,
         )
         OrganizationProfile.objects.create(
-            name="Org B", code=f"org-other-{self.other_tenant.id.hex[:8]}", admin_user=self.customer_profile.user,
+            name="Org B",
+            code=f"org-other-{self.other_tenant.id.hex[:8]}",
+            admin_user=self.customer_profile.user,
             tenant=self.other_tenant,
         )
 
@@ -31,7 +35,9 @@ class MarketplaceReportServiceTest(ReportingTestCase):
 
     def test_supplier_type_distribution_covers_multiple_types(self):
         self._create_supplier(
-            tenant=self.tenant, supplier_type=SupplierType.ORGANIZATION, display_name="Org Supplier",
+            tenant=self.tenant,
+            supplier_type=SupplierType.ORGANIZATION,
+            display_name="Org Supplier",
         )
 
         report = MarketplaceReportService.get_marketplace_stats(self.tenant.id)

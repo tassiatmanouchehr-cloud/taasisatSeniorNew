@@ -71,7 +71,18 @@ def dropdowns(request):
 
 def navigation(request):
     """Navigation component showcase."""
-    return render(request, "showcase/navigation.html")
+    breadcrumb_items = [
+        {"label": "خانه", "href": "/"},
+        {"label": "سفارش\u200cها", "href": "#"},
+        {"label": "سفارش ۱۲۳۴"},
+    ]
+    return render(
+        request,
+        "showcase/navigation.html",
+        {
+            "breadcrumb_items": breadcrumb_items,
+        },
+    )
 
 
 def loading(request):

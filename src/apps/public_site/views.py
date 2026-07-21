@@ -107,7 +107,9 @@ def caregiver_favorite_toggle(request, supplier_id):
             FavoritesService.remove_favorite(customer, supplier_id=supplier_id)
         else:
             FavoritesService.add_favorite(
-                customer, supplier_id=supplier_id, tenant_id=tenant_id,
+                customer,
+                supplier_id=supplier_id,
+                tenant_id=tenant_id,
                 expected_supplier_types=CAREGIVER_SUPPLIER_TYPES,
             )
     except AccountsError:
@@ -135,7 +137,9 @@ def organization_profile(request, supplier_id):
     if profile is None:
         raise Http404("Organization profile not found.")
     return render(
-        request, "public_site/organization_profile.html", {"profile": profile, "can_favorite": customer is not None},
+        request,
+        "public_site/organization_profile.html",
+        {"profile": profile, "can_favorite": customer is not None},
     )
 
 
@@ -153,7 +157,9 @@ def organization_favorite_toggle(request, supplier_id):
             FavoritesService.remove_favorite(customer, supplier_id=supplier_id)
         else:
             FavoritesService.add_favorite(
-                customer, supplier_id=supplier_id, tenant_id=tenant_id,
+                customer,
+                supplier_id=supplier_id,
+                tenant_id=tenant_id,
                 expected_supplier_types=(SupplierType.ORGANIZATION,),
             )
     except AccountsError:

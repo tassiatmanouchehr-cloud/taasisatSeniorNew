@@ -26,7 +26,10 @@ class OrganizationRbacTestCase(TestCase):
 
         self.admin_user = self._create_user(tenant=self.tenant, phone="09121140001")
         self.organization = OrganizationProfile.objects.create(
-            name="Care Co", code=f"care-{uuid.uuid4().hex[:8]}", admin_user=self.admin_user, tenant=self.tenant,
+            name="Care Co",
+            code=f"care-{uuid.uuid4().hex[:8]}",
+            admin_user=self.admin_user,
+            tenant=self.tenant,
         )
 
     def _create_user(self, *, tenant, phone) -> UserAccount:
@@ -36,7 +39,10 @@ class OrganizationRbacTestCase(TestCase):
     def _create_membership(self, *, role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE, user=None):
         user = user or self.admin_user
         return OrganizationMembership.objects.create(
-            organization=self.organization, user=user, role_type=role_type, status=status,
+            organization=self.organization,
+            user=user,
+            role_type=role_type,
+            status=status,
         )
 
 
@@ -64,8 +70,11 @@ class SyncBasicsTest(OrganizationRbacTestCase):
 
         self.assertEqual(
             RoleAssignment.objects.filter(
-                user=self.admin_user, scope_type="organization", scope_id=self.organization.id,
-            ).count(), 1,
+                user=self.admin_user,
+                scope_type="organization",
+                scope_id=self.organization.id,
+            ).count(),
+            1,
         )
 
     def test_suspended_membership_deactivates_role_assignment(self):
@@ -89,39 +98,56 @@ class SyncBasicsTest(OrganizationRbacTestCase):
 
     def test_second_organization_gets_independent_scoped_assignment(self):
         other_org = OrganizationProfile.objects.create(
-            name="Other Co", code=f"other-{uuid.uuid4().hex[:8]}", admin_user=self.admin_user, tenant=self.tenant,
+            name="Other Co",
+            code=f"other-{uuid.uuid4().hex[:8]}",
+            admin_user=self.admin_user,
+            tenant=self.tenant,
         )
         membership_a = self._create_membership()
         other_membership = OrganizationMembership.objects.create(
-            organization=other_org, user=self.admin_user, role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+            organization=other_org,
+            user=self.admin_user,
+            role_type=OrgMembershipRole.ADMIN,
+            status=OrgMembershipStatus.ACTIVE,
         )
         OrganizationRoleSyncService.sync_for_membership(membership_a)
         OrganizationRoleSyncService.sync_for_membership(other_membership)
 
         self.assertEqual(
-            RoleAssignment.objects.filter(user=self.admin_user, scope_type="organization", is_active=True).count(), 2,
+            RoleAssignment.objects.filter(user=self.admin_user, scope_type="organization", is_active=True).count(),
+            2,
         )
 
 
 class TenantConsistencyTest(OrganizationRbacTestCase):
     def test_organization_tenant_mismatch_with_user_rejected(self):
         cross_tenant_org = OrganizationProfile.objects.create(
-            name="Cross Co", code=f"cross-{uuid.uuid4().hex[:8]}", admin_user=self.admin_user, tenant=self.other_tenant,
+            name="Cross Co",
+            code=f"cross-{uuid.uuid4().hex[:8]}",
+            admin_user=self.admin_user,
+            tenant=self.other_tenant,
         )
         membership = OrganizationMembership.objects.create(
-            organization=cross_tenant_org, user=self.admin_user,
-            role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+            organization=cross_tenant_org,
+            user=self.admin_user,
+            role_type=OrgMembershipRole.ADMIN,
+            status=OrgMembershipStatus.ACTIVE,
         )
         with self.assertRaises(OrganizationRoleSyncError):
             OrganizationRoleSyncService.sync_for_membership(membership)
 
     def test_null_tenant_organization_rejected(self):
         null_org = OrganizationProfile.objects.create(
-            name="Null Co", code=f"null-{uuid.uuid4().hex[:8]}", admin_user=self.admin_user, tenant=None,
+            name="Null Co",
+            code=f"null-{uuid.uuid4().hex[:8]}",
+            admin_user=self.admin_user,
+            tenant=None,
         )
         membership = OrganizationMembership.objects.create(
-            organization=null_org, user=self.admin_user,
-            role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+            organization=null_org,
+            user=self.admin_user,
+            role_type=OrgMembershipRole.ADMIN,
+            status=OrgMembershipStatus.ACTIVE,
         )
         with self.assertRaises(OrganizationRoleSyncError):
             OrganizationRoleSyncService.sync_for_membership(membership)
@@ -137,7 +163,9 @@ class ScopedPermissionEvaluationTest(OrganizationRbacTestCase):
 
         self.assertTrue(
             PermissionService.check(
-                self.admin_user, "booking.assignment.assign", tenant_id=self.tenant.id,
+                self.admin_user,
+                "booking.assignment.assign",
+                tenant_id=self.tenant.id,
                 scope={"scope_type": "organization", "scope_id": str(self.organization.id)},
             ),
         )
@@ -149,7 +177,9 @@ class ScopedPermissionEvaluationTest(OrganizationRbacTestCase):
         other_org_id = uuid.uuid4()
         self.assertFalse(
             PermissionService.check(
-                self.admin_user, "booking.assignment.assign", tenant_id=self.tenant.id,
+                self.admin_user,
+                "booking.assignment.assign",
+                tenant_id=self.tenant.id,
                 scope={"scope_type": "organization", "scope_id": str(other_org_id)},
             ),
         )
@@ -179,7 +209,9 @@ class ScopedPermissionEvaluationTest(OrganizationRbacTestCase):
 
         self.assertFalse(
             PermissionService.check(
-                self.admin_user, "booking.assignment.assign", tenant_id=self.tenant.id,
+                self.admin_user,
+                "booking.assignment.assign",
+                tenant_id=self.tenant.id,
                 scope={"scope_type": "organization", "scope_id": str(self.organization.id)},
             ),
         )
@@ -192,7 +224,9 @@ class CrossTenantRbacTest(OrganizationRbacTestCase):
 
         self.assertFalse(
             PermissionService.check(
-                self.admin_user, "booking.assignment.assign", tenant_id=self.other_tenant.id,
+                self.admin_user,
+                "booking.assignment.assign",
+                tenant_id=self.other_tenant.id,
                 scope={"scope_type": "organization", "scope_id": str(self.organization.id)},
             ),
         )

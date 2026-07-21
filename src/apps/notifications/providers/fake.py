@@ -26,7 +26,9 @@ class _FakeProvider:
         if self.always_fail:
             return DeliveryResult(success=False, provider_name=self.name, message="simulated delivery failure")
         return DeliveryResult(
-            success=True, provider_name=self.name, message="simulated delivery success",
+            success=True,
+            provider_name=self.name,
+            message="simulated delivery success",
             external_id=str(uuid.uuid4()),
         )
 

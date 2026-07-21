@@ -40,9 +40,7 @@ def backfill(apps, schema_editor):
     Order.objects.filter(tenant_id__isnull=True).update(tenant_id=tenant.id)
 
     # Backfill assigned_supplier from the legacy CaregiverProfile assignment.
-    for order in Order.objects.filter(
-        assigned_supplier__isnull=True, assigned_provider__isnull=False
-    ).iterator():
+    for order in Order.objects.filter(assigned_supplier__isnull=True, assigned_provider__isnull=False).iterator():
         caregiver = CaregiverProfile.objects.filter(id=order.assigned_provider_id).first()
         if not caregiver:
             continue
@@ -60,9 +58,7 @@ def backfill(apps, schema_editor):
         order.save(update_fields=["assigned_supplier"])
 
     # Backfill assigned_supplier from the legacy OrganizationProfile assignment.
-    for order in Order.objects.filter(
-        assigned_supplier__isnull=True, assigned_organization__isnull=False
-    ).iterator():
+    for order in Order.objects.filter(assigned_supplier__isnull=True, assigned_organization__isnull=False).iterator():
         organization = OrganizationProfile.objects.filter(id=order.assigned_organization_id).first()
         if not organization:
             continue
@@ -91,7 +87,6 @@ def noop_reverse(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("orders", "0002_add_tenant_and_supplier_fields"),
         ("accounts", "0002_profiles_v2"),

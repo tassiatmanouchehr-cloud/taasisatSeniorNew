@@ -13,12 +13,9 @@ Covers:
 import uuid
 
 from django.test import TestCase
-from django.utils import timezone
 
 from apps.kernel.models.policy import (
-    PolicyDefinition,
     PolicyStatus,
-    PolicyVersion,
     PolicyVersionStatus,
 )
 from apps.kernel.services.policy_service import PolicyService
@@ -145,7 +142,6 @@ class PolicyServiceTest(TestCase):
         )
         with self.assertRaises(ValueError):
             PolicyService.activate_version(v.id)
-
 
     def test_rule_payload_immutable_after_activation(self):
         """Verify that rule_payload cannot be changed on an active version."""

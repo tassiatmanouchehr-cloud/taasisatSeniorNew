@@ -10,6 +10,12 @@ X` call site is unaffected.
 """
 
 from apps.kernel.permissions.keys import (
+    ACCOUNTS_DOCUMENT_REVIEW as DOCUMENT_REVIEW,
+)
+from apps.kernel.permissions.keys import (
+    ACCOUNTS_PROFILE_ACTIVATE as PROFILE_ACTIVATE,
+)
+from apps.kernel.permissions.keys import (
     ADMIN_FINANCE_READ as FINANCE_READ,
 )
 from apps.kernel.permissions.keys import (
@@ -19,22 +25,16 @@ from apps.kernel.permissions.keys import (
     ADMIN_PORTAL_ACCESS as PORTAL_ACCESS,
 )
 from apps.kernel.permissions.keys import (
+    ADMIN_RBAC_ENFORCEMENT_READ as RBAC_ENFORCEMENT_READ,
+)
+from apps.kernel.permissions.keys import (
     ADMIN_SUPPLIERS_READ as SUPPLIERS_READ,
 )
 from apps.kernel.permissions.keys import (
     ADMIN_SYSTEM_READ as SYSTEM_READ,
 )
 from apps.kernel.permissions.keys import (
-    ADMIN_RBAC_ENFORCEMENT_READ as RBAC_ENFORCEMENT_READ,
-)
-from apps.kernel.permissions.keys import (
     ADMIN_TENANTS_READ as TENANTS_READ,
-)
-from apps.kernel.permissions.keys import (
-    ACCOUNTS_DOCUMENT_REVIEW as DOCUMENT_REVIEW,
-)
-from apps.kernel.permissions.keys import (
-    ACCOUNTS_PROFILE_ACTIVATE as PROFILE_ACTIVATE,
 )
 from apps.kernel.permissions.keys import (
     COMMISSION_DISPUTE_RESOLVE,

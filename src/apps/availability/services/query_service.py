@@ -118,7 +118,8 @@ class AvailabilityQueryService:
         start_time into the implicit ORDER BY and silently defeat
         .distinct() on the single day_of_week column."""
         days = ProviderWorkingWindow.objects.filter(
-            supplier=supplier, is_active=True,
+            supplier=supplier,
+            is_active=True,
         ).values_list("day_of_week", flat=True)
         return tuple(sorted(set(days)))
 
@@ -162,9 +163,15 @@ class AvailabilityQueryService:
 
     @staticmethod
     def _first_blocking_overlap(*, supplier, start, end) -> AvailabilityBlockedPeriod | None:
-        return AvailabilityBlockedPeriod.objects.filter(
-            supplier=supplier, start_at__lt=end, end_at__gt=start,
-        ).order_by("start_at").first()
+        return (
+            AvailabilityBlockedPeriod.objects.filter(
+                supplier=supplier,
+                start_at__lt=end,
+                end_at__gt=start,
+            )
+            .order_by("start_at")
+            .first()
+        )
 
     @staticmethod
     def _matching_working_window(*, supplier, start, end) -> ProviderWorkingWindow | None:
@@ -173,7 +180,9 @@ class AvailabilityQueryService:
         day_of_week = local_start.weekday()
 
         windows = ProviderWorkingWindow.objects.filter(
-            supplier=supplier, day_of_week=day_of_week, is_active=True,
+            supplier=supplier,
+            day_of_week=day_of_week,
+            is_active=True,
         )
         for window in windows:
             if window.start_time <= local_start.time() and local_end.time() <= window.end_time:

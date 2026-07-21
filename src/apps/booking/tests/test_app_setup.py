@@ -28,6 +28,7 @@ class BookingAppSetupTest(TestCase):
         )
         changes = autodetector.changes(graph=loader.graph)
         self.assertNotIn(
-            "booking", changes,
+            "booking",
+            changes,
             f"Missing migrations detected for apps.booking: {changes.get('booking')}",
         )

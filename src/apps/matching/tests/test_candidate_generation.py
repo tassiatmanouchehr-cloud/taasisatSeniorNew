@@ -10,7 +10,8 @@ class CandidateGenerationTest(MatchingTestCase):
     def _generate(self):
         return list(
             SupplierResolver.get_suppliers_for_matching(
-                tenant_id=self.tenant.id, service_category_id=self.category.id,
+                tenant_id=self.tenant.id,
+                service_category_id=self.category.id,
             )
         )
 
@@ -35,7 +36,8 @@ class CandidateGenerationTest(MatchingTestCase):
 
     def test_generation_only_returns_requested_tenant(self):
         same_category_other_tenant = self._create_supplier(
-            tenant=self.other_tenant, service_categories=[str(self.category.id)],
+            tenant=self.other_tenant,
+            service_categories=[str(self.category.id)],
         )
         matching_supplier = self._create_supplier()
         candidates = self._generate()

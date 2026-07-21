@@ -24,8 +24,7 @@ class NotificationProvider(Protocol):
 
     name: str
 
-    def send(self, notification: "Notification") -> "DeliveryResult":
-        ...
+    def send(self, notification: "Notification") -> "DeliveryResult": ...
 
 
 class NotificationProviderRegistry:

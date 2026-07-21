@@ -26,19 +26,33 @@ class EligibilityTestCase(TestCase):
         self.other_tenant = Tenant.objects.create(slug=f"elig-other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
 
         self.category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
         self.order = Order.objects.create(
-            tenant=self.tenant, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
-            service_category=self.category, description="Need home care",
-            city="tehran", address="Some address", phone="09120000000",
+            tenant=self.tenant,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.NEW,
+            service_category=self.category,
+            description="Need home care",
+            city="tehran",
+            address="Some address",
+            phone="09120000000",
         )
         self.admin_user = self._create_user(tenant=self.tenant, phone="09121110001")
         self.organization = OrganizationProfile.objects.create(
-            name="Care Co", code=f"care-{uuid.uuid4().hex[:8]}", admin_user=self.admin_user, tenant=self.tenant,
+            name="Care Co",
+            code=f"care-{uuid.uuid4().hex[:8]}",
+            admin_user=self.admin_user,
+            tenant=self.tenant,
         )
         self.other_organization = OrganizationProfile.objects.create(
-            name="Other Co", code=f"other-{uuid.uuid4().hex[:8]}", admin_user=self.admin_user, tenant=self.tenant,
+            name="Other Co",
+            code=f"other-{uuid.uuid4().hex[:8]}",
+            admin_user=self.admin_user,
+            tenant=self.tenant,
         )
 
     def _create_user(self, *, tenant, phone) -> UserAccount:
@@ -49,7 +63,9 @@ class EligibilityTestCase(TestCase):
 class GrantRevokeReactivateTest(EligibilityTestCase):
     def test_grant_creates_active_row(self):
         eligibility = OrderEligibilityService.grant(
-            order=self.order, organization=self.organization, granted_by=self.admin_user,
+            order=self.order,
+            organization=self.organization,
+            granted_by=self.admin_user,
         )
         self.assertEqual(eligibility.status, EligibilityStatus.ACTIVE)
         self.assertEqual(eligibility.tenant_id, self.tenant.id)
@@ -60,13 +76,16 @@ class GrantRevokeReactivateTest(EligibilityTestCase):
         OrderEligibilityService.grant(order=self.order, organization=self.organization)
         OrderEligibilityService.grant(order=self.order, organization=self.organization)
         self.assertEqual(
-            OrderOrganizationEligibility.objects.filter(order=self.order, organization=self.organization).count(), 1,
+            OrderOrganizationEligibility.objects.filter(order=self.order, organization=self.organization).count(),
+            1,
         )
 
     def test_revoke_sets_withdrawn(self):
         OrderEligibilityService.grant(order=self.order, organization=self.organization)
         eligibility = OrderEligibilityService.revoke(
-            order=self.order, organization=self.organization, revoked_by=self.admin_user,
+            order=self.order,
+            organization=self.organization,
+            revoked_by=self.admin_user,
         )
         self.assertEqual(eligibility.status, EligibilityStatus.WITHDRAWN)
         self.assertEqual(eligibility.revoked_by_id, self.admin_user.id)
@@ -90,7 +109,8 @@ class GrantRevokeReactivateTest(EligibilityTestCase):
         self.assertEqual(eligibility.status, EligibilityStatus.ACTIVE)
         self.assertIsNone(eligibility.revoked_at)
         self.assertEqual(
-            OrderOrganizationEligibility.objects.filter(order=self.order, organization=self.organization).count(), 1,
+            OrderOrganizationEligibility.objects.filter(order=self.order, organization=self.organization).count(),
+            1,
         )
 
     def test_reactivate_already_active_is_noop(self):
@@ -105,14 +125,16 @@ class GrantRevokeReactivateTest(EligibilityTestCase):
 
         self.assertEqual(eligibility.status, EligibilityStatus.ACTIVE)
         self.assertEqual(
-            OrderOrganizationEligibility.objects.filter(order=self.order, organization=self.organization).count(), 1,
+            OrderOrganizationEligibility.objects.filter(order=self.order, organization=self.organization).count(),
+            1,
         )
 
     def test_multiple_organizations_can_be_eligible_for_one_order(self):
         OrderEligibilityService.grant(order=self.order, organization=self.organization)
         OrderEligibilityService.grant(order=self.order, organization=self.other_organization)
         self.assertEqual(
-            OrderEligibilityService.list_active_for_order(self.order).count(), 2,
+            OrderEligibilityService.list_active_for_order(self.order).count(),
+            2,
         )
 
     def test_zero_eligible_organizations_by_default(self):
@@ -123,14 +145,20 @@ class GrantRevokeReactivateTest(EligibilityTestCase):
 class TenantConsistencyTest(EligibilityTestCase):
     def test_tenant_mismatch_between_order_and_organization_rejected(self):
         cross_tenant_org = OrganizationProfile.objects.create(
-            name="Cross Co", code=f"cross-{uuid.uuid4().hex[:8]}", admin_user=self.admin_user, tenant=self.other_tenant,
+            name="Cross Co",
+            code=f"cross-{uuid.uuid4().hex[:8]}",
+            admin_user=self.admin_user,
+            tenant=self.other_tenant,
         )
         with self.assertRaises(OrderEligibilityError):
             OrderEligibilityService.grant(order=self.order, organization=cross_tenant_org)
 
     def test_null_tenant_organization_rejected(self):
         null_tenant_org = OrganizationProfile.objects.create(
-            name="Null Tenant Co", code=f"null-{uuid.uuid4().hex[:8]}", admin_user=self.admin_user, tenant=None,
+            name="Null Tenant Co",
+            code=f"null-{uuid.uuid4().hex[:8]}",
+            admin_user=self.admin_user,
+            tenant=None,
         )
         with self.assertRaises(OrderEligibilityError):
             OrderEligibilityService.grant(order=self.order, organization=null_tenant_org)
@@ -167,15 +195,18 @@ class AuditAndEventTest(EligibilityTestCase):
 class ModelConstraintTest(EligibilityTestCase):
     def test_unique_together_order_organization(self):
         OrderOrganizationEligibility.objects.create(
-            tenant_id=self.tenant.id, order=self.order, organization=self.organization,
+            tenant_id=self.tenant.id,
+            order=self.order,
+            organization=self.organization,
         )
         from django.db import IntegrityError, transaction
 
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                OrderOrganizationEligibility.objects.create(
-                    tenant_id=self.tenant.id, order=self.order, organization=self.organization,
-                )
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            OrderOrganizationEligibility.objects.create(
+                tenant_id=self.tenant.id,
+                order=self.order,
+                organization=self.organization,
+            )
 
     def test_for_tenant_scopes_eligibility_rows(self):
         OrderEligibilityService.grant(order=self.order, organization=self.organization)

@@ -27,7 +27,8 @@ class NotificationsAppSetupTest(TestCase):
         )
         changes = autodetector.changes(graph=loader.graph)
         self.assertNotIn(
-            "notifications", changes,
+            "notifications",
+            changes,
             f"Missing migrations detected for apps.notifications: {changes.get('notifications')}",
         )
 
@@ -43,6 +44,7 @@ class NotificationsAppSetupTest(TestCase):
 
         for event_type in (ORDER_CREATED, ORDER_ASSIGNED, ORDER_STARTED, ORDER_COMPLETED, INVOICE_ISSUED):
             self.assertEqual(
-                len(EventRegistry.get_handlers(event_type)), 1,
+                len(EventRegistry.get_handlers(event_type)),
+                1,
                 f"expected exactly one handler registered for {event_type}",
             )

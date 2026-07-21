@@ -27,7 +27,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("kernel", "0012_reconcile_profile_supplier_data"),
     ]
