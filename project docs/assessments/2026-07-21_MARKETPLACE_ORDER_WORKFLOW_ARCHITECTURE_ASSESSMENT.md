@@ -14,12 +14,20 @@ reviews) is fully implemented and tested. The **Offer Marketplace** layer — wh
 enables suppliers to submit competing commercial offers on orders — has a
 production-grade model and migration but **zero business logic**. No
 `OrderOfferService` exists. The model's field design, constraints, and domain
-properties are sound and do not require modification for Sprint 5.1.
+properties are sound and do not require modification.
 
-Sprint 5.1 should implement `OrderOfferService` as a narrow, service-layer-first
-slice: submit, edit, withdraw, select (with hold), accept, expire, and cancel —
-without UI/API and without financial integration. This is the minimum meaningful
-vertical slice that advances Phase 5.
+Sprint 5.1 should implement the **OrderOffer Submission Lifecycle Foundation** —
+a narrow, supplier-side slice: `submit_offer()`, `edit_offer()`, `withdraw_offer()`.
+This establishes the service architecture, ownership model, tenant isolation,
+concurrency discipline, and audit conventions. Selection, acceptance, and booking
+integration follow in a later sprint.
+
+The cancellation authorization gap (`request_cancellation()`/`approve_cancellation()`
+have no in-function permission enforcement) is classified as a **defense-in-depth gap**
+— not a confirmed vulnerability today, but not safely contained by an enforceable
+contract. It is independently schedulable and does not block Sprint 5.1's
+submission-only scope. It **must** be remediated before any offer selection/acceptance
+sprint exposes new cancellation-interaction surfaces.
 
 ---
 
@@ -42,7 +50,7 @@ vertical slice that advances Phase 5.
 
 | Concept | Status | Evidence |
 |---|---|---|
-| `Order` model | Complete | Lines 82–340, UUID PK, tenant FK, all fields |
+| `Order` model | Complete | UUID PK, tenant FK, all fields |
 | `OrderStatus` enum | Complete | 7 states: `pending_operator_review`, `new`, `waiting_service`, `in_progress`, `completed`, `cancellation_requested`, `cancelled` |
 | `FINAL_STATUSES` | Defined | `{COMPLETED, CANCELLED}` |
 | `OrderStatusHistory` | Complete | Append-only transition record |
@@ -60,48 +68,36 @@ vertical slice that advances Phase 5.
 | `queries` | `queries.py` | Complete — list/count selectors |
 | `share_links` | `share_links.py` | Complete |
 | `timeline` | `timeline.py` | Complete |
-| **`OrderOfferService`** | **DOES NOT EXIST** | Confirmed by `grep -rn OrderOfferService src/` returning 0 matches |
+| **`OrderOfferService`** | **DOES NOT EXIST** | Confirmed by `grep -rn OrderOfferService src/` = 0 matches |
 
 ### 3.3 Related Domain Services
 
 | Domain | Service | File | Status |
 |---|---|---|---|
-| Matching | `MatchOrchestrator` | `src/apps/matching/services/match_orchestrator.py` | Complete — candidate generation + ranking |
-| Booking | `AssignmentService` | `src/apps/booking/services/assignment_service.py` | Complete — assign/replace/cancel/expire |
-| Execution | `ExecutionService` | `src/apps/execution/services/session_service.py` | Complete — session lifecycle |
-| Reviews | Review services | `src/apps/reviews/` | Complete — submission + moderation |
+| Matching | `MatchOrchestrator` | `src/apps/matching/services/match_orchestrator.py` | Complete |
+| Booking | `AssignmentService` | `src/apps/booking/services/assignment_service.py` | Complete |
+| Execution | `ExecutionService` | `src/apps/execution/services/session_service.py` | Complete |
+| Reviews | Review services | `src/apps/reviews/` | Complete |
 
 ### 3.4 OrderOffer Admin
 
-`src/apps/orders/admin.py` (lines 62+): `OrderOfferAdmin` is registered, providing
-Django admin CRUD access to `OrderOffer` rows. This is the only existing write surface.
+`src/apps/orders/admin.py`: `OrderOfferAdmin` registered — Django admin CRUD only.
 
 ### 3.5 OrderOffer Tests
 
-`src/apps/orders/tests/test_order_offer_model.py`: **40 tests** across 6 test classes:
-
-- `OrderOfferModelTest` — creation, field defaults, relationships
-- `OrderOfferStatusTest` — `is_terminal`, `is_active`, `hold_active` properties
-- `OrderOfferDomainPropertyTest` — `can_edit`, `can_withdraw`, `can_select`
-- `OrderOfferUniquenessTest` — one offer per (order, supplier), one SELECTED per order
-- `OrderOfferTenantIsolationTest` — cross-tenant access denied
-- `OrderOfferTimestampTest` — `created_at`, `updated_at` behavior
-
-All tests are **model-level only** — no service behavior is tested because no service exists.
+`src/apps/orders/tests/test_order_offer_model.py`: **40 tests**, 6 classes. All
+model-level only — no service behavior tested because no service exists.
 
 ---
 
 ## 4. Order Lifecycle Map
 
 ```
-Customer submits order
-    │
-    ▼
 PENDING_OPERATOR_REVIEW
-    │ approve_public_order(assigned_supplier=None)
+    │ approve_public_order()
     ▼
-NEW ◀───────────────── remove_supplier()
-    │ assign_supplier() / approve_public_order(assigned_supplier=X)
+NEW ◄──── remove_supplier()
+    │ assign_supplier()
     ▼
 WAITING_SERVICE
     │ start_order()
@@ -111,130 +107,174 @@ IN_PROGRESS
     ▼
 COMPLETED (final)
 
-Any non-final state ──► CANCELLATION_REQUESTED ──► CANCELLED (final)
-                        request_cancellation()      approve_cancellation()
+Any non-final ──► CANCELLATION_REQUESTED ──► CANCELLED (final)
 ```
 
-**Key observations:**
-- `assign_supplier()` in `status_machine.py` directly sets `order.assigned_supplier`
-- `AssignmentService.assign()` is the booking-layer orchestrator that calls
-  `status_machine.assign_supplier()` after eligibility/availability validation
-- The Offer Marketplace must sit between `NEW` and `WAITING_SERVICE`: an offer is
-  selected → accepted → then the supplier is assigned, transitioning the order
+**Where offers fit:** Between `NEW` and `WAITING_SERVICE`. An offer is submitted
+while the order is `NEW`; eventually one is selected → accepted → supplier
+assigned → order transitions to `WAITING_SERVICE`.
 
 ---
 
 ## 5. OrderOffer Lifecycle Map
 
-Based on `OrderOfferStatus` enum and model domain properties:
-
 ```
-Supplier submits offer
-    │
-    ▼
-SUBMITTED ──────────────┬──── withdraw() ──────► WITHDRAWN (terminal)
-    │                   │
-    │ select()          │ (order cancelled)
-    ▼                   ▼
-SELECTED ──────────────► CANCELLED (terminal)
-    │
-    ├── accept() ──────► ACCEPTED (terminal)
-    │
-    ├── expire() ──────► EXPIRED (terminal)
-    │
-    └── (competing offers when this one selected)
-                        ──► REJECTED (terminal)
+SUBMITTED ──┬── edit() ──────► SUBMITTED (mutated)
+            ├── withdraw() ──► WITHDRAWN (terminal)
+            ├── select() ────► SELECTED
+            └── (order cancelled) ► CANCELLED (terminal)
 
-All other SUBMITTED offers when one is selected:
-    SUBMITTED ──► REJECTED (terminal)
+SELECTED  ──┬── accept() ───► ACCEPTED (terminal) → assign supplier
+            ├── expire() ───► EXPIRED (terminal)
+            └── (order cancelled) ► CANCELLED (terminal)
+
+On select(): all other SUBMITTED offers → REJECTED (terminal)
 ```
 
-**Proposed transitions (Sprint 5.1):**
+### 5.1 Select vs. Accept — Semantic Distinction
 
-| Transition | Source | Destination | Actor | Permission | Locking |
-|---|---|---|---|---|---|
-| Submit | — | SUBMITTED | Supplier (caregiver/company) | New key: `orders.offer.submit` | Lock order row |
-| Edit | SUBMITTED | SUBMITTED | Original submitter | Ownership check | Lock offer row |
-| Withdraw | SUBMITTED | WITHDRAWN | Original submitter | Ownership check | Lock offer row |
-| Select | SUBMITTED | SELECTED | Customer (order owner) | Ownership of order | Lock order + reject competing |
-| Accept | SELECTED | ACCEPTED | Customer (order owner) | Ownership of order | Lock offer → trigger assignment |
-| Expire | SELECTED | EXPIRED | System/job | None (automated) | Lock offer row |
-| Reject | SUBMITTED | REJECTED | System (side effect of select) | None (cascading) | Covered by select's lock |
-| Cancel | SUBMITTED/SELECTED | CANCELLED | System (side effect of order cancellation) | None (cascading) | Covered by order cancellation's lock |
+These are **two separate operations with distinct actors and effects**:
 
-**Impossible/ambiguous transitions identified:**
-- REJECTED → any: terminal, correct
-- Re-offer after withdrawal: blocked by `UniqueConstraint(order, supplier)` — a supplier cannot submit twice on the same order regardless of prior status. This is **by design** (see test `test_cancelled_prevents_second_offer`).
-- Select while another is already SELECTED: blocked by `UniqueConstraint(order, condition=Q(status="selected"))` — at most one SELECTED per order at DB level.
+| Question | `select_offer()` | `accept_offer()` |
+|---|---|---|
+| Who acts? | Customer (order owner) | Customer (order owner) |
+| What it does | Places a time-limited hold; rejects competing offers | Confirms the deal; triggers supplier assignment |
+| Order status after? | Remains `NEW` (no assignment yet) | Transitions to `WAITING_SERVICE` (supplier assigned) |
+| Supplier assigned? | **No** — hold only | **Yes** — `status_machine.assign_supplier()` called |
+| Can supplier reject? | **Unresolved business decision** — current model has no "supplier declines selection" transition; the hold simply expires if not accepted | Same |
+| What happens to competing offers? | All other SUBMITTED → REJECTED | N/A (already rejected at select time) |
+| What happens when hold expires? | SELECTED → EXPIRED; order remains `NEW`; rejected offers stay REJECTED (no undo) | N/A |
+| What happens on order cancellation during hold? | SELECTED → CANCELLED | N/A |
+| Which row(s) locked? | Order row first (verify state + one-selected-per-order invariant), then offer row | Offer row (verify hold_active) |
+| Calls `assign_supplier()`? | **No** | **Yes** |
+
+**Unresolved business decisions** (do not invent):
+1. Can the customer cancel a selection (revert SELECTED → reopen for new offers)?
+2. Can the supplier decline/reject a selection they received?
+3. Should REJECTED offers' suppliers be notified?
+4. Should hold duration be configurable per tenant?
+
+These are product decisions, not Sprint 5.1 scope.
+
+### 5.2 Background Expiration
+
+`expire_held_offers()` is a **domain-logic operation**, not scheduling infrastructure:
+
+| Concern | Detail |
+|---|---|
+| Service operation | `OrderOfferService.expire_held_offers(tenant_id=None)` — queries SELECTED offers with `hold_expires_at < now()`, transitions each to EXPIRED |
+| Idempotency | Must be idempotent — calling it twice with no time change is a no-op |
+| Batch behavior | Process all eligible offers in one call; no per-offer scheduling |
+| Locking | `select_for_update(skip_locked=True)` so concurrent calls don't deadlock |
+| Future scheduler | A management command, Celery Beat task, or cron entry will invoke this method — that is **scheduling infrastructure**, not domain logic, and belongs in a later sprint |
+
+Sprint 5.1 does **not** include the scheduler. The `expire_held_offers()` method
+exists to be callable from any future trigger, and is testable without one.
 
 ---
 
 ## 6. Authorization and Tenancy Analysis
 
-### 6.1 Proposed Permission Model
+### 6.1 Complete Future Permission Matrix
 
-| Action | Actor | Permission Key | Scope | Authorization Pattern |
-|---|---|---|---|---|
-| Submit offer | Supplier (caregiver/company) | `orders.offer.submit` (new) | Tenant-scoped; supplier must be ACTIVE in same tenant as order | `PermissionService.require()` with `ownership_authorized_by` |
-| Edit offer | Original submitter | No permission key — ownership check | `offer.submitted_by == actor` | Direct ownership verification |
-| Withdraw offer | Original submitter | No permission key — ownership check | Same as edit | Direct ownership verification |
-| Select offer | Customer (order owner) | No permission key — ownership check | `order.customer_profile.user == actor` | Direct ownership verification |
-| Accept offer | Customer (order owner) | Same as select | Same as select | Direct ownership verification |
-| Expire hold | System/background job | None | System context | `actor=None` system-context audit |
+| Action | Actor | Permission enforcement | Object ownership | Tenant isolation | System-context? |
+|---|---|---|---|---|---|
+| Submit offer | Supplier | `PermissionService.require()` with `orders.offer.submit` | Supplier must be ACTIVE | `offer.tenant == order.tenant` | No |
+| Edit own offer | Original submitter | None (ownership is the boundary) | `offer.submitted_by == actor` | `offer.tenant` scoped | No |
+| Withdraw own offer | Original submitter | None (ownership is the boundary) | `offer.submitted_by == actor` | `offer.tenant` scoped | No |
+| Select offer (future) | Customer | None (order ownership is the boundary) | `order.customer_profile.user == actor` | `offer.tenant` scoped | No |
+| Accept offer (future) | Customer | None (order ownership is the boundary) | `order.customer_profile.user == actor` | `offer.tenant` scoped | No |
+| Administratively expire/override (future) | Platform staff | `orders.offer.admin_expire` (future key) | None — staff action | Tenant-scoped | No |
+| System-triggered expiration | Background job | None — system context | N/A | Per-tenant or global batch | Yes — `actor=None` audit |
+| System-triggered cancellation (order cancelled) | Cascading side-effect | None — system context | N/A | Inherits from order | Yes — `actor=None` audit |
 
-### 6.2 Tenancy Rules
+**Sprint 5.1 permission keys required:**
+
+Only **`orders.offer.submit`** — the one RBAC-enforced action in the submission lifecycle.
+Edit and withdraw are ownership-checked (matching `CaregiverSkillService`/
+`CaregiverExperienceService`'s established pattern in this repository — no permission
+key, ownership verified by `submitted_by == actor`).
+
+### 6.2 Tenancy Rules (unchanged from prior version)
 
 - `OrderOffer.tenant_id` must equal `Order.tenant_id` (enforced at creation)
-- A supplier from tenant A cannot submit an offer on an order from tenant B
-- Cross-tenant offer listing returns empty (standard `TenantScopedManager.for_tenant()`)
+- Cross-tenant submissions fail with a domain error
+- `TenantScopedManager.for_tenant()` scopes all queries
 
-### 6.3 Cancellation Authorization Concern
+### 6.3 Cancellation Authorization Reassessment
 
-**`request_cancellation()` and `approve_cancellation()`** in `status_machine.py` have
-**no `PermissionService.require()` call**. This is a known High-severity finding
-(PROJECT_BASELINE.md §8).
+**Evidence gathered:**
 
-**Assessment conclusion:** This is a **separate remediation**, not a Sprint 5.1
-prerequisite. Reasons:
-1. The cancellation functions are pre-existing (not introduced by the offer marketplace)
-2. They are currently only reachable through portal/API views that independently verify actor identity
-3. The offer marketplace's own `cancel_offers_for_order()` (cascading cancellation) would be a system-context action, not a user-facing action — it does not need a permission key itself
-4. Fixing cancellation authorization is a 1-method, tightly-scoped change that can be done before, after, or in parallel with Sprint 5.1 without interference
+1. `request_cancellation()` and `approve_cancellation()` are **public module-level
+   functions** — exported from `apps.orders.services.__init__` (lines 5, 11).
+2. They accept `order_id` as their only object identifier — **no tenant_id parameter,
+   no actor ownership verification** inside the function body.
+3. `approve_cancellation(*, order_id, changed_by=None)` — `changed_by` is optional
+   and defaults to `None`. The function does not verify who `changed_by` is.
+4. **Call sites outside tests:**
+   - `src/apps/kernel/management/commands/seed_product_walkthrough.py:1117-1120` —
+     called directly with no permission check (expected for a seed command)
+   - No portal view currently calls either function directly (confirmed by grep)
+5. There is **no enforceable system-only contract** — no `_private` naming, no
+   module-level `__all__` restriction, no docstring stating "internal only," no
+   architecture guardrail test preventing external callers.
+6. Any future caller (Celery task, API endpoint, management command, offer service
+   hook) can call `approve_cancellation(order_id=any_uuid)` and cancel any order
+   in any tenant without authorization.
 
-**Recommendation:** Track separately. Do not block Sprint 5.1.
+**Classification: Defense-in-depth gap.**
+
+- Not a confirmed vulnerability today — no portal view or API currently exposes
+  these functions without actor resolution upstream.
+- Not safely contained — there is no technical enforcement preventing a future
+  caller from bypassing authorization. The "safety" relies entirely on reviewer
+  discipline at the call site, not on the function's own contract.
+- The gap becomes **directly exploitable** when:
+  - An API endpoint or view is added that accepts `order_id` from a client
+  - A background job calls `approve_cancellation` with a user-supplied order_id
+  - The offer marketplace adds a "cancel order when last offer withdrawn" rule
+
+**Remediation scheduling:**
+
+- **Does NOT block Sprint 5.1** (submission lifecycle only — no cancellation
+  interaction in submit/edit/withdraw).
+- **MUST be remediated before Sprint 5.2** (selection/acceptance), because:
+  - `select_offer()` rejects competing offers (a destructive action on other
+    suppliers' offers — authorization must be sound before this is wired)
+  - `accept_offer()` triggers `assign_supplier()` → order state change
+  - Cancellation during a hold interacts with the selected offer
+- **Recommended fix:** Add `PermissionService.require()` with a new
+  `orders.cancellation.request` / `orders.cancellation.approve` key pair
+  inside the functions themselves, or split them into a public service class
+  with in-function authorization, matching `ExecutionService.close_session()`'s
+  own established pattern.
 
 ---
 
 ## 7. Concurrency and Consistency Analysis
 
-### 7.1 Critical Race Conditions
+### 7.1 Sprint 5.1 Race Conditions (submission lifecycle only)
 
 | Race | Risk | Mitigation |
 |---|---|---|
-| Two customers select different offers on the same order simultaneously | High | DB constraint `uq_order_offer_one_selected_per_order` makes this structurally impossible — second SELECT will raise `IntegrityError` |
-| Offer edited while being selected | Medium | Lock the offer row (`select_for_update`) before transitioning; reject edit if status != SUBMITTED |
-| Offer withdrawn while being selected | Medium | Same lock — withdraw checks status == SUBMITTED under lock |
-| Order cancelled while offer is being selected | Medium | Lock the order row first, check `_ensure_not_final(order)` before proceeding |
-| Duplicate offer submission by same supplier | Low | `UniqueConstraint(order, supplier)` prevents at DB level |
-| Hold expires during accept | Medium | `accept()` must verify `hold_active` under lock |
+| Duplicate offer submission by same supplier | Low | `UniqueConstraint(order, supplier)` at DB level; `IntegrityError` caught and mapped to domain error |
+| Offer edited concurrently by two requests | Low | `select_for_update()` on the offer row; second request sees updated state |
+| Order cancelled while offer is being submitted | Medium | Lock the order row first, verify `order.status == NEW` before creating the offer |
+| Offer withdrawn concurrently by two requests | Low | `select_for_update()` on the offer row; second request sees terminal status and raises |
 
-### 7.2 Required Invariants
+### 7.2 Required Invariants (Sprint 5.1)
 
-1. **At most one SELECTED offer per order at any time** — enforced by conditional `UniqueConstraint`
-2. **Only SUBMITTED offers can be selected** — enforced by `can_select` property + service check
-3. **A terminal offer is never modified** — enforced by `is_terminal` check in every mutation
-4. **Offer tenant == Order tenant** — enforced at creation time
-5. **One offer per (order, supplier)** — enforced by `UniqueConstraint`
+1. **One offer per (order, supplier)** — enforced by `UniqueConstraint`
+2. **A terminal offer is never modified** — `is_terminal` check under lock
+3. **Offer tenant == Order tenant** — enforced at creation
+4. **Only SUBMITTED offers can be edited/withdrawn** — status check under lock
+5. **Offers only submittable on NEW orders** — order status check under lock
 
-### 7.3 Locking Strategy
+### 7.3 Locking Strategy (Sprint 5.1)
 
-Following the repository's established precedent (`CaregiverGalleryService.add_item()`,
-`AvailabilityMutationService.add_working_window()`, `ProfileActivationService._activate()`):
-
-- **Submit:** Lock the order row (parent entity), verify order is in an acceptable state (NEW), create the offer
-- **Select:** Lock the order row, verify order state, lock all SUBMITTED offers for the order, transition selected one to SELECTED, transition others to REJECTED, set hold timer
-- **Accept:** Lock the offer row, verify `hold_active`, transition to ACCEPTED, trigger `status_machine.assign_supplier()`
-- **Expire:** Lock the offer row, verify SELECTED + hold expired, transition to EXPIRED
+- **Submit:** Lock the order row → verify `status == NEW` → create offer
+- **Edit:** Lock the offer row → verify `status == SUBMITTED` AND `submitted_by == actor` → update fields
+- **Withdraw:** Lock the offer row → verify `status == SUBMITTED` AND `submitted_by == actor` → transition to WITHDRAWN
 
 ---
 
@@ -242,231 +282,328 @@ Following the repository's established precedent (`CaregiverGalleryService.add_i
 
 | Dependency | Classification | Reasoning |
 |---|---|---|
-| Invoice creation | **Deferred** | Follows acceptance — Phase 6 |
-| Commission calculation (`AllocationCalculator`) | **Deferred** | No production caller exists; offer acceptance does not require commission math |
-| Escrow creation | **Deferred** | Gated by `commission.escrow_production.enabled` (default OFF); not required for acceptance |
-| Payment collection | **Deferred** | Only fake PSP exists; acceptance can proceed without payment |
-| Settlement | **Deferred** | Post-payment; entirely Phase 8 |
-| Wallet/ledger posting | **Deferred** | Post-settlement |
-| `price_amount` on OrderOffer | **Present** | Already a model field — records the offered price; Sprint 5.1 uses it as data, not as a trigger for financial flow |
+| Invoice creation | **Deferred** (Phase 6) | Follows acceptance, not submission |
+| Commission calculation | **Deferred** | No production caller; unrelated to submission |
+| Escrow creation | **Deferred** | Feature-flagged OFF; unrelated to submission |
+| Payment collection | **Deferred** | Fake PSP only; unrelated to submission |
+| Settlement | **Deferred** (Phase 8) | Post-payment |
+| Wallet/ledger | **Deferred** | Post-settlement |
+| `price_amount` on OrderOffer | **Present** | Already a model field; Sprint 5.1 stores it as data, does not trigger financial flow |
 
-**Conclusion:** Sprint 5.1 can be implemented **entirely independently** of the financial
-engine. The `accept()` action transitions the offer to ACCEPTED and calls
-`status_machine.assign_supplier()` — the same assignment path that already works today
-without financial integration. Financial wiring (invoice, escrow, payment gate) will be
-layered on in Phases 6–8 by extending the `accept()` method's post-assignment hook, not
-by redesigning it.
+**Conclusion:** Sprint 5.1 (submission lifecycle) has **zero financial dependencies**.
 
 ---
 
 ## 9. Identified Gaps
 
-| # | Gap | Severity | Sprint 5.1? |
-|---|---|---|---|
-| G1 | `OrderOfferService` does not exist | Critical (blocks Phase 5) | **Yes** — the deliverable |
-| G2 | No API/view for offer submission | High | No — service-layer-first |
-| G3 | No background job for hold expiry | Medium | **Yes** — `expire_selected_offers` task |
-| G4 | No order-state guard for "accepting offers" | Medium | **Yes** — order must be in `NEW` state to accept offers |
-| G5 | Order cancellation has no `PermissionService.require()` | High | No — separate remediation |
-| G6 | No customer-facing UI for offer review | Medium | No — future sprint |
-| G7 | No supplier-facing UI for offer submission | Medium | No — future sprint |
+| # | Gap | Severity | Sprint 5.1? | Sprint Boundary |
+|---|---|---|---|---|
+| G1 | `OrderOfferService` does not exist | Critical | **Yes** — submission lifecycle | Sprint 5.1 |
+| G2 | No selection/hold logic | High | No | Sprint 5.2 |
+| G3 | No acceptance/assignment integration | High | No | Sprint 5.2 |
+| G4 | No background expiry scheduler | Medium | No (method exists, scheduler deferred) | Sprint 5.2+ |
+| G5 | Cancellation has no in-function authorization | High | No | Separate remediation (before Sprint 5.2) |
+| G6 | No API/view for offers | Medium | No | Sprint 5.3+ |
+| G7 | No customer-facing offer review UI | Medium | No | Sprint 5.3+ |
+| G8 | No supplier-facing offer submission UI | Medium | No | Sprint 5.3+ |
 
 ---
 
 ## 10. Architecture Options
 
-### Option A — Service-Layer-First (Recommended)
+### Option A — Submission Lifecycle Foundation (Recommended)
 
-Implement `OrderOfferService` as a domain service in `src/apps/orders/services/order_offer_service.py` with no view/URL/API layer. All methods are directly testable via the Django test framework. UI/API wiring is a subsequent sprint.
-
-**Benefits:**
-- Smallest blast radius
-- Fully testable without HTTP/template infrastructure
-- Matches the repository's own established "service-layer-first" pattern (every prior sprint built services before views)
-- Financial integration is cleanly additive later
-
-**Risks:**
-- No end-to-end user flow is runnable until a view layer is added
-- Admin-only Django admin remains the only write surface until Sprint 5.2
-
-**Complexity:** Medium — ~300–400 lines of service code, ~200 lines of tests
-
-### Option B — Full Vertical Slice (Service + API/Views)
-
-Implement `OrderOfferService` AND the supplier-facing/customer-facing views in one sprint.
+Sprint 5.1 delivers only `submit_offer()`, `edit_offer()`, `withdraw_offer()`.
+Establishes the service architecture (class shape, error model, locking convention,
+audit pattern, test structure) that all subsequent offer methods will follow.
 
 **Benefits:**
-- A user-facing feature is deliverable in one sprint
-- Integration tested end-to-end
+- Smallest possible bounded slice with no unsafe intermediate state
+- Establishes the full service contract (errors, audit, locking) for later methods
+- No interaction with order status changes or assignment
+- No concurrency with selection (the most complex operation)
+- Fully testable in isolation
 
 **Risks:**
-- Larger blast radius
-- Template/view work is less architecturally critical
-- The repository's customer/provider/organization portals are already built and tested — wiring offer UI into them requires careful routing/nav integration
-- Sprint scope creep risk
+- No user-visible marketplace behavior until Sprint 5.2+ adds selection
+- Splitting selection into a later sprint means the full lifecycle isn't proven end-to-end in one PR
 
-**Complexity:** High — service layer + 4–6 new views + templates + URL routing + navigation
+**Complexity:** Low-medium — ~150–200 lines of service code, ~250 lines of tests
+
+### Option B — Full Lifecycle in One Sprint (7 methods)
+
+All methods in one PR: submit, edit, withdraw, select, accept, expire, cancel.
+
+**Benefits:**
+- Complete lifecycle proven in one PR
+- One review covers all concurrency interactions
+
+**Risks:**
+- Large blast radius (~400+ lines of service + ~600+ lines of tests)
+- Selection + acceptance involve order state changes and booking integration
+- Concurrency between select/accept/expire is the most complex part
+- If any single method has a review blocker, the entire sprint is blocked
+- The cancellation authorization gap interacts with selection (see §6.3)
+
+**Complexity:** High
+
+### Option C — Submission + Selection (No Acceptance)
+
+Submit/edit/withdraw + select/reject. Defers accept (booking integration) and expire.
+
+**Benefits:**
+- Tests the most complex concurrency scenario (competing offers → one selected)
+- Still no booking/financial integration
+
+**Risks:**
+- Selection without acceptance creates an incomplete user flow (selected but can't proceed)
+- Still interacts with the cancellation gap (cancellation during hold)
+- Medium blast radius
+
+**Complexity:** Medium-high
 
 ### Recommendation
 
-**Option A — Service-Layer-First.** This matches the repository's own governance pattern where every sprint delivers tested domain logic first, with views following in a subsequent sprint. It is the smallest bounded slice that meaningfully advances Phase 5.
+**Option A — Submission Lifecycle Foundation.** The technical proof that splitting is
+safe: `submit_offer()`, `edit_offer()`, and `withdraw_offer()` operate only on
+`OrderOffer` rows in `SUBMITTED` state. They never read or write `Order.status`,
+never call `status_machine.*`, never interact with `AssignmentService`, and never
+create competing-offer scenarios. They are a self-contained, independently useful
+domain surface that establishes the architectural patterns all later methods will
+follow. No unsafe intermediate state exists — a SUBMITTED offer that is never
+selected simply remains SUBMITTED until the order is eventually cancelled (or
+a future sprint adds selection).
 
 ---
 
 ## 11. Recommended Architecture
 
-`OrderOfferService` as a single class in `src/apps/orders/services/order_offer_service.py`:
+`OrderOfferService` as a single class in `src/apps/orders/services/order_offer_service.py`.
+
+**Sprint 5.1 methods:**
 
 ```python
 class OrderOfferService:
-    @classmethod
-    def submit_offer(cls, *, order, supplier, actor, price_amount, currency, estimated_duration_minutes, terms, message) -> OrderOffer
+    """Sole writer for OrderOffer lifecycle transitions.
     
+    Sprint 5.1: submission lifecycle (submit/edit/withdraw).
+    Future sprints: select, accept, expire, cancel.
+    """
+
     @classmethod
-    def edit_offer(cls, *, offer_id, actor, tenant_id, price_amount, estimated_duration_minutes, terms, message) -> OrderOffer
-    
+    def submit_offer(cls, *, order, supplier, actor, price_amount, currency="IRR",
+                     estimated_duration_minutes=None, terms="", message="") -> OrderOffer
+
+    @classmethod
+    def edit_offer(cls, *, offer_id, actor, tenant_id,
+                   price_amount=None, estimated_duration_minutes=None,
+                   terms=None, message=None) -> OrderOffer
+
     @classmethod
     def withdraw_offer(cls, *, offer_id, actor, tenant_id) -> OrderOffer
-    
+```
+
+**Future sprint methods (documented, not implemented in Sprint 5.1):**
+
+```python
     @classmethod
     def select_offer(cls, *, offer_id, actor, tenant_id, hold_duration_minutes=30) -> OrderOffer
-    
+
     @classmethod
     def accept_offer(cls, *, offer_id, actor, tenant_id) -> OrderOffer
-    
+
     @classmethod
-    def expire_held_offers(cls, *, tenant_id=None) -> int  # batch job entry point
-    
+    def expire_held_offers(cls, *, tenant_id=None) -> int
+
     @classmethod
-    def cancel_offers_for_order(cls, *, order, reason="") -> int  # called by cancellation flow
+    def cancel_offers_for_order(cls, *, order, reason="") -> int
 ```
 
 ---
 
 ## 12. Proposed Sprint 5.1 Scope
 
+### Title
+
+**OrderOffer Submission Lifecycle Foundation**
+
 ### Deliverable
 
-`OrderOfferService` — a domain service implementing the complete offer lifecycle.
+`OrderOfferService` — `submit_offer()`, `edit_offer()`, `withdraw_offer()`.
 
 ### Files created
 
-- `src/apps/orders/services/order_offer_service.py` (~350 lines)
-- `src/apps/orders/tests/test_order_offer_service.py` (~600 lines)
+- `src/apps/orders/services/order_offer_service.py` (~150–200 lines)
+- `src/apps/orders/tests/test_order_offer_service.py` (~250–300 lines)
 
 ### Files modified
 
-- `src/apps/orders/services/__init__.py` (export)
-- `src/apps/orders/services/status_machine.py` (add `cancel_offers_on_order_cancellation()` hook — ~10 lines calling `OrderOfferService.cancel_offers_for_order()`)
+- `src/apps/orders/services/__init__.py` (export `OrderOfferService`)
+- `src/apps/kernel/permissions/keys.py` (register `orders.offer.submit`)
 
 ### No new migration
 
-The `OrderOffer` model and its migration already exist. No field changes are required.
+The `OrderOffer` model already exists. No field changes required.
 
-### Permission key
+### Permission key (Sprint 5.1)
 
-One new key registered in `src/apps/kernel/permissions/keys.py`:
-
-```python
-ORDERS_OFFER_SUBMIT = register(
-    "orders.offer.submit",
-    domain="orders",
-    resource="offer",
-    action="submit",
-    description="Submit a commercial offer on an order. Guards OrderOfferService.submit_offer().",
-)
 ```
+orders.offer.submit — Guards OrderOfferService.submit_offer()
+```
+
+Edit and withdraw are ownership-checked only (no permission key), matching the
+repository's established pattern for owner-authorized mutations
+(`CaregiverSkillService`, `CaregiverExperienceService`, `DocumentService.resubmit()`).
+
+### What Sprint 5.1 establishes
+
+- Service class architecture and module shape
+- Domain error taxonomy (`OrderOfferError` or equivalent)
+- Tenant isolation enforcement pattern
+- Ownership verification pattern (`submitted_by == actor`)
+- Concurrency control pattern (`select_for_update` on parent/row)
+- Audit recording pattern (`AuditService.log()` on every mutation)
+- `IntegrityError` → domain error mapping for constraint violations
+- Order-state precondition checking (`status == NEW` for submission)
+- Test structure and coverage conventions
 
 ### Explicit exclusions
 
-- No view, URL, template, or API endpoint
-- No financial integration (invoice, escrow, payment, commission)
-- No background job scheduling (the `expire_held_offers` method exists but is not scheduled via Celery Beat or management command — that is Sprint 5.2 scope)
-- No modification to the existing Order state machine beyond the cancellation hook
-- No modification to `OrderOffer` model or its migration
-- No modification to `AssignmentService` (acceptance calls `status_machine.assign_supplier()` directly)
-- No customer or supplier portal UI
+- `select_offer()` — deferred to Sprint 5.2
+- `accept_offer()` — deferred to Sprint 5.2
+- `expire_held_offers()` — deferred to Sprint 5.2 (domain logic) / Sprint 5.2+ (scheduler)
+- `cancel_offers_for_order()` — deferred to Sprint 5.2 (requires cancellation remediation first)
+- Views, URLs, templates, API endpoints — Sprint 5.3+
+- Financial integration — Phases 6–8
+- Background job scheduling infrastructure
+- `status_machine.py` modification (no cancellation hook in Sprint 5.1)
+- `AssignmentService` modification
+- Order state transitions
+- Rejection of competing offers
 
 ---
 
 ## 13. Acceptance Criteria
 
-1. `OrderOfferService.submit_offer()` creates a valid `OrderOffer` row, enforces tenant match, verifies order is in `NEW` status, verifies supplier is ACTIVE, and audits the submission.
-2. `OrderOfferService.edit_offer()` modifies price/terms/duration/message only when `status == SUBMITTED` and actor is the original submitter.
-3. `OrderOfferService.withdraw_offer()` transitions `SUBMITTED → WITHDRAWN` only for the original submitter.
-4. `OrderOfferService.select_offer()` transitions `SUBMITTED → SELECTED`, sets `selected_at`/`hold_expires_at`/`selected_by`, rejects all other SUBMITTED offers on the same order (`→ REJECTED`), and verifies actor owns the order.
-5. `OrderOfferService.accept_offer()` transitions `SELECTED → ACCEPTED` only while `hold_active` is True, then calls `status_machine.assign_supplier()` to assign the offer's supplier to the order.
-6. `OrderOfferService.expire_held_offers()` transitions all SELECTED offers whose `hold_expires_at < now()` to EXPIRED.
-7. `OrderOfferService.cancel_offers_for_order()` transitions all non-terminal offers on the order to CANCELLED.
-8. Every write method operates inside `transaction.atomic()` with appropriate `select_for_update()`.
-9. Every state transition is audited via `AuditService.log()`.
-10. The `UniqueConstraint` violations (`IntegrityError`) are caught and mapped to domain errors, not raw 500s.
-11. Cross-tenant access returns a controlled domain error.
-12. `manage.py check` passes; `git diff --check` passes; affected test suites pass; full regression is re-run and the new baseline count recorded.
+1. `OrderOfferService.submit_offer()` creates a valid `OrderOffer` row with
+   `status=SUBMITTED`, enforces `order.tenant_id == supplier.tenant_id`,
+   verifies `order.status == OrderStatus.NEW`, verifies the supplier is ACTIVE
+   in the same tenant, and records an `AuditService.log()` entry.
+2. `OrderOfferService.submit_offer()` raises a controlled domain error (not
+   `IntegrityError`) when the supplier already has an offer on this order.
+3. `OrderOfferService.edit_offer()` updates price/terms/duration/message only when
+   `offer.status == SUBMITTED` and `offer.submitted_by == actor`; raises a domain
+   error otherwise.
+4. `OrderOfferService.withdraw_offer()` transitions `SUBMITTED → WITHDRAWN` only
+   when `offer.submitted_by == actor`; raises a domain error otherwise.
+5. Every mutation operates inside `transaction.atomic()` with `select_for_update()`
+   on the appropriate row (order row for submit, offer row for edit/withdraw).
+6. Cross-tenant access raises a controlled domain error for all three methods.
+7. Terminal offers cannot be edited or withdrawn — controlled domain error.
+8. `manage.py check` passes; `git diff --check` passes; new + affected test suites
+   pass; full regression re-run and new baseline recorded.
 
 ---
 
 ## 14. Required Tests
 
-### Service-layer tests (`test_order_offer_service.py`)
-
 | Category | Tests |
 |---|---|
-| Submit | Valid submission; wrong tenant; order not in NEW; supplier not ACTIVE; duplicate submission (IntegrityError mapped); tenant mismatch; audit recorded |
-| Edit | Valid edit; wrong actor; offer not SUBMITTED; terminal offer; cross-tenant |
-| Withdraw | Valid withdrawal; wrong actor; offer not SUBMITTED; terminal offer |
-| Select | Valid selection; wrong actor (not order owner); offer not SUBMITTED; competing offers REJECTED; hold timer set; order not NEW; cross-tenant; audit |
-| Accept | Valid acceptance; hold expired; offer not SELECTED; wrong actor; triggers `assign_supplier`; order transitions to WAITING_SERVICE; audit |
-| Expire | Expired offers transitioned; non-expired offers untouched; already-terminal untouched |
-| Cancel (order) | All active offers cancelled; terminal offers untouched; audit |
-| Concurrency | Two concurrent selects — one succeeds, one fails cleanly (IntegrityError → domain error) |
-| Idempotency | Repeated select on already-selected offer is a no-op |
+| Submit — happy path | Valid submission; audit recorded; fields persisted correctly |
+| Submit — order state | Refuses when order is not NEW (each non-NEW status tested) |
+| Submit — supplier validation | Refuses non-ACTIVE supplier; refuses wrong-tenant supplier |
+| Submit — duplicate | `IntegrityError` caught and mapped to domain error |
+| Submit — tenant isolation | Cross-tenant supplier → domain error |
+| Submit — permission | `PermissionService.require()` is called with `orders.offer.submit` |
+| Edit — happy path | Price/terms/duration/message update; audit recorded |
+| Edit — wrong actor | Refuses when `submitted_by != actor` |
+| Edit — wrong status | Refuses when offer is not SUBMITTED (each terminal status tested) |
+| Edit — cross-tenant | Refuses cross-tenant edit |
+| Withdraw — happy path | SUBMITTED → WITHDRAWN; audit recorded |
+| Withdraw — wrong actor | Refuses when `submitted_by != actor` |
+| Withdraw — wrong status | Refuses when offer is not SUBMITTED |
+| Withdraw — cross-tenant | Refuses cross-tenant withdrawal |
+| Concurrency — submit | Two concurrent submits by same supplier: one succeeds, one gets domain error |
+| Concurrency — edit | Edit under `select_for_update` is serialized |
 
-**Estimated test count:** 30–40 focused tests.
+**Estimated test count:** 18–22 focused tests.
 
 ---
 
 ## 15. Explicit Out-of-Scope Items
 
-- Views, URLs, templates, API endpoints
-- Invoice creation on acceptance
-- Commission calculation or allocation
-- Escrow creation or release
-- Payment collection or settlement
-- Background job scheduling (Celery Beat, cron)
-- Supplier discovery/matching UI for offers
-- Customer offer-comparison UI
-- Order cancellation permission remediation (tracked separately)
-- Any changes to `MatchOrchestrator` or `DiscoveryRankingService`
-- Any changes to `AssignmentService` (called, not modified)
-- Real-time notifications (WebSocket, SSE)
-- Offer price negotiation or counter-offer
+### Deferred to Sprint 5.2 (Selection/Hold/Acceptance Lifecycle)
+
+- `select_offer()` — customer selects, competing offers rejected
+- `accept_offer()` — customer confirms, `assign_supplier()` called
+- `expire_held_offers()` — domain operation for held offers past expiry
+- `cancel_offers_for_order()` — cascading cancellation
+- `status_machine.py` cancellation hook
+- Background job scheduler for expiry
+
+### Prerequisite for Sprint 5.2 (separate remediation)
+
+- Cancellation authorization remediation (`request_cancellation`/`approve_cancellation`
+  must have in-function permission enforcement before selection/acceptance introduces
+  new cancellation-interaction surfaces)
+
+### Deferred to Sprint 5.3+ (UI/API)
+
+- Views, URLs, templates, forms, serializers
+- Supplier-facing offer submission UI
+- Customer-facing offer review and selection UI
+
+### Deferred to Phases 6–8 (Financial)
+
+- Invoice creation, commission, escrow, payment, settlement, wallet, ledger
+
+### Not planned (product decisions required)
+
+- Counter-offers / negotiation
 - Multi-round bidding
+- Supplier declining a selection
+- Re-offer after withdrawal (currently blocked by UniqueConstraint — a product decision)
 
 ---
 
 ## 16. Risks and Unresolved Questions
 
-| # | Risk/Question | Severity | Mitigation |
+| # | Risk/Question | Severity | Status |
 |---|---|---|---|
-| R1 | The `UniqueConstraint(order, supplier)` prevents a supplier from re-offering after withdrawal — is this acceptable product behavior? | Medium | The model tests explicitly assert this. Accept as-is for Sprint 5.1; a product decision can relax it later via a new migration if needed. |
-| R2 | Hold expiry requires a background job that doesn't exist yet | Medium | The `expire_held_offers()` method is callable from any trigger (management command, cron, Celery task); scheduling is Sprint 5.2 scope |
-| R3 | `accept_offer()` calling `assign_supplier()` changes the order status — is this the right integration point? | Low | Yes — `assign_supplier()` is the established entry point; `AssignmentService.assign()` adds validation but its core delegate is `status_machine.assign_supplier()` |
-| R4 | No "order accepting offers" state exists — should `NEW` be split? | Medium | No split for Sprint 5.1. The `NEW` state already means "no supplier assigned, awaiting action." Offers are only submittable when order is `NEW`, which is the correct semantic. A future product decision could add an `ACCEPTING_OFFERS` state if explicit marketplace visibility is needed. |
-| R5 | What happens if `assign_supplier()` fails after `accept_offer()` transitions the offer to ACCEPTED? | Medium | Both run in the same `transaction.atomic()` — either both commit or both roll back. No partial state is possible. |
+| R1 | `UniqueConstraint(order, supplier)` prevents re-offer after withdrawal | Medium | Accept as-is; product decision can relax later via migration |
+| R2 | No "ACCEPTING_OFFERS" order state — should `NEW` be split? | Medium | No split in Sprint 5.1; `NEW` semantics are correct ("no supplier assigned") |
+| R3 | Cancellation authorization gap | High | Defense-in-depth gap; remediate before Sprint 5.2 |
+| R4 | Hold expiry requires a scheduler that doesn't exist | Medium | Domain method is testable without a scheduler; scheduling is Sprint 5.2+ |
+| R5 | Can a supplier decline a selected offer? | Medium | **Unresolved business decision** — no model transition exists for this; defer |
+| R6 | Can selection be undone (customer changes mind during hold)? | Medium | **Unresolved business decision** — no transition back from SELECTED to submittable state exists; defer |
+| R7 | Should rejected offers' suppliers be notified? | Low | Product decision; no notification infrastructure in Sprint 5.1 |
+| R8 | Is hold duration configurable per tenant? | Low | Hardcoded default (30 min) in Sprint 5.2; ConfigResolver override is future work |
 
 ---
 
 ## 17. Final Recommendation
 
-**Proceed with Sprint 5.1 as scoped above.** The existing `OrderOffer` model is
-well-designed, correctly constrained, and thoroughly tested at the model level.
-The service layer is a clean, bounded addition that requires no model changes,
-no new migrations, and no financial integration. It connects cleanly to the existing
-`status_machine.assign_supplier()` at acceptance time.
+**Proceed with Sprint 5.1: OrderOffer Submission Lifecycle Foundation.**
 
-The cancellation authorization gap (§6.3) should be tracked and resolved
-independently — it does not block Sprint 5.1 and is not made worse by it.
+The sprint boundary is safe because `submit_offer()`, `edit_offer()`, and
+`withdraw_offer()` form a self-contained, independently useful surface that:
+
+- Never modifies `Order.status`
+- Never calls `status_machine.*`
+- Never interacts with `AssignmentService`
+- Never creates competing-offer scenarios
+- Never triggers financial operations
+- Has no interaction with the cancellation authorization gap
+
+### Implementation sequence summary
+
+| Sprint | Scope | Prerequisite |
+|---|---|---|
+| **Sprint 5.1** | Submission lifecycle: submit/edit/withdraw | None (this assessment) |
+| Cancellation remediation | `request_cancellation`/`approve_cancellation` authorization | Independent; before Sprint 5.2 |
+| **Sprint 5.2** | Selection/hold/acceptance: select/accept/expire/cancel + assignment integration | Sprint 5.1 + cancellation remediation |
+| **Sprint 5.3+** | Supplier/customer UI: views, forms, APIs | Sprint 5.2 |
+| **Phases 6–8** | Invoice, commission, escrow, payment, settlement | Sprint 5.2+ |
 
 ---
 
