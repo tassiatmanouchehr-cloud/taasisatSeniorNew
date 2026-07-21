@@ -215,7 +215,6 @@ key, ownership verified by `submitted_by == actor`).
    and defaults to `None`. The function does not verify who `changed_by` is.
 4. **Call sites outside tests:**
    - `src/apps/kernel/management/commands/seed_product_walkthrough.py:1117-1120` —
-   - `src/apps/kernel/management/commands/seed_product_walkthrough.py:1117-1120` —
      called directly with no permission check. This command is explicitly
      labeled "development only" (`help = "Seed a deterministic local
      product-walkthrough dataset (development only, idempotent)."`) and
