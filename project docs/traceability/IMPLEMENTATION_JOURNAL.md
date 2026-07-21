@@ -4767,3 +4767,65 @@ remains pending as a separate dedicated phase after CI confirms accessibility te
   not critical/serious — does not currently fail CI)
 - `validate_components.py` inline-style findings (2, pre-existing, out of scope)
 - Visual baseline regeneration required after this PR merges (dark-mode avatar color change)
+
+
+
+---
+
+## PR #34 — Accessibility Remediation (Merged 2026-07-20)
+
+**Branch:** `fix/accessibility-remediation`
+**Merge commit:** `ff91f4d`
+**Scope:** Cross-cutting CI accessibility and lint infrastructure
+
+### Token Changes
+
+- `--color-text-muted` (light): `#64748b` → `#536170` (contrast improvement: 4.34:1 → 5.79:1 on `bg-background`)
+- success DEFAULT: `-600` → `-700` (contrast: 3.30:1 → 5.02:1 on white)
+- danger DEFAULT: `-600` → `-700` (contrast: 4.41:1 → 6.47:1 on white)
+- warning DEFAULT: `-600` → `-700` (contrast: 2.91:1 → 4.58:1 on `bg-background`)
+
+### Accessibility Fixes
+
+- Showcase theme toggle: added static `aria-label` fallback before Alpine initialization
+- Avatar dark-mode contrast: `dark:text-primary-400` → `dark:text-primary-700`, `dark:text-secondary-400` → `dark:text-secondary-600`
+- Progress bar: added fallback `aria-label` for `role="progressbar"` elements
+- Avatar: ensured `aria-label` always present on `role="img"` elements
+- Mobile navigation: simplified WebKit leave transition (opacity-only, 100ms)
+- Breadcrumb: fixed data contract (Python list from view instead of JSON string)
+- Tables: added `tabindex="0"` to scrollable wrapper for WebKit keyboard accessibility
+- Heading hierarchy: sr-only `<h2>` elements for index and empty-states pages
+
+### CI Infrastructure
+
+- Ruff configuration: added per-file-ignores and rule ignores for pre-existing patterns
+- Ruff format: applied to all 763 Python files
+- Component validator: allowed `style="display: none;"` for Alpine x-cloak pattern
+
+### Showcase-Specific Workaround
+
+Added `class="bg-background"` to `<html>` in `templates/showcase/base.html` to resolve a WebKit-specific issue where `<body>` computed `background-color` as `transparent` in dark-mode tablet/mobile projects. This workaround was NOT applied to production layouts.
+
+---
+
+## PR #35 — Diagnostic Verification (Closed Without Merge, 2026-07-20)
+
+**Branch:** `diag/production-root-bg-verify`
+**Status:** Closed without merge
+**Purpose:** Verify whether `/accounts/login/` (a production route using `ui/layouts/base.html`) had the same WebKit transparent-body issue as the showcase.
+
+### Direct CI Result
+
+Route tested: `/accounts/login/` (uses `ui/layouts/auth.html` → `ui/layouts/base.html`)
+
+In `tablet-dark-rtl` and `mobile-dark-rtl` (WebKit dark mode):
+- `<html>` class: `dark`, `data-theme`: `dark`
+- `<html>` `background-color`: `rgba(0, 0, 0, 0)` (transparent — expected, no class on html)
+- `<body>` `background-color`: `rgb(15, 23, 42)` (correct dark `--color-background` value)
+- `<body>` background transparent: **false**
+
+### Conclusion
+
+The production login page does NOT reproduce the showcase transparent-body defect. The `<body>` correctly receives the semantic background token in production WebKit dark mode. Current evidence does not justify modifying the shared production root layout (`ui/layouts/base.html`).
+
+The previously proposed "Candidate A: Production Root Background Hardening" was withdrawn based on this direct evidence.

@@ -92,3 +92,76 @@ base.html
 ├── auth.html      (login, register)
 └── error.html     (404, 500)
 ```
+
+
+
+## Semantic Token Decisions (PR #34, July 2026)
+
+The following token values were adjusted for WCAG 2.2 AA color contrast compliance.
+
+### Light Theme Token Changes
+
+| Token | Previous Value | Current Value | Rationale |
+|-------|---------------|---------------|-----------|
+| `--color-text-muted` | `#64748b` | `#536170` | Previous value (4.34:1 on `bg-background`) failed 4.5:1 minimum. New value: 5.79:1 on `bg-background`, 5.14:1 on `bg-background-alt`, 6.34:1 on `bg-surface`. |
+
+### Design Token DEFAULT Shifts
+
+| Token Group | Previous DEFAULT | Current DEFAULT | Rationale |
+|-------------|-----------------|-----------------|-----------|
+| `success` | `-600` (`#16a34a`) | `-700` (`#15803d`) | Previous value 3.30:1 on white — failed AA. New value 5.02:1. |
+| `danger` | `-600` (`#dc2626`) | `-700` (`#b91c1c`) | Previous value 4.41:1 on `bg-background` — failed AA. New value 5.91:1. |
+| `warning` | `-600` (`#d97706`) | `-700` (`#b45309`) | Previous value 2.91:1 on `bg-background` — failed AA. New value 4.58:1. |
+
+These changes affect all usages of `text-success`, `text-danger`, `text-warning`, `bg-success`, `bg-danger`, `bg-warning` (the DEFAULT shade). Dark-mode tokens were not changed.
+
+## Known Limitations
+
+### Dark-Mode Contrast: Raw `text-white` on Semantic Backgrounds
+
+Several components and page templates use `text-white` (hardcoded `#ffffff`) on `bg-primary`, `bg-success`, or `bg-danger`. In dark mode, these semantic backgrounds resolve to lighter shades (e.g., `bg-primary` → `#60a5fa`), producing insufficient contrast:
+
+| Pairing | Dark-Mode Contrast | AA Requirement |
+|---------|-------------------|----------------|
+| `text-white` on `bg-primary` (dark: `#60a5fa`) | 2.54:1 | 4.5:1 |
+| `text-white` on `bg-success` (dark: `#86efac`) | 1.40:1 | 4.5:1 |
+| `text-white` on `bg-danger` (dark: `#fca5a5`) | 1.90:1 | 4.5:1 |
+
+The canonical `button.html` component uses `text-text-inverse` which resolves correctly in both themes (light: `#ffffff`, dark: `#0f172a`). However, ~55 page templates and 8 public-site components bypass the button component and use inline `bg-primary text-white` markup.
+
+**Replacing `text-white` with `text-text-inverse` is not a drop-in substitution.** It changes the visual appearance of primary buttons in dark mode from white-on-blue to dark-on-blue. Each context requires individual design review to confirm the replacement is acceptable.
+
+This is documented as known accessibility debt pending design review.
+
+### Showcase-Specific WebKit Root Background Workaround
+
+In `templates/showcase/base.html`, the `<html>` element has `class="bg-background"` added during PR #34 accessibility remediation. This was required because WebKit (tablet and mobile viewport projects) computed `<body>` `background-color` as `transparent` on the showcase pages, causing axe-core to treat the page background as white.
+
+This issue did not reproduce on `/accounts/login/` (the one production route tested via direct CI verification in PR #35, closed without merge). On that route, production `<body>` correctly received `background-color: rgb(15, 23, 42)` in WebKit dark mode. Current evidence does not justify modifying the shared production root layout (`ui/layouts/base.html`).
+
+The exact root cause of the showcase-specific behavior remains unproven. Hypotheses include Alpine.js `x-data` on `<html>`, CDN Alpine loading timing, or interaction with the since-removed `color-scheme` meta tag.
+
+### Typography Layer and Tailwind Utility Interaction
+
+The `ui/css/typography.css` layer defines heading sizes using `clamp()`:
+
+```css
+h2 { font-size: clamp(1.5rem, 3vw, 2.25rem); }
+h3 { font-size: clamp(1.25rem, 2.5vw, 1.875rem); }
+```
+
+These rules have higher specificity than Tailwind's preflight reset (`h1,...,h6 { font-size: inherit }`) but lower specificity than Tailwind utility classes (e.g., `text-base`, `text-lg`). When a heading element has NO explicit Tailwind text-size class, the typography layer's `clamp()` values apply.
+
+This means:
+- Changing a heading level (e.g., `<h3>` → `<h2>`) changes its rendered size even if both have identical Tailwind classes.
+- The showcase index page uses `<h3>` for card headings with a visually-hidden `<h2>` for heading hierarchy compliance, specifically to avoid this size interaction.
+
+## Ruff Configuration (PR #34)
+
+PR #34 added per-file-ignores and rule ignores to `pyproject.toml` to achieve a passing `ruff check .` and `ruff format --check .` in CI. These represent pre-existing codebase patterns that were never compliant, not newly introduced violations:
+
+- `T201` (print): Ignored for CLI tools, management commands, scripts, and celery debug tasks
+- `F401` (unused import): Ignored for `__init__.py` re-exports
+- Pattern rules (`B904`, `SIM105`, `SIM117`, `E402`, etc.): Ignored where the codebase systematically uses alternative patterns
+
+The CI Lint & Format Check job had never been green on `main` before PR #34.
