@@ -110,58 +110,70 @@ for (const route of PRODUCTION_ROUTES) {
           `Unexpected contrast violations on ${route.path} in light mode (${testInfo.project.name})`
         ).toHaveLength(0);
       } else {
-        // DARK MODE: known violations are expected due to text-white on accent
-        // But any ADDITIONAL unknown violation must fail the test
+        // DARK MODE: Capture and log all violation targets for manifest derivation.
+        // This structured output is used to build the exact known-violation baseline.
+        const allTargets = [];
+        for (const violation of contrastViolations) {
+          for (const node of (violation.nodes || [])) {
+            allTargets.push({
+              rule: violation.id,
+              target: node.target,
+              html: (node.html || '').substring(0, 120),
+              impact: violation.impact,
+              fgColor: node.any?.[0]?.data?.fgColor || 'unknown',
+              bgColor: node.any?.[0]?.data?.bgColor || 'unknown',
+              contrastRatio: node.any?.[0]?.data?.contrastRatio || 'unknown',
+            });
+          }
+        }
+
+        // Structured log for manifest derivation
+        console.log(`\n===MANIFEST_DATA_START===`);
+        console.log(JSON.stringify({
+          project: testInfo.project.name,
+          route: route.path,
+          theme: 'dark',
+          totalNodes: allTargets.length,
+          targets: allTargets.map(t => ({
+            target: t.target,
+            fgColor: t.fgColor,
+            bgColor: t.bgColor,
+            ratio: t.contrastRatio,
+            html: t.html,
+          })),
+        }, null, 2));
+        console.log(`===MANIFEST_DATA_END===\n`);
+
+        // Assertion: known violations bounded by the manifest
         const knownManifest = KNOWN_DARK_VIOLATIONS[route.path];
 
         if (!knownManifest) {
-          // No known violations for this route in dark mode
           expect(
             contrastViolations,
             `Unexpected contrast violations on ${route.path} in dark mode (${testInfo.project.name})`
           ).toHaveLength(0);
         } else {
-          // Count total affected nodes across all color-contrast violations
-          const totalNodes = contrastViolations.reduce(
-            (sum, v) => sum + (v.nodes ? v.nodes.length : 0), 0
-          );
-
-          // Separate known vs unknown violations by rule ID
-          const knownRuleViolations = contrastViolations.filter(
-            v => v.id === knownManifest.rule
-          );
+          // Separate known vs unknown by rule ID
           const unknownRuleViolations = contrastViolations.filter(
             v => v.id !== knownManifest.rule
           );
 
-          // Count nodes in known-rule violations
-          const knownNodes = knownRuleViolations.reduce(
+          // FAIL on unexpected rule
+          expect(
+            unknownRuleViolations,
+            `Violations with unexpected rule on ${route.path} (${testInfo.project.name})`
+          ).toHaveLength(0);
+
+          // For now: allow known color-contrast violations up to maxExpectedNodes
+          // This will be replaced with exact-set equality once CI data is captured
+          const knownNodes = contrastViolations.reduce(
             (sum, v) => sum + (v.nodes ? v.nodes.length : 0), 0
           );
 
-          // Log for visibility
-          if (contrastViolations.length > 0) {
-            console.log(
-              `[${testInfo.project.name}] ${route.path}: ` +
-              `${totalNodes} affected node(s) in ${contrastViolations.length} violation(s). ` +
-              `Known-rule nodes: ${knownNodes}/${knownManifest.maxExpectedNodes} max. ` +
-              `Unknown-rule violations: ${unknownRuleViolations.length}.`
-            );
-          }
-
-          // FAIL on any violation with an UNEXPECTED rule ID
-          expect(
-            unknownRuleViolations,
-            `Violations with unexpected rule on ${route.path} in dark mode (${testInfo.project.name})`
-          ).toHaveLength(0);
-
-          // FAIL if known-rule node count EXCEEDS the manifest maximum
-          // (prevents silent expansion of the defect)
           expect(
             knownNodes,
-            `Known contrast violation node count (${knownNodes}) exceeds manifest ` +
-            `maximum (${knownManifest.maxExpectedNodes}) on ${route.path} in ` +
-            `${testInfo.project.name}. A new element may have introduced a contrast defect.`
+            `Contrast node count (${knownNodes}) exceeds max ` +
+            `(${knownManifest.maxExpectedNodes}) on ${route.path} (${testInfo.project.name})`
           ).toBeLessThanOrEqual(knownManifest.maxExpectedNodes);
         }
       }
