@@ -220,8 +220,12 @@ key, ownership verified by `submitted_by == actor`).
      labeled "development only" (`help = "Seed a deterministic local
      product-walkthrough dataset (development only, idempotent)."`) and
      operates exclusively within a dedicated demo tenant
-     (`demo-senior-platform`). Classification: **development/seed-only**
-     — not production-capable in its current form.
+     (`demo-senior-platform`). It also contains an explicit environment
+     guard (line 283): `if not settings.DEBUG: raise CommandError(...)` —
+     refusing to run when `DEBUG=False`. Since `config/settings/production.py`
+     hardcodes `DEBUG = False`, the command is **technically impossible to
+     execute in a production environment**. Classification:
+     **development/seed-only, environment-guarded**.
    - No portal view or API endpoint currently calls either function directly
      (confirmed by grep excluding tests)
 5. There is **no enforceable system-only contract** — no `_private` naming, no
