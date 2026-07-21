@@ -31,10 +31,12 @@ class SupplierDiscoveryListView(ApiView):
         )
 
         serializer = SearchResultItemSerializer(page.items, many=True)
-        return Response({
-            "results": serializer.data,
-            "limit": page.limit,
-            "offset": page.offset,
-            "total_count": page.total_count,
-            "has_more": (page.offset + page.limit) < page.total_count,
-        })
+        return Response(
+            {
+                "results": serializer.data,
+                "limit": page.limit,
+                "offset": page.offset,
+                "total_count": page.total_count,
+                "has_more": (page.offset + page.limit) < page.total_count,
+            }
+        )

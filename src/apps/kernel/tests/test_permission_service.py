@@ -76,7 +76,9 @@ class PermissionServiceCheckTest(TestCase):
         from django.utils import timezone
 
         grant_permissions(
-            self.tenant, self.actor, [PERMISSION_KEY],
+            self.tenant,
+            self.actor,
+            [PERMISSION_KEY],
             expires_at=timezone.now() - timezone.timedelta(days=1),
         )
 
@@ -89,7 +91,9 @@ class PermissionServiceCheckTest(TestCase):
 
         self.assertTrue(
             PermissionService.check(
-                self.actor, PERMISSION_KEY, tenant_id=self.tenant.id,
+                self.actor,
+                PERMISSION_KEY,
+                tenant_id=self.tenant.id,
                 scope={"scope_type": "organization", "scope_id": "11111111-1111-1111-1111-111111111111"},
             ),
         )
@@ -103,7 +107,9 @@ class PermissionServiceCheckTest(TestCase):
 
         self.assertFalse(
             PermissionService.check(
-                self.actor, PERMISSION_KEY, tenant_id=self.tenant.id,
+                self.actor,
+                PERMISSION_KEY,
+                tenant_id=self.tenant.id,
                 scope={"scope_type": "organization", "scope_id": org_b},
             ),
         )
@@ -116,7 +122,9 @@ class PermissionServiceCheckTest(TestCase):
 
         self.assertTrue(
             PermissionService.check(
-                self.actor, PERMISSION_KEY, tenant_id=self.tenant.id,
+                self.actor,
+                PERMISSION_KEY,
+                tenant_id=self.tenant.id,
                 scope={"scope_type": "organization", "scope_id": org_a},
             ),
         )
@@ -142,7 +150,10 @@ class PermissionServiceCheckTest(TestCase):
 
         self.assertFalse(
             PermissionService.check(
-                self.actor, PERMISSION_KEY, tenant_id=self.tenant.id, scope={"scope_id": str(org_a)},
+                self.actor,
+                PERMISSION_KEY,
+                tenant_id=self.tenant.id,
+                scope={"scope_id": str(org_a)},
             ),
         )
 
@@ -154,7 +165,10 @@ class PermissionServiceCheckTest(TestCase):
 
         self.assertFalse(
             PermissionService.check(
-                self.actor, PERMISSION_KEY, tenant_id=self.tenant.id, scope={"scope_type": "organization"},
+                self.actor,
+                PERMISSION_KEY,
+                tenant_id=self.tenant.id,
+                scope={"scope_type": "organization"},
             ),
         )
 
@@ -165,7 +179,9 @@ class PermissionServiceCheckTest(TestCase):
 
         self.assertFalse(
             PermissionService.check(
-                self.actor, PERMISSION_KEY, tenant_id=self.tenant.id,
+                self.actor,
+                PERMISSION_KEY,
+                tenant_id=self.tenant.id,
                 scope={"scope_type": "organization", "scope_id": None},
             ),
         )
@@ -179,7 +195,9 @@ class PermissionServiceCheckTest(TestCase):
 
         self.assertFalse(
             PermissionService.check(
-                self.actor, PERMISSION_KEY, tenant_id=self.tenant.id,
+                self.actor,
+                PERMISSION_KEY,
+                tenant_id=self.tenant.id,
                 scope={"scope_type": "organization", "scope_id": None},
             ),
         )
@@ -194,13 +212,17 @@ class PermissionServiceCheckTest(TestCase):
 
         self.assertTrue(
             PermissionService.check(
-                self.actor, PERMISSION_KEY, tenant_id=self.tenant.id,
+                self.actor,
+                PERMISSION_KEY,
+                tenant_id=self.tenant.id,
                 scope={"scope_type": "organization", "scope_id": str(org_a)},
             ),
         )
         self.assertTrue(
             PermissionService.check(
-                self.actor, PERMISSION_KEY, tenant_id=self.tenant.id,
+                self.actor,
+                PERMISSION_KEY,
+                tenant_id=self.tenant.id,
                 scope={"scope_type": "organization", "scope_id": org_a},
             ),
         )
@@ -233,12 +255,14 @@ class PermissionServiceRequireTest(TestCase):
 
         self.assertTrue(
             EventOutbox.objects.filter(
-                tenant_id=self.tenant.id, event_type="RBAC.PermissionDenied.v1",
+                tenant_id=self.tenant.id,
+                event_type="RBAC.PermissionDenied.v1",
             ).exists(),
         )
         self.assertTrue(
             AuditLog.objects.filter(
-                tenant_id=self.tenant.id, action="rbac.permission.denied",
+                tenant_id=self.tenant.id,
+                action="rbac.permission.denied",
             ).exists(),
         )
 
@@ -266,13 +290,15 @@ class PermissionServiceRequireTest(TestCase):
 
         self.assertTrue(
             AuditLog.objects.filter(
-                tenant_id=self.tenant.id, action="rbac.permission.system_context",
+                tenant_id=self.tenant.id,
+                action="rbac.permission.system_context",
             ).exists(),
         )
         # System-context is explicitly NOT a denial: no PermissionDenied event.
         self.assertFalse(
             EventOutbox.objects.filter(
-                tenant_id=self.tenant.id, event_type="RBAC.PermissionDenied.v1",
+                tenant_id=self.tenant.id,
+                event_type="RBAC.PermissionDenied.v1",
             ).exists(),
         )
 
@@ -288,12 +314,18 @@ class PermissionServiceOwnershipAuthorizedTest(TestCase):
 
     def test_ownership_fallback_does_not_raise_when_actor_has_no_role(self):
         PermissionService.require(
-            None, PERMISSION_KEY, tenant_id=self.tenant.id, ownership_authorized_by=self.actor,
+            None,
+            PERMISSION_KEY,
+            tenant_id=self.tenant.id,
+            ownership_authorized_by=self.actor,
         )  # must not raise
 
     def test_ownership_fallback_is_audited_as_ownership_authorized_not_system(self):
         PermissionService.require(
-            None, PERMISSION_KEY, tenant_id=self.tenant.id, ownership_authorized_by=self.actor,
+            None,
+            PERMISSION_KEY,
+            tenant_id=self.tenant.id,
+            ownership_authorized_by=self.actor,
         )
 
         entry = AuditLog.objects.get(tenant_id=self.tenant.id, action="rbac.permission.ownership_authorized")
@@ -311,7 +343,10 @@ class PermissionServiceOwnershipAuthorizedTest(TestCase):
         when the actor genuinely has zero RBAC setup — distinguishing
         "backfill hasn't run yet" from a scope/grant mismatch."""
         PermissionService.require(
-            None, PERMISSION_KEY, tenant_id=self.tenant.id, ownership_authorized_by=self.actor,
+            None,
+            PERMISSION_KEY,
+            tenant_id=self.tenant.id,
+            ownership_authorized_by=self.actor,
         )
 
         entry = AuditLog.objects.get(tenant_id=self.tenant.id, action="rbac.permission.ownership_authorized")
@@ -325,7 +360,10 @@ class PermissionServiceOwnershipAuthorizedTest(TestCase):
         grant_permissions(self.tenant, self.actor, ["some.other.permission"])
 
         PermissionService.require(
-            None, PERMISSION_KEY, tenant_id=self.tenant.id, ownership_authorized_by=self.actor,
+            None,
+            PERMISSION_KEY,
+            tenant_id=self.tenant.id,
+            ownership_authorized_by=self.actor,
         )
 
         entry = AuditLog.objects.get(tenant_id=self.tenant.id, action="rbac.permission.ownership_authorized")
@@ -333,12 +371,16 @@ class PermissionServiceOwnershipAuthorizedTest(TestCase):
 
     def test_ownership_fallback_does_not_emit_permission_denied_event(self):
         PermissionService.require(
-            None, PERMISSION_KEY, tenant_id=self.tenant.id, ownership_authorized_by=self.actor,
+            None,
+            PERMISSION_KEY,
+            tenant_id=self.tenant.id,
+            ownership_authorized_by=self.actor,
         )
 
         self.assertFalse(
             EventOutbox.objects.filter(
-                tenant_id=self.tenant.id, event_type="RBAC.PermissionDenied.v1",
+                tenant_id=self.tenant.id,
+                event_type="RBAC.PermissionDenied.v1",
             ).exists(),
         )
 
@@ -350,12 +392,16 @@ class PermissionServiceOwnershipAuthorizedTest(TestCase):
         grant_permissions(self.tenant, self.actor, [PERMISSION_KEY])
 
         PermissionService.require(
-            None, PERMISSION_KEY, tenant_id=self.tenant.id, ownership_authorized_by=self.actor,
+            None,
+            PERMISSION_KEY,
+            tenant_id=self.tenant.id,
+            ownership_authorized_by=self.actor,
         )  # must not raise
 
         self.assertFalse(
             AuditLog.objects.filter(
-                tenant_id=self.tenant.id, action="rbac.permission.ownership_authorized",
+                tenant_id=self.tenant.id,
+                action="rbac.permission.ownership_authorized",
             ).exists(),
         )
         self.assertFalse(
@@ -369,7 +415,10 @@ class PermissionServiceOwnershipAuthorizedTest(TestCase):
 
         with self.assertRaises(PermissionDenied):
             PermissionService.require(
-                self.actor, PERMISSION_KEY, tenant_id=self.tenant.id, ownership_authorized_by=other_actor,
+                self.actor,
+                PERMISSION_KEY,
+                tenant_id=self.tenant.id,
+                ownership_authorized_by=other_actor,
             )
 
         self.assertTrue(

@@ -27,7 +27,9 @@ class Command(BaseCommand):
         parser.add_argument("--limit", type=int, default=100, help="Maximum number of notifications to process.")
         parser.add_argument("--tenant-id", type=str, default=None, help="Only dispatch notifications for this tenant.")
         parser.add_argument(
-            "--dry-run", action="store_true", help="Report how many notifications are due without dispatching them.",
+            "--dry-run",
+            action="store_true",
+            help="Report how many notifications are due without dispatching them.",
         )
 
     def handle(self, *args, **options):

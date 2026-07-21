@@ -10,7 +10,7 @@ from apps.accounts.models.media import DocumentStatus, DocumentType
 from apps.accounts.models.profiles import CaregiverProfile, OrganizationProfile
 from apps.accounts.permission_keys import ACCOUNTS_DOCUMENT_REVIEW
 from apps.accounts.services.document_service import DocumentService
-from apps.kernel.models import Person, Tenant, UserAccount
+from apps.kernel.models import Person, UserAccount
 
 from .helpers import AdminPortalTestCase
 
@@ -38,7 +38,10 @@ class DocumentVerificationTestCase(AdminPortalTestCase):
         person = Person.objects.create(tenant=tenant, full_name=f"{name} Admin")
         admin_user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         return OrganizationProfile.objects.create(
-            name=name, code=f"ORG-{uuid.uuid4().hex[:6].upper()}", admin_user=admin_user, tenant=tenant,
+            name=name,
+            code=f"ORG-{uuid.uuid4().hex[:6].upper()}",
+            admin_user=admin_user,
+            tenant=tenant,
         )
 
 
@@ -109,7 +112,8 @@ class PrivateFileAccessTest(DocumentVerificationTestCase):
 class ReviewActionTest(DocumentVerificationTestCase):
     def test_unauthenticated_cannot_post_review(self):
         response = self.client.post(
-            f"/admin-portal/verification/documents/{self.document.id}/review/", {"action": "approve", "reason": ""},
+            f"/admin-portal/verification/documents/{self.document.id}/review/",
+            {"action": "approve", "reason": ""},
         )
         self.assertEqual(response.status_code, 403)
 
@@ -118,7 +122,8 @@ class ReviewActionTest(DocumentVerificationTestCase):
         self.client.force_login(self.actor)
 
         response = self.client.post(
-            f"/admin-portal/verification/documents/{self.document.id}/review/", {"action": "approve", "reason": ""},
+            f"/admin-portal/verification/documents/{self.document.id}/review/",
+            {"action": "approve", "reason": ""},
         )
         self.assertEqual(response.status_code, 302)
         self.document.refresh_from_db()
@@ -129,7 +134,8 @@ class ReviewActionTest(DocumentVerificationTestCase):
         self.client.force_login(self.actor)
 
         self.client.post(
-            f"/admin-portal/verification/documents/{self.document.id}/review/", {"action": "reject", "reason": ""},
+            f"/admin-portal/verification/documents/{self.document.id}/review/",
+            {"action": "reject", "reason": ""},
         )
         self.document.refresh_from_db()
         self.assertEqual(self.document.status, DocumentStatus.PENDING)
@@ -151,7 +157,8 @@ class ReviewActionTest(DocumentVerificationTestCase):
         self.client.force_login(self.caregiver.user)
 
         self.client.post(
-            f"/admin-portal/verification/documents/{self.document.id}/review/", {"action": "approve", "reason": ""},
+            f"/admin-portal/verification/documents/{self.document.id}/review/",
+            {"action": "approve", "reason": ""},
         )
         self.document.refresh_from_db()
         self.assertEqual(self.document.status, DocumentStatus.PENDING)  # refused, not silently applied
@@ -167,7 +174,8 @@ class ReviewActionTest(DocumentVerificationTestCase):
         self.client.force_login(self.actor)
 
         response = self.client.post(
-            f"/admin-portal/verification/documents/{document.id}/review/", {"action": "approve", "reason": ""},
+            f"/admin-portal/verification/documents/{document.id}/review/",
+            {"action": "approve", "reason": ""},
         )
         self.assertEqual(response.status_code, 404)
         document.refresh_from_db()

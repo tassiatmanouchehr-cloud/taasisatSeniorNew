@@ -34,8 +34,12 @@ from apps.notifications.services.dispatch_service import NotificationDispatchSer
 
 def _make_notification(tenant, *, channel=NotificationChannel.SMS, **kwargs):
     return Notification.objects.create(
-        tenant=tenant, recipient=uuid.uuid4(), channel=channel,
-        subject="Test", body="Test body", **kwargs,
+        tenant=tenant,
+        recipient=uuid.uuid4(),
+        channel=channel,
+        subject="Test",
+        body="Test body",
+        **kwargs,
     )
 
 
@@ -162,7 +166,12 @@ class MaxRetryDeadLetterTest(TestCase):
 
 class ProviderRegistryTest(TestCase):
     def test_default_channels_have_registered_providers(self):
-        for channel in (NotificationChannel.SMS, NotificationChannel.EMAIL, NotificationChannel.PUSH, NotificationChannel.IN_APP):
+        for channel in (
+            NotificationChannel.SMS,
+            NotificationChannel.EMAIL,
+            NotificationChannel.PUSH,
+            NotificationChannel.IN_APP,
+        ):
             self.assertTrue(NotificationProviderRegistry.is_registered(channel))
 
     def test_get_provider_raises_for_unknown_channel(self):
@@ -313,8 +322,10 @@ class NoDirectSendingFromDomainEventHandlersTest(TestCase):
 
     def test_handle_order_created_leaves_notification_pending(self):
         event = DomainEvent(
-            event_type=ORDER_CREATED, tenant_id=self.tenant.id,
-            aggregate_type="Order", aggregate_id=uuid.uuid4(),
+            event_type=ORDER_CREATED,
+            tenant_id=self.tenant.id,
+            aggregate_type="Order",
+            aggregate_id=uuid.uuid4(),
             payload={"recipient_id": str(uuid.uuid4())},
         )
         handle_order_created(event)
@@ -326,7 +337,7 @@ class NoDirectSendingFromDomainEventHandlersTest(TestCase):
     def test_handlers_module_does_not_import_dispatch_service(self):
         import apps.kernel.events.handlers as handlers_module
 
-        source = io.open(handlers_module.__file__, encoding="utf-8").read()
+        source = open(handlers_module.__file__, encoding="utf-8").read()
         self.assertNotIn("dispatch_service", source)
         self.assertNotIn("NotificationDispatchService", source)
 

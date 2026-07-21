@@ -52,7 +52,7 @@ class Role(models.Model):
     version = models.IntegerField(default=1)
 
     class Meta:
-        db_table = "kernel\".\"role"
+        db_table = 'kernel"."role'
         verbose_name = "Role"
         verbose_name_plural = "Roles"
         unique_together = [("tenant", "slug")]
@@ -108,7 +108,7 @@ class Permission(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = "kernel\".\"permission"
+        db_table = 'kernel"."permission'
         verbose_name = "Permission"
         verbose_name_plural = "Permissions"
         ordering = ["key"]
@@ -171,7 +171,7 @@ class RoleAssignment(models.Model):
     metadata = models.JSONField(default=dict, blank=True)
 
     class Meta:
-        db_table = "kernel\".\"role_assignment"
+        db_table = 'kernel"."role_assignment'
         verbose_name = "Role Assignment"
         verbose_name_plural = "Role Assignments"
         indexes = [

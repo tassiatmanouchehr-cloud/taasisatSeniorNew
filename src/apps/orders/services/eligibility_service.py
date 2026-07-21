@@ -70,7 +70,8 @@ class OrderEligibilityService:
         cls._validate_tenant_consistency(order=order, organization=organization)
 
         eligibility, created = OrderOrganizationEligibility.objects.get_or_create(
-            order=order, organization=organization,
+            order=order,
+            organization=organization,
             defaults={
                 "tenant_id": order.tenant_id,
                 "status": EligibilityStatus.ACTIVE,
@@ -94,7 +95,8 @@ class OrderEligibilityService:
 
         try:
             eligibility = OrderOrganizationEligibility.objects.select_for_update().get(
-                order=order, organization=organization,
+                order=order,
+                organization=organization,
             )
         except OrderOrganizationEligibility.DoesNotExist:
             return cls.grant(order=order, organization=organization, granted_by=granted_by)
@@ -117,7 +119,8 @@ class OrderEligibilityService:
         safe no-op (returns the row, or None if it never existed)."""
         try:
             eligibility = OrderOrganizationEligibility.objects.select_for_update().get(
-                order=order, organization=organization,
+                order=order,
+                organization=organization,
             )
         except OrderOrganizationEligibility.DoesNotExist:
             return None
@@ -143,16 +146,27 @@ class OrderEligibilityService:
 
     @classmethod
     def is_eligible(cls, *, order: Order, organization) -> bool:
-        return OrderOrganizationEligibility.objects.for_tenant(order.tenant_id).filter(
-            order=order, organization=organization, status=EligibilityStatus.ACTIVE,
-            organization__status=ProfileStatus.ACTIVE,
-        ).exists()
+        return (
+            OrderOrganizationEligibility.objects.for_tenant(order.tenant_id)
+            .filter(
+                order=order,
+                organization=organization,
+                status=EligibilityStatus.ACTIVE,
+                organization__status=ProfileStatus.ACTIVE,
+            )
+            .exists()
+        )
 
     @classmethod
     def list_active_for_order(cls, order: Order):
-        return OrderOrganizationEligibility.objects.for_tenant(order.tenant_id).filter(
-            order=order, status=EligibilityStatus.ACTIVE,
-        ).select_related("organization")
+        return (
+            OrderOrganizationEligibility.objects.for_tenant(order.tenant_id)
+            .filter(
+                order=order,
+                status=EligibilityStatus.ACTIVE,
+            )
+            .select_related("organization")
+        )
 
     # --- internal helpers -------------------------------------------------
 

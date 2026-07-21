@@ -162,14 +162,18 @@ class ConfigResolver:
         now = timezone.now()
 
         # Query all active overrides for this key+tenant
-        overrides = ConfigurationValue.objects.filter(
-            config_key=config_key,
-            tenant_id=tenant_id,
-            is_active=True,
-        ).filter(
-            # Must be within effective date range
-            models_q_effective_from(now),
-        ).select_related("config_key")
+        overrides = (
+            ConfigurationValue.objects.filter(
+                config_key=config_key,
+                tenant_id=tenant_id,
+                is_active=True,
+            )
+            .filter(
+                # Must be within effective date range
+                models_q_effective_from(now),
+            )
+            .select_related("config_key")
+        )
 
         # Try each scope level from most specific to least specific
         for scope_level in cls.SCOPE_PRIORITY:
@@ -185,7 +189,9 @@ class ConfigResolver:
             if override:
                 logger.debug(
                     "Config resolved: %s = %s (scope=%s)",
-                    key, override.value, scope_level,
+                    key,
+                    override.value,
+                    scope_level,
                 )
                 return override.value
 
@@ -240,8 +246,6 @@ def models_q_effective_from(now):
     """
     from django.db.models import Q
 
-    return (
-        Q(effective_from__isnull=True) | Q(effective_from__lte=now)
-    ) & (
+    return (Q(effective_from__isnull=True) | Q(effective_from__lte=now)) & (
         Q(effective_until__isnull=True) | Q(effective_until__gt=now)
     )

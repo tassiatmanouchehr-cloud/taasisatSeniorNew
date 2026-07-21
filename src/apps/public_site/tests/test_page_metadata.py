@@ -60,7 +60,8 @@ class CaregiverProfileTitleTest(PublicSiteTestCase):
         supplier, _ = self._create_caregiver_supplier(display_name="مینا رستمی متادیتا")
 
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         html = response.content.decode()
         title = html[html.index("<title>") + 7 : html.index("</title>")]

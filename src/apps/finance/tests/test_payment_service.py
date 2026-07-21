@@ -1,7 +1,5 @@
 """Tests for PaymentService."""
 
-from decimal import Decimal
-
 from apps.finance.models import FinancialDocumentStatus, ObligationStatus, PaymentStatus
 from apps.finance.services import FinancialDocumentService, ObligationService, PaymentService
 
@@ -12,7 +10,8 @@ class PaymentServiceTest(FinanceTestCase):
     def _resolved_obligation(self):
         session = self._close_execution_session()
         document = FinancialDocumentService.create_invoice_from_execution(
-            execution_session_id=session.id, items=self._invoice_items(),
+            execution_session_id=session.id,
+            items=self._invoice_items(),
         )
         document = FinancialDocumentService.issue_document(document_id=document.id)
         obligation = ObligationService.create_obligations_for_document(document_id=document.id)

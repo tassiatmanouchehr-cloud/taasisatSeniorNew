@@ -88,7 +88,9 @@ class AuthenticatedUnauthorizedGetsBrandedForbiddenTest(TestCase):
         self.tenant = Tenant.objects.create(slug=f"kernel-403-{uuid.uuid4().hex[:8]}", name="Test Tenant")
         person = Person.objects.create(tenant=self.tenant, full_name="کاربر عادی")
         self.user = UserAccount.objects.create_user(
-            phone=f"0912{uuid.uuid4().hex[:7]}", person=person, tenant=self.tenant,
+            phone=f"0912{uuid.uuid4().hex[:7]}",
+            person=person,
+            tenant=self.tenant,
         )
 
     def test_authenticated_unauthorized_user_gets_branded_403(self):

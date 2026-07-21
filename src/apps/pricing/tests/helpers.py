@@ -23,13 +23,21 @@ class PricingTestCase(TestCase):
         self.other_tenant = Tenant.objects.create(slug=f"pricing-other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
 
         self.category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
         self.other_category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Companionship", slug="companionship", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Companionship",
+            slug="companionship",
+            status=CatalogStatus.ACTIVE,
         )
 
-    def _create_supplier(self, *, tenant=None, supplier_type=SupplierType.INDEPENDENT_PROVIDER, **kwargs) -> ServiceSupplier:
+    def _create_supplier(
+        self, *, tenant=None, supplier_type=SupplierType.INDEPENDENT_PROVIDER, **kwargs
+    ) -> ServiceSupplier:
         tenant = tenant or self.tenant
         defaults = {
             "tenant_id": tenant.id,

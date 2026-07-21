@@ -23,7 +23,6 @@ References:
 import uuid
 
 from django.db import models
-from django.utils import timezone
 
 
 class FlagType(models.TextChoices):

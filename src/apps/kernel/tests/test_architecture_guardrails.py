@@ -434,11 +434,7 @@ def _find_profile_status_writes(source: str) -> list[int]:
                     offenders.append(node.lineno)
                 elif kw.arg == "defaults" and isinstance(kw.value, ast.Dict):
                     for key, value in zip(kw.value.keys, kw.value.values):
-                        if (
-                            isinstance(key, ast.Constant)
-                            and key.value == "status"
-                            and _is_profile_status_value(value)
-                        ):
+                        if isinstance(key, ast.Constant) and key.value == "status" and _is_profile_status_value(value):
                             offenders.append(node.lineno)
     return offenders
 
@@ -618,7 +614,8 @@ class RbacEnforcementEmergencyControlTest(SimpleTestCase):
         views_file = APPS_DIR / "admin_portal" / "views.py"
         source = _read(views_file)
         self.assertNotIn(
-            "ConfigurationValue", source,
+            "ConfigurationValue",
+            source,
             "apps/admin_portal/views.py must never reference ConfigurationValue directly — "
             "use RBACConfiguration.get_enforcement_status() instead.",
         )
@@ -672,6 +669,7 @@ class RbacEnforcementEmergencyControlTest(SimpleTestCase):
                 offenders.append(str(path.relative_to(APPS_DIR)))
 
         self.assertEqual(
-            offenders, [],
+            offenders,
+            [],
             f"Found a write path for rbac.enforcement.enabled outside RBACConfiguration: {offenders}",
         )

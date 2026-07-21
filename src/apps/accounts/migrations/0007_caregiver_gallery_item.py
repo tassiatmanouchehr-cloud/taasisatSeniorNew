@@ -10,14 +10,15 @@
 # "exclude unrelated pre-existing migration drift." Only
 # CaregiverGalleryItem (this sprint's own new model) remains below.
 
-import apps.accounts.models.media_paths
-import django.db.models.deletion
 import uuid
+
+import django.db.models.deletion
 from django.db import migrations, models
+
+import apps.accounts.models.media_paths
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("accounts", "0006_caregiver_skill_experience"),
     ]
@@ -37,9 +38,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "image",
-                    models.ImageField(
-                        upload_to=apps.accounts.models.media_paths.caregiver_gallery_path
-                    ),
+                    models.ImageField(upload_to=apps.accounts.models.media_paths.caregiver_gallery_path),
                 ),
                 ("caption", models.CharField(blank=True, max_length=255)),
                 ("alt_text", models.CharField(blank=True, max_length=255)),

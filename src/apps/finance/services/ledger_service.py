@@ -93,20 +93,22 @@ class LedgerService:
             else:
                 raise FinanceError(f"Unknown ledger entry_type: {entry_type}")
 
-            prepared.append(LedgerEntry(
-                tenant_id=tenant_id,
-                entry_group_id=entry_group_id,
-                party=party,
-                source_document=source_document,
-                payment_transaction=payment_transaction,
-                obligation=obligation,
-                entry_type=entry_type,
-                account_code=entry["account_code"],
-                amount=amount,
-                currency=currency,
-                description=entry.get("description", ""),
-                metadata=entry.get("metadata", {}),
-            ))
+            prepared.append(
+                LedgerEntry(
+                    tenant_id=tenant_id,
+                    entry_group_id=entry_group_id,
+                    party=party,
+                    source_document=source_document,
+                    payment_transaction=payment_transaction,
+                    obligation=obligation,
+                    entry_type=entry_type,
+                    account_code=entry["account_code"],
+                    amount=amount,
+                    currency=currency,
+                    description=entry.get("description", ""),
+                    metadata=entry.get("metadata", {}),
+                )
+            )
 
         if debit_total != credit_total:
             raise FinanceError(

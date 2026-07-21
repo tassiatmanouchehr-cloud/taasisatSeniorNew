@@ -30,8 +30,10 @@ class _CompletionFixtureMixin:
         person = Person.objects.create(tenant=self.tenant, full_name="Org Admin")
         admin_user = UserAccount.objects.create_user(phone=phone, person=person, tenant=self.tenant)
         defaults = {
-            "name": "Test Org", "code": f"ORG-{uuid.uuid4().hex[:6].upper()}",
-            "admin_user": admin_user, "tenant": self.tenant,
+            "name": "Test Org",
+            "code": f"ORG-{uuid.uuid4().hex[:6].upper()}",
+            "admin_user": admin_user,
+            "tenant": self.tenant,
         }
         defaults.update(overrides)
         return OrganizationProfile.objects.create(**defaults)
@@ -50,7 +52,11 @@ class CaregiverCompletionTest(_CompletionFixtureMixin, TestCase):
 
     def test_fully_filled_profile_is_100_percent(self):
         caregiver = self._create_caregiver(
-            city="tehran", specialty="nurse", bio="Experienced.", years_experience=5, service_radius_km=10,
+            city="tehran",
+            specialty="nurse",
+            bio="Experienced.",
+            years_experience=5,
+            service_radius_km=10,
         )
         result = ProfileCompletionService.evaluate_caregiver(caregiver)
         self.assertEqual(result.percent, 100)
@@ -60,14 +66,22 @@ class CaregiverCompletionTest(_CompletionFixtureMixin, TestCase):
         """A caregiver just starting out (0 years) must not be treated as
         having skipped the field — 0 is a legitimate, filled value."""
         caregiver = self._create_caregiver(
-            city="tehran", specialty="nurse", bio="New.", years_experience=0, service_radius_km=0,
+            city="tehran",
+            specialty="nurse",
+            bio="New.",
+            years_experience=0,
+            service_radius_km=0,
         )
         result = ProfileCompletionService.evaluate_caregiver(caregiver)
         self.assertEqual(result.percent, 100)
 
     def test_missing_years_experience_is_reported_by_label(self):
         caregiver = self._create_caregiver(
-            city="tehran", specialty="nurse", bio="Experienced.", years_experience=None, service_radius_km=10,
+            city="tehran",
+            specialty="nurse",
+            bio="Experienced.",
+            years_experience=None,
+            service_radius_km=10,
         )
         result = ProfileCompletionService.evaluate_caregiver(caregiver)
         self.assertIn("سابقه کار", result.missing)
@@ -80,7 +94,9 @@ class CaregiverCompletionTest(_CompletionFixtureMixin, TestCase):
         self.assertEqual(first, second)
 
     def test_bare_int_helper_matches_structured_result(self):
-        caregiver = self._create_caregiver(city="tehran", specialty="nurse", bio="x", years_experience=1, service_radius_km=1)
+        caregiver = self._create_caregiver(
+            city="tehran", specialty="nurse", bio="x", years_experience=1, service_radius_km=1
+        )
         structured = ProfileCompletionService.evaluate_caregiver(caregiver)
         self.assertEqual(calculate_caregiver_profile_completion(caregiver), structured.percent)
 
@@ -97,8 +113,11 @@ class OrganizationCompletionTest(_CompletionFixtureMixin, TestCase):
 
     def test_fully_filled_profile_is_100_percent(self):
         organization = self._create_organization(
-            city="tehran", phone="09120000000", address="Some address",
-            description="A senior-care company.", company_type="home_care",
+            city="tehran",
+            phone="09120000000",
+            address="Some address",
+            description="A senior-care company.",
+            company_type="home_care",
         )
         result = ProfileCompletionService.evaluate_organization(organization)
         self.assertEqual(result.percent, 100)
@@ -112,7 +131,11 @@ class OrganizationCompletionTest(_CompletionFixtureMixin, TestCase):
 
     def test_bare_int_helper_matches_structured_result(self):
         organization = self._create_organization(
-            city="tehran", phone="09120000000", address="addr", description="desc", company_type="type",
+            city="tehran",
+            phone="09120000000",
+            address="addr",
+            description="desc",
+            company_type="type",
         )
         structured = ProfileCompletionService.evaluate_organization(organization)
         self.assertEqual(calculate_organization_profile_completion(organization), structured.percent)

@@ -13,7 +13,8 @@ from apps.kernel.services.tenant_service import TenantService
 class RegistrationTenantConsistencyTest(TestCase):
     def test_customer_uses_default_tenant(self):
         user, profile = RegistrationService.create_customer(
-            phone="09121110001", full_name="Customer A",
+            phone="09121110001",
+            full_name="Customer A",
         )
         default_tenant = TenantService.get_default_tenant()
         self.assertEqual(user.tenant_id, default_tenant.id)
@@ -21,14 +22,17 @@ class RegistrationTenantConsistencyTest(TestCase):
 
     def test_caregiver_uses_default_tenant(self):
         user, profile, _ = RegistrationService.create_caregiver(
-            phone="09121110002", full_name="Caregiver A",
+            phone="09121110002",
+            full_name="Caregiver A",
         )
         default_tenant = TenantService.get_default_tenant()
         self.assertEqual(user.tenant_id, default_tenant.id)
 
     def test_company_admin_uses_default_tenant(self):
         user, organization = RegistrationService.create_company_admin(
-            phone="09121110003", admin_name="Admin A", company_name="Org A",
+            phone="09121110003",
+            admin_name="Admin A",
+            company_name="Org A",
         )
         default_tenant = TenantService.get_default_tenant()
         self.assertEqual(user.tenant_id, default_tenant.id)

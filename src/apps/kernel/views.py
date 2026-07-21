@@ -54,7 +54,9 @@ def _safe_next_path(request) -> str:
     should reuse rather than re-implement."""
     candidate = request.get_full_path()
     if url_has_allowed_host_and_scheme(
-        candidate, allowed_hosts={request.get_host()}, require_https=request.is_secure(),
+        candidate,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
     ):
         return candidate
     return "/"

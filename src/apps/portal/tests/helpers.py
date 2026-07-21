@@ -18,13 +18,17 @@ class PortalTestCase(TestCase):
         self.other_tenant = Tenant.objects.create(slug=f"portal-other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
 
         self.category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
         self.customer = self._create_customer(tenant=self.tenant, display_name="Test Customer")
         self.other_customer = self._create_customer(tenant=self.other_tenant, display_name="Other Customer")
 
         self.care_recipient = CareRecipientService.create(
-            customer_profile=self.customer, full_name="مادر بزرگ",
+            customer_profile=self.customer,
+            full_name="مادر بزرگ",
         )
 
     def _create_customer(self, *, tenant, display_name="Test Customer", phone=None) -> CustomerProfile:
@@ -32,7 +36,10 @@ class PortalTestCase(TestCase):
         person = Person.objects.create(tenant=tenant, full_name=display_name)
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         return CustomerProfile.objects.create(
-            user=user, person=person, phone=phone, display_name=display_name,
+            user=user,
+            person=person,
+            phone=phone,
+            display_name=display_name,
         )
 
     def login_as_customer(self):

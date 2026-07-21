@@ -2,10 +2,10 @@ from django.contrib.auth.models import AnonymousUser
 from django.test import RequestFactory
 
 from apps.api.errors import ApiError
+from apps.api.permissions import require_authenticated, require_permission, resolve_tenant_id
 from apps.kernel.services.errors import PermissionDenied
 
 from .helpers import ApiTestCase
-from apps.api.permissions import require_authenticated, require_permission, resolve_tenant_id
 
 
 class RequireAuthenticatedTest(ApiTestCase):

@@ -33,20 +33,26 @@ class ReportingTestCase(TestCase):
         self.other_tenant = Tenant.objects.create(slug=f"reporting-other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
 
         self.category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
 
         self.customer_profile = self._create_customer(tenant=self.tenant)
         self.supplier = self._create_supplier(tenant=self.tenant)
 
-        self.order = self._create_order(tenant=self.tenant, category=self.category, customer_profile=self.customer_profile)
+        self.order = self._create_order(
+            tenant=self.tenant, category=self.category, customer_profile=self.customer_profile
+        )
         self.supplier_assignment = AssignmentService.assign(order_id=self.order.id, supplier=self.supplier)
 
         self.execution_session = self._close_execution_session(self.supplier_assignment)
         self.order.refresh_from_db()
 
         self.document = FinancialDocumentService.create_invoice_from_execution(
-            execution_session_id=self.execution_session.id, items=self._invoice_items(),
+            execution_session_id=self.execution_session.id,
+            items=self._invoice_items(),
         )
         self.document = FinancialDocumentService.issue_document(document_id=self.document.id)
 
@@ -79,7 +85,10 @@ class ReportingTestCase(TestCase):
         person = Person.objects.create(tenant=tenant, full_name=display_name)
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         return CustomerProfile.objects.create(
-            user=user, person=person, phone=phone, display_name=display_name,
+            user=user,
+            person=person,
+            phone=phone,
+            display_name=display_name,
         )
 
     def _create_order(self, *, tenant, category, customer_profile) -> Order:

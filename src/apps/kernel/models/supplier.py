@@ -27,7 +27,6 @@ References:
 import uuid
 
 from django.db import models
-from django.utils import timezone
 
 
 class SupplierType(models.TextChoices):
@@ -84,7 +83,9 @@ class ServiceSupplier(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="service_suppliers",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="service_suppliers",
     )
 
     # Type classification

@@ -55,9 +55,14 @@ class DiscoveryRankingService:
 
     @classmethod
     def _score(
-        cls, supplier: ServiceSupplier, weights: dict[str, Decimal], capacity_exceeded_by_id: dict,
+        cls,
+        supplier: ServiceSupplier,
+        weights: dict[str, Decimal],
+        capacity_exceeded_by_id: dict,
     ) -> SearchResultItem:
-        verification_component = _VERIFICATION_TIER.get(supplier.verification_level, Decimal("0")) * weights["verification"]
+        verification_component = (
+            _VERIFICATION_TIER.get(supplier.verification_level, Decimal("0")) * weights["verification"]
+        )
         reputation_component = (supplier.reputation_score or Decimal("0")) * weights["reputation"]
         availability_component = cls._availability_bonus(supplier) * weights["availability"]
         capacity_component = cls._capacity_bonus(supplier, capacity_exceeded_by_id) * weights["capacity"]

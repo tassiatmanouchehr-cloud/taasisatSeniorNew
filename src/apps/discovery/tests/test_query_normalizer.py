@@ -50,8 +50,10 @@ class NormalizeQueryTest(TestCase):
     def test_scoping_fields_pass_through_unchanged(self):
         category_id = uuid.uuid4()
         query = normalize_query(
-            tenant_id=self.tenant_id, service_category_id=category_id,
-            supplier_type="INDEPENDENT_PROVIDER", availability_status="available",
+            tenant_id=self.tenant_id,
+            service_category_id=category_id,
+            supplier_type="INDEPENDENT_PROVIDER",
+            availability_status="available",
             verification_level="basic",
         )
         self.assertEqual(query.service_category_id, category_id)

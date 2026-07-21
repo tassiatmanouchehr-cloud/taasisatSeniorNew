@@ -57,22 +57,33 @@ class SupplierAssignment(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="supplier_assignments",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="supplier_assignments",
     )
     order = models.ForeignKey(
-        "orders.Order", on_delete=models.CASCADE, related_name="supplier_assignments",
+        "orders.Order",
+        on_delete=models.CASCADE,
+        related_name="supplier_assignments",
     )
     supplier = models.ForeignKey(
-        "kernel.ServiceSupplier", on_delete=models.CASCADE, related_name="assignments",
+        "kernel.ServiceSupplier",
+        on_delete=models.CASCADE,
+        related_name="assignments",
     )
     match_candidate = models.ForeignKey(
-        "matching.MatchCandidate", on_delete=models.SET_NULL, null=True, blank=True,
+        "matching.MatchCandidate",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="supplier_assignments",
     )
 
     status = models.CharField(
-        max_length=20, choices=SupplierAssignmentStatus.choices,
-        default=SupplierAssignmentStatus.PROPOSED, db_index=True,
+        max_length=20,
+        choices=SupplierAssignmentStatus.choices,
+        default=SupplierAssignmentStatus.PROPOSED,
+        db_index=True,
     )
     assignment_source = models.CharField(max_length=20, choices=AssignmentSource.choices)
     assignment_sequence = models.IntegerField(
@@ -80,14 +91,23 @@ class SupplierAssignment(models.Model):
     )
 
     assigned_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
     )
     metadata = models.JSONField(
-        default=dict, blank=True,
+        default=dict,
+        blank=True,
         help_text="Structured context for this assignment attempt (replaces free-text reason).",
     )
     superseded_by = models.ForeignKey(
-        "self", on_delete=models.SET_NULL, null=True, blank=True, related_name="supersedes",
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="supersedes",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)

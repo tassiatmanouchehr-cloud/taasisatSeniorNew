@@ -81,13 +81,23 @@ class ReviewSubmitEndpointTest(ApiTestCase):
 
         other_customer = self._create_customer(tenant=self.other_tenant, display_name="Other")
         from apps.orders.models import CatalogStatus, Order, OrderSource, OrderStatus, ServiceCategory
+
         other_category = ServiceCategory.objects.create(
-            tenant=self.other_tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.other_tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
         other_order = Order.objects.create(
-            tenant=self.other_tenant, source=OrderSource.OPERATOR, status=OrderStatus.COMPLETED,
-            service_category=other_category, customer_profile=other_customer,
-            description="x", city="tehran", address="addr", phone="09120000099",
+            tenant=self.other_tenant,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.COMPLETED,
+            service_category=other_category,
+            customer_profile=other_customer,
+            description="x",
+            city="tehran",
+            address="addr",
+            phone="09120000099",
         )
 
         response = self.client.post(
@@ -123,7 +133,8 @@ class SupplierReputationEndpointTest(ApiTestCase):
         self._complete_order()
 
         review = ReviewSubmissionService.submit_review(
-            order=self.order, reviewer_person_id=self.customer_profile.person_id,
+            order=self.order,
+            reviewer_person_id=self.customer_profile.person_id,
             dimension_scores={"QUALITY": 4, "PUNCTUALITY": 4},
         )
         ReviewModerationService.approve_review(review.id)

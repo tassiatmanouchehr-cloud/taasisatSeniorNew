@@ -34,15 +34,15 @@ class Command(BaseCommand):
         parser.add_argument("--dry-run", action="store_true", help="Report what would happen, write nothing.")
         parser.add_argument("--tenant", type=str, default=None, help="Limit to one tenant slug. Default: every tenant.")
         parser.add_argument(
-            "--remove-unknown", action="store_true",
+            "--remove-unknown",
+            action="store_true",
             help="Also remove permission keys that are neither canonical for the role NOR a real "
-                 "registered key anywhere (a genuine typo/retired key). Never removes a valid, "
-                 "registered custom addition. Off by default.",
+            "registered key anywhere (a genuine typo/retired key). Never removes a valid, "
+            "registered custom addition. Off by default.",
         )
 
     def handle(self, *args, **options):
         from apps.kernel.models import Role, Tenant
-        from apps.kernel.permissions.registry import PermissionRegistry
         from apps.kernel.role_catalog import all_role_definitions
 
         dry_run = options["dry_run"]
@@ -58,16 +58,22 @@ class Command(BaseCommand):
             for role in Role.objects.filter(tenant=tenant, slug__in=catalog_by_slug.keys()):
                 totals["roles_checked"] += 1
                 self._reconcile_one(
-                    tenant=tenant, role=role, role_def=catalog_by_slug[role.slug],
-                    dry_run=dry_run, remove_unknown=remove_unknown, totals=totals,
+                    tenant=tenant,
+                    role=role,
+                    role_def=catalog_by_slug[role.slug],
+                    dry_run=dry_run,
+                    remove_unknown=remove_unknown,
+                    totals=totals,
                 )
 
         verb = "Would reconcile" if dry_run else "Reconciled"
-        self.stdout.write(self.style.SUCCESS(
-            f"{verb}: {totals['roles_checked']} role(s) checked, "
-            f"{totals['added']} permission(s) added, {totals['removed']} removed, "
-            f"{totals['unknown_reported']} unknown permission(s) reported.",
-        ))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"{verb}: {totals['roles_checked']} role(s) checked, "
+                f"{totals['added']} permission(s) added, {totals['removed']} removed, "
+                f"{totals['unknown_reported']} unknown permission(s) reported.",
+            )
+        )
 
     def _reconcile_one(self, *, tenant, role, role_def, dry_run, remove_unknown, totals):
         from apps.kernel.permissions.registry import PermissionRegistry
@@ -81,9 +87,11 @@ class Command(BaseCommand):
 
         if unknown:
             totals["unknown_reported"] += len(unknown)
-            self.stdout.write(self.style.WARNING(
-                f"[{tenant.slug}/{role.slug}] unknown/unregistered permission key(s) present: {unknown}",
-            ))
+            self.stdout.write(
+                self.style.WARNING(
+                    f"[{tenant.slug}/{role.slug}] unknown/unregistered permission key(s) present: {unknown}",
+                )
+            )
         if custom_but_valid:
             self.stdout.write(f"[{tenant.slug}/{role.slug}] preserving custom valid permission(s): {custom_but_valid}")
 

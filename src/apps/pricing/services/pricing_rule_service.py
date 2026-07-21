@@ -22,13 +22,27 @@ class PricingRuleService:
 
     @classmethod
     def create_rule(
-        cls, *, tenant_id, name, rule_type,
-        service_category=None, supplier=None, amount=None, percentage=None,
-        time_start=None, time_end=None, priority=0, currency=None, metadata=None,
+        cls,
+        *,
+        tenant_id,
+        name,
+        rule_type,
+        service_category=None,
+        supplier=None,
+        amount=None,
+        percentage=None,
+        time_start=None,
+        time_end=None,
+        priority=0,
+        currency=None,
+        metadata=None,
     ) -> PricingRule:
         cls._validate(
-            rule_type=rule_type, amount=amount, percentage=percentage,
-            time_start=time_start, time_end=time_end,
+            rule_type=rule_type,
+            amount=amount,
+            percentage=percentage,
+            time_start=time_start,
+            time_end=time_end,
         )
 
         from .. import models as pricing_models
@@ -56,8 +70,11 @@ class PricingRuleService:
             setattr(rule, field, value)
 
         cls._validate(
-            rule_type=rule.rule_type, amount=rule.amount, percentage=rule.percentage,
-            time_start=rule.time_start, time_end=rule.time_end,
+            rule_type=rule.rule_type,
+            amount=rule.amount,
+            percentage=rule.percentage,
+            time_start=rule.time_start,
+            time_end=rule.time_end,
         )
         rule.save()
         return rule

@@ -22,7 +22,10 @@ from apps.accounts.models.profiles import (
     OrgMembershipStatus,
     VerificationStatus,
 )
-from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_caregiver, get_or_create_supplier_for_organization
+from apps.accounts.services.supplier_bridge import (
+    get_or_create_supplier_for_caregiver,
+    get_or_create_supplier_for_organization,
+)
 from apps.kernel.models import Person, Tenant, UserAccount
 from apps.kernel.models.supplier import AvailabilityStatus, SupplierStatus
 from apps.orders.models import CatalogStatus, Order, OrderSource, OrderStatus, ServiceCategory
@@ -157,7 +160,9 @@ class PublicSiteTestCase(TestCase):
     def _add_active_caregiver_to_organization(self, *, organization):
         person = Person.objects.create(tenant=self.tenant, full_name="مراقب سازمانی تست")
         user = UserAccount.objects.create_user(
-            phone=f"0914{uuid.uuid4().hex[:7]}", person=person, tenant=self.tenant,
+            phone=f"0914{uuid.uuid4().hex[:7]}",
+            person=person,
+            tenant=self.tenant,
         )
         return OrganizationMembership.objects.create(
             organization=organization,

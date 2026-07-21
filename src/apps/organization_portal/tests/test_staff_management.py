@@ -15,8 +15,10 @@ class StaffListViewTest(OrganizationPortalTestCase):
 class StaffApproveViewTest(OrganizationPortalTestCase):
     def test_approve_transitions_pending_to_active(self):
         pending = OrganizationMembership.objects.create(
-            organization=self.organization, user=self._create_user(tenant=self.tenant, phone="09121110005"),
-            role_type=OrgMembershipRole.CAREGIVER, status=OrgMembershipStatus.PENDING,
+            organization=self.organization,
+            user=self._create_user(tenant=self.tenant, phone="09121110005"),
+            role_type=OrgMembershipRole.CAREGIVER,
+            status=OrgMembershipStatus.PENDING,
         )
         self.login_as_admin()
         response = self.client.post(f"/organization/staff/{pending.id}/approve/")
@@ -32,11 +34,16 @@ class StaffApproveViewTest(OrganizationPortalTestCase):
 
         other_org_admin = self._create_user(tenant=self.tenant, phone="09121110007")
         other_org = OrganizationProfile.objects.create(
-            name="Other Co", code="other-co-2", admin_user=other_org_admin, tenant=self.tenant,
+            name="Other Co",
+            code="other-co-2",
+            admin_user=other_org_admin,
+            tenant=self.tenant,
         )
         other_membership = OrganizationMembership.objects.create(
-            organization=other_org, user=self._create_user(tenant=self.tenant, phone="09121110006"),
-            role_type=OrgMembershipRole.CAREGIVER, status=OrgMembershipStatus.PENDING,
+            organization=other_org,
+            user=self._create_user(tenant=self.tenant, phone="09121110006"),
+            role_type=OrgMembershipRole.CAREGIVER,
+            status=OrgMembershipStatus.PENDING,
         )
         self.login_as_admin()
         response = self.client.post(f"/organization/staff/{other_membership.id}/approve/")

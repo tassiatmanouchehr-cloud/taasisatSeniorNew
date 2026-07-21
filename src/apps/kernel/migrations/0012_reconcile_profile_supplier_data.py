@@ -55,7 +55,8 @@ def reconcile_forward(apps, schema_editor):
     def existing_suppliers(linked_entity_id, linked_entity_type):
         return list(
             ServiceSupplier.objects.filter(
-                linked_entity_id=linked_entity_id, linked_entity_type=linked_entity_type,
+                linked_entity_id=linked_entity_id,
+                linked_entity_type=linked_entity_type,
             )
         )
 
@@ -139,7 +140,6 @@ def reconcile_backward(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("kernel", "0011_role_assignment_active_scope_constraint"),
         ("accounts", "0011_favorite"),

@@ -57,8 +57,11 @@ class EligibilityServiceTest(MatchingTestCase):
             allowed_values=["independent_only", "organization_only", "hybrid"],
         )
         ConfigurationValue.objects.create(
-            tenant_id=self.tenant.id, config_key=config_key, scope_type=ScopeLevel.TENANT,
-            value="organization_only", is_active=True,
+            tenant_id=self.tenant.id,
+            config_key=config_key,
+            scope_type=ScopeLevel.TENANT,
+            value="organization_only",
+            is_active=True,
         )
         supplier = self._create_supplier(supplier_type=SupplierType.INDEPENDENT_PROVIDER)
         result = EligibilityService.evaluate(order=self.order, supplier=supplier)
@@ -74,8 +77,11 @@ class EligibilityServiceTest(MatchingTestCase):
             default_value="",
         )
         ConfigurationValue.objects.create(
-            tenant_id=self.tenant.id, config_key=config_key, scope_type=ScopeLevel.TENANT,
-            value="advanced", is_active=True,
+            tenant_id=self.tenant.id,
+            config_key=config_key,
+            scope_type=ScopeLevel.TENANT,
+            value="advanced",
+            is_active=True,
         )
         supplier = self._create_supplier(verification_level=VerificationLevel.BASIC)
         result = EligibilityService.evaluate(order=self.order, supplier=supplier)
@@ -91,8 +97,11 @@ class EligibilityServiceTest(MatchingTestCase):
             default_value="",
         )
         ConfigurationValue.objects.create(
-            tenant_id=self.tenant.id, config_key=config_key, scope_type=ScopeLevel.TENANT,
-            value="advanced", is_active=True,
+            tenant_id=self.tenant.id,
+            config_key=config_key,
+            scope_type=ScopeLevel.TENANT,
+            value="advanced",
+            is_active=True,
         )
         supplier = self._create_supplier(verification_level=VerificationLevel.PREMIUM)
         result = EligibilityService.evaluate(order=self.order, supplier=supplier)

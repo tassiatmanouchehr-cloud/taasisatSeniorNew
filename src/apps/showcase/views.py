@@ -76,9 +76,13 @@ def navigation(request):
         {"label": "سفارش\u200cها", "href": "#"},
         {"label": "سفارش ۱۲۳۴"},
     ]
-    return render(request, "showcase/navigation.html", {
-        "breadcrumb_items": breadcrumb_items,
-    })
+    return render(
+        request,
+        "showcase/navigation.html",
+        {
+            "breadcrumb_items": breadcrumb_items,
+        },
+    )
 
 
 def loading(request):

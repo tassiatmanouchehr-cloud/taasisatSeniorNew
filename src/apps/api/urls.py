@@ -43,7 +43,8 @@ urlpatterns = [
     path("payments/intents/", PaymentIntentCreateView.as_view(), name="payments-intents-create"),
     path(
         "payments/intents/<uuid:intent_id>/attempts/",
-        PaymentAttemptCreateView.as_view(), name="payments-attempts-create",
+        PaymentAttemptCreateView.as_view(),
+        name="payments-attempts-create",
     ),
     path("payments/callbacks/fake/", FakeProviderCallbackView.as_view(), name="payments-callbacks-fake"),
 ]

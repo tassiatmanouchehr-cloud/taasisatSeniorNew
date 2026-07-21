@@ -8,12 +8,14 @@ class WizardHappyPathTest(PortalTestCase):
         self.login_as_customer()
 
         response = self.client.post(
-            "/portal/requests/new/care-recipient/", {"care_recipient_id": str(self.care_recipient.id)},
+            "/portal/requests/new/care-recipient/",
+            {"care_recipient_id": str(self.care_recipient.id)},
         )
         self.assertRedirects(response, "/portal/requests/new/service/")
 
         response = self.client.post(
-            "/portal/requests/new/service/", {"service_category_id": str(self.category.id)},
+            "/portal/requests/new/service/",
+            {"service_category_id": str(self.category.id)},
         )
         self.assertRedirects(response, "/portal/requests/new/schedule/")
 
@@ -27,7 +29,8 @@ class WizardHappyPathTest(PortalTestCase):
         self.assertRedirects(response, "/portal/requests/new/notes/")
 
         response = self.client.post(
-            "/portal/requests/new/notes/", {"description": "نیاز به مراقبت روزانه"},
+            "/portal/requests/new/notes/",
+            {"description": "نیاز به مراقبت روزانه"},
         )
         self.assertRedirects(response, "/portal/requests/new/review/")
 
@@ -46,12 +49,14 @@ class WizardHappyPathTest(PortalTestCase):
     def test_submit_clears_wizard_session(self):
         self.login_as_customer()
         self.client.post(
-            "/portal/requests/new/care-recipient/", {"care_recipient_id": str(self.care_recipient.id)},
+            "/portal/requests/new/care-recipient/",
+            {"care_recipient_id": str(self.care_recipient.id)},
         )
         self.client.post("/portal/requests/new/service/", {"service_category_id": str(self.category.id)})
         self.client.post("/portal/requests/new/schedule/", {})
         self.client.post(
-            "/portal/requests/new/address/", {"city": "tehran", "address": "addr", "phone": "0912"},
+            "/portal/requests/new/address/",
+            {"city": "tehran", "address": "addr", "phone": "0912"},
         )
         self.client.post("/portal/requests/new/notes/", {"description": "desc"})
         self.client.post("/portal/requests/new/submit/")
@@ -70,10 +75,12 @@ class WizardGuardTest(PortalTestCase):
         from apps.accounts.services.care_recipients import CareRecipientService
 
         other_recipient = CareRecipientService.create(
-            customer_profile=self.other_customer, full_name="Not Mine",
+            customer_profile=self.other_customer,
+            full_name="Not Mine",
         )
         response = self.client.post(
-            "/portal/requests/new/care-recipient/", {"care_recipient_id": str(other_recipient.id)},
+            "/portal/requests/new/care-recipient/",
+            {"care_recipient_id": str(other_recipient.id)},
         )
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("care_recipient_id", self.client.session.get("portal_request_wizard", {}))

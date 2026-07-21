@@ -10,7 +10,8 @@ class ObligationServiceTest(FinanceTestCase):
     def _issued_document(self):
         session = self._close_execution_session()
         document = FinancialDocumentService.create_invoice_from_execution(
-            execution_session_id=session.id, items=self._invoice_items(),
+            execution_session_id=session.id,
+            items=self._invoice_items(),
         )
         return FinancialDocumentService.issue_document(document_id=document.id)
 
@@ -28,7 +29,8 @@ class ObligationServiceTest(FinanceTestCase):
     def test_create_obligations_rejected_for_draft_document(self):
         session = self._close_execution_session()
         document = FinancialDocumentService.create_invoice_from_execution(
-            execution_session_id=session.id, items=self._invoice_items(),
+            execution_session_id=session.id,
+            items=self._invoice_items(),
         )
 
         with self.assertRaises(FinanceError):

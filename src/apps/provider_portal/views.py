@@ -129,7 +129,9 @@ def dashboard_view(request):
         # is still a page they may land on and view — it renders a
         # pending-activation state instead of creating/faking a supplier.
         profile = ProviderProfilePresentationService.get_profile_view(
-            supplier=None, caregiver=caregiver, tenant_id=tenant_id,
+            supplier=None,
+            caregiver=caregiver,
+            tenant_id=tenant_id,
         )
         context = {
             "supplier": None,
@@ -165,7 +167,11 @@ def dashboard_view(request):
     )
 
     dashboard = CaregiverDashboardPresentationService.build_for_supplier(
-        supplier=supplier, tenant_id=tenant_id, caregiver=caregiver, reputation=reputation, performance=performance,
+        supplier=supplier,
+        tenant_id=tenant_id,
+        caregiver=caregiver,
+        reputation=reputation,
+        performance=performance,
     )
 
     context = {
@@ -639,7 +645,9 @@ def company_join_view(request):
     if form.is_valid():
         try:
             affiliation_services.submit_join_request(
-                caregiver_profile=caregiver, code=form.cleaned_data["code"], tenant_id=tenant_id,
+                caregiver_profile=caregiver,
+                code=form.cleaned_data["code"],
+                tenant_id=tenant_id,
             )
         except AccountsError:
             pass

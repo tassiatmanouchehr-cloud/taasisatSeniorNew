@@ -48,7 +48,9 @@ class DeclineAssignmentForm(StyledForm):
 
 class JoinCompanyCodeForm(StyledForm):
     code = forms.CharField(
-        max_length=50, label="کد سازمان", error_messages={"required": "کد سازمان الزامی است."},
+        max_length=50,
+        label="کد سازمان",
+        error_messages={"required": "کد سازمان الزامی است."},
     )
 
 
@@ -73,13 +75,17 @@ class ProfessionalInfoForm(StyledForm):
 
 class SkillForm(StyledForm):
     name = forms.CharField(
-        max_length=100, label="مهارت", error_messages={"required": "نام مهارت الزامی است."},
+        max_length=100,
+        label="مهارت",
+        error_messages={"required": "نام مهارت الزامی است."},
     )
 
 
 class ExperienceForm(StyledForm):
     title = forms.CharField(
-        max_length=150, label="عنوان شغلی", error_messages={"required": "عنوان شغلی الزامی است."},
+        max_length=150,
+        label="عنوان شغلی",
+        error_messages={"required": "عنوان شغلی الزامی است."},
     )
     organization_name = forms.CharField(max_length=255, label="نام سازمان/کارفرما", required=False)
     description = forms.CharField(widget=forms.Textarea, label="توضیحات", required=False, max_length=2000)

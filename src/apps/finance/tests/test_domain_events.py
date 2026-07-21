@@ -16,7 +16,8 @@ class InvoiceDomainEventTest(FinanceTestCase):
     def _draft_document(self):
         session = self._close_execution_session()
         return FinancialDocumentService.create_invoice_from_execution(
-            execution_session_id=session.id, items=self._invoice_items(),
+            execution_session_id=session.id,
+            items=self._invoice_items(),
         )
 
     def test_issue_document_publishes_invoice_issued(self):
@@ -47,10 +48,10 @@ class InvoiceDomainEventTest(FinanceTestCase):
         document = self._draft_document()
         FinancialDocumentService.issue_document(document_id=document.id)  # now ISSUED
 
-        with self.captureOnCommitCallbacks(execute=True):
-            with self.assertRaises(FinanceError):
-                FinancialDocumentService.issue_document(document_id=document.id)  # already issued -> must fail
+        with self.captureOnCommitCallbacks(execute=True), self.assertRaises(FinanceError):
+            FinancialDocumentService.issue_document(document_id=document.id)  # already issued -> must fail
 
         self.assertEqual(
-            AuditLog.objects.filter(tenant_id=self.tenant.id, action=f"domain_event.{INVOICE_ISSUED}").count(), 0,
+            AuditLog.objects.filter(tenant_id=self.tenant.id, action=f"domain_event.{INVOICE_ISSUED}").count(),
+            0,
         )

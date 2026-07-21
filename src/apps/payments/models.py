@@ -46,9 +46,14 @@ class PaymentStatus(models.TextChoices):
 
 
 # Terminal statuses accept no further transitions.
-TERMINAL_STATUSES = frozenset({
-    PaymentStatus.SUCCEEDED, PaymentStatus.FAILED, PaymentStatus.CANCELLED, PaymentStatus.EXPIRED,
-})
+TERMINAL_STATUSES = frozenset(
+    {
+        PaymentStatus.SUCCEEDED,
+        PaymentStatus.FAILED,
+        PaymentStatus.CANCELLED,
+        PaymentStatus.EXPIRED,
+    }
+)
 
 
 class PaymentIntent(models.Model):
@@ -56,23 +61,31 @@ class PaymentIntent(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="payment_intents",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="payment_intents",
     )
     payer_party = models.ForeignKey(
-        "finance.FinancialParty", on_delete=models.PROTECT, related_name="payment_intents",
+        "finance.FinancialParty",
+        on_delete=models.PROTECT,
+        related_name="payment_intents",
     )
 
     amount = models.DecimalField(max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES)
     currency = models.CharField(max_length=10, default=DEFAULT_CURRENCY)
     provider = models.CharField(max_length=20, choices=PaymentProvider.choices, default=PaymentProvider.FAKE)
     status = models.CharField(
-        max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.CREATED, db_index=True,
+        max_length=20,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.CREATED,
+        db_index=True,
     )
 
     idempotency_key = models.CharField(max_length=255)
 
     reference_type = models.CharField(
-        max_length=100, blank=True,
+        max_length=100,
+        blank=True,
         help_text="Generic tag for what this payment is for, e.g. 'Order', 'Quote'. No FK — decoupled by design.",
     )
     reference_id = models.UUIDField(null=True, blank=True)
@@ -99,16 +112,23 @@ class PaymentAttempt(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="payment_attempts",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="payment_attempts",
     )
     intent = models.ForeignKey(
-        "payments.PaymentIntent", on_delete=models.PROTECT, related_name="attempts",
+        "payments.PaymentIntent",
+        on_delete=models.PROTECT,
+        related_name="attempts",
     )
 
     provider = models.CharField(max_length=20, choices=PaymentProvider.choices)
     provider_reference = models.CharField(max_length=255)
     status = models.CharField(
-        max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.PENDING, db_index=True,
+        max_length=20,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.PENDING,
+        db_index=True,
     )
 
     request_snapshot = models.JSONField(default=dict, blank=True)
@@ -133,14 +153,19 @@ class PaymentCallback(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="payment_callbacks",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="payment_callbacks",
     )
     attempt = models.ForeignKey(
-        "payments.PaymentAttempt", on_delete=models.PROTECT, related_name="callbacks",
+        "payments.PaymentAttempt",
+        on_delete=models.PROTECT,
+        related_name="callbacks",
     )
 
     provider_event_id = models.CharField(
-        max_length=255, help_text="Provider-supplied idempotency identifier for this callback.",
+        max_length=255,
+        help_text="Provider-supplied idempotency identifier for this callback.",
     )
     payload = models.JSONField(default=dict, blank=True)
 

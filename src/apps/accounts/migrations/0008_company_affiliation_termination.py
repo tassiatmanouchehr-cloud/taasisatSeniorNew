@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("accounts", "0007_caregiver_gallery_item"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),

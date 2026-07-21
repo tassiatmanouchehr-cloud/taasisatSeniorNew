@@ -26,5 +26,8 @@ class WalletTestCase(TestCase):
         person = Person.objects.create(tenant=tenant, full_name=display_name)
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         return CustomerProfile.objects.create(
-            user=user, person=person, phone=phone, display_name=display_name,
+            user=user,
+            person=person,
+            phone=phone,
+            display_name=display_name,
         )

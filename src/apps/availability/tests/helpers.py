@@ -21,7 +21,9 @@ class AvailabilityTestCase(TestCase):
         self.tenant = Tenant.objects.create(slug=f"avail-{uuid.uuid4().hex[:8]}", name="Availability Test Tenant")
         self.other_tenant = Tenant.objects.create(slug=f"avail-other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
 
-    def _create_supplier(self, *, tenant=None, supplier_type=SupplierType.INDEPENDENT_PROVIDER, **kwargs) -> ServiceSupplier:
+    def _create_supplier(
+        self, *, tenant=None, supplier_type=SupplierType.INDEPENDENT_PROVIDER, **kwargs
+    ) -> ServiceSupplier:
         tenant = tenant or self.tenant
         defaults = {
             "tenant_id": tenant.id,

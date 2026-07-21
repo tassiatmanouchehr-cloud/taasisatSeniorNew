@@ -41,7 +41,9 @@ class MatchingConfiguration:
     @classmethod
     def get_max_candidates(cls, *, tenant_id: uuid.UUID) -> int:
         value = ConfigResolver.get_or_default(
-            MAX_CANDIDATES_KEY, tenant_id=tenant_id, default=DEFAULT_MAX_CANDIDATES,
+            MAX_CANDIDATES_KEY,
+            tenant_id=tenant_id,
+            default=DEFAULT_MAX_CANDIDATES,
         )
         try:
             return int(value)
@@ -51,7 +53,9 @@ class MatchingConfiguration:
     @classmethod
     def get_minimum_verification_level(cls, *, tenant_id: uuid.UUID) -> str:
         value = ConfigResolver.get_or_default(
-            MIN_VERIFICATION_LEVEL_KEY, tenant_id=tenant_id, default=DEFAULT_MIN_VERIFICATION_LEVEL,
+            MIN_VERIFICATION_LEVEL_KEY,
+            tenant_id=tenant_id,
+            default=DEFAULT_MIN_VERIFICATION_LEVEL,
         )
         return value or ""
 

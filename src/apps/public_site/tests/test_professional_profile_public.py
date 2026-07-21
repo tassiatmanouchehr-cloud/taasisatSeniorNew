@@ -40,7 +40,9 @@ class PublicProfileEligibilityTest(PublicSiteTestCase):
         from apps.kernel.models import Person, UserAccount
 
         supplier, _ = self._create_caregiver_supplier(
-            display_name="مراقب واقعی", verification_status="verified", profile_status="active",
+            display_name="مراقب واقعی",
+            verification_status="verified",
+            profile_status="active",
         )
         person = Person.objects.create(tenant=self.tenant, full_name="Customer")
         user = UserAccount.objects.create_user(phone="09121110000", person=person, tenant=self.tenant)
@@ -48,7 +50,8 @@ class PublicProfileEligibilityTest(PublicSiteTestCase):
 
         self.client.force_login(user)
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "مراقب واقعی")
@@ -56,7 +59,8 @@ class PublicProfileEligibilityTest(PublicSiteTestCase):
     def test_public_context_excludes_private_fields(self):
         supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         self.assertNotContains(response, caregiver.phone)
         self.assertNotContains(response, caregiver.user.phone)
@@ -95,7 +99,10 @@ class PublicProfileSkillsExperienceCredentialsTest(PublicSiteTestCase):
     def test_hidden_experience_does_not_appear(self):
         supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
         CaregiverExperienceService.create(
-            caregiver, title="پنهان", start_date=datetime.date(2020, 1, 1), is_visible=False,
+            caregiver,
+            title="پنهان",
+            start_date=datetime.date(2020, 1, 1),
+            is_visible=False,
         )
         profile = CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id)
         self.assertEqual(profile.experience, ())
@@ -104,7 +111,8 @@ class PublicProfileSkillsExperienceCredentialsTest(PublicSiteTestCase):
         supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
         CaregiverSkillService.add_skill(caregiver, name="<script>alert(1)</script>")
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         self.assertNotContains(response, "<script>alert(1)</script>")
         self.assertContains(response, "&lt;script&gt;")
@@ -112,10 +120,14 @@ class PublicProfileSkillsExperienceCredentialsTest(PublicSiteTestCase):
     def test_experience_description_rendered_safely(self):
         supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
         CaregiverExperienceService.create(
-            caregiver, title="X", description="<script>alert(1)</script>", start_date=datetime.date(2020, 1, 1),
+            caregiver,
+            title="X",
+            description="<script>alert(1)</script>",
+            start_date=datetime.date(2020, 1, 1),
         )
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         self.assertNotContains(response, "<script>alert(1)</script>")
         self.assertContains(response, "&lt;script&gt;")
@@ -124,7 +136,8 @@ class PublicProfileSkillsExperienceCredentialsTest(PublicSiteTestCase):
         supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
         CaregiverExperienceService.create(caregiver, title="X", start_date=datetime.date(2020, 1, 1))
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         self.assertContains(response, "توسط خود مراقب اعلام شده")
 
@@ -137,7 +150,8 @@ class PublicProfileSkillsExperienceCredentialsTest(PublicSiteTestCase):
         after the call."""
         for doc_type in (DocumentType.IDENTITY, DocumentType.BACKGROUND_CHECK):
             doc = DocumentService.upload_caregiver_document(
-                caregiver, document_type=doc_type,
+                caregiver,
+                document_type=doc_type,
                 file=SimpleUploadedFile(f"{doc_type}.pdf", PDF_BYTES, content_type="application/pdf"),
             )
             VerificationReviewService.approve(document_id=doc.id, tenant_id=self.tenant.id, reviewer=reviewer)
@@ -155,7 +169,8 @@ class PublicProfileSkillsExperienceCredentialsTest(PublicSiteTestCase):
         self._approve_required_documents(caregiver, reviewer=reviewer)
 
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         self.assertNotContains(response, "private/documents/")
         self.assertNotContains(response, str(reviewer.id))
@@ -164,11 +179,14 @@ class PublicProfileSkillsExperienceCredentialsTest(PublicSiteTestCase):
         supplier, caregiver = self._create_caregiver_supplier(verification_status="unverified")
         reviewer = self._reviewer()
         doc = DocumentService.upload_caregiver_document(
-            caregiver, document_type=DocumentType.IDENTITY,
+            caregiver,
+            document_type=DocumentType.IDENTITY,
             file=SimpleUploadedFile("id.pdf", PDF_BYTES, content_type="application/pdf"),
         )
         VerificationReviewService.reject(
-            document_id=doc.id, tenant_id=self.tenant.id, reviewer=reviewer,
+            document_id=doc.id,
+            tenant_id=self.tenant.id,
+            reviewer=reviewer,
             reason="مدرک جعلی به نظر می‌رسد و اسکن آن ناخوانا است",
         )
         # profile itself is None (unverified), but assert directly on the
@@ -199,14 +217,16 @@ class PublicProfileHighlightsAndBadgesTest(PublicSiteTestCase):
     def _approve_required_documents(self, caregiver, *, reviewer):
         for doc_type in (DocumentType.IDENTITY, DocumentType.BACKGROUND_CHECK):
             doc = DocumentService.upload_caregiver_document(
-                caregiver, document_type=doc_type,
+                caregiver,
+                document_type=doc_type,
                 file=SimpleUploadedFile(f"{doc_type}.pdf", PDF_BYTES, content_type="application/pdf"),
             )
             VerificationReviewService.approve(document_id=doc.id, tenant_id=self.tenant.id, reviewer=reviewer)
 
     def test_highlights_reflect_visible_skills_and_verified_credentials(self):
         supplier, caregiver = self._create_caregiver_supplier(
-            verification_status="verified", years_experience=7,
+            verification_status="verified",
+            years_experience=7,
         )
         CaregiverSkillService.add_skill(caregiver, name="مراقبت تخصصی")
         hidden = CaregiverSkillService.add_skill(caregiver, name="پنهان")
@@ -240,7 +260,8 @@ class PublicProfileHighlightsAndBadgesTest(PublicSiteTestCase):
     def test_pending_document_grants_no_identity_badge(self):
         supplier, caregiver = self._create_caregiver_supplier(verification_status="unverified")
         DocumentService.upload_caregiver_document(
-            caregiver, document_type=DocumentType.IDENTITY,
+            caregiver,
+            document_type=DocumentType.IDENTITY,
             file=SimpleUploadedFile("id.pdf", PDF_BYTES, content_type="application/pdf"),
         )
         # profile itself is None (unverified) — badges never computed at all.
@@ -271,12 +292,15 @@ class PublicProfileHighlightsAndBadgesTest(PublicSiteTestCase):
         )
         supplier, caregiver = self._create_caregiver_supplier(verification_status="unverified")
         ConfigurationValue.objects.update_or_create(
-            tenant_id=self.tenant.id, config_key=config_key, scope_type=ScopeLevel.TENANT,
+            tenant_id=self.tenant.id,
+            config_key=config_key,
+            scope_type=ScopeLevel.TENANT,
             defaults={"value": [DocumentType.BACKGROUND_CHECK], "is_active": True},
         )
         reviewer = self._reviewer()
         doc = DocumentService.upload_caregiver_document(
-            caregiver, document_type=DocumentType.BACKGROUND_CHECK,
+            caregiver,
+            document_type=DocumentType.BACKGROUND_CHECK,
             file=SimpleUploadedFile("bg.pdf", PDF_BYTES, content_type="application/pdf"),
         )
         VerificationReviewService.approve(document_id=doc.id, tenant_id=self.tenant.id, reviewer=reviewer)
@@ -289,7 +313,8 @@ class PublicProfileHighlightsAndBadgesTest(PublicSiteTestCase):
 
     def test_hidden_caregiver_profile_has_no_highlights_or_badges(self):
         supplier, caregiver = self._create_caregiver_supplier(
-            verification_status="verified", profile_status="draft",
+            verification_status="verified",
+            profile_status="draft",
         )
         CaregiverSkillService.add_skill(caregiver, name="X")
         self.assertIsNone(CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id))
@@ -307,10 +332,13 @@ class PublicProfileHeaderLayoutTest(PublicSiteTestCase):
 
     def test_header_has_distinct_semantic_regions_for_back_link_avatar_identity_badges_metadata(self):
         supplier, _caregiver = self._create_caregiver_supplier(
-            display_name="مراقب نمونه", city="tehran", specialty="پرستار سالمندان",
+            display_name="مراقب نمونه",
+            city="tehran",
+            specialty="پرستار سالمندان",
         )
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         content = response.content.decode()
 
@@ -345,10 +373,13 @@ class PublicProfileHeaderLayoutTest(PublicSiteTestCase):
         long_specialty = "مراقبت تخصصی از سالمندان مبتلا به آلزایمر و پارکینسون با سابقه طولانی درمانی"
         self.assertLessEqual(len(long_specialty), 100)
         supplier, _caregiver = self._create_caregiver_supplier(
-            display_name=long_name, specialty=long_specialty, city="tehran",
+            display_name=long_name,
+            specialty=long_specialty,
+            city="tehran",
         )
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
 
         # Full, untruncated text must appear — no CSS `truncate`/JS
@@ -364,7 +395,8 @@ class PublicProfileHeaderLayoutTest(PublicSiteTestCase):
         self.assertFalse(caregiver.avatar)
 
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         content = response.content.decode()
 
@@ -378,7 +410,8 @@ class PublicProfileHeaderLayoutTest(PublicSiteTestCase):
     def test_missing_optional_city_and_specialty_does_not_break_layout(self):
         supplier, _caregiver = self._create_caregiver_supplier(display_name="مراقب بدون شهر", city="", specialty="")
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -395,7 +428,8 @@ class PublicProfileHeaderLayoutTest(PublicSiteTestCase):
         row as the name, not in a separately-positioned block."""
         supplier, _caregiver = self._create_caregiver_supplier(display_name="نشان تأیید تست")
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         content = response.content.decode()
 
@@ -416,11 +450,14 @@ class PublicProfileQueryCountTest(PublicSiteTestCase):
         for i in range(5):
             CaregiverSkillService.add_skill(caregiver, name=f"Skill {i}")
             CaregiverExperienceService.create(
-                caregiver, title=f"Role {i}", start_date=datetime.date(2015 + i, 1, 1),
+                caregiver,
+                title=f"Role {i}",
+                start_date=datetime.date(2015 + i, 1, 1),
             )
         for doc_type in (DocumentType.IDENTITY, DocumentType.BACKGROUND_CHECK):
             doc = DocumentService.upload_caregiver_document(
-                caregiver, document_type=doc_type,
+                caregiver,
+                document_type=doc_type,
                 file=SimpleUploadedFile(f"{doc_type}.pdf", PDF_BYTES, content_type="application/pdf"),
             )
             VerificationReviewService.approve(document_id=doc.id, tenant_id=self.tenant.id, reviewer=reviewer)
@@ -485,7 +522,10 @@ class PublicScheduleSummaryTest(PublicSiteTestCase):
 
         supplier, caregiver = self._create_caregiver_supplier(verification_status="verified")
         window = AvailabilityMutationService.add_working_window(
-            supplier=supplier, day_of_week=1, start_time=dt.time(9, 0), end_time=dt.time(17, 0),
+            supplier=supplier,
+            day_of_week=1,
+            start_time=dt.time(9, 0),
+            end_time=dt.time(17, 0),
         )
         AvailabilityMutationService.update_working_window(window_id=window.id, is_active=False)
         profile = CaregiverPublicProfileService.get_profile(supplier.id, tenant_id=self.tenant.id)
@@ -495,7 +535,8 @@ class PublicScheduleSummaryTest(PublicSiteTestCase):
         supplier, _ = self._create_caregiver_supplier(verification_status="verified")
         self._add_window(supplier, day_of_week=0, start="09:00", end="17:00")
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         self.assertContains(response, "دوشنبه")
         self.assertNotContains(response, "09:00")
@@ -520,7 +561,8 @@ class PublicScheduleSummaryTest(PublicSiteTestCase):
             notes="جزئیات محرمانه پزشکی",
         )
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         self.assertNotContains(response, "جزئیات محرمانه پزشکی")
         self.assertNotContains(response, "SICK")

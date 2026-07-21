@@ -49,10 +49,14 @@ class ProviderWorkingWindow(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="provider_working_windows",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="provider_working_windows",
     )
     supplier = models.ForeignKey(
-        "kernel.ServiceSupplier", on_delete=models.CASCADE, related_name="working_windows",
+        "kernel.ServiceSupplier",
+        on_delete=models.CASCADE,
+        related_name="working_windows",
     )
 
     day_of_week = models.IntegerField(choices=DayOfWeek.choices)
@@ -90,10 +94,14 @@ class AvailabilityBlockedPeriod(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="availability_blocked_periods",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="availability_blocked_periods",
     )
     supplier = models.ForeignKey(
-        "kernel.ServiceSupplier", on_delete=models.CASCADE, related_name="blocked_periods",
+        "kernel.ServiceSupplier",
+        on_delete=models.CASCADE,
+        related_name="blocked_periods",
     )
 
     start_at = models.DateTimeField()
@@ -126,10 +134,14 @@ class CapacityRule(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="capacity_rules",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="capacity_rules",
     )
     supplier = models.OneToOneField(
-        "kernel.ServiceSupplier", on_delete=models.CASCADE, related_name="capacity_rule",
+        "kernel.ServiceSupplier",
+        on_delete=models.CASCADE,
+        related_name="capacity_rule",
     )
 
     max_concurrent_assignments = models.PositiveIntegerField(default=1)

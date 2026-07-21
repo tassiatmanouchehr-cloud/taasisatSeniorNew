@@ -34,18 +34,29 @@ class Review(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="reviews",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="reviews",
     )
     order = models.ForeignKey(
-        "orders.Order", on_delete=models.SET_NULL, null=True, blank=True, related_name="reviews",
+        "orders.Order",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviews",
     )
     supplier = models.ForeignKey(
-        "kernel.ServiceSupplier", on_delete=models.PROTECT, related_name="reviews",
+        "kernel.ServiceSupplier",
+        on_delete=models.PROTECT,
+        related_name="reviews",
     )
     reviewer_person_id = models.UUIDField(help_text="kernel.Person id of the reviewer.")
 
     moderation_status = models.CharField(
-        max_length=20, choices=ReviewModerationStatus.choices, default=ReviewModerationStatus.PENDING, db_index=True,
+        max_length=20,
+        choices=ReviewModerationStatus.choices,
+        default=ReviewModerationStatus.PENDING,
+        db_index=True,
     )
     moderation_reason = models.TextField(blank=True)
     moderated_at = models.DateTimeField(null=True, blank=True)
@@ -83,10 +94,14 @@ class ReviewRating(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="review_ratings",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="review_ratings",
     )
     review = models.ForeignKey(
-        "reviews.Review", on_delete=models.CASCADE, related_name="ratings",
+        "reviews.Review",
+        on_delete=models.CASCADE,
+        related_name="ratings",
     )
     dimension = models.CharField(max_length=20, choices=ReviewRatingDimension.choices)
     score = models.IntegerField()
@@ -106,14 +121,21 @@ class ReputationSnapshot(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="reputation_snapshots",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="reputation_snapshots",
     )
     supplier = models.OneToOneField(
-        "kernel.ServiceSupplier", on_delete=models.CASCADE, related_name="reputation_snapshot",
+        "kernel.ServiceSupplier",
+        on_delete=models.CASCADE,
+        related_name="reputation_snapshot",
     )
     review_count = models.PositiveIntegerField(default=0)
     average_score = models.DecimalField(
-        max_digits=RATING_MAX_DIGITS, decimal_places=RATING_DECIMAL_PLACES, null=True, blank=True,
+        max_digits=RATING_MAX_DIGITS,
+        decimal_places=RATING_DECIMAL_PLACES,
+        null=True,
+        blank=True,
     )
     last_calculated_at = models.DateTimeField(auto_now=True)
     metadata = models.JSONField(default=dict, blank=True)

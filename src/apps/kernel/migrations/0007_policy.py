@@ -6,12 +6,11 @@ Tables: kernel.policy_definition, kernel.policy_version
 
 import uuid
 
-from django.db import migrations, models
 import django.db.models.deletion
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("kernel", "0006_feature_flag"),
     ]
@@ -28,7 +27,20 @@ class Migration(migrations.Migration):
                 ("owner_module", models.CharField(max_length=10)),
                 ("scope_type", models.CharField(blank=True, max_length=50)),
                 ("scope_id", models.UUIDField(blank=True, null=True)),
-                ("status", models.CharField(choices=[("draft", "Draft"), ("active", "Active"), ("deprecated", "Deprecated"), ("archived", "Archived")], db_index=True, default="draft", max_length=20)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("draft", "Draft"),
+                            ("active", "Active"),
+                            ("deprecated", "Deprecated"),
+                            ("archived", "Archived"),
+                        ],
+                        db_index=True,
+                        default="draft",
+                        max_length=20,
+                    ),
+                ),
                 ("current_version_number", models.IntegerField(default=0)),
                 ("metadata", models.JSONField(blank=True, default=dict)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
@@ -56,14 +68,34 @@ class Migration(migrations.Migration):
                 ("validation_schema", models.JSONField(blank=True, null=True)),
                 ("effective_from", models.DateTimeField()),
                 ("effective_until", models.DateTimeField(blank=True, null=True)),
-                ("status", models.CharField(choices=[("draft", "Draft"), ("pending_approval", "Pending Approval"), ("active", "Active"), ("superseded", "Superseded")], db_index=True, default="draft", max_length=20)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("draft", "Draft"),
+                            ("pending_approval", "Pending Approval"),
+                            ("active", "Active"),
+                            ("superseded", "Superseded"),
+                        ],
+                        db_index=True,
+                        default="draft",
+                        max_length=20,
+                    ),
+                ),
                 ("approved_by", models.UUIDField(blank=True, null=True)),
                 ("approved_at", models.DateTimeField(blank=True, null=True)),
                 ("change_reason", models.TextField(blank=True)),
                 ("superseded_by", models.UUIDField(blank=True, null=True)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("created_by", models.UUIDField(blank=True, null=True)),
-                ("policy", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="versions", to="kernel.policydefinition")),
+                (
+                    "policy",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="versions",
+                        to="kernel.policydefinition",
+                    ),
+                ),
             ],
             options={
                 "verbose_name": "Policy Version",

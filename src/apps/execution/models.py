@@ -49,18 +49,26 @@ class ExecutionSession(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="execution_sessions",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="execution_sessions",
     )
     order = models.ForeignKey(
-        "orders.Order", on_delete=models.CASCADE, related_name="execution_sessions",
+        "orders.Order",
+        on_delete=models.CASCADE,
+        related_name="execution_sessions",
     )
     supplier_assignment = models.ForeignKey(
-        "booking.SupplierAssignment", on_delete=models.PROTECT, related_name="execution_sessions",
+        "booking.SupplierAssignment",
+        on_delete=models.PROTECT,
+        related_name="execution_sessions",
     )
 
     status = models.CharField(
-        max_length=20, choices=ExecutionSessionStatus.choices,
-        default=ExecutionSessionStatus.SCHEDULED, db_index=True,
+        max_length=20,
+        choices=ExecutionSessionStatus.choices,
+        default=ExecutionSessionStatus.SCHEDULED,
+        db_index=True,
     )
     execution_source = models.CharField(max_length=20, choices=ExecutionSource.choices)
     execution_sequence = models.IntegerField(
@@ -68,10 +76,15 @@ class ExecutionSession(models.Model):
     )
 
     triggered_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
     )
     context_snapshot = models.JSONField(
-        default=dict, blank=True,
+        default=dict,
+        blank=True,
         help_text="Snapshot of execution configuration/context at session creation time.",
     )
 

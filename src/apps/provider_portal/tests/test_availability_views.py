@@ -11,9 +11,14 @@ from .helpers import ProviderPortalTestCase
 class WorkingWindowViewTest(ProviderPortalTestCase):
     def test_add_working_window(self):
         self.login_as_provider()
-        response = self.client.post("/provider/availability/", {
-            "day_of_week": "0", "start_time": "09:00", "end_time": "17:00",
-        })
+        response = self.client.post(
+            "/provider/availability/",
+            {
+                "day_of_week": "0",
+                "start_time": "09:00",
+                "end_time": "17:00",
+            },
+        )
         self.assertRedirects(response, "/provider/availability/")
 
         from apps.availability.models import ProviderWorkingWindow
@@ -22,9 +27,14 @@ class WorkingWindowViewTest(ProviderPortalTestCase):
 
     def test_add_working_window_rejects_end_before_start(self):
         self.login_as_provider()
-        response = self.client.post("/provider/availability/", {
-            "day_of_week": "0", "start_time": "17:00", "end_time": "09:00",
-        })
+        response = self.client.post(
+            "/provider/availability/",
+            {
+                "day_of_week": "0",
+                "start_time": "17:00",
+                "end_time": "09:00",
+            },
+        )
         self.assertEqual(response.status_code, 200)
 
         from apps.availability.models import ProviderWorkingWindow
@@ -35,7 +45,10 @@ class WorkingWindowViewTest(ProviderPortalTestCase):
         from apps.availability.services.mutation_service import AvailabilityMutationService
 
         window = AvailabilityMutationService.add_working_window(
-            supplier=self.supplier, day_of_week=0, start_time="09:00", end_time="17:00",
+            supplier=self.supplier,
+            day_of_week=0,
+            start_time="09:00",
+            end_time="17:00",
         )
         self.login_as_provider()
         response = self.client.post(f"/provider/availability/windows/{window.id}/remove/")
@@ -49,7 +62,10 @@ class WorkingWindowViewTest(ProviderPortalTestCase):
         from apps.availability.services.mutation_service import AvailabilityMutationService
 
         window = AvailabilityMutationService.add_working_window(
-            supplier=self.supplier, day_of_week=0, start_time="09:00", end_time="17:00",
+            supplier=self.supplier,
+            day_of_week=0,
+            start_time="09:00",
+            end_time="17:00",
         )
         self.client.force_login(self.other_provider_user)
         response = self.client.post(f"/provider/availability/windows/{window.id}/remove/")
@@ -59,17 +75,24 @@ class WorkingWindowViewTest(ProviderPortalTestCase):
 
         self.assertTrue(ProviderWorkingWindow.objects.filter(id=window.id).exists())
 
-
     def test_add_working_window_rejects_duplicate(self):
         from apps.availability.services.mutation_service import AvailabilityMutationService
 
         AvailabilityMutationService.add_working_window(
-            supplier=self.supplier, day_of_week=0, start_time="09:00", end_time="17:00",
+            supplier=self.supplier,
+            day_of_week=0,
+            start_time="09:00",
+            end_time="17:00",
         )
         self.login_as_provider()
-        response = self.client.post("/provider/availability/", {
-            "day_of_week": "0", "start_time": "09:00", "end_time": "17:00",
-        })
+        response = self.client.post(
+            "/provider/availability/",
+            {
+                "day_of_week": "0",
+                "start_time": "09:00",
+                "end_time": "17:00",
+            },
+        )
         self.assertEqual(response.status_code, 200)
 
         from apps.availability.models import ProviderWorkingWindow
@@ -80,12 +103,20 @@ class WorkingWindowViewTest(ProviderPortalTestCase):
         from apps.availability.services.mutation_service import AvailabilityMutationService
 
         AvailabilityMutationService.add_working_window(
-            supplier=self.supplier, day_of_week=0, start_time="09:00", end_time="17:00",
+            supplier=self.supplier,
+            day_of_week=0,
+            start_time="09:00",
+            end_time="17:00",
         )
         self.login_as_provider()
-        response = self.client.post("/provider/availability/", {
-            "day_of_week": "0", "start_time": "16:00", "end_time": "20:00",
-        })
+        response = self.client.post(
+            "/provider/availability/",
+            {
+                "day_of_week": "0",
+                "start_time": "16:00",
+                "end_time": "20:00",
+            },
+        )
         self.assertEqual(response.status_code, 200)
 
         from apps.availability.models import ProviderWorkingWindow
@@ -96,12 +127,19 @@ class WorkingWindowViewTest(ProviderPortalTestCase):
         from apps.availability.services.mutation_service import AvailabilityMutationService
 
         window = AvailabilityMutationService.add_working_window(
-            supplier=self.supplier, day_of_week=0, start_time="09:00", end_time="17:00",
+            supplier=self.supplier,
+            day_of_week=0,
+            start_time="09:00",
+            end_time="17:00",
         )
         self.login_as_provider()
-        response = self.client.post(f"/provider/availability/windows/{window.id}/update/", {
-            "start_time": "10:00", "end_time": "18:00",
-        })
+        response = self.client.post(
+            f"/provider/availability/windows/{window.id}/update/",
+            {
+                "start_time": "10:00",
+                "end_time": "18:00",
+            },
+        )
         self.assertRedirects(response, "/provider/availability/")
 
         from apps.availability.models import ProviderWorkingWindow
@@ -113,12 +151,19 @@ class WorkingWindowViewTest(ProviderPortalTestCase):
         from apps.availability.services.mutation_service import AvailabilityMutationService
 
         window = AvailabilityMutationService.add_working_window(
-            supplier=self.supplier, day_of_week=0, start_time="09:00", end_time="17:00",
+            supplier=self.supplier,
+            day_of_week=0,
+            start_time="09:00",
+            end_time="17:00",
         )
         self.client.force_login(self.other_provider_user)
-        response = self.client.post(f"/provider/availability/windows/{window.id}/update/", {
-            "start_time": "10:00", "end_time": "18:00",
-        })
+        response = self.client.post(
+            f"/provider/availability/windows/{window.id}/update/",
+            {
+                "start_time": "10:00",
+                "end_time": "18:00",
+            },
+        )
         self.assertEqual(response.status_code, 404)
 
         from apps.availability.models import ProviderWorkingWindow
@@ -130,12 +175,19 @@ class WorkingWindowViewTest(ProviderPortalTestCase):
         from apps.availability.services.mutation_service import AvailabilityMutationService
 
         window = AvailabilityMutationService.add_working_window(
-            supplier=self.supplier, day_of_week=0, start_time="09:00", end_time="17:00",
+            supplier=self.supplier,
+            day_of_week=0,
+            start_time="09:00",
+            end_time="17:00",
         )
         self.client.force_login(self.other_tenant_provider_user)
-        response = self.client.post(f"/provider/availability/windows/{window.id}/update/", {
-            "start_time": "10:00", "end_time": "18:00",
-        })
+        response = self.client.post(
+            f"/provider/availability/windows/{window.id}/update/",
+            {
+                "start_time": "10:00",
+                "end_time": "18:00",
+            },
+        )
         self.assertEqual(response.status_code, 404)
 
     def test_customer_cannot_access_availability_page(self):
@@ -147,7 +199,10 @@ class WorkingWindowViewTest(ProviderPortalTestCase):
         from apps.availability.services.mutation_service import AvailabilityMutationService
 
         window = AvailabilityMutationService.add_working_window(
-            supplier=self.supplier, day_of_week=0, start_time="09:00", end_time="17:00",
+            supplier=self.supplier,
+            day_of_week=0,
+            start_time="09:00",
+            end_time="17:00",
         )
         self.client.force_login(self.customer.user)
         response = self.client.post(f"/provider/availability/windows/{window.id}/toggle/")
@@ -166,7 +221,9 @@ class WorkingWindowViewTest(ProviderPortalTestCase):
 
         person = Person.objects.create(tenant=self.tenant, full_name="Org User")
         org_user = UserAccount.objects.create_user(
-            phone=f"0912{uuid_module.uuid4().hex[:7]}", person=person, tenant=self.tenant,
+            phone=f"0912{uuid_module.uuid4().hex[:7]}",
+            person=person,
+            tenant=self.tenant,
         )
         self.client.force_login(org_user)
         response = self.client.get("/provider/availability/")
@@ -176,7 +233,10 @@ class WorkingWindowViewTest(ProviderPortalTestCase):
         from apps.availability.services.mutation_service import AvailabilityMutationService
 
         window = AvailabilityMutationService.add_working_window(
-            supplier=self.supplier, day_of_week=0, start_time="09:00", end_time="17:00",
+            supplier=self.supplier,
+            day_of_week=0,
+            start_time="09:00",
+            end_time="17:00",
         )
         self.login_as_provider()
         response = self.client.post(f"/provider/availability/windows/{window.id}/toggle/")
@@ -190,7 +250,10 @@ class WorkingWindowViewTest(ProviderPortalTestCase):
         from apps.availability.services.mutation_service import AvailabilityMutationService
 
         window = AvailabilityMutationService.add_working_window(
-            supplier=self.supplier, day_of_week=0, start_time="09:00", end_time="17:00",
+            supplier=self.supplier,
+            day_of_week=0,
+            start_time="09:00",
+            end_time="17:00",
         )
         self.client.force_login(self.other_provider_user)
         response = self.client.post(f"/provider/availability/windows/{window.id}/toggle/")
@@ -206,9 +269,14 @@ class BlockedPeriodViewTest(ProviderPortalTestCase):
         self.login_as_provider()
         start = timezone.now() + timezone.timedelta(days=1)
         end = start + timezone.timedelta(hours=2)
-        response = self.client.post("/provider/availability/blocked-periods/add/", {
-            "start_at": start.isoformat(), "end_at": end.isoformat(), "reason": "SICK",
-        })
+        response = self.client.post(
+            "/provider/availability/blocked-periods/add/",
+            {
+                "start_at": start.isoformat(),
+                "end_at": end.isoformat(),
+                "reason": "SICK",
+            },
+        )
         self.assertRedirects(response, "/provider/availability/")
 
         from apps.availability.models import AvailabilityBlockedPeriod
@@ -219,9 +287,14 @@ class BlockedPeriodViewTest(ProviderPortalTestCase):
         self.login_as_provider()
         start = timezone.now() + timezone.timedelta(days=1)
         end = start - timezone.timedelta(hours=2)
-        self.client.post("/provider/availability/blocked-periods/add/", {
-            "start_at": start.isoformat(), "end_at": end.isoformat(), "reason": "SICK",
-        })
+        self.client.post(
+            "/provider/availability/blocked-periods/add/",
+            {
+                "start_at": start.isoformat(),
+                "end_at": end.isoformat(),
+                "reason": "SICK",
+            },
+        )
 
         from apps.availability.models import AvailabilityBlockedPeriod
 
@@ -242,9 +315,14 @@ class BlockedPeriodViewTest(ProviderPortalTestCase):
         self.client.force_login(self.customer.user)
         start = timezone.now() + timezone.timedelta(days=1)
         end = start + timezone.timedelta(hours=2)
-        response = self.client.post("/provider/availability/blocked-periods/add/", {
-            "start_at": start.isoformat(), "end_at": end.isoformat(), "reason": "SICK",
-        })
+        response = self.client.post(
+            "/provider/availability/blocked-periods/add/",
+            {
+                "start_at": start.isoformat(),
+                "end_at": end.isoformat(),
+                "reason": "SICK",
+            },
+        )
         self.assertEqual(response.status_code, 403)
 
 
@@ -253,7 +331,10 @@ class AvailabilityPublicSummaryPreviewTest(ProviderPortalTestCase):
         from apps.availability.services.mutation_service import AvailabilityMutationService
 
         AvailabilityMutationService.add_working_window(
-            supplier=self.supplier, day_of_week=0, start_time="09:00", end_time="17:00",
+            supplier=self.supplier,
+            day_of_week=0,
+            start_time="09:00",
+            end_time="17:00",
         )
         self.login_as_provider()
         response = self.client.get("/provider/availability/")
@@ -271,11 +352,16 @@ class AvailabilityQueryCountTest(ProviderPortalTestCase):
 
         for day in range(3):
             AvailabilityMutationService.add_working_window(
-                supplier=self.supplier, day_of_week=day, start_time="09:00", end_time="17:00",
+                supplier=self.supplier,
+                day_of_week=day,
+                start_time="09:00",
+                end_time="17:00",
             )
         start = timezone.now() + timezone.timedelta(days=1)
         AvailabilityMutationService.add_blocked_period(
-            supplier=self.supplier, start_at=start, end_at=start + timezone.timedelta(hours=2),
+            supplier=self.supplier,
+            start_at=start,
+            end_at=start + timezone.timedelta(hours=2),
         )
         self.login_as_provider()
         # Fixed-cost page: session/auth resolution + working windows +

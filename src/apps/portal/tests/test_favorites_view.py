@@ -9,8 +9,8 @@ first portal page that needs a real ServiceSupplier."""
 
 import uuid
 
-from django.test.utils import CaptureQueriesContext
 from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 from apps.accounts.models.favorites import Favorite
 from apps.accounts.models.profiles import CaregiverProfile, OrganizationProfile
@@ -31,7 +31,11 @@ class _SupplierFixtureMixin:
         person = Person.objects.create(tenant=tenant, full_name=display_name)
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         caregiver = CaregiverProfile.objects.create(
-            user=user, person=person, phone=phone, display_name=display_name, verification_status="verified",
+            user=user,
+            person=person,
+            phone=phone,
+            display_name=display_name,
+            verification_status="verified",
         )
         supplier = get_or_create_supplier_for_caregiver(caregiver, tenant_id=tenant.id)
         supplier.status = SupplierStatus.ACTIVE if active else SupplierStatus.SUSPENDED
@@ -42,11 +46,17 @@ class _SupplierFixtureMixin:
         tenant = tenant or self.tenant
         admin_person = Person.objects.create(tenant=tenant, full_name="Org Admin")
         admin_user = UserAccount.objects.create_user(
-            phone=f"0917{uuid.uuid4().hex[:7]}", person=admin_person, tenant=tenant,
+            phone=f"0917{uuid.uuid4().hex[:7]}",
+            person=admin_person,
+            tenant=tenant,
         )
         organization = OrganizationProfile.objects.create(
-            name=name, code=f"org-{uuid.uuid4().hex[:8]}", admin_user=admin_user, tenant=tenant,
-            status="active", verification_status="verified",
+            name=name,
+            code=f"org-{uuid.uuid4().hex[:8]}",
+            admin_user=admin_user,
+            tenant=tenant,
+            status="active",
+            verification_status="verified",
         )
         supplier = get_or_create_supplier_for_organization(organization, tenant_id=tenant.id)
         supplier.status = SupplierStatus.ACTIVE if active else SupplierStatus.SUSPENDED

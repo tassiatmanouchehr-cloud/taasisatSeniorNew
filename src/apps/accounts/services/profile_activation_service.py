@@ -179,7 +179,10 @@ class ProfileActivationService:
             # idempotent helpers perform no write.
             sync_supplier_for_profile_activation(profile, tenant_id=tenant_id)
             return ProfileActivationResult(
-                profile=profile, previous_status=previous_status, status=profile.status, transitioned=False,
+                profile=profile,
+                previous_status=previous_status,
+                status=profile.status,
+                transitioned=False,
             )
 
         result = ActivationEligibilityService.evaluate(profile)
@@ -210,5 +213,8 @@ class ProfileActivationService:
             after={"status": profile.status, "verification_status": result.verification.verification_status},
         )
         return ProfileActivationResult(
-            profile=profile, previous_status=previous_status, status=profile.status, transitioned=True,
+            profile=profile,
+            previous_status=previous_status,
+            status=profile.status,
+            transitioned=True,
         )

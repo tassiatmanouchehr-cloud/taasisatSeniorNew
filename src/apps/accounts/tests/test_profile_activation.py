@@ -45,9 +45,16 @@ class _ActivationFixtureMixin:
         person = Person.objects.create(tenant=tenant, full_name=full_name)
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         return CaregiverProfile.objects.create(
-            user=user, person=person, phone=phone, display_name=full_name,
-            city="tehran", specialty="elderly-care", bio="Experienced caregiver.",
-            years_experience=5, service_radius_km=10, status=status,
+            user=user,
+            person=person,
+            phone=phone,
+            display_name=full_name,
+            city="tehran",
+            specialty="elderly-care",
+            bio="Experienced caregiver.",
+            years_experience=5,
+            service_radius_km=10,
+            status=status,
         )
 
     def _create_organization(self, *, tenant, name="Test Org", status=ProfileStatus.DRAFT) -> OrganizationProfile:
@@ -55,9 +62,16 @@ class _ActivationFixtureMixin:
         person = Person.objects.create(tenant=tenant, full_name=f"{name} Admin")
         admin_user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         return OrganizationProfile.objects.create(
-            name=name, code=f"ORG-{uuid.uuid4().hex[:6].upper()}", admin_user=admin_user, tenant=tenant,
-            city="tehran", phone="09120000000", address="Some address",
-            description="A senior-care company.", company_type="home_care", status=status,
+            name=name,
+            code=f"ORG-{uuid.uuid4().hex[:6].upper()}",
+            admin_user=admin_user,
+            tenant=tenant,
+            city="tehran",
+            phone="09120000000",
+            address="Some address",
+            description="A senior-care company.",
+            company_type="home_care",
+            status=status,
         )
 
     def _create_user(self, *, tenant, full_name="Test User") -> UserAccount:
@@ -88,7 +102,9 @@ class EligibleCaregiverActivationTest(_ActivationFixtureMixin, TestCase):
         self.assertEqual(self.caregiver.status, ProfileStatus.DRAFT)
         self._approve_required_caregiver_documents()
         result = ProfileActivationService.activate_caregiver(
-            self.caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer,
+            self.caregiver.id,
+            tenant_id=self.tenant.id,
+            actor=self.reviewer,
         )
         self.assertEqual(result.previous_status, ProfileStatus.DRAFT)
         self.assertEqual(result.status, ProfileStatus.ACTIVE)
@@ -105,7 +121,9 @@ class EligibleCaregiverActivationTest(_ActivationFixtureMixin, TestCase):
         self._approve_required_caregiver_documents()
         ProfileActivationService.activate_caregiver(self.caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer)
         entry = AuditLog.objects.get(
-            tenant_id=self.tenant.id, resource_type="CaregiverProfile", resource_id=self.caregiver.id,
+            tenant_id=self.tenant.id,
+            resource_type="CaregiverProfile",
+            resource_id=self.caregiver.id,
             action="accounts.profile.activated",
         )
         self.assertEqual(entry.actor_id, self.reviewer.person_id)
@@ -115,16 +133,22 @@ class EligibleCaregiverActivationTest(_ActivationFixtureMixin, TestCase):
     def test_repeated_activation_is_idempotent(self):
         self._approve_required_caregiver_documents()
         first = ProfileActivationService.activate_caregiver(
-            self.caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer,
+            self.caregiver.id,
+            tenant_id=self.tenant.id,
+            actor=self.reviewer,
         )
         second = ProfileActivationService.activate_caregiver(
-            self.caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer,
+            self.caregiver.id,
+            tenant_id=self.tenant.id,
+            actor=self.reviewer,
         )
         self.assertTrue(first.transitioned)
         self.assertFalse(second.transitioned)
         self.assertEqual(second.status, ProfileStatus.ACTIVE)
         count = AuditLog.objects.filter(
-            tenant_id=self.tenant.id, resource_type="CaregiverProfile", resource_id=self.caregiver.id,
+            tenant_id=self.tenant.id,
+            resource_type="CaregiverProfile",
+            resource_id=self.caregiver.id,
             action="accounts.profile.activated",
         ).count()
         self.assertEqual(count, 1, "repeated activation must not create a duplicate effective audit entry")
@@ -142,7 +166,9 @@ class EligibleCaregiverActivationTest(_ActivationFixtureMixin, TestCase):
         doc.save(update_fields=["expiry_date"])
 
         result = ProfileActivationService.activate_caregiver(
-            self.caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer,
+            self.caregiver.id,
+            tenant_id=self.tenant.id,
+            actor=self.reviewer,
         )
         self.assertFalse(result.transitioned)
         self.assertEqual(result.status, ProfileStatus.ACTIVE)
@@ -156,7 +182,9 @@ class EligibleOrganizationActivationTest(_ActivationFixtureMixin, TestCase):
         self.assertEqual(self.organization.status, ProfileStatus.DRAFT)
         self._approve_required_organization_documents()
         result = ProfileActivationService.activate_organization(
-            self.organization.id, tenant_id=self.tenant.id, actor=self.reviewer,
+            self.organization.id,
+            tenant_id=self.tenant.id,
+            actor=self.reviewer,
         )
         self.assertEqual(result.previous_status, ProfileStatus.DRAFT)
         self.assertEqual(result.status, ProfileStatus.ACTIVE)
@@ -165,7 +193,9 @@ class EligibleOrganizationActivationTest(_ActivationFixtureMixin, TestCase):
     def test_activation_persists_profile_status(self):
         self._approve_required_organization_documents()
         ProfileActivationService.activate_organization(
-            self.organization.id, tenant_id=self.tenant.id, actor=self.reviewer,
+            self.organization.id,
+            tenant_id=self.tenant.id,
+            actor=self.reviewer,
         )
         self.organization.refresh_from_db()
         self.assertEqual(self.organization.status, ProfileStatus.ACTIVE)
@@ -174,13 +204,19 @@ class EligibleOrganizationActivationTest(_ActivationFixtureMixin, TestCase):
     def test_repeated_activation_is_idempotent(self):
         self._approve_required_organization_documents()
         ProfileActivationService.activate_organization(
-            self.organization.id, tenant_id=self.tenant.id, actor=self.reviewer,
+            self.organization.id,
+            tenant_id=self.tenant.id,
+            actor=self.reviewer,
         )
         ProfileActivationService.activate_organization(
-            self.organization.id, tenant_id=self.tenant.id, actor=self.reviewer,
+            self.organization.id,
+            tenant_id=self.tenant.id,
+            actor=self.reviewer,
         )
         count = AuditLog.objects.filter(
-            tenant_id=self.tenant.id, resource_type="OrganizationProfile", resource_id=self.organization.id,
+            tenant_id=self.tenant.id,
+            resource_type="OrganizationProfile",
+            resource_id=self.organization.id,
             action="accounts.profile.activated",
         ).count()
         self.assertEqual(count, 1)
@@ -192,7 +228,9 @@ class IneligibleActivationRefusalTest(_ActivationFixtureMixin, TestCase):
 
     def test_ineligible_draft_caregiver_activation_raises_controlled_error_with_reasons(self):
         with self.assertRaises(ProfileActivationError) as ctx:
-            ProfileActivationService.activate_caregiver(self.caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer)
+            ProfileActivationService.activate_caregiver(
+                self.caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer
+            )
         self.assertTrue(ctx.exception.result.reasons)
         self.caregiver.refresh_from_db()
         self.assertEqual(self.caregiver.status, ProfileStatus.DRAFT)
@@ -202,7 +240,9 @@ class IneligibleActivationRefusalTest(_ActivationFixtureMixin, TestCase):
         file = SimpleUploadedFile("id.pdf", PDF_BYTES, content_type="application/pdf")
         DocumentService.upload_caregiver_document(self.caregiver, document_type=DocumentType.IDENTITY, file=file)
         with self.assertRaises(ProfileActivationError):
-            ProfileActivationService.activate_caregiver(self.caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer)
+            ProfileActivationService.activate_caregiver(
+                self.caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer
+            )
 
     def test_expired_required_document_blocks_activation(self):
         self._approve_required_caregiver_documents()
@@ -211,14 +251,18 @@ class IneligibleActivationRefusalTest(_ActivationFixtureMixin, TestCase):
         doc.save(update_fields=["expiry_date"])
 
         with self.assertRaises(ProfileActivationError):
-            ProfileActivationService.activate_caregiver(self.caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer)
+            ProfileActivationService.activate_caregiver(
+                self.caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer
+            )
 
     def test_suspended_profile_cannot_be_activated(self):
         self._approve_required_caregiver_documents()
         self.caregiver.status = ProfileStatus.SUSPENDED
         self.caregiver.save(update_fields=["status"])
         with self.assertRaises(ProfileActivationError) as ctx:
-            ProfileActivationService.activate_caregiver(self.caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer)
+            ProfileActivationService.activate_caregiver(
+                self.caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer
+            )
         self.assertTrue(any(r.startswith("profile_status_blocked") for r in ctx.exception.result.reasons))
         self.caregiver.refresh_from_db()
         self.assertEqual(self.caregiver.status, ProfileStatus.SUSPENDED)
@@ -229,7 +273,9 @@ class IneligibleActivationRefusalTest(_ActivationFixtureMixin, TestCase):
         self.organization.save(update_fields=["status"])
         with self.assertRaises(ProfileActivationError):
             ProfileActivationService.activate_organization(
-                self.organization.id, tenant_id=self.tenant.id, actor=self.reviewer,
+                self.organization.id,
+                tenant_id=self.tenant.id,
+                actor=self.reviewer,
             )
 
 
@@ -249,21 +295,27 @@ class AuthorizationTest(_ActivationFixtureMixin, TestCase):
         grant_permissions(self.other_tenant, other_reviewer, [ACCOUNTS_PROFILE_ACTIVATE])
         with self.assertRaises(AccountsError):
             ProfileActivationService.activate_caregiver(
-                self.caregiver.id, tenant_id=self.other_tenant.id, actor=other_reviewer,
+                self.caregiver.id,
+                tenant_id=self.other_tenant.id,
+                actor=other_reviewer,
             )
 
     def test_caregiver_cannot_self_activate(self):
         grant_permissions(self.tenant, self.caregiver.user, [ACCOUNTS_PROFILE_ACTIVATE])
         with self.assertRaises(AccountsError):
             ProfileActivationService.activate_caregiver(
-                self.caregiver.id, tenant_id=self.tenant.id, actor=self.caregiver.user,
+                self.caregiver.id,
+                tenant_id=self.tenant.id,
+                actor=self.caregiver.user,
             )
 
     def test_organization_admin_cannot_self_activate(self):
         grant_permissions(self.tenant, self.organization.admin_user, [ACCOUNTS_PROFILE_ACTIVATE])
         with self.assertRaises(AccountsError):
             ProfileActivationService.activate_organization(
-                self.organization.id, tenant_id=self.tenant.id, actor=self.organization.admin_user,
+                self.organization.id,
+                tenant_id=self.tenant.id,
+                actor=self.organization.admin_user,
             )
 
 
@@ -337,7 +389,9 @@ class ConcurrentActivationTest(_ActivationFixtureMixin, TransactionTestCase):
             try:
                 barrier.wait(timeout=10)
                 ProfileActivationService.activate_caregiver(
-                    self.caregiver.id, tenant_id=self.tenant.id, actor=self.reviewer,
+                    self.caregiver.id,
+                    tenant_id=self.tenant.id,
+                    actor=self.reviewer,
                 )
             except Exception as exc:  # noqa: BLE001
                 errors.append(exc)
@@ -352,13 +406,17 @@ class ConcurrentActivationTest(_ActivationFixtureMixin, TransactionTestCase):
 
         self.assertEqual(errors, [])
         count = AuditLog.objects.filter(
-            tenant_id=self.tenant.id, resource_type="CaregiverProfile", resource_id=self.caregiver.id,
+            tenant_id=self.tenant.id,
+            resource_type="CaregiverProfile",
+            resource_id=self.caregiver.id,
             action="accounts.profile.activated",
         ).count()
         self.assertEqual(count, 1, "concurrent activation must produce exactly one audit record")
 
         self.caregiver.refresh_from_db()
-        self.assertEqual(self.caregiver.status, ProfileStatus.ACTIVE, "the profile must end in exactly one ACTIVE state")
+        self.assertEqual(
+            self.caregiver.status, ProfileStatus.ACTIVE, "the profile must end in exactly one ACTIVE state"
+        )
 
 
 class NoAutomaticDeactivationTest(_ActivationFixtureMixin, TestCase):

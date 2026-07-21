@@ -13,7 +13,8 @@ class FinancialDocumentServiceTest(FinanceTestCase):
         session = self._close_execution_session()
 
         document = FinancialDocumentService.create_invoice_from_execution(
-            execution_session_id=session.id, items=self._invoice_items(),
+            execution_session_id=session.id,
+            items=self._invoice_items(),
         )
 
         self.assertEqual(document.document_type, FinancialDocumentType.INVOICE)
@@ -30,7 +31,8 @@ class FinancialDocumentServiceTest(FinanceTestCase):
 
         with self.assertRaises(FinanceError):
             FinancialDocumentService.create_invoice_from_execution(
-                execution_session_id=session.id, items=self._invoice_items(),
+                execution_session_id=session.id,
+                items=self._invoice_items(),
             )
 
     def test_invoice_items_total_calculation(self):
@@ -43,7 +45,8 @@ class FinancialDocumentServiceTest(FinanceTestCase):
             {"item_type": "TAX", "description": "VAT", "quantity": 1, "unit_price": "45000"},
         ]
         document = FinancialDocumentService.create_invoice_from_execution(
-            execution_session_id=session.id, items=items,
+            execution_session_id=session.id,
+            items=items,
         )
 
         self.assertEqual(document.subtotal_amount, Decimal("1050000"))
@@ -56,7 +59,8 @@ class FinancialDocumentServiceTest(FinanceTestCase):
         session = self._close_execution_session()
 
         document = FinancialDocumentService.create_invoice_from_execution(
-            execution_session_id=session.id, items=self._invoice_items(),
+            execution_session_id=session.id,
+            items=self._invoice_items(),
         )
 
         self.assertIn("items", document.pricing_snapshot)
@@ -66,7 +70,8 @@ class FinancialDocumentServiceTest(FinanceTestCase):
     def test_issue_document_transitions_draft_to_issued(self):
         session = self._close_execution_session()
         document = FinancialDocumentService.create_invoice_from_execution(
-            execution_session_id=session.id, items=self._invoice_items(),
+            execution_session_id=session.id,
+            items=self._invoice_items(),
         )
 
         issued = FinancialDocumentService.issue_document(document_id=document.id)
@@ -77,7 +82,8 @@ class FinancialDocumentServiceTest(FinanceTestCase):
     def test_lock_document_transitions_issued_to_locked(self):
         session = self._close_execution_session()
         document = FinancialDocumentService.create_invoice_from_execution(
-            execution_session_id=session.id, items=self._invoice_items(),
+            execution_session_id=session.id,
+            items=self._invoice_items(),
         )
         FinancialDocumentService.issue_document(document_id=document.id)
 
@@ -89,7 +95,8 @@ class FinancialDocumentServiceTest(FinanceTestCase):
     def test_cannot_lock_an_already_locked_document(self):
         session = self._close_execution_session()
         document = FinancialDocumentService.create_invoice_from_execution(
-            execution_session_id=session.id, items=self._invoice_items(),
+            execution_session_id=session.id,
+            items=self._invoice_items(),
         )
         FinancialDocumentService.issue_document(document_id=document.id)
         FinancialDocumentService.lock_document(document_id=document.id)
@@ -100,7 +107,8 @@ class FinancialDocumentServiceTest(FinanceTestCase):
     def test_cancel_document(self):
         session = self._close_execution_session()
         document = FinancialDocumentService.create_invoice_from_execution(
-            execution_session_id=session.id, items=self._invoice_items(),
+            execution_session_id=session.id,
+            items=self._invoice_items(),
         )
 
         cancelled = FinancialDocumentService.cancel_document(document_id=document.id)

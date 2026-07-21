@@ -66,7 +66,8 @@ class EligibilityService:
             )
 
         if not SupplierResolver.is_supplier_type_allowed(
-            tenant_id=order.tenant_id, supplier_type=supplier.supplier_type,
+            tenant_id=order.tenant_id,
+            supplier_type=supplier.supplier_type,
         ):
             return EligibilityResult(
                 eligible=False,

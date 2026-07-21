@@ -38,12 +38,17 @@ class Notification(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="notifications",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="notifications",
     )
     recipient = models.UUIDField(help_text="ID of the Person being notified.")
     channel = models.CharField(max_length=10, choices=NotificationChannel.choices)
     status = models.CharField(
-        max_length=15, choices=NotificationStatus.choices, default=NotificationStatus.PENDING, db_index=True,
+        max_length=15,
+        choices=NotificationStatus.choices,
+        default=NotificationStatus.PENDING,
+        db_index=True,
     )
     subject = models.CharField(max_length=255, blank=True)
     body = models.TextField(blank=True)
@@ -55,7 +60,9 @@ class Notification(models.Model):
     retry_count = models.IntegerField(default=0)
     max_retries = models.IntegerField(default=3)
     next_attempt_at = models.DateTimeField(
-        default=timezone.now, db_index=True, help_text="Next time the dispatcher should attempt delivery.",
+        default=timezone.now,
+        db_index=True,
+        help_text="Next time the dispatcher should attempt delivery.",
     )
 
     objects = TenantScopedManager()

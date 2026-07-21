@@ -27,14 +27,23 @@ class ApiTestCase(TestCase):
         self.other_tenant = Tenant.objects.create(slug=f"api-other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
 
         self.category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
         self.customer_profile = self._create_customer(tenant=self.tenant)
         self.supplier = self._create_supplier(tenant=self.tenant)
         self.order = Order.objects.create(
-            tenant=self.tenant, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
-            service_category=self.category, customer_profile=self.customer_profile,
-            description="Need home care", city="tehran", address="Some address", phone="09120000000",
+            tenant=self.tenant,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.NEW,
+            service_category=self.category,
+            customer_profile=self.customer_profile,
+            description="Need home care",
+            city="tehran",
+            address="Some address",
+            phone="09120000000",
         )
 
         self.actor = self._create_actor(tenant=self.tenant)
@@ -44,7 +53,10 @@ class ApiTestCase(TestCase):
         person = Person.objects.create(tenant=tenant, full_name=display_name)
         user = UserAccount.objects.create_user(phone=phone, person=person, tenant=tenant)
         return CustomerProfile.objects.create(
-            user=user, person=person, phone=phone, display_name=display_name,
+            user=user,
+            person=person,
+            phone=phone,
+            display_name=display_name,
         )
 
     def _create_supplier(self, *, tenant, **kwargs) -> ServiceSupplier:

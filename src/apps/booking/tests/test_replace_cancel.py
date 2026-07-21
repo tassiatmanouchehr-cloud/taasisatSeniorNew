@@ -63,12 +63,18 @@ class AssignmentServiceReplaceTest(BookingTestCase):
 
     def test_replace_blocked_when_reassignment_disabled(self):
         config_key = ConfigurationKey.objects.create(
-            key="booking.reassignment.enabled", owner_module="M03",
-            scope_level=ScopeLevel.TENANT, value_type=ValueType.BOOLEAN, default_value=True,
+            key="booking.reassignment.enabled",
+            owner_module="M03",
+            scope_level=ScopeLevel.TENANT,
+            value_type=ValueType.BOOLEAN,
+            default_value=True,
         )
         ConfigurationValue.objects.create(
-            tenant_id=self.tenant.id, config_key=config_key, scope_type=ScopeLevel.TENANT,
-            value=False, is_active=True,
+            tenant_id=self.tenant.id,
+            config_key=config_key,
+            scope_type=ScopeLevel.TENANT,
+            value=False,
+            is_active=True,
         )
         s1 = self._create_supplier()
         s2 = self._create_supplier()

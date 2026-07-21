@@ -33,8 +33,16 @@ class PaymentIntentService:
     @classmethod
     @transaction.atomic
     def create_intent(
-        cls, *, payer_party, amount, idempotency_key,
-        currency=None, provider=None, reference_type="", reference_id=None, metadata=None,
+        cls,
+        *,
+        payer_party,
+        amount,
+        idempotency_key,
+        currency=None,
+        provider=None,
+        reference_type="",
+        reference_id=None,
+        metadata=None,
     ) -> PaymentIntent:
         if amount is None or _q(amount) <= 0:
             raise PaymentError("Payment amount must be positive.")

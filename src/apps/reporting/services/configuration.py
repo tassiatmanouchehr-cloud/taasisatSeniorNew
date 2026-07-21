@@ -20,7 +20,9 @@ class ReportingConfiguration:
     @classmethod
     def get_category_distribution_limit(cls, *, tenant_id: uuid.UUID) -> int:
         value = ConfigResolver.get_or_default(
-            CATEGORY_DISTRIBUTION_LIMIT_KEY, tenant_id=tenant_id, default=DEFAULT_CATEGORY_DISTRIBUTION_LIMIT,
+            CATEGORY_DISTRIBUTION_LIMIT_KEY,
+            tenant_id=tenant_id,
+            default=DEFAULT_CATEGORY_DISTRIBUTION_LIMIT,
         )
         try:
             resolved = int(value)

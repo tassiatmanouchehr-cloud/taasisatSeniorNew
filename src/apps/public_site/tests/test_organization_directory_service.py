@@ -76,11 +76,15 @@ class OrganizationDirectorySearchTest(PublicSiteTestCase):
         from apps.orders.models import CatalogStatus, ServiceCategory
 
         other_category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="خدمت دیگر", slug="other-service", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="خدمت دیگر",
+            slug="other-service",
+            status=CatalogStatus.ACTIVE,
         )
         self._create_organization_supplier(name="سازمان با خدمت اصلی")
         self._create_organization_supplier(
-            name="سازمان با خدمت دیگر", service_category_ids=[str(other_category.id)],
+            name="سازمان با خدمت دیگر",
+            service_category_ids=[str(other_category.id)],
         )
 
         page = OrganizationDirectoryService.search(tenant_id=self.tenant.id, service_category_id=str(other_category.id))
@@ -162,9 +166,19 @@ class OrganizationDirectoryCardDataTest(PublicSiteTestCase):
         self.assertEqual(
             card_fields,
             {
-                "supplier_id", "name", "logo_initial", "logo_url", "headline", "city",
-                "service_names", "verification_status", "verification_label", "is_verified",
-                "rating", "active_provider_count", "profile_url",
+                "supplier_id",
+                "name",
+                "logo_initial",
+                "logo_url",
+                "headline",
+                "city",
+                "service_names",
+                "verification_status",
+                "verification_label",
+                "is_verified",
+                "rating",
+                "active_provider_count",
+                "profile_url",
             },
         )
 

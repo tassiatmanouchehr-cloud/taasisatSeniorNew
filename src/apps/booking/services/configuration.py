@@ -23,14 +23,18 @@ class BookingConfiguration:
     @classmethod
     def get_auto_accept_enabled(cls, *, tenant_id: uuid.UUID) -> bool:
         value = ConfigResolver.get_or_default(
-            AUTO_ACCEPT_ENABLED_KEY, tenant_id=tenant_id, default=DEFAULT_AUTO_ACCEPT_ENABLED,
+            AUTO_ACCEPT_ENABLED_KEY,
+            tenant_id=tenant_id,
+            default=DEFAULT_AUTO_ACCEPT_ENABLED,
         )
         return cls._to_bool(value, DEFAULT_AUTO_ACCEPT_ENABLED)
 
     @classmethod
     def get_reassignment_enabled(cls, *, tenant_id: uuid.UUID) -> bool:
         value = ConfigResolver.get_or_default(
-            REASSIGNMENT_ENABLED_KEY, tenant_id=tenant_id, default=DEFAULT_REASSIGNMENT_ENABLED,
+            REASSIGNMENT_ENABLED_KEY,
+            tenant_id=tenant_id,
+            default=DEFAULT_REASSIGNMENT_ENABLED,
         )
         return cls._to_bool(value, DEFAULT_REASSIGNMENT_ENABLED)
 

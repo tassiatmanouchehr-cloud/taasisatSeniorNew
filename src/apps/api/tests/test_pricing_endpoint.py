@@ -45,7 +45,9 @@ class QuoteCreateEndpointTest(ApiTestCase):
         self.client.force_login(self.actor)
 
         self.client.post(
-            "/api/v1/pricing/quotes/", {"base_amount": "1000"}, content_type="application/json",
+            "/api/v1/pricing/quotes/",
+            {"base_amount": "1000"},
+            content_type="application/json",
         )
 
         quote = Quote.objects.get()
@@ -56,8 +58,12 @@ class QuoteCreateEndpointTest(ApiTestCase):
         self.client.force_login(self.actor)
 
         from apps.orders.models import CatalogStatus, ServiceCategory
+
         other_category = ServiceCategory.objects.create(
-            tenant=self.other_tenant, name="Other", slug="other", status=CatalogStatus.ACTIVE,
+            tenant=self.other_tenant,
+            name="Other",
+            slug="other",
+            status=CatalogStatus.ACTIVE,
         )
 
         response = self.client.post(

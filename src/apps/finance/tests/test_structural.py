@@ -48,7 +48,8 @@ class FinanceStructuralTest(TestCase):
             source = inspect.getsource(module)
             for forbidden in _FORBIDDEN_MUTATIONS:
                 self.assertNotIn(
-                    forbidden, source,
+                    forbidden,
+                    source,
                     f"{module.__name__} must not write '{forbidden}'",
                 )
 

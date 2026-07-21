@@ -27,7 +27,8 @@ class FinancePermissionEnforcementTest(FinanceTestCase):
     def _draft_document(self):
         session = self._close_execution_session()
         return FinancialDocumentService.create_invoice_from_execution(
-            execution_session_id=session.id, items=self._invoice_items(),
+            execution_session_id=session.id,
+            items=self._invoice_items(),
         )
 
     def test_issue_document_denied_without_permission(self):
@@ -89,13 +90,17 @@ class FinancePermissionEnforcementTest(FinanceTestCase):
                 actor=self.unauthorized_actor,
                 entries=[
                     {
-                        "party_id": payer.id, "entry_type": LedgerEntryType.DEBIT,
-                        "account_code": "AR_CUSTOMER", "amount": document.total_amount,
+                        "party_id": payer.id,
+                        "entry_type": LedgerEntryType.DEBIT,
+                        "account_code": "AR_CUSTOMER",
+                        "amount": document.total_amount,
                         "source_document_id": document.id,
                     },
                     {
-                        "party_id": issuer.id, "entry_type": LedgerEntryType.CREDIT,
-                        "account_code": "REVENUE", "amount": document.total_amount,
+                        "party_id": issuer.id,
+                        "entry_type": LedgerEntryType.CREDIT,
+                        "account_code": "REVENUE",
+                        "amount": document.total_amount,
                         "source_document_id": document.id,
                     },
                 ],

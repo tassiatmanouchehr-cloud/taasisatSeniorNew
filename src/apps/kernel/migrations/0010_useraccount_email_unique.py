@@ -47,7 +47,6 @@ def null_email_to_blank(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("kernel", "0009_servicesupplier_tenant_fk"),
     ]

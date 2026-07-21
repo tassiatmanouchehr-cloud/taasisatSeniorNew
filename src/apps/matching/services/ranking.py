@@ -82,9 +82,6 @@ class RankingService:
         """
         strategy = strategy or SimpleRankingStrategy()
 
-        scored = [
-            (supplier, *strategy.score(order=order, supplier=supplier))
-            for supplier in candidates
-        ]
+        scored = [(supplier, *strategy.score(order=order, supplier=supplier)) for supplier in candidates]
         scored.sort(key=lambda item: (-item[1], str(item[0].id)))
         return scored

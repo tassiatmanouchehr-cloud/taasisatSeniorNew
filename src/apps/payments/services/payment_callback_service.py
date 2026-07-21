@@ -77,43 +77,50 @@ class PaymentCallbackService:
             provider_event_id = normalized["provider_event_id"]
 
             existing_callback = PaymentCallback.objects.filter(
-                attempt=attempt, provider_event_id=provider_event_id,
+                attempt=attempt,
+                provider_event_id=provider_event_id,
             ).first()
             if existing_callback is not None:
                 return PaymentResult(
-                    intent_id=intent.id, attempt_id=attempt.id, status=intent.status,
-                    amount=intent.amount, currency=intent.currency,
+                    intent_id=intent.id,
+                    attempt_id=attempt.id,
+                    status=intent.status,
+                    amount=intent.amount,
+                    currency=intent.currency,
                     provider_reference=attempt.provider_reference,
-                    idempotent_replay=True, message="Callback already processed.",
+                    idempotent_replay=True,
+                    message="Callback already processed.",
                 )
 
             callback_amount = _q(normalized["amount"])
             target_status = normalized["status"]
 
             if callback_amount != intent.amount:
-                rejection_reason = (
-                    f"Amount mismatch: callback={callback_amount} intent={intent.amount}"
-                )
+                rejection_reason = f"Amount mismatch: callback={callback_amount} intent={intent.amount}"
             elif normalized["currency"] != intent.currency:
-                rejection_reason = (
-                    f"Currency mismatch: callback={normalized['currency']} intent={intent.currency}"
-                )
+                rejection_reason = f"Currency mismatch: callback={normalized['currency']} intent={intent.currency}"
             elif target_status not in PaymentStatus.values:
                 rejection_reason = f"Unknown status in callback: {target_status}"
             elif not is_transition_allowed(attempt.status, target_status):
-                rejection_reason = (
-                    f"Invalid payment state transition: {attempt.status} -> {target_status}"
-                )
+                rejection_reason = f"Invalid payment state transition: {attempt.status} -> {target_status}"
 
             if rejection_reason:
                 PaymentCallback.objects.create(
-                    tenant_id=attempt.tenant_id, attempt=attempt, provider_event_id=provider_event_id,
-                    payload=payload, accepted=False, rejection_reason=rejection_reason,
+                    tenant_id=attempt.tenant_id,
+                    attempt=attempt,
+                    provider_event_id=provider_event_id,
+                    payload=payload,
+                    accepted=False,
+                    rejection_reason=rejection_reason,
                 )
             else:
                 PaymentCallback.objects.create(
-                    tenant_id=attempt.tenant_id, attempt=attempt, provider_event_id=provider_event_id,
-                    payload=payload, accepted=True, resulting_status=target_status,
+                    tenant_id=attempt.tenant_id,
+                    attempt=attempt,
+                    provider_event_id=provider_event_id,
+                    payload=payload,
+                    accepted=True,
+                    resulting_status=target_status,
                 )
                 attempt.status = target_status
                 attempt.save(update_fields=["status", "updated_at"])
@@ -131,9 +138,13 @@ class PaymentCallbackService:
             cls._trigger_settlement(intent)
 
         return PaymentResult(
-            intent_id=intent.id, attempt_id=attempt.id, status=intent.status,
-            amount=intent.amount, currency=intent.currency,
-            provider_reference=attempt.provider_reference, message="Callback processed.",
+            intent_id=intent.id,
+            attempt_id=attempt.id,
+            status=intent.status,
+            amount=intent.amount,
+            currency=intent.currency,
+            provider_reference=attempt.provider_reference,
+            message="Callback processed.",
         )
 
     @staticmethod

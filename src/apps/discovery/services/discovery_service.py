@@ -49,8 +49,11 @@ class DiscoveryService:
         ranked = DiscoveryRankingService.rank(tenant_id=tenant_id, suppliers=candidates)
 
         total_count = len(ranked)
-        page_items = tuple(ranked[query.offset: query.offset + query.limit])
+        page_items = tuple(ranked[query.offset : query.offset + query.limit])
 
         return SearchResultPage(
-            items=page_items, total_count=total_count, limit=query.limit, offset=query.offset,
+            items=page_items,
+            total_count=total_count,
+            limit=query.limit,
+            offset=query.offset,
         )

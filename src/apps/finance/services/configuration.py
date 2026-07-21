@@ -26,21 +26,27 @@ class FinanceConfiguration:
     @classmethod
     def get_wallet_enabled(cls, *, tenant_id: uuid.UUID) -> bool:
         value = ConfigResolver.get_or_default(
-            WALLET_ENABLED_KEY, tenant_id=tenant_id, default=DEFAULT_WALLET_ENABLED,
+            WALLET_ENABLED_KEY,
+            tenant_id=tenant_id,
+            default=DEFAULT_WALLET_ENABLED,
         )
         return cls._to_bool(value, DEFAULT_WALLET_ENABLED)
 
     @classmethod
     def get_escrow_enabled(cls, *, tenant_id: uuid.UUID) -> bool:
         value = ConfigResolver.get_or_default(
-            ESCROW_ENABLED_KEY, tenant_id=tenant_id, default=DEFAULT_ESCROW_ENABLED,
+            ESCROW_ENABLED_KEY,
+            tenant_id=tenant_id,
+            default=DEFAULT_ESCROW_ENABLED,
         )
         return cls._to_bool(value, DEFAULT_ESCROW_ENABLED)
 
     @classmethod
     def get_default_currency(cls, *, tenant_id: uuid.UUID) -> str:
         value = ConfigResolver.get_or_default(
-            DEFAULT_CURRENCY_KEY, tenant_id=tenant_id, default=DEFAULT_CURRENCY,
+            DEFAULT_CURRENCY_KEY,
+            tenant_id=tenant_id,
+            default=DEFAULT_CURRENCY,
         )
         return value or DEFAULT_CURRENCY
 

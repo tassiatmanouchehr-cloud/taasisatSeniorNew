@@ -1,12 +1,9 @@
 """Phase 3 Sprint 3.1 — organization_portal's affiliation-management
 views (staff page's new invite/approve/reject/terminate/cancel actions)."""
 
-import uuid
-
 from apps.accounts.models.profiles import (
     AffiliationStatus,
     CaregiverProfile,
-    CompanyAffiliationRequest,
     OrganizationMembership,
     OrganizationProfile,
     OrgMembershipRole,
@@ -47,12 +44,19 @@ class AffiliationRequestReviewViewTest(OrganizationPortalTestCase):
         from apps.kernel.models import Person, UserAccount
 
         person = Person.objects.create(tenant=self.tenant, full_name="Requesting Caregiver")
-        self.requesting_user = UserAccount.objects.create_user(phone=self.caregiver_phone, person=person, tenant=self.tenant)
+        self.requesting_user = UserAccount.objects.create_user(
+            phone=self.caregiver_phone, person=person, tenant=self.tenant
+        )
         self.requesting_caregiver = CaregiverProfile.objects.create(
-            user=self.requesting_user, person=person, phone=self.caregiver_phone, display_name="Requesting Caregiver",
+            user=self.requesting_user,
+            person=person,
+            phone=self.caregiver_phone,
+            display_name="Requesting Caregiver",
         )
         self.request = affiliation_services.submit_join_request(
-            caregiver_profile=self.requesting_caregiver, code=self.organization.code, tenant_id=self.tenant.id,
+            caregiver_profile=self.requesting_caregiver,
+            code=self.organization.code,
+            tenant_id=self.tenant.id,
         )
 
     def test_approve_activates_membership(self):
@@ -64,7 +68,9 @@ class AffiliationRequestReviewViewTest(OrganizationPortalTestCase):
         self.assertEqual(self.request.status, AffiliationStatus.APPROVED)
         self.assertTrue(
             OrganizationMembership.objects.filter(
-                organization=self.organization, user=self.requesting_user, status=OrgMembershipStatus.ACTIVE,
+                organization=self.organization,
+                user=self.requesting_user,
+                status=OrgMembershipStatus.ACTIVE,
             ).exists(),
         )
 
@@ -79,10 +85,16 @@ class AffiliationRequestReviewViewTest(OrganizationPortalTestCase):
     def test_another_organizations_admin_cannot_approve(self):
         other_admin = self._create_user(tenant=self.tenant, phone="09121110023")
         other_org = OrganizationProfile.objects.create(
-            name="Other Org", code="other-review-org", admin_user=other_admin, tenant=self.tenant,
+            name="Other Org",
+            code="other-review-org",
+            admin_user=other_admin,
+            tenant=self.tenant,
         )
         OrganizationMembership.objects.create(
-            organization=other_org, user=other_admin, role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+            organization=other_org,
+            user=other_admin,
+            role_type=OrgMembershipRole.ADMIN,
+            status=OrgMembershipStatus.ACTIVE,
         )
         self.client.force_login(other_admin)
         response = self.client.post(f"/organization/staff/requests/{self.request.id}/approve/")
@@ -110,10 +122,16 @@ class StaffTerminateViewTest(OrganizationPortalTestCase):
     def test_another_organizations_admin_cannot_terminate(self):
         other_admin = self._create_user(tenant=self.tenant, phone="09121110024")
         other_org = OrganizationProfile.objects.create(
-            name="Other Org 2", code="other-term-org", admin_user=other_admin, tenant=self.tenant,
+            name="Other Org 2",
+            code="other-term-org",
+            admin_user=other_admin,
+            tenant=self.tenant,
         )
         OrganizationMembership.objects.create(
-            organization=other_org, user=other_admin, role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+            organization=other_org,
+            user=other_admin,
+            role_type=OrgMembershipRole.ADMIN,
+            status=OrgMembershipStatus.ACTIVE,
         )
         self.client.force_login(other_admin)
         response = self.client.post(f"/organization/staff/{self.staff_membership.id}/terminate/")
@@ -133,7 +151,9 @@ class InvitationCancelViewTest(OrganizationPortalTestCase):
         CaregiverProfile.objects.create(user=invitee_user, person=person, phone=phone, display_name="Invitee")
 
         membership = affiliation_services.invite_caregiver(
-            organization=self.organization, caregiver_phone=phone, invited_by=self.admin_user,
+            organization=self.organization,
+            caregiver_phone=phone,
+            invited_by=self.admin_user,
         )
         self.login_as_admin()
         response = self.client.post(f"/organization/staff/invitations/{membership.id}/cancel/")

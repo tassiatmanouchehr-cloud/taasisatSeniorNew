@@ -70,8 +70,11 @@ class QuoteService:
         resolved_currency = currency or DEFAULT_CURRENCY
 
         resolved_base, base_rule = cls._resolve_base_amount(
-            tenant_id=tenant_id, service_category=service_category, supplier=supplier,
-            explicit_base_amount=base_amount, duration_hours=duration_hours,
+            tenant_id=tenant_id,
+            service_category=service_category,
+            supplier=supplier,
+            explicit_base_amount=base_amount,
+            duration_hours=duration_hours,
         )
 
         quote = Quote.objects.create(
@@ -88,29 +91,50 @@ class QuoteService:
         )
 
         sequence = 0
-        lines = [QuoteLine(
-            tenant_id=tenant_id, quote=quote, line_type=QuoteLineType.BASE,
-            description="Base price", amount=resolved_base, sequence=sequence,
-        )]
+        lines = [
+            QuoteLine(
+                tenant_id=tenant_id,
+                quote=quote,
+                line_type=QuoteLineType.BASE,
+                description="Base price",
+                amount=resolved_base,
+                sequence=sequence,
+            )
+        ]
 
         running_total = resolved_base
         for rule in cls._matching_modifier_rules(
-            tenant_id=tenant_id, service_category=service_category, supplier=supplier,
-            requested_at=requested_at, is_holiday=is_holiday,
+            tenant_id=tenant_id,
+            service_category=service_category,
+            supplier=supplier,
+            requested_at=requested_at,
+            is_holiday=is_holiday,
         ):
             sequence += 1
             delta = cls._modifier_delta(rule, running_total)
             running_total = _q(running_total + delta)
-            lines.append(QuoteLine(
-                tenant_id=tenant_id, quote=quote, line_type=QuoteLineType.PRICING_RULE,
-                source_rule=rule, description=rule.name, amount=delta, sequence=sequence,
-            ))
+            lines.append(
+                QuoteLine(
+                    tenant_id=tenant_id,
+                    quote=quote,
+                    line_type=QuoteLineType.PRICING_RULE,
+                    source_rule=rule,
+                    description=rule.name,
+                    amount=delta,
+                    sequence=sequence,
+                )
+            )
 
         subtotal = running_total
 
         for promotion in cls._matching_promotions(
-            tenant_id=tenant_id, service_category=service_category, supplier=supplier,
-            subtotal=subtotal, order=order, customer_profile=customer_profile, requested_at=requested_at,
+            tenant_id=tenant_id,
+            service_category=service_category,
+            supplier=supplier,
+            subtotal=subtotal,
+            order=order,
+            customer_profile=customer_profile,
+            requested_at=requested_at,
         ):
             applied_any = False
             for effect in promotion.effects.all():
@@ -119,10 +143,17 @@ class QuoteService:
                     continue
                 sequence += 1
                 running_total = _q(running_total + delta)
-                lines.append(QuoteLine(
-                    tenant_id=tenant_id, quote=quote, line_type=QuoteLineType.PROMOTION,
-                    source_promotion=promotion, description=promotion.name, amount=delta, sequence=sequence,
-                ))
+                lines.append(
+                    QuoteLine(
+                        tenant_id=tenant_id,
+                        quote=quote,
+                        line_type=QuoteLineType.PROMOTION,
+                        source_promotion=promotion,
+                        description=promotion.name,
+                        amount=delta,
+                        sequence=sequence,
+                    )
+                )
                 applied_any = True
             if applied_any and not promotion.stackable:
                 break
@@ -152,10 +183,16 @@ class QuoteService:
             "total_amount": str(total),
             "computed_at": timezone.now().isoformat(),
         }
-        quote.save(update_fields=[
-            "subtotal_amount", "surcharge_amount", "discount_amount", "total_amount",
-            "pricing_snapshot", "updated_at",
-        ])
+        quote.save(
+            update_fields=[
+                "subtotal_amount",
+                "surcharge_amount",
+                "discount_amount",
+                "total_amount",
+                "pricing_snapshot",
+                "updated_at",
+            ]
+        )
 
         return quote
 
@@ -184,10 +221,14 @@ class QuoteService:
 
         candidates = list(
             PricingRule.objects.filter(
-                tenant_id=tenant_id, is_active=True, rule_type__in=BASE_RULE_TYPES,
-            ).filter(
+                tenant_id=tenant_id,
+                is_active=True,
+                rule_type__in=BASE_RULE_TYPES,
+            )
+            .filter(
                 Q(service_category__isnull=True) | Q(service_category=service_category),
-            ).filter(
+            )
+            .filter(
                 Q(supplier__isnull=True) | Q(supplier=supplier),
             ),
         )
@@ -208,13 +249,20 @@ class QuoteService:
     def _matching_modifier_rules(cls, *, tenant_id, service_category, supplier, requested_at, is_holiday):
         from ..models import MODIFIER_RULE_TYPES
 
-        qs = PricingRule.objects.filter(
-            tenant_id=tenant_id, is_active=True, rule_type__in=MODIFIER_RULE_TYPES,
-        ).filter(
-            Q(service_category__isnull=True) | Q(service_category=service_category),
-        ).filter(
-            Q(supplier__isnull=True) | Q(supplier=supplier),
-        ).order_by("priority", "created_at", "id")
+        qs = (
+            PricingRule.objects.filter(
+                tenant_id=tenant_id,
+                is_active=True,
+                rule_type__in=MODIFIER_RULE_TYPES,
+            )
+            .filter(
+                Q(service_category__isnull=True) | Q(service_category=service_category),
+            )
+            .filter(
+                Q(supplier__isnull=True) | Q(supplier=supplier),
+            )
+            .order_by("priority", "created_at", "id")
+        )
 
         local_dt = timezone.localtime(requested_at)
         weekend_days = PricingConfiguration.get_weekend_days(tenant_id=tenant_id)
@@ -244,26 +292,42 @@ class QuoteService:
     # --- promotions ----------------------------------------------------------
 
     @classmethod
-    def _matching_promotions(cls, *, tenant_id, service_category, supplier, subtotal, order, customer_profile, requested_at):
-        qs = Promotion.objects.filter(
-            tenant_id=tenant_id, is_active=True,
-        ).filter(
-            Q(starts_at__isnull=True) | Q(starts_at__lte=requested_at),
-        ).filter(
-            Q(ends_at__isnull=True) | Q(ends_at__gte=requested_at),
-        ).prefetch_related("conditions", "effects").order_by("priority", "created_at", "id")
+    def _matching_promotions(
+        cls, *, tenant_id, service_category, supplier, subtotal, order, customer_profile, requested_at
+    ):
+        qs = (
+            Promotion.objects.filter(
+                tenant_id=tenant_id,
+                is_active=True,
+            )
+            .filter(
+                Q(starts_at__isnull=True) | Q(starts_at__lte=requested_at),
+            )
+            .filter(
+                Q(ends_at__isnull=True) | Q(ends_at__gte=requested_at),
+            )
+            .prefetch_related("conditions", "effects")
+            .order_by("priority", "created_at", "id")
+        )
 
         matched = []
         for promotion in qs:
             if cls._promotion_conditions_met(
-                promotion, tenant_id=tenant_id, service_category=service_category, supplier=supplier,
-                subtotal=subtotal, order=order, customer_profile=customer_profile,
+                promotion,
+                tenant_id=tenant_id,
+                service_category=service_category,
+                supplier=supplier,
+                subtotal=subtotal,
+                order=order,
+                customer_profile=customer_profile,
             ):
                 matched.append(promotion)
         return matched
 
     @staticmethod
-    def _promotion_conditions_met(promotion, *, tenant_id, service_category, supplier, subtotal, order, customer_profile) -> bool:
+    def _promotion_conditions_met(
+        promotion, *, tenant_id, service_category, supplier, subtotal, order, customer_profile
+    ) -> bool:
         for condition in promotion.conditions.all():
             if condition.condition_type == PromotionConditionType.SERVICE_CATEGORY:
                 if service_category is None or condition.service_category_id != service_category.id:

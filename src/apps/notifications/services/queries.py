@@ -14,26 +14,39 @@ class NotificationQueryService:
     def list_recent_for_recipient(cls, *, tenant_id, recipient_id, limit):
         from ..models import Notification
 
-        return Notification.objects.for_tenant(tenant_id).filter(
-            recipient=recipient_id,
-        ).order_by("-created_at")[:limit]
+        return (
+            Notification.objects.for_tenant(tenant_id)
+            .filter(
+                recipient=recipient_id,
+            )
+            .order_by("-created_at")[:limit]
+        )
 
     @classmethod
     def count_unread_for_recipient(cls, *, tenant_id, recipient_id):
         from ..models import Notification, NotificationStatus
 
-        return Notification.objects.for_tenant(tenant_id).filter(
-            recipient=recipient_id, status=NotificationStatus.PENDING,
-        ).count()
+        return (
+            Notification.objects.for_tenant(tenant_id)
+            .filter(
+                recipient=recipient_id,
+                status=NotificationStatus.PENDING,
+            )
+            .count()
+        )
 
     @classmethod
     def list_for_recipient(cls, *, tenant_id, recipient_id, only=None):
         """`only`: None (all), "unread", or "read"."""
         from ..models import Notification, NotificationStatus
 
-        queryset = Notification.objects.for_tenant(tenant_id).filter(
-            recipient=recipient_id,
-        ).order_by("-created_at")
+        queryset = (
+            Notification.objects.for_tenant(tenant_id)
+            .filter(
+                recipient=recipient_id,
+            )
+            .order_by("-created_at")
+        )
 
         if only == "unread":
             queryset = queryset.filter(status=NotificationStatus.PENDING)

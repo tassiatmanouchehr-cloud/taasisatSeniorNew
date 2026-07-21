@@ -57,7 +57,9 @@ class JobDefinition(models.Model):
     status = models.CharField(max_length=20, choices=JobStatus.choices, default=JobStatus.PENDING, db_index=True)
 
     scheduled_for = models.DateTimeField(default=timezone.now, help_text="Earliest time this job may first run.")
-    next_run_at = models.DateTimeField(default=timezone.now, db_index=True, help_text="Next time the runner should attempt this job.")
+    next_run_at = models.DateTimeField(
+        default=timezone.now, db_index=True, help_text="Next time the runner should attempt this job."
+    )
 
     retry_count = models.IntegerField(default=0)
     max_retries = models.IntegerField(default=3)

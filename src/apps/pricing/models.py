@@ -61,7 +61,9 @@ class PricingRule(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="pricing_rules",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="pricing_rules",
     )
 
     name = models.CharField(max_length=255)
@@ -70,14 +72,25 @@ class PricingRule(models.Model):
     # Scope: null means "applies to all". Both may be set for the most
     # specific override (e.g. one supplier's rate for one category).
     service_category = models.ForeignKey(
-        "orders.ServiceCategory", on_delete=models.SET_NULL, null=True, blank=True, related_name="pricing_rules",
+        "orders.ServiceCategory",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="pricing_rules",
     )
     supplier = models.ForeignKey(
-        "kernel.ServiceSupplier", on_delete=models.CASCADE, null=True, blank=True, related_name="pricing_rules",
+        "kernel.ServiceSupplier",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="pricing_rules",
     )
 
     amount = models.DecimalField(
-        max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, null=True, blank=True,
+        max_digits=MONEY_MAX_DIGITS,
+        decimal_places=MONEY_DECIMAL_PLACES,
+        null=True,
+        blank=True,
     )
     percentage = models.DecimalField(max_digits=7, decimal_places=3, null=True, blank=True)
 
@@ -119,29 +132,54 @@ class Quote(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="quotes",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="quotes",
     )
     order = models.ForeignKey(
-        "orders.Order", on_delete=models.SET_NULL, null=True, blank=True, related_name="quotes",
+        "orders.Order",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="quotes",
     )
     service_category = models.ForeignKey(
-        "orders.ServiceCategory", on_delete=models.SET_NULL, null=True, blank=True, related_name="quotes",
+        "orders.ServiceCategory",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="quotes",
     )
     supplier = models.ForeignKey(
-        "kernel.ServiceSupplier", on_delete=models.SET_NULL, null=True, blank=True, related_name="quotes",
+        "kernel.ServiceSupplier",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="quotes",
     )
 
     status = models.CharField(max_length=20, choices=QuoteStatus.choices, default=QuoteStatus.ACTIVE, db_index=True)
     currency = models.CharField(max_length=10, default=DEFAULT_CURRENCY)
 
-    base_amount = models.DecimalField(max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, default=Decimal("0"))
-    surcharge_amount = models.DecimalField(max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, default=Decimal("0"))
-    discount_amount = models.DecimalField(max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, default=Decimal("0"))
-    subtotal_amount = models.DecimalField(max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, default=Decimal("0"))
-    total_amount = models.DecimalField(max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, default=Decimal("0"))
+    base_amount = models.DecimalField(
+        max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, default=Decimal("0")
+    )
+    surcharge_amount = models.DecimalField(
+        max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, default=Decimal("0")
+    )
+    discount_amount = models.DecimalField(
+        max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, default=Decimal("0")
+    )
+    subtotal_amount = models.DecimalField(
+        max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, default=Decimal("0")
+    )
+    total_amount = models.DecimalField(
+        max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, default=Decimal("0")
+    )
 
     requested_at = models.DateTimeField(
-        null=True, blank=True,
+        null=True,
+        blank=True,
         help_text="The point in time pricing was evaluated against (time-of-day/weekend/holiday rules).",
     )
     expires_at = models.DateTimeField(null=True, blank=True)
@@ -184,18 +222,30 @@ class QuoteLine(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="quote_lines",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="quote_lines",
     )
     quote = models.ForeignKey(
-        "pricing.Quote", on_delete=models.CASCADE, related_name="lines",
+        "pricing.Quote",
+        on_delete=models.CASCADE,
+        related_name="lines",
     )
 
     line_type = models.CharField(max_length=20, choices=QuoteLineType.choices)
     source_rule = models.ForeignKey(
-        "pricing.PricingRule", on_delete=models.SET_NULL, null=True, blank=True, related_name="quote_lines",
+        "pricing.PricingRule",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="quote_lines",
     )
     source_promotion = models.ForeignKey(
-        "pricing.Promotion", on_delete=models.SET_NULL, null=True, blank=True, related_name="quote_lines",
+        "pricing.Promotion",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="quote_lines",
     )
 
     description = models.CharField(max_length=255)
@@ -220,7 +270,9 @@ class Promotion(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="promotions",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="promotions",
     )
 
     name = models.CharField(max_length=255)
@@ -260,21 +312,36 @@ class PromotionCondition(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="promotion_conditions",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="promotion_conditions",
     )
     promotion = models.ForeignKey(
-        "pricing.Promotion", on_delete=models.CASCADE, related_name="conditions",
+        "pricing.Promotion",
+        on_delete=models.CASCADE,
+        related_name="conditions",
     )
 
     condition_type = models.CharField(max_length=30, choices=PromotionConditionType.choices)
     service_category = models.ForeignKey(
-        "orders.ServiceCategory", on_delete=models.CASCADE, null=True, blank=True, related_name="+",
+        "orders.ServiceCategory",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="+",
     )
     supplier = models.ForeignKey(
-        "kernel.ServiceSupplier", on_delete=models.CASCADE, null=True, blank=True, related_name="+",
+        "kernel.ServiceSupplier",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="+",
     )
     min_amount = models.DecimalField(
-        max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, null=True, blank=True,
+        max_digits=MONEY_MAX_DIGITS,
+        decimal_places=MONEY_DECIMAL_PLACES,
+        null=True,
+        blank=True,
     )
     metadata = models.JSONField(default=dict, blank=True)
 
@@ -295,19 +362,29 @@ class PromotionEffect(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="promotion_effects",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="promotion_effects",
     )
     promotion = models.ForeignKey(
-        "pricing.Promotion", on_delete=models.CASCADE, related_name="effects",
+        "pricing.Promotion",
+        on_delete=models.CASCADE,
+        related_name="effects",
     )
 
     effect_type = models.CharField(max_length=30, choices=PromotionEffectType.choices)
     percentage = models.DecimalField(max_digits=7, decimal_places=3, null=True, blank=True)
     fixed_amount = models.DecimalField(
-        max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, null=True, blank=True,
+        max_digits=MONEY_MAX_DIGITS,
+        decimal_places=MONEY_DECIMAL_PLACES,
+        null=True,
+        blank=True,
     )
     max_discount_amount = models.DecimalField(
-        max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, null=True, blank=True,
+        max_digits=MONEY_MAX_DIGITS,
+        decimal_places=MONEY_DECIMAL_PLACES,
+        null=True,
+        blank=True,
     )
     metadata = models.JSONField(default=dict, blank=True)
 

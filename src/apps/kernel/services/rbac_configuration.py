@@ -72,7 +72,9 @@ class RBACConfiguration:
     @classmethod
     def get_enforcement_enabled(cls, *, tenant_id: uuid.UUID) -> bool:
         value = ConfigResolver.get_or_default(
-            ENFORCEMENT_ENABLED_KEY, tenant_id=tenant_id, default=DEFAULT_ENFORCEMENT_ENABLED,
+            ENFORCEMENT_ENABLED_KEY,
+            tenant_id=tenant_id,
+            default=DEFAULT_ENFORCEMENT_ENABLED,
         )
         return cls._to_bool(value, DEFAULT_ENFORCEMENT_ENABLED)
 
@@ -173,7 +175,9 @@ class RBACConfiguration:
                 )
                 .first()
             )
-            previous_enabled = cls._to_bool(existing.value, DEFAULT_ENFORCEMENT_ENABLED) if existing else DEFAULT_ENFORCEMENT_ENABLED
+            previous_enabled = (
+                cls._to_bool(existing.value, DEFAULT_ENFORCEMENT_ENABLED) if existing else DEFAULT_ENFORCEMENT_ENABLED
+            )
             previous_source = "override" if existing else "default"
 
             if previous_enabled == enabled:

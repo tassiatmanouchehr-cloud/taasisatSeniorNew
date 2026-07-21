@@ -33,17 +33,24 @@ class OrganizationStaffAuthorizationTest(TestCase):
         self.tenant = Tenant.objects.create(slug=f"staffauth-{uuid.uuid4().hex[:8]}", name="Staff Auth Tenant")
         self.admin_user = self._create_user(phone="09140000040")
         self.organization = OrganizationProfile.objects.create(
-            name="Care Co", code=f"care-{uuid.uuid4().hex[:8]}", admin_user=self.admin_user, tenant=self.tenant,
+            name="Care Co",
+            code=f"care-{uuid.uuid4().hex[:8]}",
+            admin_user=self.admin_user,
+            tenant=self.tenant,
         )
         self.admin_membership = OrganizationMembership.objects.create(
-            organization=self.organization, user=self.admin_user,
-            role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+            organization=self.organization,
+            user=self.admin_user,
+            role_type=OrgMembershipRole.ADMIN,
+            status=OrgMembershipStatus.ACTIVE,
         )
 
         self.staff_user = self._create_user(phone="09140000041")
         self.staff_membership = OrganizationMembership.objects.create(
-            organization=self.organization, user=self.staff_user,
-            role_type=OrgMembershipRole.CAREGIVER, status=OrgMembershipStatus.PENDING,
+            organization=self.organization,
+            user=self.staff_user,
+            role_type=OrgMembershipRole.CAREGIVER,
+            status=OrgMembershipStatus.PENDING,
         )
 
     def _create_user(self, *, phone) -> UserAccount:
@@ -59,7 +66,8 @@ class OrganizationStaffAuthorizationTest(TestCase):
 
         self.assertTrue(
             AuditLog.objects.filter(
-                tenant_id=self.tenant.id, action="rbac.permission.ownership_authorized",
+                tenant_id=self.tenant.id,
+                action="rbac.permission.ownership_authorized",
             ).exists(),
         )
 
@@ -73,7 +81,8 @@ class OrganizationStaffAuthorizationTest(TestCase):
 
         self.assertFalse(
             AuditLog.objects.filter(
-                tenant_id=self.tenant.id, action="rbac.permission.ownership_authorized",
+                tenant_id=self.tenant.id,
+                action="rbac.permission.ownership_authorized",
                 resource_id=self.staff_membership.id,
             ).exists(),
         )
@@ -96,7 +105,8 @@ class OrganizationStaffAuthorizationTest(TestCase):
         self.assertEqual(self.staff_membership.status, OrgMembershipStatus.SUSPENDED)
         self.assertTrue(
             AuditLog.objects.filter(
-                tenant_id=self.tenant.id, action="rbac.permission.system_context",
+                tenant_id=self.tenant.id,
+                action="rbac.permission.system_context",
             ).exists(),
         )
 
@@ -106,10 +116,16 @@ class OrganizationStaffAuthorizationTest(TestCase):
         is actually load-bearing, not decorative."""
         other_admin = self._create_user(phone="09140000042")
         other_org = OrganizationProfile.objects.create(
-            name="Other Co", code=f"other-{uuid.uuid4().hex[:8]}", admin_user=other_admin, tenant=self.tenant,
+            name="Other Co",
+            code=f"other-{uuid.uuid4().hex[:8]}",
+            admin_user=other_admin,
+            tenant=self.tenant,
         )
         other_membership = OrganizationMembership.objects.create(
-            organization=other_org, user=other_admin, role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+            organization=other_org,
+            user=other_admin,
+            role_type=OrgMembershipRole.ADMIN,
+            status=OrgMembershipStatus.ACTIVE,
         )
         OrganizationRoleSyncService.sync_for_membership(other_membership)
 
@@ -118,7 +134,8 @@ class OrganizationStaffAuthorizationTest(TestCase):
 
         self.assertTrue(
             AuditLog.objects.filter(
-                tenant_id=self.tenant.id, action="rbac.permission.ownership_authorized",
+                tenant_id=self.tenant.id,
+                action="rbac.permission.ownership_authorized",
                 actor_id=other_admin.person_id,
             ).exists(),
         )

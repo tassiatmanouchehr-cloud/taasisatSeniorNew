@@ -25,7 +25,9 @@ class PaymentConfiguration:
     @classmethod
     def get_default_provider(cls, *, tenant_id: uuid.UUID) -> str:
         value = ConfigResolver.get_or_default(
-            DEFAULT_PROVIDER_KEY, tenant_id=tenant_id, default=DEFAULT_PROVIDER,
+            DEFAULT_PROVIDER_KEY,
+            tenant_id=tenant_id,
+            default=DEFAULT_PROVIDER,
         )
         if isinstance(value, str) and value in PaymentProvider.values:
             return value
@@ -34,7 +36,9 @@ class PaymentConfiguration:
     @classmethod
     def get_intent_expiry_seconds(cls, *, tenant_id: uuid.UUID) -> int:
         value = ConfigResolver.get_or_default(
-            INTENT_EXPIRY_SECONDS_KEY, tenant_id=tenant_id, default=DEFAULT_INTENT_EXPIRY_SECONDS,
+            INTENT_EXPIRY_SECONDS_KEY,
+            tenant_id=tenant_id,
+            default=DEFAULT_INTENT_EXPIRY_SECONDS,
         )
         try:
             return int(value)

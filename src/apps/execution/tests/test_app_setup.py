@@ -28,6 +28,7 @@ class ExecutionAppSetupTest(TestCase):
         )
         changes = autodetector.changes(graph=loader.graph)
         self.assertNotIn(
-            "execution", changes,
+            "execution",
+            changes,
             f"Missing migrations detected for apps.execution: {changes.get('execution')}",
         )

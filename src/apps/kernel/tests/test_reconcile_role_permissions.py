@@ -15,11 +15,17 @@ class ReconcileRolePermissionsTest(TestCase):
         self.other_tenant = Tenant.objects.create(slug=f"reconcile-other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
 
         self.role = Role.objects.create(
-            tenant=self.tenant, slug=ORGANIZATION_ADMIN_ROLE_SLUG, name="مدیر سازمان", is_system=True,
+            tenant=self.tenant,
+            slug=ORGANIZATION_ADMIN_ROLE_SLUG,
+            name="مدیر سازمان",
+            is_system=True,
             permissions=[],
         )
         self.other_role = Role.objects.create(
-            tenant=self.other_tenant, slug=ORGANIZATION_ADMIN_ROLE_SLUG, name="مدیر سازمان", is_system=True,
+            tenant=self.other_tenant,
+            slug=ORGANIZATION_ADMIN_ROLE_SLUG,
+            name="مدیر سازمان",
+            is_system=True,
             permissions=[],
         )
 

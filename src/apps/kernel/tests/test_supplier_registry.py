@@ -57,28 +57,40 @@ class SupplierRegistryTest(TestCase):
     def test_get_or_create_supplier_is_idempotent(self):
         entity_id = uuid.uuid4()
         first = SupplierRegistry.get_or_create_supplier(
-            tenant_id=self.tenant.id, linked_entity_id=entity_id, linked_entity_type="GenericProfile",
-            supplier_type=SupplierType.ORGANIZATION, display_name="Generic Org",
+            tenant_id=self.tenant.id,
+            linked_entity_id=entity_id,
+            linked_entity_type="GenericProfile",
+            supplier_type=SupplierType.ORGANIZATION,
+            display_name="Generic Org",
         )
         second = SupplierRegistry.get_or_create_supplier(
-            tenant_id=self.tenant.id, linked_entity_id=entity_id, linked_entity_type="GenericProfile",
-            supplier_type=SupplierType.ORGANIZATION, display_name="Generic Org",
+            tenant_id=self.tenant.id,
+            linked_entity_id=entity_id,
+            linked_entity_type="GenericProfile",
+            supplier_type=SupplierType.ORGANIZATION,
+            display_name="Generic Org",
         )
         self.assertEqual(first.id, second.id)
         self.assertEqual(ServiceSupplier.objects.count(), 1)
 
     def test_resolve_by_id_returns_supplier(self):
         supplier = SupplierRegistry.get_or_create_supplier(
-            tenant_id=self.tenant.id, linked_entity_id=uuid.uuid4(), linked_entity_type="GenericProfile",
-            supplier_type=SupplierType.INDEPENDENT_PROVIDER, display_name="X",
+            tenant_id=self.tenant.id,
+            linked_entity_id=uuid.uuid4(),
+            linked_entity_type="GenericProfile",
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+            display_name="X",
         )
         resolved = SupplierRegistry.resolve_by_id(supplier.id, tenant_id=self.tenant.id)
         self.assertEqual(resolved.id, supplier.id)
 
     def test_resolve_by_id_wrong_tenant_raises(self):
         supplier = SupplierRegistry.get_or_create_supplier(
-            tenant_id=self.tenant.id, linked_entity_id=uuid.uuid4(), linked_entity_type="GenericProfile",
-            supplier_type=SupplierType.INDEPENDENT_PROVIDER, display_name="X",
+            tenant_id=self.tenant.id,
+            linked_entity_id=uuid.uuid4(),
+            linked_entity_type="GenericProfile",
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+            display_name="X",
         )
         other_tenant = Tenant.objects.create(slug="test-supplier-registry-other", name="Other")
         with self.assertRaises(ServiceSupplier.DoesNotExist):
@@ -91,22 +103,28 @@ class SupplierRegistryTest(TestCase):
 
     def test_find_by_linked_entity_returns_existing(self):
         supplier = SupplierRegistry.get_or_create_supplier(
-            tenant_id=self.tenant.id, linked_entity_id=uuid.uuid4(), linked_entity_type="GenericProfile",
-            supplier_type=SupplierType.INDEPENDENT_PROVIDER, display_name="X",
+            tenant_id=self.tenant.id,
+            linked_entity_id=uuid.uuid4(),
+            linked_entity_type="GenericProfile",
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+            display_name="X",
         )
         found = SupplierRegistry.find_by_linked_entity(
-            linked_entity_id=supplier.linked_entity_id, linked_entity_type="GenericProfile",
+            linked_entity_id=supplier.linked_entity_id,
+            linked_entity_type="GenericProfile",
         )
         self.assertEqual(found.id, supplier.id)
 
     def test_create_rejects_unknown_tenant(self):
         """tenant_id is now a real FK — an unknown tenant must be rejected at the DB level."""
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                SupplierRegistry.get_or_create_supplier(
-                    tenant_id=uuid.uuid4(), linked_entity_id=uuid.uuid4(), linked_entity_type="GenericProfile",
-                    supplier_type=SupplierType.INDEPENDENT_PROVIDER, display_name="X",
-                )
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            SupplierRegistry.get_or_create_supplier(
+                tenant_id=uuid.uuid4(),
+                linked_entity_id=uuid.uuid4(),
+                linked_entity_type="GenericProfile",
+                supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+                display_name="X",
+            )
 
     def test_registry_module_stays_generic(self):
         """The registry must never import apps.accounts or vertical models."""
@@ -114,8 +132,12 @@ class SupplierRegistryTest(TestCase):
 
     def test_set_status_updates_when_different(self):
         supplier = SupplierRegistry.get_or_create_supplier(
-            tenant_id=self.tenant.id, linked_entity_id=uuid.uuid4(), linked_entity_type="GenericProfile",
-            supplier_type=SupplierType.INDEPENDENT_PROVIDER, display_name="X", status=SupplierStatus.PENDING,
+            tenant_id=self.tenant.id,
+            linked_entity_id=uuid.uuid4(),
+            linked_entity_type="GenericProfile",
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+            display_name="X",
+            status=SupplierStatus.PENDING,
         )
         updated = SupplierRegistry.set_status(supplier, status=SupplierStatus.ACTIVE)
         self.assertEqual(updated.status, SupplierStatus.ACTIVE)
@@ -124,8 +146,12 @@ class SupplierRegistryTest(TestCase):
 
     def test_set_status_is_idempotent_noop_when_unchanged(self):
         supplier = SupplierRegistry.get_or_create_supplier(
-            tenant_id=self.tenant.id, linked_entity_id=uuid.uuid4(), linked_entity_type="GenericProfile",
-            supplier_type=SupplierType.INDEPENDENT_PROVIDER, display_name="X", status=SupplierStatus.ACTIVE,
+            tenant_id=self.tenant.id,
+            linked_entity_id=uuid.uuid4(),
+            linked_entity_type="GenericProfile",
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+            display_name="X",
+            status=SupplierStatus.ACTIVE,
         )
         original_version = supplier.version
         updated = SupplierRegistry.set_status(supplier, status=SupplierStatus.ACTIVE)
@@ -133,8 +159,12 @@ class SupplierRegistryTest(TestCase):
 
     def test_set_status_only_updates_status_field(self):
         supplier = SupplierRegistry.get_or_create_supplier(
-            tenant_id=self.tenant.id, linked_entity_id=uuid.uuid4(), linked_entity_type="GenericProfile",
-            supplier_type=SupplierType.INDEPENDENT_PROVIDER, display_name="X", status=SupplierStatus.PENDING,
+            tenant_id=self.tenant.id,
+            linked_entity_id=uuid.uuid4(),
+            linked_entity_type="GenericProfile",
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+            display_name="X",
+            status=SupplierStatus.PENDING,
         )
         SupplierRegistry.set_status(supplier, status=SupplierStatus.SUSPENDED)
         supplier.refresh_from_db()

@@ -16,7 +16,15 @@ from django.db import transaction
 
 from apps.kernel.services.event_publisher import EventPublisher
 
-from ..models import DEFAULT_CURRENCY, FinancialDocument, FinancialParty, PaymentTransaction, WalletAccount, WalletTransaction, WalletTransactionType
+from ..models import (
+    DEFAULT_CURRENCY,
+    FinancialDocument,
+    FinancialParty,
+    PaymentTransaction,
+    WalletAccount,
+    WalletTransaction,
+    WalletTransactionType,
+)
 from .errors import FinanceError
 
 logger = logging.getLogger(__name__)
@@ -39,7 +47,9 @@ class WalletService:
 
     @classmethod
     @transaction.atomic
-    def credit(cls, *, wallet_id, amount, source_document_id=None, payment_transaction_id=None, metadata=None) -> WalletTransaction:
+    def credit(
+        cls, *, wallet_id, amount, source_document_id=None, payment_transaction_id=None, metadata=None
+    ) -> WalletTransaction:
         return cls._post(
             wallet_id=wallet_id,
             transaction_type=WalletTransactionType.CREDIT,
@@ -51,7 +61,9 @@ class WalletService:
 
     @classmethod
     @transaction.atomic
-    def debit(cls, *, wallet_id, amount, source_document_id=None, payment_transaction_id=None, metadata=None) -> WalletTransaction:
+    def debit(
+        cls, *, wallet_id, amount, source_document_id=None, payment_transaction_id=None, metadata=None
+    ) -> WalletTransaction:
         wallet = WalletAccount.objects.select_for_update().get(id=wallet_id)
         if wallet.balance < amount:
             raise FinanceError(f"Wallet {wallet.id} has insufficient balance for a debit of {amount}.")
@@ -66,7 +78,9 @@ class WalletService:
 
     @classmethod
     @transaction.atomic
-    def refund_to_wallet(cls, *, wallet_id, amount, source_document_id=None, payment_transaction_id=None, metadata=None) -> WalletTransaction:
+    def refund_to_wallet(
+        cls, *, wallet_id, amount, source_document_id=None, payment_transaction_id=None, metadata=None
+    ) -> WalletTransaction:
         return cls._post(
             wallet_id=wallet_id,
             transaction_type=WalletTransactionType.REFUND,
@@ -80,8 +94,15 @@ class WalletService:
 
     @classmethod
     def _post(
-        cls, *, transaction_type, amount, wallet=None, wallet_id=None,
-        source_document_id=None, payment_transaction_id=None, metadata=None,
+        cls,
+        *,
+        transaction_type,
+        amount,
+        wallet=None,
+        wallet_id=None,
+        source_document_id=None,
+        payment_transaction_id=None,
+        metadata=None,
     ) -> WalletTransaction:
         if wallet is None:
             wallet = WalletAccount.objects.select_for_update().get(id=wallet_id)

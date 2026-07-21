@@ -17,7 +17,15 @@ class PromotionService:
 
     @classmethod
     def create_promotion(
-        cls, *, tenant_id, name, stackable=False, priority=0, starts_at=None, ends_at=None, metadata=None,
+        cls,
+        *,
+        tenant_id,
+        name,
+        stackable=False,
+        priority=0,
+        starts_at=None,
+        ends_at=None,
+        metadata=None,
     ) -> Promotion:
         return Promotion.objects.create(
             tenant_id=tenant_id,
@@ -31,11 +39,20 @@ class PromotionService:
 
     @classmethod
     def add_condition(
-        cls, *, promotion, condition_type, service_category=None, supplier=None, min_amount=None, metadata=None,
+        cls,
+        *,
+        promotion,
+        condition_type,
+        service_category=None,
+        supplier=None,
+        min_amount=None,
+        metadata=None,
     ) -> PromotionCondition:
         cls._validate_condition(
-            condition_type=condition_type, service_category=service_category,
-            supplier=supplier, min_amount=min_amount,
+            condition_type=condition_type,
+            service_category=service_category,
+            supplier=supplier,
+            min_amount=min_amount,
         )
         return PromotionCondition.objects.create(
             tenant_id=promotion.tenant_id,
@@ -49,7 +66,14 @@ class PromotionService:
 
     @classmethod
     def add_effect(
-        cls, *, promotion, effect_type, percentage=None, fixed_amount=None, max_discount_amount=None, metadata=None,
+        cls,
+        *,
+        promotion,
+        effect_type,
+        percentage=None,
+        fixed_amount=None,
+        max_discount_amount=None,
+        metadata=None,
     ) -> PromotionEffect:
         cls._validate_effect(effect_type=effect_type, percentage=percentage, fixed_amount=fixed_amount)
         return PromotionEffect.objects.create(

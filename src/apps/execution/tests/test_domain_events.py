@@ -87,15 +87,16 @@ class ExecutionDomainEventTest(ExecutionTestCase):
             ExecutionService.start_session(session_id=session.id)  # succeeds -> publishes once
 
         self.assertEqual(
-            AuditLog.objects.filter(tenant_id=self.tenant.id, action=f"domain_event.{ORDER_STARTED}").count(), 1,
+            AuditLog.objects.filter(tenant_id=self.tenant.id, action=f"domain_event.{ORDER_STARTED}").count(),
+            1,
         )
 
-        with self.captureOnCommitCallbacks(execute=True):
-            with self.assertRaises(ExecutionError):
-                ExecutionService.start_session(session_id=session.id)  # already started -> must fail, no new event
+        with self.captureOnCommitCallbacks(execute=True), self.assertRaises(ExecutionError):
+            ExecutionService.start_session(session_id=session.id)  # already started -> must fail, no new event
 
         self.assertEqual(
-            AuditLog.objects.filter(tenant_id=self.tenant.id, action=f"domain_event.{ORDER_STARTED}").count(), 1,
+            AuditLog.objects.filter(tenant_id=self.tenant.id, action=f"domain_event.{ORDER_STARTED}").count(),
+            1,
         )
 
     def test_failed_close_session_does_not_publish_an_event(self):
@@ -103,9 +104,8 @@ class ExecutionDomainEventTest(ExecutionTestCase):
         # Session is still SCHEDULED — close_session() requires PROVIDER_COMPLETED/CUSTOMER_PENDING.
         self.assertEqual(session.status, ExecutionSessionStatus.SCHEDULED)
 
-        with self.captureOnCommitCallbacks(execute=True):
-            with self.assertRaises(ExecutionError):
-                ExecutionService.close_session(session_id=session.id)
+        with self.captureOnCommitCallbacks(execute=True), self.assertRaises(ExecutionError):
+            ExecutionService.close_session(session_id=session.id)
 
         self.assertFalse(
             AuditLog.objects.filter(tenant_id=self.tenant.id, action=f"domain_event.{ORDER_COMPLETED}").exists(),

@@ -8,7 +8,7 @@ hook) and are looked up here purely by event_type string.
 """
 
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 

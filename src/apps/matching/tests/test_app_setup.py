@@ -35,6 +35,7 @@ class MatchingAppSetupTest(TestCase):
         )
         changes = autodetector.changes(graph=loader.graph)
         self.assertNotIn(
-            "matching", changes,
+            "matching",
+            changes,
             f"Missing migrations detected for apps.matching: {changes.get('matching')}",
         )

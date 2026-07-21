@@ -30,16 +30,23 @@ class SettlementBatch(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="settlement_batches",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="settlement_batches",
     )
 
     status = models.CharField(
-        max_length=20, choices=SettlementBatchStatus.choices, default=SettlementBatchStatus.DRAFT, db_index=True,
+        max_length=20,
+        choices=SettlementBatchStatus.choices,
+        default=SettlementBatchStatus.DRAFT,
+        db_index=True,
     )
     currency = models.CharField(max_length=10, default=DEFAULT_CURRENCY)
     period_start = models.DateTimeField(null=True, blank=True)
     period_end = models.DateTimeField(null=True, blank=True)
-    total_amount = models.DecimalField(max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, default=Decimal("0"))
+    total_amount = models.DecimalField(
+        max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES, default=Decimal("0")
+    )
     metadata = models.JSONField(default=dict, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -61,19 +68,27 @@ class SettlementItem(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "kernel.Tenant", on_delete=models.PROTECT, related_name="settlement_items",
+        "kernel.Tenant",
+        on_delete=models.PROTECT,
+        related_name="settlement_items",
     )
     batch = models.ForeignKey(
-        "finance.SettlementBatch", on_delete=models.CASCADE, related_name="items",
+        "finance.SettlementBatch",
+        on_delete=models.CASCADE,
+        related_name="items",
     )
     party = models.ForeignKey(
-        "finance.FinancialParty", on_delete=models.PROTECT, related_name="settlement_items",
+        "finance.FinancialParty",
+        on_delete=models.PROTECT,
+        related_name="settlement_items",
     )
 
     amount = models.DecimalField(max_digits=MONEY_MAX_DIGITS, decimal_places=MONEY_DECIMAL_PLACES)
     currency = models.CharField(max_length=10, default=DEFAULT_CURRENCY)
     status = models.CharField(
-        max_length=20, choices=SettlementItemStatus.choices, default=SettlementItemStatus.PENDING,
+        max_length=20,
+        choices=SettlementItemStatus.choices,
+        default=SettlementItemStatus.PENDING,
     )
     metadata = models.JSONField(default=dict, blank=True)
 

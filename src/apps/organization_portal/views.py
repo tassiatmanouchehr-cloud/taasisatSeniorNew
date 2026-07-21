@@ -16,8 +16,8 @@ from apps.accounts.services.document_service import DocumentService
 from apps.accounts.services.errors import AccountsError
 from apps.accounts.services.organization_profile_service import OrganizationProfileUpdateService
 from apps.accounts.services.organization_staff import OrganizationStaffService
-from apps.accounts.services.profile_media_service import ProfileMediaService
 from apps.accounts.services.profile_activation_service import ProfileActivationService
+from apps.accounts.services.profile_media_service import ProfileMediaService
 from apps.accounts.services.provider_identity import resolve_supplier_for_user
 from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_organization
 from apps.availability.services.capacity_service import CapacityService
@@ -186,7 +186,11 @@ def _get_own_pending_request(organization, request_id):
     the caller's own organization, mirroring
     OrganizationStaffService.get_membership()'s shape."""
     req = next(
-        (r for r in affiliation_services.list_pending_requests_for_organization(organization) if str(r.id) == str(request_id)),
+        (
+            r
+            for r in affiliation_services.list_pending_requests_for_organization(organization)
+            if str(r.id) == str(request_id)
+        ),
         None,
     )
     if req is None:
@@ -201,7 +205,9 @@ def invite_caregiver_view(request):
     if form.is_valid():
         try:
             affiliation_services.invite_caregiver(
-                organization=organization, caregiver_phone=form.cleaned_data["phone"], invited_by=request.user,
+                organization=organization,
+                caregiver_phone=form.cleaned_data["phone"],
+                invited_by=request.user,
             )
         except AccountsError:
             pass

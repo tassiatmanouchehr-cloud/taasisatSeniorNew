@@ -41,16 +41,21 @@ class OrganizationStaffService:
     def list_staff(cls, organization):
         from ..models.profiles import OrganizationMembership
 
-        return OrganizationMembership.objects.filter(
-            organization=organization,
-        ).select_related("user", "person").order_by("role_type", "-created_at")
+        return (
+            OrganizationMembership.objects.filter(
+                organization=organization,
+            )
+            .select_related("user", "person")
+            .order_by("role_type", "-created_at")
+        )
 
     @classmethod
     def list_active_caregivers(cls, organization):
         from ..models.profiles import OrgMembershipRole, OrgMembershipStatus
 
         return cls.list_staff(organization).filter(
-            role_type=OrgMembershipRole.CAREGIVER, status=OrgMembershipStatus.ACTIVE,
+            role_type=OrgMembershipRole.CAREGIVER,
+            status=OrgMembershipStatus.ACTIVE,
         )
 
     @classmethod
@@ -96,7 +101,9 @@ class OrganizationStaffService:
         membership = OrganizationMembership.objects.select_for_update().get(id=membership.id)
 
         PermissionService.require(
-            None, ORGANIZATION_MEMBERSHIP_APPROVE, tenant_id=membership.user.tenant_id,
+            None,
+            ORGANIZATION_MEMBERSHIP_APPROVE,
+            tenant_id=membership.user.tenant_id,
             ownership_authorized_by=approved_by,
             scope={"scope_type": "organization", "scope_id": str(membership.organization_id)},
         )
@@ -115,7 +122,11 @@ class OrganizationStaffService:
             module_id="M26",
             actor_id=approved_by.person_id if approved_by else None,
             actor_type="user" if approved_by else "system",
-            after={"organization_id": str(membership.organization_id), "user_id": str(membership.user_id), "role_type": membership.role_type},
+            after={
+                "organization_id": str(membership.organization_id),
+                "user_id": str(membership.user_id),
+                "role_type": membership.role_type,
+            },
         )
         return membership
 
@@ -134,7 +145,9 @@ class OrganizationStaffService:
         membership = OrganizationMembership.objects.select_for_update().get(id=membership.id)
 
         PermissionService.require(
-            None, ORGANIZATION_MEMBERSHIP_SUSPEND, tenant_id=membership.user.tenant_id,
+            None,
+            ORGANIZATION_MEMBERSHIP_SUSPEND,
+            tenant_id=membership.user.tenant_id,
             ownership_authorized_by=suspended_by,
             scope={"scope_type": "organization", "scope_id": str(membership.organization_id)},
         )
@@ -166,8 +179,10 @@ class OrganizationStaffService:
 
         try:
             membership = OrganizationMembership.objects.get(
-                organization=organization, id=membership_id,
-                role_type=OrgMembershipRole.CAREGIVER, status=OrgMembershipStatus.ACTIVE,
+                organization=organization,
+                id=membership_id,
+                role_type=OrgMembershipRole.CAREGIVER,
+                status=OrgMembershipStatus.ACTIVE,
             )
         except OrganizationMembership.DoesNotExist:
             raise AccountsError("Staff member not found.")
@@ -195,7 +210,10 @@ class OrganizationStaffService:
                 organization_id__in=organization_ids,
                 role_type=OrgMembershipRole.CAREGIVER,
                 status=OrgMembershipStatus.ACTIVE,
-            ).values("organization_id").annotate(count=Count("id")).values_list("organization_id", "count"),
+            )
+            .values("organization_id")
+            .annotate(count=Count("id"))
+            .values_list("organization_id", "count"),
         )
         return {organization_id: counts.get(organization_id, 0) for organization_id in organization_ids}
 

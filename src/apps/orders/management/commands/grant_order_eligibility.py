@@ -61,7 +61,8 @@ class Command(BaseCommand):
         except OrderEligibilityError as exc:
             raise CommandError(str(exc))
 
-        self.stdout.write(self.style.SUCCESS(
-            f"Granted: order={order.order_number} organization={organization.name} "
-            f"status={eligibility.status}",
-        ))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Granted: order={order.order_number} organization={organization.name} status={eligibility.status}",
+            )
+        )

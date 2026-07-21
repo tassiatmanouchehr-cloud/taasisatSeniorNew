@@ -108,7 +108,10 @@ class SupplierSearchServiceTest(DiscoveryTestCase):
         supplier = self._create_supplier()
         day = timezone.localdate()
         AvailabilityMutationService.add_working_window(
-            supplier=supplier, day_of_week=day.weekday(), start_time=dt.time(9, 0), end_time=dt.time(17, 0),
+            supplier=supplier,
+            day_of_week=day.weekday(),
+            start_time=dt.time(9, 0),
+            end_time=dt.time(17, 0),
         )
         start = timezone.make_aware(dt.datetime.combine(day, dt.time(10, 0)))
         end = start + dt.timedelta(hours=1)

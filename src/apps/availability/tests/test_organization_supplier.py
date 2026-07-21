@@ -26,7 +26,10 @@ class OrganizationSupplierAvailabilityTest(AvailabilityTestCase):
         self.org_supplier = self._create_supplier(supplier_type=SupplierType.ORGANIZATION, display_name="Care Org")
         self.monday = _next_monday()
         AvailabilityMutationService.add_working_window(
-            supplier=self.org_supplier, day_of_week=0, start_time=dt.time(8, 0), end_time=dt.time(20, 0),
+            supplier=self.org_supplier,
+            day_of_week=0,
+            start_time=dt.time(8, 0),
+            end_time=dt.time(20, 0),
         )
 
     def _aware(self, hour):
@@ -35,16 +38,22 @@ class OrganizationSupplierAvailabilityTest(AvailabilityTestCase):
     def test_organization_supplier_available_within_working_window(self):
         self.assertTrue(
             AvailabilityQueryService.is_supplier_available(
-                supplier=self.org_supplier, start=self._aware(9), end=self._aware(10),
+                supplier=self.org_supplier,
+                start=self._aware(9),
+                end=self._aware(10),
             ),
         )
 
     def test_organization_supplier_blocked_period_overrides_window(self):
         AvailabilityMutationService.add_blocked_period(
-            supplier=self.org_supplier, start_at=self._aware(9), end_at=self._aware(11),
+            supplier=self.org_supplier,
+            start_at=self._aware(9),
+            end_at=self._aware(11),
         )
         self.assertFalse(
             AvailabilityQueryService.is_supplier_available(
-                supplier=self.org_supplier, start=self._aware(9), end=self._aware(10),
+                supplier=self.org_supplier,
+                start=self._aware(9),
+                end=self._aware(10),
             ),
         )

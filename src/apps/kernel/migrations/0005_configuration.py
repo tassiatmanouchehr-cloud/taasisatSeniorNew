@@ -6,12 +6,11 @@ Tables: kernel.configuration_key, kernel.configuration_value
 
 import uuid
 
-from django.db import migrations, models
 import django.db.models.deletion
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("kernel", "0004_audit_log"),
     ]
@@ -24,14 +23,63 @@ class Migration(migrations.Migration):
                 ("key", models.CharField(db_index=True, max_length=200, unique=True)),
                 ("owner_module", models.CharField(max_length=10)),
                 ("schema_version", models.CharField(default="1.0", max_length=10)),
-                ("scope_level", models.CharField(choices=[("platform", "Platform"), ("tenant", "Tenant"), ("organization", "Organization"), ("branch", "Branch"), ("role", "Role"), ("actor", "Actor")], default="tenant", max_length=20)),
-                ("value_type", models.CharField(choices=[("boolean", "Boolean"), ("string", "String"), ("number", "Number"), ("integer", "Integer"), ("enum", "Enum"), ("object", "Object (JSON)"), ("array", "Array (JSON)")], default="string", max_length=20)),
+                (
+                    "scope_level",
+                    models.CharField(
+                        choices=[
+                            ("platform", "Platform"),
+                            ("tenant", "Tenant"),
+                            ("organization", "Organization"),
+                            ("branch", "Branch"),
+                            ("role", "Role"),
+                            ("actor", "Actor"),
+                        ],
+                        default="tenant",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "value_type",
+                    models.CharField(
+                        choices=[
+                            ("boolean", "Boolean"),
+                            ("string", "String"),
+                            ("number", "Number"),
+                            ("integer", "Integer"),
+                            ("enum", "Enum"),
+                            ("object", "Object (JSON)"),
+                            ("array", "Array (JSON)"),
+                        ],
+                        default="string",
+                        max_length=20,
+                    ),
+                ),
                 ("default_value", models.JSONField(blank=True, null=True)),
                 ("allowed_values", models.JSONField(blank=True, null=True)),
                 ("validation_schema", models.JSONField(blank=True, null=True)),
-                ("override_policy", models.CharField(choices=[("locked", "Locked (no override allowed)"), ("inheritable", "Inheritable (child scopes inherit)"), ("tenant_override", "Tenant Override Allowed"), ("role_override", "Role Override Allowed"), ("full_override", "Full Override (any scope)")], default="tenant_override", max_length=20)),
+                (
+                    "override_policy",
+                    models.CharField(
+                        choices=[
+                            ("locked", "Locked (no override allowed)"),
+                            ("inheritable", "Inheritable (child scopes inherit)"),
+                            ("tenant_override", "Tenant Override Allowed"),
+                            ("role_override", "Role Override Allowed"),
+                            ("full_override", "Full Override (any scope)"),
+                        ],
+                        default="tenant_override",
+                        max_length=20,
+                    ),
+                ),
                 ("change_requires_approval", models.BooleanField(default=False)),
-                ("activation_mode", models.CharField(choices=[("immediate", "Immediate"), ("scheduled", "Scheduled"), ("next_cycle", "Next Cycle")], default="immediate", max_length=20)),
+                (
+                    "activation_mode",
+                    models.CharField(
+                        choices=[("immediate", "Immediate"), ("scheduled", "Scheduled"), ("next_cycle", "Next Cycle")],
+                        default="immediate",
+                        max_length=20,
+                    ),
+                ),
                 ("rollback_supported", models.BooleanField(default=True)),
                 ("is_sensitive", models.BooleanField(default=False)),
                 ("audit_class", models.CharField(default="standard", max_length=20)),
@@ -52,7 +100,21 @@ class Migration(migrations.Migration):
             fields=[
                 ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ("tenant_id", models.UUIDField(db_index=True)),
-                ("scope_type", models.CharField(choices=[("platform", "Platform"), ("tenant", "Tenant"), ("organization", "Organization"), ("branch", "Branch"), ("role", "Role"), ("actor", "Actor")], default="tenant", max_length=20)),
+                (
+                    "scope_type",
+                    models.CharField(
+                        choices=[
+                            ("platform", "Platform"),
+                            ("tenant", "Tenant"),
+                            ("organization", "Organization"),
+                            ("branch", "Branch"),
+                            ("role", "Role"),
+                            ("actor", "Actor"),
+                        ],
+                        default="tenant",
+                        max_length=20,
+                    ),
+                ),
                 ("scope_id", models.UUIDField(blank=True, null=True)),
                 ("value", models.JSONField()),
                 ("is_active", models.BooleanField(db_index=True, default=True)),
@@ -65,7 +127,14 @@ class Migration(migrations.Migration):
                 ("updated_at", models.DateTimeField(auto_now=True)),
                 ("created_by", models.UUIDField(blank=True, null=True)),
                 ("version", models.IntegerField(default=1)),
-                ("config_key", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="overrides", to="kernel.configurationkey")),
+                (
+                    "config_key",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="overrides",
+                        to="kernel.configurationkey",
+                    ),
+                ),
             ],
             options={
                 "verbose_name": "Configuration Value",

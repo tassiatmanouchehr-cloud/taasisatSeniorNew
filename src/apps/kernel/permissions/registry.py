@@ -101,14 +101,29 @@ class PermissionRegistry:
 
 
 def register(
-    key: str, *, domain: str, resource: str, action: str, description: str,
-    organization_scope: bool = False, platform_scope: bool = False, internal_only: bool = False,
+    key: str,
+    *,
+    domain: str,
+    resource: str,
+    action: str,
+    description: str,
+    organization_scope: bool = False,
+    platform_scope: bool = False,
+    internal_only: bool = False,
 ) -> str:
     """Convenience wrapper: register a key and return its string value, so
     call sites can do `FOO = register("domain.resource.action", ...)`
     directly at module scope."""
-    PermissionRegistry.register(PermissionKey(
-        key=key, domain=domain, resource=resource, action=action, description=description,
-        organization_scope=organization_scope, platform_scope=platform_scope, internal_only=internal_only,
-    ))
+    PermissionRegistry.register(
+        PermissionKey(
+            key=key,
+            domain=domain,
+            resource=resource,
+            action=action,
+            description=description,
+            organization_scope=organization_scope,
+            platform_scope=platform_scope,
+            internal_only=internal_only,
+        )
+    )
     return key

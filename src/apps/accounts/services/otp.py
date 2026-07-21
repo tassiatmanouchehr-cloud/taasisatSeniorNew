@@ -110,11 +110,15 @@ class OTPService:
         Increments attempt count on failure. Consumes challenge on success.
         """
         # Get the latest unconsumed challenge for this phone+purpose
-        challenge = OTPChallenge.objects.filter(
-            phone=phone,
-            purpose=purpose,
-            consumed_at__isnull=True,
-        ).order_by("-created_at").first()
+        challenge = (
+            OTPChallenge.objects.filter(
+                phone=phone,
+                purpose=purpose,
+                consumed_at__isnull=True,
+            )
+            .order_by("-created_at")
+            .first()
+        )
 
         if not challenge:
             return False

@@ -33,13 +33,23 @@ class OrderCountsSampleEndpointTest(ApiTestCase):
 
         other_customer = self._create_customer(tenant=self.other_tenant, display_name="Other")
         from apps.orders.models import CatalogStatus, Order, OrderSource, OrderStatus, ServiceCategory
+
         other_category = ServiceCategory.objects.create(
-            tenant=self.other_tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.other_tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
         Order.objects.create(
-            tenant=self.other_tenant, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
-            service_category=other_category, customer_profile=other_customer,
-            description="x", city="tehran", address="addr", phone="09120000099",
+            tenant=self.other_tenant,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.NEW,
+            service_category=other_category,
+            customer_profile=other_customer,
+            description="x",
+            city="tehran",
+            address="addr",
+            phone="09120000099",
         )
 
         response = self.client.get("/api/v1/sample/order-counts/")

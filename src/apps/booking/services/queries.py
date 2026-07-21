@@ -21,9 +21,14 @@ class ProviderAssignmentQueryService:
         "confirmed"."""
         from ..models import SupplierAssignment, SupplierAssignmentStatus
 
-        queryset = SupplierAssignment.objects.for_tenant(tenant_id).filter(
-            supplier=supplier,
-        ).select_related("order").order_by("-created_at")
+        queryset = (
+            SupplierAssignment.objects.for_tenant(tenant_id)
+            .filter(
+                supplier=supplier,
+            )
+            .select_related("order")
+            .order_by("-created_at")
+        )
 
         if only == "pending":
             queryset = queryset.filter(
@@ -42,9 +47,16 @@ class ProviderAssignmentQueryService:
         this order (never leaks whether the order itself exists)."""
         from ..models import SupplierAssignment
 
-        assignment = SupplierAssignment.objects.for_tenant(tenant_id).filter(
-            order_id=order_id, supplier=supplier,
-        ).select_related("order").order_by("-assignment_sequence").first()
+        assignment = (
+            SupplierAssignment.objects.for_tenant(tenant_id)
+            .filter(
+                order_id=order_id,
+                supplier=supplier,
+            )
+            .select_related("order")
+            .order_by("-assignment_sequence")
+            .first()
+        )
 
         if assignment is None:
             raise ProviderAssignmentNotFoundError("Assignment not found.")

@@ -82,7 +82,8 @@ class VerificationReviewService:
 
         try:
             return VerificationDocument.objects.select_related(
-                "caregiver__user", "organization__admin_user",
+                "caregiver__user",
+                "organization__admin_user",
             ).get(
                 Q(caregiver__user__tenant_id=tenant_id) | Q(organization__tenant_id=tenant_id),
                 id=document_id,
@@ -96,8 +97,11 @@ class VerificationReviewService:
         from ..models.media import DocumentStatus
 
         return cls._apply_review(
-            document_id=document_id, tenant_id=tenant_id, reviewer=reviewer,
-            target_status=DocumentStatus.VERIFIED, reason="",
+            document_id=document_id,
+            tenant_id=tenant_id,
+            reviewer=reviewer,
+            target_status=DocumentStatus.VERIFIED,
+            reason="",
         )
 
     @classmethod
@@ -108,8 +112,11 @@ class VerificationReviewService:
         if not reason or not reason.strip():
             raise VerificationReviewError("A reason is required to reject a document.")
         return cls._apply_review(
-            document_id=document_id, tenant_id=tenant_id, reviewer=reviewer,
-            target_status=DocumentStatus.REJECTED, reason=reason.strip(),
+            document_id=document_id,
+            tenant_id=tenant_id,
+            reviewer=reviewer,
+            target_status=DocumentStatus.REJECTED,
+            reason=reason.strip(),
         )
 
     @classmethod
@@ -120,8 +127,11 @@ class VerificationReviewService:
         if not reason or not reason.strip():
             raise VerificationReviewError("A reason is required to request a correction.")
         return cls._apply_review(
-            document_id=document_id, tenant_id=tenant_id, reviewer=reviewer,
-            target_status=DocumentStatus.CORRECTION_REQUIRED, reason=reason.strip(),
+            document_id=document_id,
+            tenant_id=tenant_id,
+            reviewer=reviewer,
+            target_status=DocumentStatus.CORRECTION_REQUIRED,
+            reason=reason.strip(),
         )
 
     @classmethod
@@ -153,8 +163,7 @@ class VerificationReviewService:
 
         if document.status != DocumentStatus.PENDING:
             raise VerificationReviewError(
-                f"Cannot review a document in '{document.status}' status; "
-                "only a PENDING document can be reviewed."
+                f"Cannot review a document in '{document.status}' status; only a PENDING document can be reviewed."
             )
 
         previous_status = document.status

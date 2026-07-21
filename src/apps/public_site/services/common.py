@@ -267,8 +267,13 @@ def completed_jobs_counts_bulk(*, tenant_id, supplier_ids) -> dict:
 
     counts = dict(
         Order.objects.filter(
-            tenant_id=tenant_id, assigned_supplier_id__in=supplier_ids, status=OrderStatus.COMPLETED,
-        ).values("assigned_supplier_id").annotate(count=Count("id")).values_list("assigned_supplier_id", "count"),
+            tenant_id=tenant_id,
+            assigned_supplier_id__in=supplier_ids,
+            status=OrderStatus.COMPLETED,
+        )
+        .values("assigned_supplier_id")
+        .annotate(count=Count("id"))
+        .values_list("assigned_supplier_id", "count"),
     )
     return {supplier_id: counts.get(supplier_id, 0) for supplier_id in supplier_ids}
 

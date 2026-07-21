@@ -1,21 +1,13 @@
 """Tests for Sprint 7 profiles, organizations, and affiliations."""
 
 from django.test import TestCase
-from django.utils import timezone
 
 from apps.accounts.models.profiles import (
     AffiliationStatus,
-    CaregiverProfile,
     CaregiverProviderType,
-    CompanyAffiliationRequest,
-    CustomerProfile,
-    ElderProfile,
     OrganizationMembership,
     OrganizationProfile,
     OrgMembershipRole,
-    OrgMembershipStatus,
-    PlatformTeamMember,
-    TrustedContact,
 )
 from apps.accounts.services.affiliations import approve_affiliation_request, reject_affiliation_request
 from apps.accounts.services.errors import AccountsError
@@ -27,7 +19,7 @@ from apps.accounts.services.profiles import (
     create_primary_elder_profile,
 )
 from apps.accounts.services.registration import RegistrationService
-from apps.kernel.models import Person, Role, RoleAssignment, Tenant, UserAccount
+from apps.kernel.models import Person, Role, Tenant, UserAccount
 
 
 class BaseTestCase(TestCase):
@@ -58,7 +50,9 @@ class CustomerProfileTest(BaseTestCase):
 
     def test_trusted_contact_creation(self):
         user, profile = RegistrationService.create_customer(phone="09121111111", full_name="Test")
-        contact = add_trusted_contact(customer_profile=profile, full_name="Brother", phone="09129999999", relation="brother")
+        contact = add_trusted_contact(
+            customer_profile=profile, full_name="Brother", phone="09129999999", relation="brother"
+        )
         self.assertEqual(contact.customer_profile, profile)
         self.assertTrue(contact.can_receive_sms)
 
@@ -156,21 +150,29 @@ class OrganizationTest(BaseTestCase):
 
 class AffiliationIntegrityTest(BaseTestCase):
     def test_cannot_approve_non_pending(self):
-        admin_user, org = RegistrationService.create_company_admin(phone="09140000000", admin_name="A", company_name="O")
-        _, profile, req = RegistrationService.create_caregiver(phone="09132222222", full_name="CG", company_code=org.code)
+        admin_user, org = RegistrationService.create_company_admin(
+            phone="09140000000", admin_name="A", company_name="O"
+        )
+        _, profile, req = RegistrationService.create_caregiver(
+            phone="09132222222", full_name="CG", company_code=org.code
+        )
         reject_affiliation_request(request_id=req.id, reviewed_by=admin_user)
         with self.assertRaises(AccountsError):
             approve_affiliation_request(request_id=req.id, reviewed_by=admin_user)
 
     def test_cannot_approve_without_org(self):
-        _, profile, req = RegistrationService.create_caregiver(phone="09132222222", full_name="CG", company_name="Ghost")
+        _, profile, req = RegistrationService.create_caregiver(
+            phone="09132222222", full_name="CG", company_name="Ghost"
+        )
         person = Person.objects.create(tenant=self.tenant, full_name="Reviewer")
         reviewer = UserAccount.objects.create_user(phone="09160000000", person=person, tenant=self.tenant)
         with self.assertRaises(AccountsError):
             approve_affiliation_request(request_id=req.id, reviewed_by=reviewer)
 
     def test_no_duplicate_membership(self):
-        admin_user, org = RegistrationService.create_company_admin(phone="09140000000", admin_name="A", company_name="O")
+        admin_user, org = RegistrationService.create_company_admin(
+            phone="09140000000", admin_name="A", company_name="O"
+        )
         m1, created1 = create_organization_membership(
             organization=org, user=admin_user, role_type=OrgMembershipRole.ADMIN
         )
@@ -184,6 +186,7 @@ class AffiliationIntegrityTest(BaseTestCase):
 class PlatformTeamTest(BaseTestCase):
     def test_seed_demo_idempotent(self):
         from django.core.management import call_command
+
         call_command("seed_demo_people")
         count1 = UserAccount.objects.count()
         call_command("seed_demo_people")

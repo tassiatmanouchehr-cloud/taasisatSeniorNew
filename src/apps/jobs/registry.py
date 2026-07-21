@@ -12,7 +12,8 @@ business app to avoid circular imports.
 """
 
 import logging
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from apps.jobs.errors import JobsError
 

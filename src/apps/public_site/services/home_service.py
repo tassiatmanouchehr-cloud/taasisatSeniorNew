@@ -41,7 +41,9 @@ class HomePageService:
         return HomePageViewModel(
             service_categories=cls._service_categories(tenant_id, tenant_slug),
             featured_caregivers=CaregiverDirectoryService.featured(
-                tenant_id=tenant_id, tenant_slug=tenant_slug, limit=FEATURED_CAREGIVERS_LIMIT,
+                tenant_id=tenant_id,
+                tenant_slug=tenant_slug,
+                limit=FEATURED_CAREGIVERS_LIMIT,
             ),
             reviews=cls._reviews(tenant_id),
             city_options=tuple(FilterOptionViewModel(value=c, label=c) for c in cities),
@@ -62,7 +64,8 @@ class HomePageService:
                 icon=category.icon,
                 description=category.description,
                 directory_url=common.append_tenant_query(
-                    f"/find-a-caregiver/?service={category.id}", tenant_slug,
+                    f"/find-a-caregiver/?service={category.id}",
+                    tenant_slug,
                 ),
             )
             for category in categories

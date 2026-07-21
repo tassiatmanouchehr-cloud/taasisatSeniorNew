@@ -29,6 +29,7 @@ class DiscoveryEndpointTest(ApiTestCase):
         self.client.force_login(self.actor)
 
         from apps.kernel.models.supplier import SupplierType
+
         self._create_supplier(tenant=self.tenant, supplier_type=SupplierType.ORGANIZATION, display_name="Org Supplier")
 
         response = self.client.get("/api/v1/discovery/suppliers/?supplier_type=ORGANIZATION")

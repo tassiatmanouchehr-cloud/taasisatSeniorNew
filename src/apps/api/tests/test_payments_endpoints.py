@@ -41,10 +41,14 @@ class PaymentIntentCreateEndpointTest(ApiTestCase):
         key = f"key-{uuid.uuid4().hex}"
 
         first = self.client.post(
-            "/api/v1/payments/intents/", {"amount": "100000", "idempotency_key": key}, content_type="application/json",
+            "/api/v1/payments/intents/",
+            {"amount": "100000", "idempotency_key": key},
+            content_type="application/json",
         )
         second = self.client.post(
-            "/api/v1/payments/intents/", {"amount": "100000", "idempotency_key": key}, content_type="application/json",
+            "/api/v1/payments/intents/",
+            {"amount": "100000", "idempotency_key": key},
+            content_type="application/json",
         )
 
         self.assertEqual(first.json()["id"], second.json()["id"])
@@ -55,7 +59,9 @@ class PaymentIntentCreateEndpointTest(ApiTestCase):
         self.client.force_login(self.customer_profile.user)
 
         response = self.client.post(
-            "/api/v1/payments/intents/", {"amount": "100000"}, content_type="application/json",
+            "/api/v1/payments/intents/",
+            {"amount": "100000"},
+            content_type="application/json",
         )
 
         self.assertEqual(response.status_code, 400)
@@ -76,14 +82,18 @@ class PaymentAttemptCreateEndpointTest(ApiTestCase):
         intent_id = self._create_intent()
         self.client.logout()
 
-        response = self.client.post(f"/api/v1/payments/intents/{intent_id}/attempts/", {}, content_type="application/json")
+        response = self.client.post(
+            f"/api/v1/payments/intents/{intent_id}/attempts/", {}, content_type="application/json"
+        )
         self.assertEqual(response.status_code, 401)
 
     def test_starts_attempt_and_transitions_to_pending(self):
         intent_id = self._create_intent()
         self._grant(self.customer_profile.user, self.tenant, [PAYMENTS_ATTEMPTS_CREATE])
 
-        response = self.client.post(f"/api/v1/payments/intents/{intent_id}/attempts/", {}, content_type="application/json")
+        response = self.client.post(
+            f"/api/v1/payments/intents/{intent_id}/attempts/", {}, content_type="application/json"
+        )
 
         self.assertEqual(response.status_code, 201)
         body = response.json()
@@ -95,7 +105,9 @@ class PaymentAttemptCreateEndpointTest(ApiTestCase):
         self.client.force_login(self.customer_profile.user)
 
         other_intent_id = uuid.uuid4()
-        response = self.client.post(f"/api/v1/payments/intents/{other_intent_id}/attempts/", {}, content_type="application/json")
+        response = self.client.post(
+            f"/api/v1/payments/intents/{other_intent_id}/attempts/", {}, content_type="application/json"
+        )
         self.assertEqual(response.status_code, 404)
 
 
@@ -112,7 +124,9 @@ class FakeProviderCallbackEndpointTest(ApiTestCase):
         intent_id = intent_response.json()["id"]
 
         attempt_response = self.client.post(
-            f"/api/v1/payments/intents/{intent_id}/attempts/", {}, content_type="application/json",
+            f"/api/v1/payments/intents/{intent_id}/attempts/",
+            {},
+            content_type="application/json",
         )
         self.client.logout()
         return intent_id, attempt_response.json()["provider_reference"]
@@ -138,8 +152,11 @@ class FakeProviderCallbackEndpointTest(ApiTestCase):
     def test_duplicate_callback_is_idempotent(self):
         intent_id, provider_reference = self._create_pending_attempt()
         payload = {
-            "provider_reference": provider_reference, "provider_event_id": "evt-dup",
-            "status": "SUCCEEDED", "amount": "20000", "currency": "IRR",
+            "provider_reference": provider_reference,
+            "provider_event_id": "evt-dup",
+            "status": "SUCCEEDED",
+            "amount": "20000",
+            "currency": "IRR",
         }
 
         first = self.client.post("/api/v1/payments/callbacks/fake/", payload, content_type="application/json")
@@ -155,8 +172,11 @@ class FakeProviderCallbackEndpointTest(ApiTestCase):
         response = self.client.post(
             "/api/v1/payments/callbacks/fake/",
             {
-                "provider_reference": provider_reference, "provider_event_id": "evt-bad",
-                "status": "SUCCEEDED", "amount": "999999", "currency": "IRR",
+                "provider_reference": provider_reference,
+                "provider_event_id": "evt-bad",
+                "status": "SUCCEEDED",
+                "amount": "999999",
+                "currency": "IRR",
             },
             content_type="application/json",
         )
@@ -168,8 +188,11 @@ class FakeProviderCallbackEndpointTest(ApiTestCase):
         response = self.client.post(
             "/api/v1/payments/callbacks/fake/",
             {
-                "provider_reference": "FAKE-does-not-exist", "provider_event_id": "evt-1",
-                "status": "SUCCEEDED", "amount": "1", "currency": "IRR",
+                "provider_reference": "FAKE-does-not-exist",
+                "provider_event_id": "evt-1",
+                "status": "SUCCEEDED",
+                "amount": "1",
+                "currency": "IRR",
             },
             content_type="application/json",
         )

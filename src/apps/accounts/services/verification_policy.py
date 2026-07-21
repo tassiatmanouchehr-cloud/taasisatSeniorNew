@@ -116,7 +116,9 @@ class RequiredDocumentPolicy:
             default=list(DEFAULT_ORGANIZATION_REQUIRED_DOCUMENT_TYPES),
         )
         return cls._sanitize(
-            value, DEFAULT_ORGANIZATION_REQUIRED_DOCUMENT_TYPES, ORGANIZATION_APPLICABLE_DOCUMENT_TYPES,
+            value,
+            DEFAULT_ORGANIZATION_REQUIRED_DOCUMENT_TYPES,
+            ORGANIZATION_APPLICABLE_DOCUMENT_TYPES,
         )
 
     @staticmethod

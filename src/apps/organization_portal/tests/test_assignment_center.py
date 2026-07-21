@@ -17,8 +17,8 @@ class AssignmentCenterViewTest(OrganizationPortalTestCase):
         self.assertContains(response, "Staff Caregiver")
 
     def test_assigned_order_no_longer_appears(self):
-        from apps.booking.services.assignment_service import AssignmentService
         from apps.accounts.services.provider_identity import resolve_supplier_for_user
+        from apps.booking.services.assignment_service import AssignmentService
 
         supplier = resolve_supplier_for_user(self.caregiver_user)
         AssignmentService.assign(order_id=self.order.id, supplier=supplier)
@@ -32,7 +32,8 @@ class AssignStaffViewTest(OrganizationPortalTestCase):
     def test_assign_creates_supplier_assignment(self):
         self.login_as_admin()
         response = self.client.post(
-            f"/organization/assignments/{self.order.id}/assign/", {"membership_id": str(self.staff_membership.id)},
+            f"/organization/assignments/{self.order.id}/assign/",
+            {"membership_id": str(self.staff_membership.id)},
         )
         self.assertRedirects(response, "/organization/assignments/")
 
@@ -41,21 +42,32 @@ class AssignStaffViewTest(OrganizationPortalTestCase):
         self.assertTrue(SupplierAssignment.objects.filter(order=self.order).exists())
 
     def test_cannot_assign_staff_from_another_organization(self):
-        from apps.accounts.models.profiles import OrganizationMembership, OrganizationProfile, OrgMembershipRole, OrgMembershipStatus
+        from apps.accounts.models.profiles import (
+            OrganizationMembership,
+            OrganizationProfile,
+            OrgMembershipRole,
+            OrgMembershipStatus,
+        )
 
         other_org_admin = self._create_user(tenant=self.tenant, phone="09121110008")
         other_org = OrganizationProfile.objects.create(
-            name="Other Co", code="other-co-3", admin_user=other_org_admin, tenant=self.tenant,
+            name="Other Co",
+            code="other-co-3",
+            admin_user=other_org_admin,
+            tenant=self.tenant,
         )
         other_staff_user = self._create_user(tenant=self.tenant, phone="09121110009")
         other_membership = OrganizationMembership.objects.create(
-            organization=other_org, user=other_staff_user,
-            role_type=OrgMembershipRole.CAREGIVER, status=OrgMembershipStatus.ACTIVE,
+            organization=other_org,
+            user=other_staff_user,
+            role_type=OrgMembershipRole.CAREGIVER,
+            status=OrgMembershipStatus.ACTIVE,
         )
 
         self.login_as_admin()
         response = self.client.post(
-            f"/organization/assignments/{self.order.id}/assign/", {"membership_id": str(other_membership.id)},
+            f"/organization/assignments/{self.order.id}/assign/",
+            {"membership_id": str(other_membership.id)},
         )
         self.assertEqual(response.status_code, 200)  # renders action_error.html, not a redirect
 
@@ -70,12 +82,11 @@ class AssignmentEventPublishingTest(OrganizationPortalTestCase):
         self.login_as_admin()
         with self.captureOnCommitCallbacks(execute=True):
             self.client.post(
-                f"/organization/assignments/{self.order.id}/assign/", {"membership_id": str(self.staff_membership.id)},
+                f"/organization/assignments/{self.order.id}/assign/",
+                {"membership_id": str(self.staff_membership.id)},
             )
 
-        self.assertTrue(
-            AuditLog.objects.filter(action="domain_event.OrganizationAssignmentChanged").exists()
-        )
+        self.assertTrue(AuditLog.objects.filter(action="domain_event.OrganizationAssignmentChanged").exists())
 
 
 class AssignmentActorAndRbacTest(OrganizationPortalTestCase):
@@ -86,7 +97,8 @@ class AssignmentActorAndRbacTest(OrganizationPortalTestCase):
 
     def test_unauthenticated_user_cannot_assign(self):
         response = self.client.post(
-            f"/organization/assignments/{self.order.id}/assign/", {"membership_id": str(self.staff_membership.id)},
+            f"/organization/assignments/{self.order.id}/assign/",
+            {"membership_id": str(self.staff_membership.id)},
         )
         self.assertEqual(response.status_code, 403)
         self.assertIsNone(SupplierAssignment.objects.filter(order=self.order).first())
@@ -94,7 +106,8 @@ class AssignmentActorAndRbacTest(OrganizationPortalTestCase):
     def test_non_admin_staff_member_cannot_assign(self):
         self.client.force_login(self.caregiver_user)
         response = self.client.post(
-            f"/organization/assignments/{self.order.id}/assign/", {"membership_id": str(self.staff_membership.id)},
+            f"/organization/assignments/{self.order.id}/assign/",
+            {"membership_id": str(self.staff_membership.id)},
         )
         self.assertEqual(response.status_code, 403)
         self.assertIsNone(SupplierAssignment.objects.filter(order=self.order).first())
@@ -116,30 +129,45 @@ class AssignmentActorAndRbacTest(OrganizationPortalTestCase):
 
         other_tenant = Tenant.objects.create(slug="orgportal-cross-tenant", name="Cross Tenant")
         other_admin = UserAccount.objects.create_user(
-            phone="09121119991", person=Person.objects.create(tenant=other_tenant, full_name="Other Admin"),
+            phone="09121119991",
+            person=Person.objects.create(tenant=other_tenant, full_name="Other Admin"),
             tenant=other_tenant,
         )
         other_org = OrganizationProfile.objects.create(
-            name="Cross Tenant Co", code="cross-tenant-co", admin_user=other_admin, tenant=other_tenant,
+            name="Cross Tenant Co",
+            code="cross-tenant-co",
+            admin_user=other_admin,
+            tenant=other_tenant,
         )
         OrganizationMembership.objects.create(
-            organization=other_org, user=other_admin, role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+            organization=other_org,
+            user=other_admin,
+            role_type=OrgMembershipRole.ADMIN,
+            status=OrgMembershipStatus.ACTIVE,
         )
         other_staff_person = Person.objects.create(tenant=other_tenant, full_name="Cross Tenant Staff")
         other_staff_user = UserAccount.objects.create_user(
-            phone="09121119992", person=other_staff_person, tenant=other_tenant,
+            phone="09121119992",
+            person=other_staff_person,
+            tenant=other_tenant,
         )
         CaregiverProfile.objects.create(
-            user=other_staff_user, person=other_staff_person, phone="09121119992", display_name="Cross Tenant Staff",
+            user=other_staff_user,
+            person=other_staff_person,
+            phone="09121119992",
+            display_name="Cross Tenant Staff",
         )
         other_membership = OrganizationMembership.objects.create(
-            organization=other_org, user=other_staff_user,
-            role_type=OrgMembershipRole.CAREGIVER, status=OrgMembershipStatus.ACTIVE,
+            organization=other_org,
+            user=other_staff_user,
+            role_type=OrgMembershipRole.CAREGIVER,
+            status=OrgMembershipStatus.ACTIVE,
         )
 
         self.client.force_login(other_admin)
         response = self.client.post(
-            f"/organization/assignments/{self.order.id}/assign/", {"membership_id": str(other_membership.id)},
+            f"/organization/assignments/{self.order.id}/assign/",
+            {"membership_id": str(other_membership.id)},
         )
         self.assertEqual(response.status_code, 200)  # action_error.html, not a redirect
 
@@ -150,7 +178,8 @@ class AssignmentActorAndRbacTest(OrganizationPortalTestCase):
     def test_assignment_records_the_real_admin_as_assigned_by(self):
         self.login_as_admin()
         self.client.post(
-            f"/organization/assignments/{self.order.id}/assign/", {"membership_id": str(self.staff_membership.id)},
+            f"/organization/assignments/{self.order.id}/assign/",
+            {"membership_id": str(self.staff_membership.id)},
         )
 
         assignment = SupplierAssignment.objects.get(order=self.order)
@@ -164,11 +193,13 @@ class AssignmentActorAndRbacTest(OrganizationPortalTestCase):
 
         self.login_as_admin()
         self.client.post(
-            f"/organization/assignments/{self.order.id}/assign/", {"membership_id": str(self.staff_membership.id)},
+            f"/organization/assignments/{self.order.id}/assign/",
+            {"membership_id": str(self.staff_membership.id)},
         )
 
         entry = AuditLog.objects.get(
-            tenant_id=self.tenant.id, action="rbac.permission.ownership_authorized",
+            tenant_id=self.tenant.id,
+            action="rbac.permission.ownership_authorized",
         )
         self.assertEqual(entry.actor_id, self.admin_user.person_id)
         self.assertFalse(
@@ -187,14 +218,16 @@ class AssignmentActorAndRbacTest(OrganizationPortalTestCase):
 
         self.login_as_admin()
         self.client.post(
-            f"/organization/assignments/{self.order.id}/assign/", {"membership_id": str(self.staff_membership.id)},
+            f"/organization/assignments/{self.order.id}/assign/",
+            {"membership_id": str(self.staff_membership.id)},
         )
 
         assignment = SupplierAssignment.objects.get(order=self.order)
         self.assertEqual(assignment.assigned_by_id, self.admin_user.id)
         self.assertFalse(
             AuditLog.objects.filter(
-                tenant_id=self.tenant.id, action="rbac.permission.ownership_authorized",
+                tenant_id=self.tenant.id,
+                action="rbac.permission.ownership_authorized",
             ).exists(),
         )
         self.assertFalse(
@@ -222,7 +255,8 @@ class EligibilityEnforcementTest(OrganizationPortalTestCase):
         self._revoke_default_eligibility()
         self.login_as_admin()
         response = self.client.post(
-            f"/organization/assignments/{self.order.id}/assign/", {"membership_id": str(self.staff_membership.id)},
+            f"/organization/assignments/{self.order.id}/assign/",
+            {"membership_id": str(self.staff_membership.id)},
         )
         self.assertEqual(response.status_code, 200)  # renders action_error.html, not a redirect
 
@@ -233,14 +267,25 @@ class EligibilityEnforcementTest(OrganizationPortalTestCase):
     def test_second_organization_cannot_see_first_organizations_eligible_order(self):
         """Two organizations, one tenant: org B has no eligibility grant for
         org A's order and must not see it in its own Assignment Center."""
-        from apps.accounts.models.profiles import OrganizationMembership, OrganizationProfile, OrgMembershipRole, OrgMembershipStatus
+        from apps.accounts.models.profiles import (
+            OrganizationMembership,
+            OrganizationProfile,
+            OrgMembershipRole,
+            OrgMembershipStatus,
+        )
 
         other_admin = self._create_user(tenant=self.tenant, phone="09121110010")
         other_org = OrganizationProfile.objects.create(
-            name="Other Co", code="other-co-elig", admin_user=other_admin, tenant=self.tenant,
+            name="Other Co",
+            code="other-co-elig",
+            admin_user=other_admin,
+            tenant=self.tenant,
         )
         OrganizationMembership.objects.create(
-            organization=other_org, user=other_admin, role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+            organization=other_org,
+            user=other_admin,
+            role_type=OrgMembershipRole.ADMIN,
+            status=OrgMembershipStatus.ACTIVE,
         )
 
         self.client.force_login(other_admin)
@@ -258,22 +303,35 @@ class EligibilityEnforcementTest(OrganizationPortalTestCase):
 
         other_admin = self._create_user(tenant=self.tenant, phone="09121110011")
         other_org = OrganizationProfile.objects.create(
-            name="Other Co 2", code="other-co-elig-2", admin_user=other_admin, tenant=self.tenant,
+            name="Other Co 2",
+            code="other-co-elig-2",
+            admin_user=other_admin,
+            tenant=self.tenant,
         )
         OrganizationMembership.objects.create(
-            organization=other_org, user=other_admin, role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+            organization=other_org,
+            user=other_admin,
+            role_type=OrgMembershipRole.ADMIN,
+            status=OrgMembershipStatus.ACTIVE,
         )
         other_staff_user = self._create_user(tenant=self.tenant, phone="09121110012")
         CaregiverProfile.objects.create(
-            user=other_staff_user, person=other_staff_user.person, phone="09121110012", display_name="Other Staff",
+            user=other_staff_user,
+            person=other_staff_user.person,
+            phone="09121110012",
+            display_name="Other Staff",
         )
         other_membership = OrganizationMembership.objects.create(
-            organization=other_org, user=other_staff_user, role_type=OrgMembershipRole.CAREGIVER, status=OrgMembershipStatus.ACTIVE,
+            organization=other_org,
+            user=other_staff_user,
+            role_type=OrgMembershipRole.CAREGIVER,
+            status=OrgMembershipStatus.ACTIVE,
         )
 
         self.client.force_login(other_admin)
         response = self.client.post(
-            f"/organization/assignments/{self.order.id}/assign/", {"membership_id": str(other_membership.id)},
+            f"/organization/assignments/{self.order.id}/assign/",
+            {"membership_id": str(other_membership.id)},
         )
         self.assertEqual(response.status_code, 200)
 
@@ -287,12 +345,14 @@ class EligibilityEnforcementTest(OrganizationPortalTestCase):
         self.login_as_admin()
         with self.captureOnCommitCallbacks(execute=True):
             self.client.post(
-                f"/organization/assignments/{self.order.id}/assign/", {"membership_id": str(self.staff_membership.id)},
+                f"/organization/assignments/{self.order.id}/assign/",
+                {"membership_id": str(self.staff_membership.id)},
             )
 
         self.assertTrue(
             AuditLog.objects.filter(
-                tenant_id=self.tenant.id, action="domain_event.OrganizationAccessDenied",
+                tenant_id=self.tenant.id,
+                action="domain_event.OrganizationAccessDenied",
             ).exists(),
         )
 
@@ -300,9 +360,14 @@ class EligibilityEnforcementTest(OrganizationPortalTestCase):
         """The reassignment case: once assigned to this organization's own
         staff, a later eligibility revoke must not block acting on it again
         (e.g. reassigning to a different staff member of the same org)."""
-        from apps.accounts.models.profiles import CaregiverProfile, OrganizationMembership, OrgMembershipRole, OrgMembershipStatus
-        from apps.booking.services.assignment_service import AssignmentService
+        from apps.accounts.models.profiles import (
+            CaregiverProfile,
+            OrganizationMembership,
+            OrgMembershipRole,
+            OrgMembershipStatus,
+        )
         from apps.accounts.services.provider_identity import resolve_supplier_for_user
+        from apps.booking.services.assignment_service import AssignmentService
 
         supplier = resolve_supplier_for_user(self.caregiver_user)
         AssignmentService.assign(order_id=self.order.id, supplier=supplier)
@@ -310,15 +375,21 @@ class EligibilityEnforcementTest(OrganizationPortalTestCase):
 
         second_staff_user = self._create_user(tenant=self.tenant, phone="09121110013")
         CaregiverProfile.objects.create(
-            user=second_staff_user, person=second_staff_user.person, phone="09121110013", display_name="Second Staff",
+            user=second_staff_user,
+            person=second_staff_user.person,
+            phone="09121110013",
+            display_name="Second Staff",
         )
         second_membership = OrganizationMembership.objects.create(
-            organization=self.organization, user=second_staff_user,
-            role_type=OrgMembershipRole.CAREGIVER, status=OrgMembershipStatus.ACTIVE,
+            organization=self.organization,
+            user=second_staff_user,
+            role_type=OrgMembershipRole.CAREGIVER,
+            status=OrgMembershipStatus.ACTIVE,
         )
 
         self.login_as_admin()
         response = self.client.post(
-            f"/organization/assignments/{self.order.id}/assign/", {"membership_id": str(second_membership.id)},
+            f"/organization/assignments/{self.order.id}/assign/",
+            {"membership_id": str(second_membership.id)},
         )
         self.assertRedirects(response, "/organization/assignments/")

@@ -49,8 +49,12 @@ class WalletTransactionService:
         if amount <= 0:
             raise WalletError("Credit amount must be positive.")
         return cls._apply(
-            wallet_id=wallet_id, transaction_type=WalletTransactionType.CREDIT, amount=amount,
-            reason=reason, metadata=metadata, idempotency_key=idempotency_key,
+            wallet_id=wallet_id,
+            transaction_type=WalletTransactionType.CREDIT,
+            amount=amount,
+            reason=reason,
+            metadata=metadata,
+            idempotency_key=idempotency_key,
         )
 
     @classmethod
@@ -60,8 +64,12 @@ class WalletTransactionService:
         if amount <= 0:
             raise WalletError("Debit amount must be positive.")
         return cls._apply(
-            wallet_id=wallet_id, transaction_type=WalletTransactionType.DEBIT, amount=-amount,
-            reason=reason, metadata=metadata, idempotency_key=idempotency_key,
+            wallet_id=wallet_id,
+            transaction_type=WalletTransactionType.DEBIT,
+            amount=-amount,
+            reason=reason,
+            metadata=metadata,
+            idempotency_key=idempotency_key,
         )
 
     @classmethod
@@ -71,19 +79,29 @@ class WalletTransactionService:
         if amount <= 0:
             raise WalletError("Refund amount must be positive.")
         return cls._apply(
-            wallet_id=wallet_id, transaction_type=WalletTransactionType.REFUND, amount=amount,
-            reason=reason, metadata=metadata, idempotency_key=idempotency_key,
+            wallet_id=wallet_id,
+            transaction_type=WalletTransactionType.REFUND,
+            amount=amount,
+            reason=reason,
+            metadata=metadata,
+            idempotency_key=idempotency_key,
         )
 
     @classmethod
     @transaction.atomic
-    def promotion_credit(cls, *, wallet_id, amount, reason="", metadata=None, idempotency_key=None) -> WalletTransaction:
+    def promotion_credit(
+        cls, *, wallet_id, amount, reason="", metadata=None, idempotency_key=None
+    ) -> WalletTransaction:
         amount = _q(amount)
         if amount <= 0:
             raise WalletError("Promotion credit amount must be positive.")
         return cls._apply(
-            wallet_id=wallet_id, transaction_type=WalletTransactionType.PROMOTION, amount=amount,
-            reason=reason, metadata=metadata, idempotency_key=idempotency_key,
+            wallet_id=wallet_id,
+            transaction_type=WalletTransactionType.PROMOTION,
+            amount=amount,
+            reason=reason,
+            metadata=metadata,
+            idempotency_key=idempotency_key,
         )
 
     @classmethod
@@ -94,20 +112,30 @@ class WalletTransactionService:
         wallet = Wallet.objects.select_for_update().get(id=wallet_id)
         cls._enforce_adjustment_cap(wallet, amount)
         return cls._apply(
-            wallet=wallet, transaction_type=WalletTransactionType.ADJUSTMENT, amount=amount,
-            reason=reason, metadata=metadata, idempotency_key=idempotency_key,
+            wallet=wallet,
+            transaction_type=WalletTransactionType.ADJUSTMENT,
+            amount=amount,
+            reason=reason,
+            metadata=metadata,
+            idempotency_key=idempotency_key,
         )
 
     @classmethod
     @transaction.atomic
-    def manual_adjustment(cls, *, wallet_id, amount, reason="", metadata=None, idempotency_key=None) -> WalletTransaction:
+    def manual_adjustment(
+        cls, *, wallet_id, amount, reason="", metadata=None, idempotency_key=None
+    ) -> WalletTransaction:
         """Operator-initiated manual credit/debit. Signed. Bounded by wallet.max_manual_adjustment."""
         amount = _q(amount)
         wallet = Wallet.objects.select_for_update().get(id=wallet_id)
         cls._enforce_adjustment_cap(wallet, amount)
         return cls._apply(
-            wallet=wallet, transaction_type=WalletTransactionType.MANUAL, amount=amount,
-            reason=reason, metadata=metadata, idempotency_key=idempotency_key,
+            wallet=wallet,
+            transaction_type=WalletTransactionType.MANUAL,
+            amount=amount,
+            reason=reason,
+            metadata=metadata,
+            idempotency_key=idempotency_key,
         )
 
     # --- internal helpers -------------------------------------------------
@@ -122,15 +150,23 @@ class WalletTransactionService:
 
     @classmethod
     def _apply(
-        cls, *, transaction_type, amount, wallet=None, wallet_id=None,
-        reason="", metadata=None, idempotency_key=None,
+        cls,
+        *,
+        transaction_type,
+        amount,
+        wallet=None,
+        wallet_id=None,
+        reason="",
+        metadata=None,
+        idempotency_key=None,
     ) -> WalletTransaction:
         if wallet is None:
             wallet = Wallet.objects.select_for_update().get(id=wallet_id)
 
         if idempotency_key:
             existing = WalletTransaction.objects.filter(
-                wallet=wallet, idempotency_key=idempotency_key,
+                wallet=wallet,
+                idempotency_key=idempotency_key,
             ).first()
             if existing is not None:
                 return existing
@@ -157,7 +193,8 @@ class WalletTransactionService:
                 )
         except IntegrityError:
             existing = WalletTransaction.objects.filter(
-                wallet=wallet, idempotency_key=idempotency_key,
+                wallet=wallet,
+                idempotency_key=idempotency_key,
             ).first()
             if existing is not None and idempotency_key:
                 return existing

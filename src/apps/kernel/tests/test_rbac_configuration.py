@@ -50,7 +50,9 @@ class GetEnforcementStatusTest(TestCase):
 
     def test_reports_explicit_override_after_a_real_change(self):
         RBACConfiguration.set_enforcement_enabled(
-            tenant_id=self.tenant.id, enabled=False, actor_display="ops:test",
+            tenant_id=self.tenant.id,
+            enabled=False,
+            actor_display="ops:test",
             reason="incident response",
         )
         status = RBACConfiguration.get_enforcement_status(tenant_id=self.tenant.id)
@@ -68,43 +70,64 @@ class SetEnforcementEnabledValidationTest(TestCase):
     def test_missing_tenant_rejected(self):
         with self.assertRaises(RBACConfigurationError):
             RBACConfiguration.set_enforcement_enabled(
-                tenant_id=None, enabled=False, actor_display="ops:test", reason="x",
+                tenant_id=None,
+                enabled=False,
+                actor_display="ops:test",
+                reason="x",
             )
 
     def test_nonexistent_tenant_rejected(self):
         with self.assertRaises(RBACConfigurationError):
             RBACConfiguration.set_enforcement_enabled(
-                tenant_id=uuid.uuid4(), enabled=False, actor_display="ops:test", reason="x",
+                tenant_id=uuid.uuid4(),
+                enabled=False,
+                actor_display="ops:test",
+                reason="x",
             )
 
     def test_missing_actor_rejected(self):
         with self.assertRaises(RBACConfigurationError):
             RBACConfiguration.set_enforcement_enabled(
-                tenant_id=self.tenant.id, enabled=False, actor_display="", reason="x",
+                tenant_id=self.tenant.id,
+                enabled=False,
+                actor_display="",
+                reason="x",
             )
 
     def test_blank_actor_rejected(self):
         with self.assertRaises(RBACConfigurationError):
             RBACConfiguration.set_enforcement_enabled(
-                tenant_id=self.tenant.id, enabled=False, actor_display="   ", reason="x",
+                tenant_id=self.tenant.id,
+                enabled=False,
+                actor_display="   ",
+                reason="x",
             )
 
     def test_missing_reason_rejected(self):
         with self.assertRaises(RBACConfigurationError):
             RBACConfiguration.set_enforcement_enabled(
-                tenant_id=self.tenant.id, enabled=False, actor_display="ops:test", reason="",
+                tenant_id=self.tenant.id,
+                enabled=False,
+                actor_display="ops:test",
+                reason="",
             )
 
     def test_blank_reason_rejected(self):
         with self.assertRaises(RBACConfigurationError):
             RBACConfiguration.set_enforcement_enabled(
-                tenant_id=self.tenant.id, enabled=False, actor_display="ops:test", reason="   ",
+                tenant_id=self.tenant.id,
+                enabled=False,
+                actor_display="ops:test",
+                reason="   ",
             )
 
     def test_invalid_request_creates_no_configurationvalue_row(self):
         with self.assertRaises(RBACConfigurationError):
             RBACConfiguration.set_enforcement_enabled(
-                tenant_id=self.tenant.id, enabled=False, actor_display="ops:test", reason="",
+                tenant_id=self.tenant.id,
+                enabled=False,
+                actor_display="ops:test",
+                reason="",
             )
         self.assertFalse(ConfigurationValue.objects.filter(tenant_id=self.tenant.id).exists())
 
@@ -115,7 +138,9 @@ class SetEnforcementEnabledChangeTest(TestCase):
 
     def test_actual_change_persists_and_reports_new_state(self):
         status = RBACConfiguration.set_enforcement_enabled(
-            tenant_id=self.tenant.id, enabled=False, actor_display="ops:test",
+            tenant_id=self.tenant.id,
+            enabled=False,
+            actor_display="ops:test",
             reason="incident response",
         )
         self.assertFalse(status.enabled)
@@ -124,7 +149,10 @@ class SetEnforcementEnabledChangeTest(TestCase):
 
     def test_previous_and_new_values_recorded_in_audit(self):
         RBACConfiguration.set_enforcement_enabled(
-            tenant_id=self.tenant.id, enabled=False, actor_display="ops:test", reason="r1",
+            tenant_id=self.tenant.id,
+            enabled=False,
+            actor_display="ops:test",
+            reason="r1",
         )
         entry = AuditLog.objects.get(tenant_id=self.tenant.id, action=ACTION_CHANGED)
         self.assertEqual(entry.before_snapshot, {"enabled": True, "source": "default"})
@@ -132,10 +160,16 @@ class SetEnforcementEnabledChangeTest(TestCase):
 
     def test_second_change_uses_prior_override_as_previous_value(self):
         RBACConfiguration.set_enforcement_enabled(
-            tenant_id=self.tenant.id, enabled=False, actor_display="ops:test", reason="r1",
+            tenant_id=self.tenant.id,
+            enabled=False,
+            actor_display="ops:test",
+            reason="r1",
         )
         RBACConfiguration.set_enforcement_enabled(
-            tenant_id=self.tenant.id, enabled=True, actor_display="ops:test", reason="r2",
+            tenant_id=self.tenant.id,
+            enabled=True,
+            actor_display="ops:test",
+            reason="r2",
         )
         entries = list(AuditLog.objects.filter(tenant_id=self.tenant.id, action=ACTION_CHANGED).order_by("occurred_at"))
         self.assertEqual(len(entries), 2)
@@ -144,50 +178,72 @@ class SetEnforcementEnabledChangeTest(TestCase):
 
     def test_audit_record_created_for_actual_change(self):
         RBACConfiguration.set_enforcement_enabled(
-            tenant_id=self.tenant.id, enabled=False, actor_display="ops:test", reason="r1",
+            tenant_id=self.tenant.id,
+            enabled=False,
+            actor_display="ops:test",
+            reason="r1",
         )
         self.assertTrue(AuditLog.objects.filter(tenant_id=self.tenant.id, action=ACTION_CHANGED).exists())
 
     def test_audit_tenant_matches_target_tenant(self):
         other_tenant = make_tenant("other")
         RBACConfiguration.set_enforcement_enabled(
-            tenant_id=self.tenant.id, enabled=False, actor_display="ops:test", reason="r1",
+            tenant_id=self.tenant.id,
+            enabled=False,
+            actor_display="ops:test",
+            reason="r1",
         )
         self.assertTrue(AuditLog.objects.filter(tenant_id=self.tenant.id, action=ACTION_CHANGED).exists())
         self.assertFalse(AuditLog.objects.filter(tenant_id=other_tenant.id, action=ACTION_CHANGED).exists())
 
     def test_audit_class_is_security(self):
         RBACConfiguration.set_enforcement_enabled(
-            tenant_id=self.tenant.id, enabled=False, actor_display="ops:test", reason="r1",
+            tenant_id=self.tenant.id,
+            enabled=False,
+            actor_display="ops:test",
+            reason="r1",
         )
         entry = AuditLog.objects.get(tenant_id=self.tenant.id, action=ACTION_CHANGED)
         self.assertEqual(entry.audit_class, "security")
 
     def test_version_increments_on_real_change(self):
         RBACConfiguration.set_enforcement_enabled(
-            tenant_id=self.tenant.id, enabled=False, actor_display="ops:test", reason="r1",
+            tenant_id=self.tenant.id,
+            enabled=False,
+            actor_display="ops:test",
+            reason="r1",
         )
         value = ConfigurationValue.objects.get(
-            tenant_id=self.tenant.id, config_key__key=ENFORCEMENT_ENABLED_KEY,
+            tenant_id=self.tenant.id,
+            config_key__key=ENFORCEMENT_ENABLED_KEY,
         )
         self.assertEqual(value.version, 1)  # freshly created row
 
         RBACConfiguration.set_enforcement_enabled(
-            tenant_id=self.tenant.id, enabled=True, actor_display="ops:test", reason="r2",
+            tenant_id=self.tenant.id,
+            enabled=True,
+            actor_display="ops:test",
+            reason="r2",
         )
         value.refresh_from_db()
         self.assertEqual(value.version, 2)  # updated in place
 
     def test_no_unrelated_configuration_key_is_modified(self):
         other_key = ConfigurationKey.objects.create(
-            key="marketplace.some_other_flag", owner_module="M99", default_value=False,
+            key="marketplace.some_other_flag",
+            owner_module="M99",
+            default_value=False,
         )
         RBACConfiguration.set_enforcement_enabled(
-            tenant_id=self.tenant.id, enabled=False, actor_display="ops:test", reason="r1",
+            tenant_id=self.tenant.id,
+            enabled=False,
+            actor_display="ops:test",
+            reason="r1",
         )
         self.assertFalse(ConfigurationValue.objects.filter(config_key=other_key).exists())
         self.assertEqual(
-            ConfigurationKey.objects.filter(key=ENFORCEMENT_ENABLED_KEY).count(), 1,
+            ConfigurationKey.objects.filter(key=ENFORCEMENT_ENABLED_KEY).count(),
+            1,
         )
 
 
@@ -197,7 +253,10 @@ class SetEnforcementEnabledNoOpTest(TestCase):
 
     def test_same_value_as_implicit_default_is_a_no_op(self):
         status = RBACConfiguration.set_enforcement_enabled(
-            tenant_id=self.tenant.id, enabled=True, actor_display="ops:test", reason="confirm state",
+            tenant_id=self.tenant.id,
+            enabled=True,
+            actor_display="ops:test",
+            reason="confirm state",
         )
         self.assertTrue(status.enabled)
         self.assertEqual(status.source, "default")
@@ -205,32 +264,47 @@ class SetEnforcementEnabledNoOpTest(TestCase):
 
     def test_no_op_does_not_create_a_changed_audit_event(self):
         RBACConfiguration.set_enforcement_enabled(
-            tenant_id=self.tenant.id, enabled=True, actor_display="ops:test", reason="confirm state",
+            tenant_id=self.tenant.id,
+            enabled=True,
+            actor_display="ops:test",
+            reason="confirm state",
         )
         self.assertFalse(AuditLog.objects.filter(tenant_id=self.tenant.id, action=ACTION_CHANGED).exists())
 
     def test_no_op_creates_a_distinct_no_op_audit_event(self):
         RBACConfiguration.set_enforcement_enabled(
-            tenant_id=self.tenant.id, enabled=True, actor_display="ops:test", reason="confirm state",
+            tenant_id=self.tenant.id,
+            enabled=True,
+            actor_display="ops:test",
+            reason="confirm state",
         )
         entry = AuditLog.objects.get(tenant_id=self.tenant.id, action=ACTION_NO_OP)
         self.assertEqual(entry.metadata.get("no_op"), True)
 
     def test_repeated_disable_after_override_is_also_a_no_op(self):
         RBACConfiguration.set_enforcement_enabled(
-            tenant_id=self.tenant.id, enabled=False, actor_display="ops:test", reason="r1",
+            tenant_id=self.tenant.id,
+            enabled=False,
+            actor_display="ops:test",
+            reason="r1",
         )
         RBACConfiguration.set_enforcement_enabled(
-            tenant_id=self.tenant.id, enabled=False, actor_display="ops:test", reason="r2 (repeat)",
+            tenant_id=self.tenant.id,
+            enabled=False,
+            actor_display="ops:test",
+            reason="r2 (repeat)",
         )
         self.assertEqual(
-            AuditLog.objects.filter(tenant_id=self.tenant.id, action=ACTION_CHANGED).count(), 1,
+            AuditLog.objects.filter(tenant_id=self.tenant.id, action=ACTION_CHANGED).count(),
+            1,
         )
         self.assertEqual(
-            AuditLog.objects.filter(tenant_id=self.tenant.id, action=ACTION_NO_OP).count(), 1,
+            AuditLog.objects.filter(tenant_id=self.tenant.id, action=ACTION_NO_OP).count(),
+            1,
         )
         value = ConfigurationValue.objects.get(
-            tenant_id=self.tenant.id, config_key__key=ENFORCEMENT_ENABLED_KEY,
+            tenant_id=self.tenant.id,
+            config_key__key=ENFORCEMENT_ENABLED_KEY,
         )
         self.assertEqual(value.version, 1)  # the no-op repeat did not bump the version
 
@@ -250,14 +324,20 @@ class SetEnforcementEnabledCacheInvalidationTest(TestCase):
         # that (correct, at the time) resolved value.
         with self.captureOnCommitCallbacks(execute=True):
             RBACConfiguration.set_enforcement_enabled(
-                tenant_id=self.tenant.id, enabled=False, actor_display="ops:test", reason="initial",
+                tenant_id=self.tenant.id,
+                enabled=False,
+                actor_display="ops:test",
+                reason="initial",
             )
         self.assertFalse(RBACConfiguration.get_enforcement_enabled(tenant_id=self.tenant.id))
         self.assertIsNotNone(cache.get(self._cache_key()))
 
         with self.captureOnCommitCallbacks(execute=True):
             RBACConfiguration.set_enforcement_enabled(
-                tenant_id=self.tenant.id, enabled=True, actor_display="ops:test", reason="r1",
+                tenant_id=self.tenant.id,
+                enabled=True,
+                actor_display="ops:test",
+                reason="r1",
             )
 
         self.assertIsNone(cache.get(self._cache_key()))
@@ -270,12 +350,14 @@ class SetEnforcementEnabledCacheInvalidationTest(TestCase):
         class _Rollback(Exception):
             pass
 
-        with self.assertRaises(_Rollback):
-            with transaction.atomic():
-                RBACConfiguration.set_enforcement_enabled(
-                    tenant_id=self.tenant.id, enabled=False, actor_display="ops:test", reason="r1",
-                )
-                raise _Rollback
+        with self.assertRaises(_Rollback), transaction.atomic():
+            RBACConfiguration.set_enforcement_enabled(
+                tenant_id=self.tenant.id,
+                enabled=False,
+                actor_display="ops:test",
+                reason="r1",
+            )
+            raise _Rollback
 
         # The write was rolled back, so on_commit never fired: the primed
         # cache entry must be exactly what it was before — never wrongly
@@ -295,20 +377,31 @@ class SetEnforcementEnabledSequentialWritesTest(TestCase):
 
     def test_sequential_writes_do_not_lose_updates(self):
         RBACConfiguration.set_enforcement_enabled(
-            tenant_id=self.tenant.id, enabled=False, actor_display="ops:a", reason="r1",
+            tenant_id=self.tenant.id,
+            enabled=False,
+            actor_display="ops:a",
+            reason="r1",
         )
         RBACConfiguration.set_enforcement_enabled(
-            tenant_id=self.tenant.id, enabled=True, actor_display="ops:b", reason="r2",
+            tenant_id=self.tenant.id,
+            enabled=True,
+            actor_display="ops:b",
+            reason="r2",
         )
         RBACConfiguration.set_enforcement_enabled(
-            tenant_id=self.tenant.id, enabled=False, actor_display="ops:c", reason="r3",
+            tenant_id=self.tenant.id,
+            enabled=False,
+            actor_display="ops:c",
+            reason="r3",
         )
 
         self.assertFalse(RBACConfiguration.get_enforcement_enabled(tenant_id=self.tenant.id))
         value = ConfigurationValue.objects.get(
-            tenant_id=self.tenant.id, config_key__key=ENFORCEMENT_ENABLED_KEY,
+            tenant_id=self.tenant.id,
+            config_key__key=ENFORCEMENT_ENABLED_KEY,
         )
         self.assertEqual(value.version, 3)
         self.assertEqual(
-            AuditLog.objects.filter(tenant_id=self.tenant.id, action=ACTION_CHANGED).count(), 3,
+            AuditLog.objects.filter(tenant_id=self.tenant.id, action=ACTION_CHANGED).count(),
+            3,
         )

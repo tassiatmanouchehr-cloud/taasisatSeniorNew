@@ -41,6 +41,7 @@ class FinanceAppSetupTest(TestCase):
         )
         changes = autodetector.changes(graph=loader.graph)
         self.assertNotIn(
-            "finance", changes,
+            "finance",
+            changes,
             f"Missing migrations detected for apps.finance: {changes.get('finance')}",
         )

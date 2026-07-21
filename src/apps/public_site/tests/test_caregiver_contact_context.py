@@ -25,7 +25,8 @@ class CaregiverContactContextTest(PublicSiteTestCase):
         supplier, _ = self._create_caregiver_supplier(display_name="سمیرا کریمی تماس")
 
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -37,7 +38,8 @@ class CaregiverContactContextTest(PublicSiteTestCase):
         supplier, _ = self._create_caregiver_supplier(display_name="سمیرا کریمی تماس دو")
 
         response = self.client.get(
-            reverse("public_site:contact"), {"caregiver": str(supplier.id), "tenant": self.tenant.slug},
+            reverse("public_site:contact"),
+            {"caregiver": str(supplier.id), "tenant": self.tenant.slug},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -47,7 +49,8 @@ class CaregiverContactContextTest(PublicSiteTestCase):
         supplier, _ = self._create_caregiver_supplier(display_name="سمیرا کریمی تماس سه")
 
         response = self.client.get(
-            reverse("public_site:contact"), {"caregiver": str(supplier.id), "tenant": self.tenant.slug},
+            reverse("public_site:contact"),
+            {"caregiver": str(supplier.id), "tenant": self.tenant.slug},
         )
         html = response.content.decode()
 
@@ -57,13 +60,15 @@ class CaregiverContactContextTest(PublicSiteTestCase):
 
     def test_malformed_caregiver_reference_returns_404(self):
         response = self.client.get(
-            reverse("public_site:contact"), {"caregiver": "not-a-uuid", "tenant": self.tenant.slug},
+            reverse("public_site:contact"),
+            {"caregiver": "not-a-uuid", "tenant": self.tenant.slug},
         )
         self.assertEqual(response.status_code, 404)
 
     def test_unknown_wellformed_caregiver_id_returns_404(self):
         response = self.client.get(
-            reverse("public_site:contact"), {"caregiver": str(uuid.uuid4()), "tenant": self.tenant.slug},
+            reverse("public_site:contact"),
+            {"caregiver": str(uuid.uuid4()), "tenant": self.tenant.slug},
         )
         self.assertEqual(response.status_code, 404)
 
@@ -72,7 +77,8 @@ class CaregiverContactContextTest(PublicSiteTestCase):
         other_tenant = Tenant.objects.create(slug=f"other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
 
         response = self.client.get(
-            reverse("public_site:contact"), {"caregiver": str(supplier.id), "tenant": other_tenant.slug},
+            reverse("public_site:contact"),
+            {"caregiver": str(supplier.id), "tenant": other_tenant.slug},
         )
 
         self.assertEqual(response.status_code, 404)
@@ -81,7 +87,8 @@ class CaregiverContactContextTest(PublicSiteTestCase):
         supplier, _ = self._create_caregiver_supplier(display_name="سمیرا کریمی تماس پنج")
 
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
         html = response.content.decode()
 
@@ -98,7 +105,8 @@ class CaregiverContactContextTest(PublicSiteTestCase):
         before = Order.objects.count()
 
         response = self.client.get(
-            reverse("public_site:contact"), {"caregiver": str(supplier.id), "tenant": self.tenant.slug},
+            reverse("public_site:contact"),
+            {"caregiver": str(supplier.id), "tenant": self.tenant.slug},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -108,7 +116,8 @@ class CaregiverContactContextTest(PublicSiteTestCase):
         supplier, _ = self._create_caregiver_supplier(display_name="سمیرا کریمی تماس هفت")
 
         response = self.client.get(
-            reverse("public_site:caregiver-profile", args=[supplier.id]), {"tenant": self.tenant.slug},
+            reverse("public_site:caregiver-profile", args=[supplier.id]),
+            {"tenant": self.tenant.slug},
         )
 
         self.assertContains(response, "بازگشت به فهرست مراقبان")

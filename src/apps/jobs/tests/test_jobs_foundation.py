@@ -233,7 +233,7 @@ class NoBusinessSideEffectsTest(TestCase):
     def test_demo_handlers_do_not_import_business_apps(self):
         import apps.jobs.handlers as handlers_module
 
-        source = io.open(handlers_module.__file__, encoding="utf-8").read()
+        source = open(handlers_module.__file__, encoding="utf-8").read()
         for forbidden in ("apps.wallet", "apps.payments", "apps.finance", "apps.notifications", "apps.orders"):
             self.assertNotIn(forbidden, source)
 

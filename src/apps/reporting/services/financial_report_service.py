@@ -10,7 +10,13 @@ from decimal import Decimal
 
 from django.db.models import Count, Sum
 
-from apps.finance.models import FinancialDocument, FinancialDocumentStatus, FinancialDocumentType, PaymentStatus, PaymentTransaction
+from apps.finance.models import (
+    FinancialDocument,
+    FinancialDocumentStatus,
+    FinancialDocumentType,
+    PaymentStatus,
+    PaymentTransaction,
+)
 from apps.wallet.models import Wallet, WalletTransaction
 
 from ..dto import FinancialSummaryReport
@@ -23,20 +29,31 @@ class FinancialReportService:
 
     @classmethod
     def get_financial_summary(cls, tenant_id: uuid.UUID) -> FinancialSummaryReport:
-        invoices = FinancialDocument.objects.for_tenant(tenant_id).filter(
-            document_type=FinancialDocumentType.INVOICE,
-        ).exclude(status=FinancialDocumentStatus.DRAFT).aggregate(
-            count=Count("id"), total=Sum("total_amount"),
+        invoices = (
+            FinancialDocument.objects.for_tenant(tenant_id)
+            .filter(
+                document_type=FinancialDocumentType.INVOICE,
+            )
+            .exclude(status=FinancialDocumentStatus.DRAFT)
+            .aggregate(
+                count=Count("id"),
+                total=Sum("total_amount"),
+            )
         )
 
-        payments = PaymentTransaction.objects.for_tenant(tenant_id).filter(
-            status=PaymentStatus.SUCCEEDED,
-        ).aggregate(count=Count("id"), total=Sum("amount"))
+        payments = (
+            PaymentTransaction.objects.for_tenant(tenant_id)
+            .filter(
+                status=PaymentStatus.SUCCEEDED,
+            )
+            .aggregate(count=Count("id"), total=Sum("amount"))
+        )
 
         wallets = Wallet.objects.for_tenant(tenant_id).aggregate(total=Sum("balance"))
 
         wallet_transactions = WalletTransaction.objects.for_tenant(tenant_id).aggregate(
-            count=Count("id"), total=Sum("amount"),
+            count=Count("id"),
+            total=Sum("amount"),
         )
 
         return FinancialSummaryReport(

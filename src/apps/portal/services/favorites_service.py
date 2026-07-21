@@ -50,17 +50,20 @@ class CustomerFavoritesPresentationService:
         page_favorites = favorites[offset : offset + PAGE_SIZE]
 
         caregiver_ids = [
-            favorite.supplier_id for favorite in page_favorites
+            favorite.supplier_id
+            for favorite in page_favorites
             if favorite.supplier.supplier_type in CAREGIVER_SUPPLIER_TYPES
         ]
         organization_ids = [
-            favorite.supplier_id for favorite in page_favorites
+            favorite.supplier_id
+            for favorite in page_favorites
             if favorite.supplier.supplier_type == SupplierType.ORGANIZATION
         ]
 
         caregiver_cards = CaregiverDirectoryService.build_cards_for_supplier_ids(caregiver_ids, tenant_id=tenant_id)
         organization_cards = OrganizationDirectoryService.build_cards_for_supplier_ids(
-            organization_ids, tenant_id=tenant_id,
+            organization_ids,
+            tenant_id=tenant_id,
         )
 
         rows = tuple(cls._build_row(favorite, caregiver_cards, organization_cards) for favorite in page_favorites)

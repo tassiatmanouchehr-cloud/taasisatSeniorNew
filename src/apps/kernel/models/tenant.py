@@ -61,7 +61,7 @@ class Tenant(models.Model):
     version = models.IntegerField(default=1)
 
     class Meta:
-        db_table = "kernel\".\"tenant"
+        db_table = 'kernel"."tenant'
         verbose_name = "Tenant"
         verbose_name_plural = "Tenants"
         ordering = ["name"]

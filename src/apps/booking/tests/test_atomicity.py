@@ -17,12 +17,14 @@ class AssignmentAtomicityTest(BookingTestCase):
     def test_assign_rolls_back_fully_on_late_failure(self):
         supplier = self._create_supplier()
 
-        with patch(
-            "apps.booking.services.assignment_service.EventPublisher.publish",
-            side_effect=RuntimeError("boom"),
+        with (
+            patch(
+                "apps.booking.services.assignment_service.EventPublisher.publish",
+                side_effect=RuntimeError("boom"),
+            ),
+            self.assertRaises(RuntimeError),
         ):
-            with self.assertRaises(RuntimeError):
-                AssignmentService.assign(order_id=self.order.id, supplier=supplier)
+            AssignmentService.assign(order_id=self.order.id, supplier=supplier)
 
         self.order.refresh_from_db()
         self.assertIsNone(self.order.assigned_supplier)
@@ -33,12 +35,14 @@ class AssignmentAtomicityTest(BookingTestCase):
         s2 = self._create_supplier()
         AssignmentService.assign(order_id=self.order.id, supplier=s1)
 
-        with patch(
-            "apps.booking.services.assignment_service.EventPublisher.publish",
-            side_effect=RuntimeError("boom"),
+        with (
+            patch(
+                "apps.booking.services.assignment_service.EventPublisher.publish",
+                side_effect=RuntimeError("boom"),
+            ),
+            self.assertRaises(RuntimeError),
         ):
-            with self.assertRaises(RuntimeError):
-                AssignmentService.replace(order_id=self.order.id, new_supplier=s2)
+            AssignmentService.replace(order_id=self.order.id, new_supplier=s2)
 
         # Order must still point at s1 — the failed replace must not have partially applied.
         self.order.refresh_from_db()
@@ -49,12 +53,14 @@ class AssignmentAtomicityTest(BookingTestCase):
         supplier = self._create_supplier()
         AssignmentService.assign(order_id=self.order.id, supplier=supplier)
 
-        with patch(
-            "apps.booking.services.assignment_service.EventPublisher.publish",
-            side_effect=RuntimeError("boom"),
+        with (
+            patch(
+                "apps.booking.services.assignment_service.EventPublisher.publish",
+                side_effect=RuntimeError("boom"),
+            ),
+            self.assertRaises(RuntimeError),
         ):
-            with self.assertRaises(RuntimeError):
-                AssignmentService.cancel(order_id=self.order.id)
+            AssignmentService.cancel(order_id=self.order.id)
 
         # Order must still be assigned — the failed cancel must not have partially applied.
         self.order.refresh_from_db()

@@ -52,10 +52,14 @@ class RBACStructuralTest(TestCase):
             source = inspect.getsource(module)
             for slug in _KNOWN_ROLE_SLUGS:
                 self.assertNotIn(
-                    f'"{slug}"', source, f"{module.__name__} must not hardcode role slug '{slug}'",
+                    f'"{slug}"',
+                    source,
+                    f"{module.__name__} must not hardcode role slug '{slug}'",
                 )
                 self.assertNotIn(
-                    f"'{slug}'", source, f"{module.__name__} must not hardcode role slug '{slug}'",
+                    f"'{slug}'",
+                    source,
+                    f"{module.__name__} must not hardcode role slug '{slug}'",
                 )
 
     def test_business_modules_never_query_roleassignment_directly(self):
@@ -63,7 +67,8 @@ class RBACStructuralTest(TestCase):
             source = inspect.getsource(module)
             self.assertNotIn("RoleAssignment", source, f"{module.__name__} must not query RoleAssignment directly")
             self.assertNotIn(
-                ".permissions", source,
+                ".permissions",
+                source,
                 f"{module.__name__} must not inspect Role.permissions directly",
             )
 
@@ -71,7 +76,8 @@ class RBACStructuralTest(TestCase):
         for module in _GATED_BUSINESS_MODULES:
             source = inspect.getsource(module)
             self.assertIn(
-                "PermissionService.require(", source,
+                "PermissionService.require(",
+                source,
                 f"{module.__name__} must gate its high-risk action via PermissionService.require(...)",
             )
 
@@ -88,6 +94,7 @@ class RBACStructuralTest(TestCase):
                 continue
             source = inspect.getsource(module)
             self.assertNotIn(
-                "RoleAssignment.objects", source,
+                "RoleAssignment.objects",
+                source,
                 f"{module.__name__} must not evaluate RoleAssignment directly — only PermissionService may.",
             )

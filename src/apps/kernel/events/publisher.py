@@ -11,8 +11,8 @@ the business transaction that published the event.
 
 import logging
 
-from apps.kernel.services.audit_service import AuditService
 from apps.kernel.models.audit import AuditClassification
+from apps.kernel.services.audit_service import AuditService
 
 from .base import DomainEvent
 from .registry import EventRegistry
@@ -42,7 +42,8 @@ def publish(event: DomainEvent) -> None:
             handler(event)
         except Exception:
             logger.exception(
-                "Domain event handler %r failed for event_type=%s (event_id=%s); "
-                "continuing with remaining handlers.",
-                handler, event.event_type, event.id,
+                "Domain event handler %r failed for event_type=%s (event_id=%s); continuing with remaining handlers.",
+                handler,
+                event.event_type,
+                event.id,
             )

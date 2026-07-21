@@ -21,7 +21,7 @@ from apps.accounts.services.supplier_bridge import (
     get_or_create_supplier_for_organization,
     resolve_supplier_entity,
 )
-from apps.kernel.models import Person, Tenant, UserAccount
+from apps.kernel.models import Person, UserAccount
 from apps.kernel.models.supplier import ServiceSupplier, SupplierType
 from apps.kernel.services import supplier_registry, supplier_resolver
 from apps.kernel.services.tenant_service import TenantService
@@ -49,18 +49,22 @@ class SupplierBridgeTest(TestCase):
     def setUp(self):
         self.tenant = TenantService.get_default_tenant()
         self.person = Person.objects.create(tenant=self.tenant, full_name="Caregiver")
-        self.user = UserAccount.objects.create_user(
-            phone="09140000001", person=self.person, tenant=self.tenant
-        )
+        self.user = UserAccount.objects.create_user(phone="09140000001", person=self.person, tenant=self.tenant)
         self.caregiver = CaregiverProfile.objects.create(
-            user=self.user, person=self.person, phone="09140000001", display_name="Caregiver",
+            user=self.user,
+            person=self.person,
+            phone="09140000001",
+            display_name="Caregiver",
         )
         self.org_admin_person = Person.objects.create(tenant=self.tenant, full_name="Org Admin")
         self.org_admin = UserAccount.objects.create_user(
             phone="09140000002", person=self.org_admin_person, tenant=self.tenant
         )
         self.organization = OrganizationProfile.objects.create(
-            name="Test Org", code="ORG-BRIDGE1", admin_user=self.org_admin, tenant=self.tenant,
+            name="Test Org",
+            code="ORG-BRIDGE1",
+            admin_user=self.org_admin,
+            tenant=self.tenant,
         )
 
     def test_creates_supplier_for_caregiver(self):
@@ -118,10 +122,12 @@ class OrganizationProviderActivationTest(TestCase):
         self.user = UserAccount.objects.create_user(phone="09140000010", person=self.person, tenant=self.tenant)
 
     def _create_caregiver(self, *, provider_type):
-        from apps.accounts.models.profiles import CaregiverProviderType
 
         return CaregiverProfile.objects.create(
-            user=self.user, person=self.person, phone="09140000010", display_name="Affiliated Caregiver",
+            user=self.user,
+            person=self.person,
+            phone="09140000010",
+            display_name="Affiliated Caregiver",
             provider_type=provider_type,
         )
 
@@ -143,16 +149,20 @@ class OrganizationProviderActivationTest(TestCase):
         """End-to-end through the real approval flow, not a direct field set."""
         from apps.accounts.models.profiles import CompanyAffiliationRequest, OrganizationMembership
         from apps.accounts.services.affiliations import approve_affiliation_request
-        from apps.accounts.services.organizations import find_organization_by_code_or_name
 
         caregiver = self._create_caregiver(provider_type="independent")
         org_admin_person = Person.objects.create(tenant=self.tenant, full_name="Org Admin")
         org_admin = UserAccount.objects.create_user(phone="09140000011", person=org_admin_person, tenant=self.tenant)
         organization = OrganizationProfile.objects.create(
-            name="Affil Co", code="AFFIL-CO-1", admin_user=org_admin, tenant=self.tenant,
+            name="Affil Co",
+            code="AFFIL-CO-1",
+            admin_user=org_admin,
+            tenant=self.tenant,
         )
         request = CompanyAffiliationRequest.objects.create(
-            caregiver_profile=caregiver, requested_company_name_or_code="AFFIL-CO-1", organization=organization,
+            caregiver_profile=caregiver,
+            requested_company_name_or_code="AFFIL-CO-1",
+            organization=organization,
         )
 
         approve_affiliation_request(request_id=request.id, reviewed_by=org_admin)
@@ -176,7 +186,10 @@ class ReconcileOrganizationProviderSuppliersTest(TestCase):
         # BEFORE the supplier_bridge branch existed: their supplier was
         # created as INDEPENDENT_PROVIDER and never updated.
         self.caregiver = CaregiverProfile.objects.create(
-            user=self.user, person=self.person, phone="09140000020", display_name="Legacy",
+            user=self.user,
+            person=self.person,
+            phone="09140000020",
+            display_name="Legacy",
             provider_type=CaregiverProviderType.INDEPENDENT,
         )
         self.supplier = get_or_create_supplier_for_caregiver(self.caregiver)

@@ -775,8 +775,16 @@ class Command(BaseCommand):
     # ------------------------------------------------------------------
 
     def _ensure_professional_showcase(
-        self, profile, *, specialty, experience_title, organization_name, experience_description,
-        years_experience, with_gallery, avatar_seed,
+        self,
+        profile,
+        *,
+        specialty,
+        experience_title,
+        organization_name,
+        experience_description,
+        years_experience,
+        with_gallery,
+        avatar_seed,
     ):
         self._ensure_avatar(profile, seed=avatar_seed)
         self._ensure_skills(profile, SKILLS_BY_SPECIALTY.get(specialty, ()))
@@ -846,7 +854,10 @@ class Command(BaseCommand):
         for index, caption in enumerate(GALLERY_CAPTIONS):
             image = _placeholder_image_file(f"gallery-{seed}-{index}.jpg", seed=f"{seed}-{index}", fmt="JPEG")
             CaregiverGalleryService.add_item(
-                profile, image=image, caption=caption, alt_text=caption,
+                profile,
+                image=image,
+                caption=caption,
+                alt_text=caption,
             )
             self._record(True)
 

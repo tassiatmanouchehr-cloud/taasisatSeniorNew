@@ -36,19 +36,24 @@ def _unique_number():
 
 class _OrderFixtureMixin:
     def _build_fixture(self):
-        self.tenant = Tenant.objects.create(
-            slug=f"ordnum-{uuid.uuid4().hex[:8]}", name="Order Number Test Tenant"
-        )
+        self.tenant = Tenant.objects.create(slug=f"ordnum-{uuid.uuid4().hex[:8]}", name="Order Number Test Tenant")
         self.category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Home Care", slug=f"home-care-{uuid.uuid4().hex[:6]}",
+            tenant=self.tenant,
+            name="Home Care",
+            slug=f"home-care-{uuid.uuid4().hex[:6]}",
             status=CatalogStatus.ACTIVE,
         )
 
     def _create_order(self):
         return Order.objects.create(
-            tenant=self.tenant, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
-            service_category=self.category, description="Need home care",
-            city="tehran", address="Some address", phone="09120000000",
+            tenant=self.tenant,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.NEW,
+            service_category=self.category,
+            description="Need home care",
+            city="tehran",
+            address="Some address",
+            phone="09120000000",
         )
 
 
@@ -93,12 +98,14 @@ class OrderNumberGenerationTest(_OrderFixtureMixin, TestCase):
 
     def test_retry_is_bounded(self):
         existing = self._create_order()
-        with mock.patch(
-            "apps.orders.models._generate_order_number",
-            return_value=existing.order_number,
-        ) as generator:
-            with self.assertRaises(IntegrityError):
-                self._create_order()
+        with (
+            mock.patch(
+                "apps.orders.models._generate_order_number",
+                return_value=existing.order_number,
+            ) as generator,
+            self.assertRaises(IntegrityError),
+        ):
+            self._create_order()
         self.assertEqual(generator.call_count, ORDER_NUMBER_MAX_ATTEMPTS)
         self.assertEqual(Order.objects.count(), 1)
 
@@ -107,9 +114,14 @@ class OrderNumberGenerationTest(_OrderFixtureMixin, TestCase):
         with mock.patch("apps.orders.models._generate_order_number") as generator:
             with self.assertRaises(IntegrityError):
                 Order.objects.create(
-                    tenant=self.tenant, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
-                    service_category=self.category, description="dup",
-                    city="tehran", address="Some address", phone="09120000000",
+                    tenant=self.tenant,
+                    source=OrderSource.OPERATOR,
+                    status=OrderStatus.NEW,
+                    service_category=self.category,
+                    description="dup",
+                    city="tehran",
+                    address="Some address",
+                    phone="09120000000",
                     order_number=existing.order_number,
                 )
         generator.assert_not_called()

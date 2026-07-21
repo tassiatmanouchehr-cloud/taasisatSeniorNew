@@ -38,10 +38,15 @@ class _ConcurrencyFixtureMixin:
 
     def _create_supplier(self, *, tenant) -> ServiceSupplier:
         return ServiceSupplier.objects.create(
-            tenant_id=tenant.id, supplier_type=SupplierType.INDEPENDENT_PROVIDER,
-            linked_entity_id=uuid.uuid4(), linked_entity_type="TestProfile", display_name="Test Supplier",
-            status=SupplierStatus.ACTIVE, availability_status=AvailabilityStatus.AVAILABLE,
-            verification_level=VerificationLevel.BASIC, service_categories=[],
+            tenant_id=tenant.id,
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+            linked_entity_id=uuid.uuid4(),
+            linked_entity_type="TestProfile",
+            display_name="Test Supplier",
+            status=SupplierStatus.ACTIVE,
+            availability_status=AvailabilityStatus.AVAILABLE,
+            verification_level=VerificationLevel.BASIC,
+            service_categories=[],
         )
 
     def _run_concurrently(self, callables):
@@ -73,19 +78,28 @@ class _ConcurrencyFixtureMixin:
 class ConcurrentCreateTest(_ConcurrencyFixtureMixin, TransactionTestCase):
     def setUp(self):
         self.tenant = Tenant.objects.create(
-            slug=f"avail-concur-{uuid.uuid4().hex[:8]}", name="Availability Concurrency Tenant",
+            slug=f"avail-concur-{uuid.uuid4().hex[:8]}",
+            name="Availability Concurrency Tenant",
         )
         self.supplier = self._create_supplier(tenant=self.tenant)
 
     def test_concurrent_overlapping_creates_result_in_at_most_one_success(self):
-        results = self._run_concurrently([
-            lambda: AvailabilityMutationService.add_working_window(
-                supplier=self.supplier, day_of_week=0, start_time=dt.time(9, 0), end_time=dt.time(17, 0),
-            ),
-            lambda: AvailabilityMutationService.add_working_window(
-                supplier=self.supplier, day_of_week=0, start_time=dt.time(10, 0), end_time=dt.time(18, 0),
-            ),
-        ])
+        results = self._run_concurrently(
+            [
+                lambda: AvailabilityMutationService.add_working_window(
+                    supplier=self.supplier,
+                    day_of_week=0,
+                    start_time=dt.time(9, 0),
+                    end_time=dt.time(17, 0),
+                ),
+                lambda: AvailabilityMutationService.add_working_window(
+                    supplier=self.supplier,
+                    day_of_week=0,
+                    start_time=dt.time(10, 0),
+                    end_time=dt.time(18, 0),
+                ),
+            ]
+        )
         successes = [r for status, r in results if status == "ok"]
         failures = [r for status, r in results if status == "error"]
         self.assertEqual(len(successes), 1)
@@ -94,22 +108,32 @@ class ConcurrentCreateTest(_ConcurrencyFixtureMixin, TransactionTestCase):
         # Final database state, not just the returned exception: exactly
         # one active window exists for this supplier/day.
         self.assertEqual(
-            ProviderWorkingWindow.objects.filter(supplier=self.supplier, day_of_week=0, is_active=True).count(), 1,
+            ProviderWorkingWindow.objects.filter(supplier=self.supplier, day_of_week=0, is_active=True).count(),
+            1,
         )
 
     def test_concurrent_exact_duplicate_creates_result_in_at_most_one_success(self):
-        results = self._run_concurrently([
-            lambda: AvailabilityMutationService.add_working_window(
-                supplier=self.supplier, day_of_week=1, start_time=dt.time(8, 0), end_time=dt.time(12, 0),
-            ),
-            lambda: AvailabilityMutationService.add_working_window(
-                supplier=self.supplier, day_of_week=1, start_time=dt.time(8, 0), end_time=dt.time(12, 0),
-            ),
-        ])
+        results = self._run_concurrently(
+            [
+                lambda: AvailabilityMutationService.add_working_window(
+                    supplier=self.supplier,
+                    day_of_week=1,
+                    start_time=dt.time(8, 0),
+                    end_time=dt.time(12, 0),
+                ),
+                lambda: AvailabilityMutationService.add_working_window(
+                    supplier=self.supplier,
+                    day_of_week=1,
+                    start_time=dt.time(8, 0),
+                    end_time=dt.time(12, 0),
+                ),
+            ]
+        )
         successes = [r for status, r in results if status == "ok"]
         self.assertEqual(len(successes), 1)
         self.assertEqual(
-            ProviderWorkingWindow.objects.filter(supplier=self.supplier, day_of_week=1, is_active=True).count(), 1,
+            ProviderWorkingWindow.objects.filter(supplier=self.supplier, day_of_week=1, is_active=True).count(),
+            1,
         )
 
     def test_non_overlapping_mutation_remains_possible_after_first_completes(self):
@@ -118,14 +142,21 @@ class ConcurrentCreateTest(_ConcurrencyFixtureMixin, TransactionTestCase):
         supplier still succeeds once the first transaction has committed
         and released the row lock."""
         AvailabilityMutationService.add_working_window(
-            supplier=self.supplier, day_of_week=2, start_time=dt.time(8, 0), end_time=dt.time(12, 0),
+            supplier=self.supplier,
+            day_of_week=2,
+            start_time=dt.time(8, 0),
+            end_time=dt.time(12, 0),
         )
         window = AvailabilityMutationService.add_working_window(
-            supplier=self.supplier, day_of_week=2, start_time=dt.time(13, 0), end_time=dt.time(17, 0),
+            supplier=self.supplier,
+            day_of_week=2,
+            start_time=dt.time(13, 0),
+            end_time=dt.time(17, 0),
         )
         self.assertEqual(window.start_time, dt.time(13, 0))
         self.assertEqual(
-            ProviderWorkingWindow.objects.filter(supplier=self.supplier, day_of_week=2, is_active=True).count(), 2,
+            ProviderWorkingWindow.objects.filter(supplier=self.supplier, day_of_week=2, is_active=True).count(),
+            2,
         )
 
     def test_transaction_usable_after_controlled_conflict(self):
@@ -134,29 +165,43 @@ class ConcurrentCreateTest(_ConcurrencyFixtureMixin, TransactionTestCase):
         process — the refused attempt's transaction.atomic rollback leaves
         the connection/service usable, not poisoned."""
         AvailabilityMutationService.add_working_window(
-            supplier=self.supplier, day_of_week=3, start_time=dt.time(8, 0), end_time=dt.time(12, 0),
+            supplier=self.supplier,
+            day_of_week=3,
+            start_time=dt.time(8, 0),
+            end_time=dt.time(12, 0),
         )
         with self.assertRaises(AvailabilityError):
             AvailabilityMutationService.add_working_window(
-                supplier=self.supplier, day_of_week=3, start_time=dt.time(10, 0), end_time=dt.time(14, 0),
+                supplier=self.supplier,
+                day_of_week=3,
+                start_time=dt.time(10, 0),
+                end_time=dt.time(14, 0),
             )
         retried = AvailabilityMutationService.add_working_window(
-            supplier=self.supplier, day_of_week=3, start_time=dt.time(13, 0), end_time=dt.time(17, 0),
+            supplier=self.supplier,
+            day_of_week=3,
+            start_time=dt.time(13, 0),
+            end_time=dt.time(17, 0),
         )
         self.assertEqual(retried.start_time, dt.time(13, 0))
         self.assertEqual(
-            ProviderWorkingWindow.objects.filter(supplier=self.supplier, day_of_week=3, is_active=True).count(), 2,
+            ProviderWorkingWindow.objects.filter(supplier=self.supplier, day_of_week=3, is_active=True).count(),
+            2,
         )
 
 
 class ConcurrentCreateAndUpdateTest(_ConcurrencyFixtureMixin, TransactionTestCase):
     def setUp(self):
         self.tenant = Tenant.objects.create(
-            slug=f"avail-concur-{uuid.uuid4().hex[:8]}", name="Availability Concurrency Tenant",
+            slug=f"avail-concur-{uuid.uuid4().hex[:8]}",
+            name="Availability Concurrency Tenant",
         )
         self.supplier = self._create_supplier(tenant=self.tenant)
         self.existing = AvailabilityMutationService.add_working_window(
-            supplier=self.supplier, day_of_week=0, start_time=dt.time(8, 0), end_time=dt.time(12, 0),
+            supplier=self.supplier,
+            day_of_week=0,
+            start_time=dt.time(8, 0),
+            end_time=dt.time(12, 0),
         )
 
     def test_concurrent_create_and_update_cannot_commit_overlap(self):
@@ -166,14 +211,20 @@ class ConcurrentCreateAndUpdateTest(_ConcurrencyFixtureMixin, TransactionTestCas
         supplier before either check runs is what makes this race
         detectable at all; without it, both could read the original,
         non-conflicting state and both commit."""
-        results = self._run_concurrently([
-            lambda: AvailabilityMutationService.add_working_window(
-                supplier=self.supplier, day_of_week=0, start_time=dt.time(13, 0), end_time=dt.time(17, 0),
-            ),
-            lambda: AvailabilityMutationService.update_working_window(
-                window_id=self.existing.id, end_time=dt.time(14, 0),
-            ),
-        ])
+        results = self._run_concurrently(
+            [
+                lambda: AvailabilityMutationService.add_working_window(
+                    supplier=self.supplier,
+                    day_of_week=0,
+                    start_time=dt.time(13, 0),
+                    end_time=dt.time(17, 0),
+                ),
+                lambda: AvailabilityMutationService.update_working_window(
+                    window_id=self.existing.id,
+                    end_time=dt.time(14, 0),
+                ),
+            ]
+        )
         successes = [r for status, r in results if status == "ok"]
         failures = [r for status, r in results if status == "error"]
         self.assertEqual(len(successes), 1)
@@ -196,14 +247,21 @@ class ConcurrentCreateAndUpdateTest(_ConcurrencyFixtureMixin, TransactionTestCas
 class ConcurrentToggleTest(_ConcurrencyFixtureMixin, TransactionTestCase):
     def setUp(self):
         self.tenant = Tenant.objects.create(
-            slug=f"avail-concur-{uuid.uuid4().hex[:8]}", name="Availability Concurrency Tenant",
+            slug=f"avail-concur-{uuid.uuid4().hex[:8]}",
+            name="Availability Concurrency Tenant",
         )
         self.supplier = self._create_supplier(tenant=self.tenant)
         self.window_a = AvailabilityMutationService.add_working_window(
-            supplier=self.supplier, day_of_week=4, start_time=dt.time(8, 0), end_time=dt.time(12, 0),
+            supplier=self.supplier,
+            day_of_week=4,
+            start_time=dt.time(8, 0),
+            end_time=dt.time(12, 0),
         )
         self.window_b = AvailabilityMutationService.add_working_window(
-            supplier=self.supplier, day_of_week=4, start_time=dt.time(13, 0), end_time=dt.time(17, 0),
+            supplier=self.supplier,
+            day_of_week=4,
+            start_time=dt.time(13, 0),
+            end_time=dt.time(17, 0),
         )
         # Disable window_b, retime it while disabled (no overlap check
         # applies to a disabled window), then disable window_a too — this
@@ -212,17 +270,22 @@ class ConcurrentToggleTest(_ConcurrencyFixtureMixin, TransactionTestCase):
         # policy that disabled/overlapping windows may coexist.
         AvailabilityMutationService.update_working_window(window_id=self.window_b.id, is_active=False)
         AvailabilityMutationService.update_working_window(
-            window_id=self.window_b.id, start_time=dt.time(9, 0), end_time=dt.time(11, 0), is_active=False,
+            window_id=self.window_b.id,
+            start_time=dt.time(9, 0),
+            end_time=dt.time(11, 0),
+            is_active=False,
         )
         AvailabilityMutationService.update_working_window(window_id=self.window_a.id, is_active=False)
 
     def test_concurrent_enabling_of_two_conflicting_disabled_windows_yields_at_most_one_enabled(self):
         window_a = ProviderWorkingWindow.objects.get(id=self.window_a.id)
         window_b = ProviderWorkingWindow.objects.get(id=self.window_b.id)
-        results = self._run_concurrently([
-            lambda: AvailabilityMutationService.toggle_working_window(window=window_a),
-            lambda: AvailabilityMutationService.toggle_working_window(window=window_b),
-        ])
+        results = self._run_concurrently(
+            [
+                lambda: AvailabilityMutationService.toggle_working_window(window=window_a),
+                lambda: AvailabilityMutationService.toggle_working_window(window=window_b),
+            ]
+        )
         successes = [r for status, r in results if status == "ok"]
         failures = [r for status, r in results if status == "error"]
         self.assertEqual(len(successes), 1)
@@ -230,7 +293,8 @@ class ConcurrentToggleTest(_ConcurrencyFixtureMixin, TransactionTestCase):
         self.assertIsInstance(failures[0], AvailabilityError)
         self.assertEqual(
             ProviderWorkingWindow.objects.filter(
-                id__in=[self.window_a.id, self.window_b.id], is_active=True,
+                id__in=[self.window_a.id, self.window_b.id],
+                is_active=True,
             ).count(),
             1,
         )
@@ -257,10 +321,12 @@ class ConcurrentToggleTest(_ConcurrencyFixtureMixin, TransactionTestCase):
 class ConcurrentDifferentSuppliersTest(_ConcurrencyFixtureMixin, TransactionTestCase):
     def setUp(self):
         self.tenant = Tenant.objects.create(
-            slug=f"avail-concur-{uuid.uuid4().hex[:8]}", name="Availability Concurrency Tenant",
+            slug=f"avail-concur-{uuid.uuid4().hex[:8]}",
+            name="Availability Concurrency Tenant",
         )
         self.other_tenant = Tenant.objects.create(
-            slug=f"avail-concur-other-{uuid.uuid4().hex[:8]}", name="Other Concurrency Tenant",
+            slug=f"avail-concur-other-{uuid.uuid4().hex[:8]}",
+            name="Other Concurrency Tenant",
         )
         self.supplier_a = self._create_supplier(tenant=self.tenant)
         self.supplier_b = self._create_supplier(tenant=self.other_tenant)
@@ -272,26 +338,37 @@ class ConcurrentDifferentSuppliersTest(_ConcurrencyFixtureMixin, TransactionTest
         global lock would have serialized them but still let both succeed
         eventually. The real proof is in the final state: both suppliers'
         rows exist, independently correct, and never cross-contaminated."""
-        results = self._run_concurrently([
-            lambda: AvailabilityMutationService.add_working_window(
-                supplier=self.supplier_a, day_of_week=0, start_time=dt.time(9, 0), end_time=dt.time(17, 0),
-            ),
-            lambda: AvailabilityMutationService.add_working_window(
-                supplier=self.supplier_b, day_of_week=0, start_time=dt.time(9, 0), end_time=dt.time(17, 0),
-            ),
-        ])
+        results = self._run_concurrently(
+            [
+                lambda: AvailabilityMutationService.add_working_window(
+                    supplier=self.supplier_a,
+                    day_of_week=0,
+                    start_time=dt.time(9, 0),
+                    end_time=dt.time(17, 0),
+                ),
+                lambda: AvailabilityMutationService.add_working_window(
+                    supplier=self.supplier_b,
+                    day_of_week=0,
+                    start_time=dt.time(9, 0),
+                    end_time=dt.time(17, 0),
+                ),
+            ]
+        )
         successes = [r for status, r in results if status == "ok"]
         self.assertEqual(len(successes), 2)
         self.assertEqual(
-            ProviderWorkingWindow.objects.filter(supplier=self.supplier_a, is_active=True).count(), 1,
+            ProviderWorkingWindow.objects.filter(supplier=self.supplier_a, is_active=True).count(),
+            1,
         )
         self.assertEqual(
-            ProviderWorkingWindow.objects.filter(supplier=self.supplier_b, is_active=True).count(), 1,
+            ProviderWorkingWindow.objects.filter(supplier=self.supplier_b, is_active=True).count(),
+            1,
         )
         # Cross-tenant isolation intact under concurrency: each window's
         # tenant_id is derived strictly from its own supplier, never
         # blended by the concurrent lock/transaction interleaving.
         self.assertEqual(ProviderWorkingWindow.objects.get(supplier=self.supplier_a).tenant_id, self.tenant.id)
         self.assertEqual(
-            ProviderWorkingWindow.objects.get(supplier=self.supplier_b).tenant_id, self.other_tenant.id,
+            ProviderWorkingWindow.objects.get(supplier=self.supplier_b).tenant_id,
+            self.other_tenant.id,
         )

@@ -24,13 +24,19 @@ class CareRecipientTestCase(TestCase):
         person = Person.objects.create(tenant=self.tenant, full_name="Maryam Ahmadi")
         user = UserAccount.objects.create_user(email="maryam@example.com", person=person, tenant=self.tenant)
         self.customer = CustomerProfile.objects.create(
-            user=user, person=person, phone="09121111111", display_name="Maryam Ahmadi",
+            user=user,
+            person=person,
+            phone="09121111111",
+            display_name="Maryam Ahmadi",
         )
 
         other_person = Person.objects.create(tenant=self.tenant, full_name="Sara Karimi")
         other_user = UserAccount.objects.create_user(email="sara@example.com", person=other_person, tenant=self.tenant)
         self.other_customer = CustomerProfile.objects.create(
-            user=other_user, person=other_person, phone="09122222222", display_name="Sara Karimi",
+            user=other_user,
+            person=other_person,
+            phone="09122222222",
+            display_name="Sara Karimi",
         )
 
 
@@ -168,12 +174,17 @@ class ArchiveCareRecipientTest(CareRecipientTestCase):
         other_tenant = Tenant.objects.create(slug=f"t-other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
         other_tenant_person = Person.objects.create(tenant=other_tenant, full_name="Reza Rahimi")
         other_tenant_user = UserAccount.objects.create_user(
-            email="reza@example.com", person=other_tenant_person, tenant=other_tenant,
+            email="reza@example.com",
+            person=other_tenant_person,
+            tenant=other_tenant,
         )
         from apps.accounts.models.profiles import CustomerProfile
 
         other_tenant_customer = CustomerProfile.objects.create(
-            user=other_tenant_user, person=other_tenant_person, phone="09123338888", display_name="Reza Rahimi",
+            user=other_tenant_user,
+            person=other_tenant_person,
+            phone="09123338888",
+            display_name="Reza Rahimi",
         )
         recipient = CareRecipientService.create(customer_profile=other_tenant_customer, full_name="Not Mine Either")
 

@@ -32,10 +32,15 @@ class OrganizationProviderFinancialIsolationTest(TestCase):
 
     def _create_supplier(self, *, supplier_type) -> ServiceSupplier:
         return ServiceSupplier.objects.create(
-            tenant_id=self.tenant.id, supplier_type=supplier_type,
-            linked_entity_id=uuid.uuid4(), linked_entity_type="TestProfile", display_name="Test Supplier",
-            status=SupplierStatus.ACTIVE, availability_status=AvailabilityStatus.AVAILABLE,
-            verification_level=VerificationLevel.BASIC, service_categories=[],
+            tenant_id=self.tenant.id,
+            supplier_type=supplier_type,
+            linked_entity_id=uuid.uuid4(),
+            linked_entity_type="TestProfile",
+            display_name="Test Supplier",
+            status=SupplierStatus.ACTIVE,
+            availability_status=AvailabilityStatus.AVAILABLE,
+            verification_level=VerificationLevel.BASIC,
+            service_categories=[],
         )
 
     def test_organization_provider_supplier_resolves_to_supplier_party_not_organization(self):

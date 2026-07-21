@@ -25,7 +25,8 @@ class AssignStaffForm(StyledForm):
 
 class InviteCaregiverForm(StyledForm):
     phone = forms.CharField(
-        max_length=20, label="شماره تلفن مراقب",
+        max_length=20,
+        label="شماره تلفن مراقب",
         error_messages={"required": "شماره تلفن مراقب الزامی است."},
     )
 

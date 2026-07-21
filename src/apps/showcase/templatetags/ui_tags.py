@@ -77,7 +77,10 @@ ICON_PATHS = {
 
 # Icons that should be mirrored in RTL (directional icons)
 DIRECTIONAL_ICONS = {
-    "arrow-right", "arrow-left", "chevron-right", "chevron-left",
+    "arrow-right",
+    "arrow-left",
+    "chevron-right",
+    "chevron-left",
 }
 
 
@@ -115,7 +118,7 @@ def icon(name, size="5", css_class="", directional=False):
         f'aria-hidden="true">'
         f'<path stroke-linecap="round" stroke-linejoin="round" '
         f'stroke-width="1.5" d="{path_data}"/>'
-        f'</svg>'
+        f"</svg>"
     )
     return mark_safe(svg)
 

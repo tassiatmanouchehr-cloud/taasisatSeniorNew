@@ -56,8 +56,7 @@ from .viewmodels import (
 )
 
 BONUS_PENALTY_NOT_MODELED_NOTE = (
-    "پاداش و جریمه به صورت دسته‌بندی جداگانه در پلتفرم ثبت نمی‌شود — "
-    "تراکنش‌های کیف پول بالا شامل تمام واریز/برداشت‌ها است."
+    "پاداش و جریمه به صورت دسته‌بندی جداگانه در پلتفرم ثبت نمی‌شود — تراکنش‌های کیف پول بالا شامل تمام واریز/برداشت‌ها است."
 )
 
 RECENT_ITEMS_LIMIT = 5
@@ -71,7 +70,9 @@ class CaregiverDashboardPresentationService:
     already-fetched domain objects."""
 
     @classmethod
-    def build_for_supplier(cls, *, supplier, tenant_id, caregiver, reputation, performance) -> CaregiverDashboardViewModel:
+    def build_for_supplier(
+        cls, *, supplier, tenant_id, caregiver, reputation, performance
+    ) -> CaregiverDashboardViewModel:
         """Resolves every section's data via its own canonical,
         already-existing selector — no query invented here that a domain
         service doesn't already own — then hands the raw data to build().
@@ -81,17 +82,26 @@ class CaregiverDashboardPresentationService:
         work_counts = OrderQueryService.count_by_status_for_supplier(supplier=supplier, tenant_id=tenant_id)
         current_orders = list(
             OrderQueryService.list_for_supplier(
-                supplier=supplier, tenant_id=tenant_id, only="current", limit=RECENT_ITEMS_LIMIT,
+                supplier=supplier,
+                tenant_id=tenant_id,
+                only="current",
+                limit=RECENT_ITEMS_LIMIT,
             ),
         )
         upcoming_orders = list(
             OrderQueryService.list_for_supplier(
-                supplier=supplier, tenant_id=tenant_id, only="upcoming", limit=RECENT_ITEMS_LIMIT,
+                supplier=supplier,
+                tenant_id=tenant_id,
+                only="upcoming",
+                limit=RECENT_ITEMS_LIMIT,
             ),
         )
         recent_completed_orders = list(
             OrderQueryService.list_for_supplier(
-                supplier=supplier, tenant_id=tenant_id, only="completed", limit=RECENT_ITEMS_LIMIT,
+                supplier=supplier,
+                tenant_id=tenant_id,
+                only="completed",
+                limit=RECENT_ITEMS_LIMIT,
             ),
         )
 
@@ -102,16 +112,20 @@ class CaregiverDashboardPresentationService:
         )
 
         invoice_counts = FinancialDocumentService.count_by_status_for_beneficiary_party(
-            tenant_id=tenant_id, party_id=party.id,
+            tenant_id=tenant_id,
+            party_id=party.id,
         )
         recent_invoices = list(
             FinancialDocumentService.list_for_beneficiary_party(
-                tenant_id=tenant_id, party_id=party.id, limit=RECENT_INVOICES_LIMIT,
+                tenant_id=tenant_id,
+                party_id=party.id,
+                limit=RECENT_INVOICES_LIMIT,
             ),
         )
 
         recent_reviews = ReputationService.list_recent_reviews_with_reviewer_names(
-            supplier, limit=RECENT_REVIEWS_LIMIT,
+            supplier,
+            limit=RECENT_REVIEWS_LIMIT,
         )
 
         credentials = PublicCredentialSelector.for_caregiver(caregiver)
@@ -154,7 +168,10 @@ class CaregiverDashboardPresentationService:
     ) -> CaregiverDashboardViewModel:
         return CaregiverDashboardViewModel(
             work_summary=cls._work_summary(
-                work_counts, current_orders, upcoming_orders, recent_completed_orders,
+                work_counts,
+                current_orders,
+                upcoming_orders,
+                recent_completed_orders,
             ),
             financial_overview=cls._financial_overview(wallet, recent_wallet_transactions),
             invoice_summary=cls._invoice_summary(invoice_counts, recent_invoices),

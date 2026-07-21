@@ -23,13 +23,22 @@ class _CompanyFixtureMixin:
         type(self)._next_admin_phone += 1
         admin_person = Person.objects.create(tenant=self.tenant, full_name="Org Admin")
         admin_user = UserAccount.objects.create_user(
-            phone=f"0{type(self)._next_admin_phone}", person=admin_person, tenant=self.tenant,
+            phone=f"0{type(self)._next_admin_phone}",
+            person=admin_person,
+            tenant=self.tenant,
         )
         organization = OrganizationProfile.objects.create(
-            name=name, code=code, admin_user=admin_user, tenant=self.tenant, status=ProfileStatus.ACTIVE,
+            name=name,
+            code=code,
+            admin_user=admin_user,
+            tenant=self.tenant,
+            status=ProfileStatus.ACTIVE,
         )
         OrganizationMembership.objects.create(
-            organization=organization, user=admin_user, role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+            organization=organization,
+            user=admin_user,
+            role_type=OrgMembershipRole.ADMIN,
+            status=OrgMembershipStatus.ACTIVE,
         )
         return organization, admin_user
 
@@ -56,12 +65,16 @@ class CompanyJoinViewTest(_CompanyFixtureMixin, ProviderPortalTestCase):
     def test_company_page_shows_own_pending_request_only(self):
         organization, _ = self._make_organization()
         caregiver = CaregiverProfile.objects.get(user=self.provider_user)
-        affiliation_services.submit_join_request(caregiver_profile=caregiver, code=organization.code, tenant_id=self.tenant.id)
+        affiliation_services.submit_join_request(
+            caregiver_profile=caregiver, code=organization.code, tenant_id=self.tenant.id
+        )
 
         other_caregiver = CaregiverProfile.objects.get(user=self.other_provider_user)
         other_org, _ = self._make_organization(code="other-join-co", name="Different Co")
         affiliation_services.submit_join_request(
-            caregiver_profile=other_caregiver, code=other_org.code, tenant_id=self.tenant.id,
+            caregiver_profile=other_caregiver,
+            code=other_org.code,
+            tenant_id=self.tenant.id,
         )
 
         self.login_as_provider()
@@ -75,7 +88,9 @@ class CompanyRequestCancelViewTest(_CompanyFixtureMixin, ProviderPortalTestCase)
         organization, _ = self._make_organization()
         caregiver = CaregiverProfile.objects.get(user=self.provider_user)
         req = affiliation_services.submit_join_request(
-            caregiver_profile=caregiver, code=organization.code, tenant_id=self.tenant.id,
+            caregiver_profile=caregiver,
+            code=organization.code,
+            tenant_id=self.tenant.id,
         )
         self.login_as_provider()
         response = self.client.post(f"/provider/company/requests/{req.id}/cancel/")
@@ -88,7 +103,9 @@ class CompanyRequestCancelViewTest(_CompanyFixtureMixin, ProviderPortalTestCase)
         organization, _ = self._make_organization()
         other_caregiver = CaregiverProfile.objects.get(user=self.other_provider_user)
         req = affiliation_services.submit_join_request(
-            caregiver_profile=other_caregiver, code=organization.code, tenant_id=self.tenant.id,
+            caregiver_profile=other_caregiver,
+            code=organization.code,
+            tenant_id=self.tenant.id,
         )
         self.login_as_provider()
         response = self.client.post(f"/provider/company/requests/{req.id}/cancel/")
@@ -103,7 +120,9 @@ class CompanyInvitationViewTest(_CompanyFixtureMixin, ProviderPortalTestCase):
         organization, admin_user = self._make_organization()
         caregiver = CaregiverProfile.objects.get(user=self.provider_user)
         membership = affiliation_services.invite_caregiver(
-            organization=organization, caregiver_phone=caregiver.phone, invited_by=admin_user,
+            organization=organization,
+            caregiver_phone=caregiver.phone,
+            invited_by=admin_user,
         )
         self.login_as_provider()
         response = self.client.post(f"/provider/company/invitations/{membership.id}/accept/")
@@ -118,7 +137,9 @@ class CompanyInvitationViewTest(_CompanyFixtureMixin, ProviderPortalTestCase):
         organization, admin_user = self._make_organization()
         caregiver = CaregiverProfile.objects.get(user=self.provider_user)
         membership = affiliation_services.invite_caregiver(
-            organization=organization, caregiver_phone=caregiver.phone, invited_by=admin_user,
+            organization=organization,
+            caregiver_phone=caregiver.phone,
+            invited_by=admin_user,
         )
         self.login_as_provider()
         response = self.client.post(f"/provider/company/invitations/{membership.id}/decline/")
@@ -131,7 +152,9 @@ class CompanyInvitationViewTest(_CompanyFixtureMixin, ProviderPortalTestCase):
         organization, admin_user = self._make_organization()
         caregiver = CaregiverProfile.objects.get(user=self.provider_user)
         membership = affiliation_services.invite_caregiver(
-            organization=organization, caregiver_phone=caregiver.phone, invited_by=admin_user,
+            organization=organization,
+            caregiver_phone=caregiver.phone,
+            invited_by=admin_user,
         )
         self.client.force_login(self.other_provider_user)
         response = self.client.post(f"/provider/company/invitations/{membership.id}/accept/")
@@ -146,7 +169,9 @@ class CompanyLeaveViewTest(_CompanyFixtureMixin, ProviderPortalTestCase):
         organization, admin_user = self._make_organization()
         caregiver = CaregiverProfile.objects.get(user=self.provider_user)
         req = affiliation_services.submit_join_request(
-            caregiver_profile=caregiver, code=organization.code, tenant_id=self.tenant.id,
+            caregiver_profile=caregiver,
+            code=organization.code,
+            tenant_id=self.tenant.id,
         )
         affiliation_services.approve_affiliation_request(request_id=req.id, reviewed_by=admin_user)
         membership = OrganizationMembership.objects.get(organization=organization, user=self.provider_user)
@@ -164,7 +189,9 @@ class CompanyLeaveViewTest(_CompanyFixtureMixin, ProviderPortalTestCase):
         organization, admin_user = self._make_organization()
         caregiver = CaregiverProfile.objects.get(user=self.provider_user)
         req = affiliation_services.submit_join_request(
-            caregiver_profile=caregiver, code=organization.code, tenant_id=self.tenant.id,
+            caregiver_profile=caregiver,
+            code=organization.code,
+            tenant_id=self.tenant.id,
         )
         affiliation_services.approve_affiliation_request(request_id=req.id, reviewed_by=admin_user)
         membership = OrganizationMembership.objects.get(organization=organization, user=self.provider_user)

@@ -24,26 +24,38 @@ class OrganizationPortalTestCase(TestCase):
         self.other_tenant = Tenant.objects.create(slug=f"orgportal-other-{uuid.uuid4().hex[:8]}", name="Other Tenant")
 
         self.category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
 
         self.admin_user = self._create_user(tenant=self.tenant, phone="09121110001")
         self.organization = OrganizationProfile.objects.create(
-            name="Care Co", code=f"care-{uuid.uuid4().hex[:8]}", admin_user=self.admin_user, tenant=self.tenant,
+            name="Care Co",
+            code=f"care-{uuid.uuid4().hex[:8]}",
+            admin_user=self.admin_user,
+            tenant=self.tenant,
         )
         OrganizationMembership.objects.create(
-            organization=self.organization, user=self.admin_user,
-            role_type=OrgMembershipRole.ADMIN, status=OrgMembershipStatus.ACTIVE,
+            organization=self.organization,
+            user=self.admin_user,
+            role_type=OrgMembershipRole.ADMIN,
+            status=OrgMembershipStatus.ACTIVE,
         )
 
         self.caregiver_user = self._create_user(tenant=self.tenant, phone="09121110002")
         CaregiverProfile.objects.create(
-            user=self.caregiver_user, person=self.caregiver_user.person,
-            phone="09121110002", display_name="Staff Caregiver",
+            user=self.caregiver_user,
+            person=self.caregiver_user.person,
+            phone="09121110002",
+            display_name="Staff Caregiver",
         )
         self.staff_membership = OrganizationMembership.objects.create(
-            organization=self.organization, user=self.caregiver_user,
-            role_type=OrgMembershipRole.CAREGIVER, status=OrgMembershipStatus.ACTIVE,
+            organization=self.organization,
+            user=self.caregiver_user,
+            role_type=OrgMembershipRole.CAREGIVER,
+            status=OrgMembershipStatus.ACTIVE,
         )
 
         self.non_admin_user = self._create_user(tenant=self.tenant, phone="09121110003")
@@ -52,15 +64,24 @@ class OrganizationPortalTestCase(TestCase):
         from apps.accounts.models.profiles import CustomerProfile
 
         self.customer = CustomerProfile.objects.create(
-            user=self.customer_user, person=self.customer_user.person, phone="09121110004", display_name="Customer",
+            user=self.customer_user,
+            person=self.customer_user.person,
+            phone="09121110004",
+            display_name="Customer",
         )
         from apps.accounts.services.care_recipients import CareRecipientService
 
         self.care_recipient = CareRecipientService.create(customer_profile=self.customer, full_name="مادر بزرگ")
         self.order = create_public_order(
-            service_category_id=self.category.id, description="x", phone="0912",
-            address="addr", city="tehran", customer_profile=self.customer,
-            elder_profile=self.care_recipient, created_by=self.customer_user, tenant_id=self.tenant.id,
+            service_category_id=self.category.id,
+            description="x",
+            phone="0912",
+            address="addr",
+            city="tehran",
+            customer_profile=self.customer,
+            elder_profile=self.care_recipient,
+            created_by=self.customer_user,
+            tenant_id=self.tenant.id,
         )
 
         from apps.orders.services.eligibility_service import OrderEligibilityService

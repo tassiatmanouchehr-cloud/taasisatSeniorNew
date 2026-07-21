@@ -1,7 +1,6 @@
 """Seed initial senior-care service catalog. Idempotent."""
 
 from django.core.management.base import BaseCommand
-from django.utils.text import slugify
 
 from apps.kernel.services.tenant_service import TenantService
 from apps.orders.models import ServiceCategory, ServiceType
@@ -102,6 +101,6 @@ class Command(BaseCommand):
                 if type_created:
                     created_types += 1
 
-        self.stdout.write(self.style.SUCCESS(
-            f"Catalog seeded: {created_cats} categories, {created_types} types created."
-        ))
+        self.stdout.write(
+            self.style.SUCCESS(f"Catalog seeded: {created_cats} categories, {created_types} types created.")
+        )

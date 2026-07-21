@@ -92,10 +92,13 @@ class UserAccountAdmin(BaseUserAdmin):
         ("Dates", {"fields": ("date_joined", "last_login")}),
     )
     add_fieldsets = (
-        (None, {
-            "classes": ("wide",),
-            "fields": ("email", "phone", "password1", "password2", "person", "tenant", "is_staff"),
-        }),
+        (
+            None,
+            {
+                "classes": ("wide",),
+                "fields": ("email", "phone", "password1", "password2", "person", "tenant", "is_staff"),
+            },
+        ),
     )
 
 

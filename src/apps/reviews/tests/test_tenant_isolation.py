@@ -11,16 +11,23 @@ class ReviewTenantIsolationTest(ReviewsTestCase):
 
         self.other_category = None
         from apps.orders.models import CatalogStatus, ServiceCategory
+
         self.other_category = ServiceCategory.objects.create(
-            tenant=self.other_tenant, name="Home Care", slug="home-care", status=CatalogStatus.ACTIVE,
+            tenant=self.other_tenant,
+            name="Home Care",
+            slug="home-care",
+            status=CatalogStatus.ACTIVE,
         )
         self.other_customer = self._create_customer(tenant=self.other_tenant)
         self.other_order = self._create_order(
-            tenant=self.other_tenant, category=self.other_category, customer_profile=self.other_customer,
+            tenant=self.other_tenant,
+            category=self.other_category,
+            customer_profile=self.other_customer,
         )
         self.other_supplier = self._create_supplier(tenant=self.other_tenant)
 
         from apps.booking.services.assignment_service import AssignmentService
+
         self.other_assignment = AssignmentService.assign(order_id=self.other_order.id, supplier=self.other_supplier)
 
         self._complete_order()
