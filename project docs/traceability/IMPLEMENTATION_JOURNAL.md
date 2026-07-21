@@ -4829,3 +4829,58 @@ In `tablet-dark-rtl` and `mobile-dark-rtl` (WebKit dark mode):
 The production login page does NOT reproduce the showcase transparent-body defect. The `<body>` correctly receives the semantic background token in production WebKit dark mode. Current evidence does not justify modifying the shared production root layout (`ui/layouts/base.html`).
 
 The previously proposed "Candidate A: Production Root Background Hardening" was withdrawn based on this direct evidence.
+
+
+
+---
+
+## PR #37 — Production Accent Accessibility Coverage (Merged 2026-07-20)
+
+**Branch:** `test/production-accent-accessibility`
+**Merge commit:** `5f21b3a1694d0233bcee168f8ad9a285ae2222da`
+**Scope:** Test infrastructure only
+
+### Summary
+
+Added a Playwright specification (`src/tests/visual/specs/production_accent_accessibility.spec.js`)
+that runs axe-core `color-contrast` checks on production routes across all configured projects.
+
+### Routes Covered
+
+- `/accounts/login/` (unauthenticated)
+- `/` (unauthenticated)
+
+### Assertion Strategy
+
+- **Light mode:** Zero-tolerance — any serious/critical `color-contrast` violation fails.
+- **Dark mode:** Exact target-set equality against a CI-derived manifest. The manifest pins
+  the precise axe `node.target[0]` selectors observed per Playwright project and route.
+  Added, removed, changed, or duplicated targets cause test failure.
+
+### Known Dark-Mode Manifest
+
+Derived from CI run on commit `bb03cd1`:
+
+| Project | Route | Targets |
+|---------|-------|---------|
+| `desktop-dark-rtl` | `/accounts/login/` | (none) |
+| `desktop-dark-rtl` | `/` | `.hover\:shadow-lg`, `.max-w-2xl.mt-4.leading-8`, `.px-7.hover\:shadow-xl.shadow-lg` |
+| `tablet-dark-rtl` | `/accounts/login/` | (none) |
+| `tablet-dark-rtl` | `/` | same 3 targets |
+| `mobile-dark-rtl` | `/accounts/login/` | (none) |
+| `mobile-dark-rtl` | `/` | `.max-w-2xl.mt-4.leading-8`, `.px-7.hover\:shadow-xl.shadow-lg` |
+
+### What This PR Does Not Do
+
+- Does not remediate the known dark-mode contrast violations
+- Does not claim production routes are WCAG-compliant in dark mode
+- Does not modify production UI, CSS, tokens, components, or business logic
+- Does not use regex matching, `maxExpectedNodes`, capture-only logging, or `backgroundColor !== transparent` assertions
+
+### Transient CI Observation
+
+During one CI run, the pre-existing `accessibility.spec.js` reported a failure on `/ui/forms/`
+in `tablet-dark-rtl`. PR #37 did not modify that suite, showcase templates, CSS, or tokens.
+The PR #37 production-route manifest tests passed in the same run. A subsequent rerun
+completed successfully with all GitHub Actions checks green. No confirmed root cause was
+established, and no remediation was made in PR #37.
