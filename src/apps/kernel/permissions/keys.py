@@ -266,6 +266,18 @@ ORGANIZATION_PROFILE_UPDATE = register(
     organization_scope=True,
 )
 
+# --- apps.orders (Phase 5 — Marketplace Order Workflow) --------------------
+
+ORDERS_OFFER_SUBMIT = register(
+    "orders.offer.submit",
+    domain="orders",
+    resource="offer",
+    action="submit",
+    description=(
+        "Submit a commercial offer on an order. Guards OrderOfferService.submit_offer() (Phase 5 Sprint 5.1)."
+    ),
+)
+
 # --- apps.api (Module 17A/17B) -------------------------------------------
 # Re-registered here (not just left in apps.api.permission_keys) so the
 # central registry is genuinely complete — apps.api.permission_keys

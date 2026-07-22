@@ -1291,89 +1291,62 @@ The canonical product delivery sequence is restored:
 
 ---
 
-## IMMEDIATE NEXT TASK: Phase 5 — Marketplace Order Workflow Architecture Assessment
+## IMMEDIATE NEXT TASK: Merge PR #41 and close Sprint 5.1
 
-### Verified current state
+### Sprint 5.1 — OrderOffer Submission Lifecycle: IMPLEMENTED
 
-Order Workflow **Core** is implemented and verified on `main`:
-- Order lifecycle state machine (7 states, full history audit)
-- Matching (`MatchOrchestrator`, 33 tests)
-- Booking (`AssignmentService`, 67 tests incl. concurrency)
-- Execution (`ExecutionSession`, `close_session()` with permission check, 58 tests)
-- Reviews (submission + moderation, 39 tests)
-- Cancellation state transitions (exist but have **no** `PermissionService.require()` call — a known High-severity gap)
+**Branch:** `feat/order-offer-submission-lifecycle`
+**PR:** #41
+**Architecture Assessment:** `project docs/assessments/2026-07-21_MARKETPLACE_ORDER_WORKFLOW_ARCHITECTURE_ASSESSMENT.md` (merged via PR #40)
 
-Order Workflow **Offer Marketplace** layer:
-- `OrderOffer` model exists (`src/apps/orders/models.py:478`)
-- Migration exists (`orders/0008_orderoffer.py`)
-- 40 model-level tests exist (`test_order_offer_model.py`)
-- **`OrderOfferService` does NOT exist** — zero submit/edit/withdraw/select/hold/accept logic anywhere in the repository (confirmed by `grep -rn OrderOfferService src/`)
-- No view, URL, or API endpoint references `OrderOffer` outside the model and admin
+Sprint 5.1 implements the `OrderOfferService` submission lifecycle — the
+bounded first-sprint scope defined by the architecture assessment. The
+implementation is complete on the feature branch and all CI checks are passing.
 
-### Objective
+### Verified test results (after commit 07d7aff)
 
-Perform a code-free Architecture Assessment that determines the bounded
-first-sprint implementation scope for `OrderOfferService`, following this
-repository's own established governance pattern (Phase 3→4 and Phase 4→5
-both required such an assessment before any implementation).
+| Suite | Count | Status |
+|-------|-------|--------|
+| OrderOffer service tests | 29 | PASS |
+| OrderOffer model tests | 40 | PASS |
+| Architecture guardrail tests | 28 | PASS |
+| Full regression | 2,546/2,546 | PASS |
+| Visual & Accessibility tests | All passing | PASS |
 
-### In-scope work (assessment only — no code changes)
+### CI status
 
-1. Read the existing `OrderOffer` model definition, its field semantics, status
-   enum, constraints, and relationships.
-2. Inspect the order lifecycle state machine to determine where offer
-   acceptance/selection plugs in.
-3. Determine how `AssignmentService.assign()` relates to offer selection.
-4. Identify the minimum vertical slice: which service methods must exist for a
-   complete publish → submit → select → assign cycle.
-5. Identify dependencies on `apps.booking`, `apps.matching`, `apps.execution`.
-6. Determine whether `apps.commission` (deadline, escrow, payment-gate) is a
-   hard dependency for Sprint 5.1 or can be deferred.
-7. Assess whether the existing matching/ranking infrastructure feeds the offer
-   marketplace or whether a separate discovery/bidding surface is needed.
-8. Produce a bounded Sprint 5.1 scope definition with acceptance criteria.
+All 5 CI checks passing after commit `07d7aff`:
+- `manage.py check`: clean
+- `makemigrations --check --dry-run`: pre-existing RISK-009 cosmetic drift only (kernel app field/index metadata — no schema change, documented since the Enterprise Baseline)
+- `git diff --check`: clean
+- Visual regression and accessibility: passing
 
-### Out-of-scope work
+### Commit history on this branch
 
-- Any production code change, model change, migration, view, or test
-- Invoice workflow, payment integration, escrow release, commission allocation
-- Order cancellation permission remediation (separate, tracked in §8)
-- OTP SMS provider, real PSP adapter, CI execution, deployment infrastructure
-- Any redesign of the existing order state machine or assignment service
+1. `50b2ee8` — feat(orders): implement OrderOffer submission lifecycle (Sprint 5.1)
+2. `80899e4` — fix(orders): address PR #41 review — authorization, locking, audit
+3. `983d92b` — fix(tests): correct fixture enum values for OrderOffer service tests
+4. `4b93004` — fix(tests): grant orders.offer.submit permission in happy-path tests
+5. `07d7aff` — fix(a11y): ensure showcase main uses theme background
 
-### Dependencies
+### Notes
 
-- Order Workflow Core (satisfied — on `main`)
-- RBAC Enforcement-Toggle (satisfied — PR #24, merged)
-- Core Profile-ServiceSupplier Invariant (satisfied — PR #18, merged)
-- Public Site Tenant Resolution (satisfied — PRs #19–#23, merged)
+- Commit `07d7aff` (accessibility fix for `src/templates/showcase/base.html`) is
+  unrelated to the OrderOffer domain — it resolves a pre-existing WebKit dark-mode
+  background issue in the showcase layout, not in any production route or OrderOffer
+  template.
+- The `makemigrations --check` exit code 1 is the documented pre-existing RISK-009
+  (kernel app cosmetic field metadata drift — `help_text`/`verbose_name`/`choices`
+  alterations only, no schema change). This drift has been present and documented
+  since the Enterprise Baseline assessment (2026-07-20) and is unrelated to any
+  Sprint 5.1 change.
 
-### Acceptance criteria
+### Next task after PR #41 merges
 
-1. A written Architecture Assessment document exists at
-   `project docs/assessments/YYYY-MM-DD_MARKETPLACE_ORDER_WORKFLOW_ARCHITECTURE_ASSESSMENT.md`
-   (dated with the actual completion date; a new immutable historical record, not an
-   overwrite of the Enterprise Baseline assessment).
-2. The assessment identifies every `OrderOffer` field and its role in the lifecycle.
-3. The assessment maps offer status transitions to `Order` status transitions.
-4. A bounded Sprint 5.1 scope is defined with exact service methods, their
-   signatures, and their side effects.
-5. Out-of-scope items are explicitly named and the reasoning is recorded.
-6. No source file is modified.
-
-### Required verification
-
-- Working tree clean after the assessment
-- No model, migration, test, or configuration file modified
-- `git diff --check` passes
-
-### Documentation synchronization
-
-After the assessment is approved, update `PROJECT_BASELINE.md` §14/§15 and
-this file per the governance rule in `PROJECT_BASELINE.md` §18.
+Sprint 5.2 scope determination — a follow-up assessment for the remaining
+`OrderOfferService` methods (edit/withdraw/select/hold/accept) that were
+explicitly deferred from Sprint 5.1's bounded first-sprint scope. Not started.
 
 ---
 
-**Do not begin Phase 5 implementation without completing and receiving
-approval for the Architecture Assessment above.** The assessment is planning
-output only — no branch, no code, no tests.
+**PR #41 is ready for merge. All tests pass. Documentation is synchronized.**

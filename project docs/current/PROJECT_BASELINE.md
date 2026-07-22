@@ -177,15 +177,20 @@ Full detail: `project docs/assessments/2026-07-20_ENTERPRISE_BASELINE.md` §4.
 
 | Metric | Value |
 |---|---|
-| Test files (repo-wide) | 238 |
-| Full regression (last independently re-run, on synced `main` @ `8ee1c67`) | **2,459 / 2,459 green** |
+| Test files (repo-wide) | 238+ |
+| Full regression (on `feat/order-offer-submission-lifecycle` after commit `07d7aff`) | **2,546 / 2,546 green** |
+| OrderOffer service tests (Sprint 5.1) | 29 passing |
+| OrderOffer model tests | 40 passing |
+| Architecture guardrail tests | 28 passing |
 | `manage.py check` | Clean, 0 issues |
 | `makemigrations --check --dry-run` | Pre-existing cosmetic drift only (RISK-009, `kernel` app field/index metadata — no schema change, unrelated to any recent merge) |
+| Visual & Accessibility tests | Passing (after commit `07d7aff`) |
 
 Coverage is deep and concurrency-proven in booking, availability, affiliation,
-and RBAC guardrails. It is thin or absent exactly where the risk register above
-says it should be: `apps/common`'s own base classes, customer-portal
-notifications, `OrderOffer` (model-only), `AllocationCalculator`'s live
+and RBAC guardrails. Sprint 5.1 added service-layer coverage for `OrderOffer`
+submission (29 tests) on top of the pre-existing 40 model tests. It is thin or
+absent exactly where the risk register says it should be: `apps/common`'s own
+base classes, customer-portal notifications, `AllocationCalculator`'s live
 integration point, and order-cancellation authorization. See
 `project docs/assessments/2026-07-20_ENTERPRISE_BASELINE.md` §5 for detail.
 
@@ -218,25 +223,27 @@ This was a cross-cutting security remediation, not a numbered product phase.
 
 This is the next roadmap-sequenced feature phase. The `OrderOffer` model,
 migration (`orders/0008_orderoffer.py`), and 40 model-level tests exist on
-`main`. No `OrderOfferService` (the business-logic layer for submit/edit/
-withdraw/select/hold/accept) exists anywhere in the repository. The phase
-requires a dedicated Architecture Assessment before implementation begins,
-per this repository's established governance pattern (Phase 3→4 and Phase 4→5
-both required one).
+`main`. The Architecture Assessment (filed at
+`project docs/assessments/2026-07-21_MARKETPLACE_ORDER_WORKFLOW_ARCHITECTURE_ASSESSMENT.md`,
+merged via PR #40) defined the bounded Sprint 5.1 scope.
+
+**Sprint 5.1 — OrderOffer Submission Lifecycle: IMPLEMENTED** on branch
+`feat/order-offer-submission-lifecycle` (PR #41). `OrderOfferService.submit_offer()`
+is the first service-layer method, implementing the submit path with full
+authorization (`PermissionService.require()`), row-level locking
+(`select_for_update()`), audit trail (`AuditService.log()`), and the
+`submitted`/`submitted_at` lifecycle fields. 29 service tests + 28 architecture
+guardrail tests added. Full regression 2,546/2,546 green. All 5 CI checks passing.
 
 ## 15. Immediate next activity
 
-**Marketplace Order Workflow Architecture Assessment** — a code-free,
-governance-first activity that determines the bounded first-sprint scope from
-direct repository evidence. The RBAC remediation (§13) is complete and no longer
-blocks this. The assessment output must be filed at
-`project docs/assessments/YYYY-MM-DD_MARKETPLACE_ORDER_WORKFLOW_ARCHITECTURE_ASSESSMENT.md`
-(dated, immutable — does not overwrite the Enterprise Baseline assessment).
+**Merge PR #41 (Sprint 5.1 documentation synchronization complete), then
+determine Sprint 5.2 scope** — the remaining `OrderOfferService` methods
+(edit/withdraw/select/hold/accept) that were explicitly deferred from Sprint
+5.1's bounded scope. Sprint 5.2 scope determination is a follow-up
+assessment, not yet started.
 
-Sprint 5.1 implementation remains unauthorized until the assessment is reviewed
-and approved.
-
-**Recommended order after the Phase 5 assessment** (from the 2026-07-20
+**Recommended order after Sprint 5.2** (from the 2026-07-20
 assessment's own final ranking, carried forward unchanged): OTP real SMS
 provider → order-cancellation permission check → an explicit decision on the
 escrow-release/commission-allocation wiring gap before either feature flag is

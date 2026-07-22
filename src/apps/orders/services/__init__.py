@@ -1,6 +1,7 @@
 """Order services."""
 
 from .order_creation import create_operator_order, create_public_order
+from .order_offer_service import OrderOfferService
 from .status_machine import (
     approve_cancellation,
     approve_public_order,
