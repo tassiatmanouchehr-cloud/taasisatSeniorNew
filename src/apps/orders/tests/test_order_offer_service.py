@@ -16,7 +16,10 @@ from apps.kernel.models.audit import AuditLog
 from apps.orders.models import OrderOfferStatus, OrderStatus
 from apps.orders.services.order_offer_service import OrderOfferError, OrderOfferService
 
-from .helpers import make_order, make_supplier, make_tenant, make_user
+from .helpers import grant_permissions, make_order, make_supplier, make_tenant, make_user
+
+# The permission key required by submit_offer()
+_SUBMIT_PERMISSION = "orders.offer.submit"
 
 
 class SubmitOfferHappyPathTest(TestCase):
@@ -25,6 +28,7 @@ class SubmitOfferHappyPathTest(TestCase):
         self.actor = make_user(self.tenant)
         self.supplier = make_supplier(self.tenant)
         self.order = make_order(self.tenant, status=OrderStatus.NEW)
+        grant_permissions(self.tenant, self.actor, [_SUBMIT_PERMISSION])
 
     @patch("apps.orders.services.order_offer_service.resolve_supplier_for_user")
     def test_successful_submission(self, mock_resolve):
@@ -99,6 +103,7 @@ class SubmitOfferActorSupplierAuthorizationTest(TestCase):
         self.own_supplier = make_supplier(self.tenant)
         self.other_supplier = make_supplier(self.tenant)
         self.order = make_order(self.tenant, status=OrderStatus.NEW)
+        grant_permissions(self.tenant, self.actor, [_SUBMIT_PERMISSION])
 
     @patch("apps.orders.services.order_offer_service.resolve_supplier_for_user")
     def test_actor_submits_for_own_supplier_succeeds(self, mock_resolve):
@@ -184,6 +189,7 @@ class SubmitOfferValidationTest(TestCase):
         self.actor = make_user(self.tenant)
         self.supplier = make_supplier(self.tenant)
         self.order = make_order(self.tenant, status=OrderStatus.NEW)
+        grant_permissions(self.tenant, self.actor, [_SUBMIT_PERMISSION])
 
     def test_null_actor_rejected(self):
         with self.assertRaises(OrderOfferError) as ctx:
@@ -265,6 +271,9 @@ class SubmitOfferPermissionTest(TestCase):
         self.actor = make_user(self.tenant)
         self.supplier = make_supplier(self.tenant)
         self.order = make_order(self.tenant, status=OrderStatus.NEW)
+        # Permission granted -- this test verifies PermissionService.require() is CALLED,
+        # not that it denies. The mock replaces the real call.
+        grant_permissions(self.tenant, self.actor, [_SUBMIT_PERMISSION])
 
     @patch("apps.orders.services.order_offer_service.resolve_supplier_for_user")
     def test_permission_service_is_called(self, mock_resolve):
@@ -290,6 +299,7 @@ class EditOfferHappyPathTest(TestCase):
         self.actor = make_user(self.tenant)
         self.supplier = make_supplier(self.tenant)
         self.order = make_order(self.tenant, status=OrderStatus.NEW)
+        grant_permissions(self.tenant, self.actor, [_SUBMIT_PERMISSION])
 
         with patch("apps.orders.services.order_offer_service.resolve_supplier_for_user") as mock:
             mock.return_value = self.supplier
@@ -344,6 +354,7 @@ class EditOfferValidationTest(TestCase):
         self.other_actor = make_user(self.tenant)
         self.supplier = make_supplier(self.tenant)
         self.order = make_order(self.tenant, status=OrderStatus.NEW)
+        grant_permissions(self.tenant, self.actor, [_SUBMIT_PERMISSION])
 
         with patch("apps.orders.services.order_offer_service.resolve_supplier_for_user") as mock:
             mock.return_value = self.supplier
@@ -408,6 +419,7 @@ class WithdrawOfferHappyPathTest(TestCase):
         self.actor = make_user(self.tenant)
         self.supplier = make_supplier(self.tenant)
         self.order = make_order(self.tenant, status=OrderStatus.NEW)
+        grant_permissions(self.tenant, self.actor, [_SUBMIT_PERMISSION])
 
         with patch("apps.orders.services.order_offer_service.resolve_supplier_for_user") as mock:
             mock.return_value = self.supplier
@@ -447,6 +459,7 @@ class WithdrawOfferValidationTest(TestCase):
         self.other_actor = make_user(self.tenant)
         self.supplier = make_supplier(self.tenant)
         self.order = make_order(self.tenant, status=OrderStatus.NEW)
+        grant_permissions(self.tenant, self.actor, [_SUBMIT_PERMISSION])
 
         with patch("apps.orders.services.order_offer_service.resolve_supplier_for_user") as mock:
             mock.return_value = self.supplier
