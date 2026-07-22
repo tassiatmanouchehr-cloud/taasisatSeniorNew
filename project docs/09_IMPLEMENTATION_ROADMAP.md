@@ -23,7 +23,7 @@ This document defines the platform delivery phases, their dependencies, acceptan
 | 2 | Caregiver Professional Profile | **COMPLETE** | Phase 1 |
 | 3 | Company Portal | **COMPLETE** | Phases 1–2 |
 | 4 | Customer Portal | **COMPLETE** | Phases 2–3 |
-| 5 | Marketplace Order Workflow | **IN PROGRESS** (Sprint 5.1 merged) | Phase 4 |
+| 5 | Marketplace Order Workflow | **IN PROGRESS** (Sprint 5.1 merged, Sprint 5.2 complete) | Phase 4 |
 | 6 | Invoice Workflow | PLANNED | Phase 5 |
 | 7 | Financial Engine Review (analysis only) | PLANNED | Phases 5–6 |
 | 8 | Payment & Settlement Review (analysis only) | PLANNED | Phase 7 |
@@ -148,7 +148,23 @@ This document defines the platform delivery phases, their dependencies, acceptan
 4. Cancel propagates to active offers
 5. Concurrency tests for one-selected-per-order constraint
 
-**Sprint 5.2 Status:** NOT STARTED
+**Sprint 5.2 Status:** COMPLETE (PR #44, 32 selection tests + 29 service tests, 2578/2578 PASS, real PostgreSQL concurrency validation)
+
+**Sprint 5.2 Delivered:**
+1. `OrderOfferService.select_offer()` — SUBMITTED → SELECTED with 30-minute hold
+2. `OrderOfferService.expire_held_offers()` — SELECTED → EXPIRED for timed-out holds
+3. Bulk-rejection of competing SUBMITTED offers on selection
+4. Customer-profile ownership authorization (dual-path: person_id + created_by fallback)
+5. Real concurrency test (`TransactionTestCase` + `threading.Barrier`) on PostgreSQL
+6. 32 new tests in `test_order_offer_selection.py`; no migration created
+7. All 5 CI checks green
+
+**Sprint 5.2 Known Limitations:**
+1. Hold duration hardcoded at 30 minutes (not tenant-configurable)
+2. Rejected competing offers are NOT restored on hold expiry (by design)
+3. Customer cannot cancel/revert a selection (unresolved business decision)
+4. No scheduler infrastructure wired — `expire_held_offers()` is independently callable
+5. Pre-existing `kernel` app migration drift remains (RISK-009, unrelated)
 
 **Dependencies:** Phases 1–4 complete (all satisfied)
 
