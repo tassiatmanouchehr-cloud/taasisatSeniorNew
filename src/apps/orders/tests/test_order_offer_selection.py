@@ -427,3 +427,229 @@ class ExpireHeldOffersTest(TestCase):
 
         OrderOfferService.expire_held_offers(tenant_id=self.tenant.id, now=timezone.now())
         self.assertEqual(SupplierAssignment.objects.count(), 0)
+
+
+
+# --- Remediation: Real Concurrency Test (PR #44 review finding F3) ----------
+
+
+import threading
+
+from django.apps import apps as django_apps
+from django.db import connection
+from django.test import TransactionTestCase as RealTransactionTestCase
+
+from apps.kernel.models import Person, Tenant, UserAccount
+from apps.kernel.models.supplier import (
+    AvailabilityStatus,
+    ServiceSupplier,
+    SupplierStatus,
+    SupplierType,
+    VerificationLevel,
+)
+from apps.orders.models import CatalogStatus, Order, OrderSource, ServiceCategory
+
+
+class ConcurrentSelectionTest(RealTransactionTestCase):
+    """Prove that two concurrent select_offer() calls for the same order
+    produce exactly one SELECTED offer, with the loser receiving a domain
+    error (not a raw IntegrityError).
+
+    Uses TransactionTestCase with real threading and separate DB connections,
+    matching apps/booking/tests/test_concurrency.py and
+    apps/availability/tests/test_concurrency.py patterns exactly.
+    """
+
+    available_apps = [app_config.name for app_config in django_apps.get_app_configs()]
+
+    def setUp(self):
+        self.tenant = Tenant.objects.create(
+            slug=f"sel-race-{uuid.uuid4().hex[:8]}",
+            name="Selection Race Tenant",
+        )
+        person = Person.objects.create(tenant=self.tenant, full_name="Customer")
+        self.customer = UserAccount.objects.create_user(
+            phone="09121111111", person=person, tenant=self.tenant,
+        )
+        category = ServiceCategory.objects.create(
+            tenant=self.tenant, name="Care", slug="care-race",
+            status=CatalogStatus.ACTIVE,
+        )
+        self.order = Order.objects.create(
+            tenant=self.tenant, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
+            service_category=category, description="Race order",
+            city="tehran", address="Addr", phone="09120000000",
+            created_by=self.customer,
+        )
+        # Two SUBMITTED offers from different suppliers
+        self.supplier_a = ServiceSupplier.objects.create(
+            tenant=self.tenant, supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+            linked_entity_id=uuid.uuid4(), linked_entity_type="TestProfile",
+            display_name="A", status=SupplierStatus.ACTIVE,
+            availability_status=AvailabilityStatus.AVAILABLE,
+            verification_level=VerificationLevel.BASIC,
+        )
+        self.supplier_b = ServiceSupplier.objects.create(
+            tenant=self.tenant, supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+            linked_entity_id=uuid.uuid4(), linked_entity_type="TestProfile",
+            display_name="B", status=SupplierStatus.ACTIVE,
+            availability_status=AvailabilityStatus.AVAILABLE,
+            verification_level=VerificationLevel.BASIC,
+        )
+        submitter = UserAccount.objects.create_user(
+            phone="09122222222",
+            person=Person.objects.create(tenant=self.tenant, full_name="Submitter"),
+            tenant=self.tenant,
+        )
+        self.offer_a = OrderOffer.objects.create(
+            tenant=self.tenant, order=self.order, supplier=self.supplier_a,
+            price_amount=Decimal("500000"), status=OrderOfferStatus.SUBMITTED,
+            submitted_by=submitter,
+        )
+        self.offer_b = OrderOffer.objects.create(
+            tenant=self.tenant, order=self.order, supplier=self.supplier_b,
+            price_amount=Decimal("600000"), status=OrderOfferStatus.SUBMITTED,
+            submitted_by=submitter,
+        )
+
+    def _run_concurrently(self, callables):
+        """Run each callable in its own thread, synchronized via Barrier."""
+        barrier = threading.Barrier(len(callables))
+        results = [None] * len(callables)
+
+        def _wrap(index, fn):
+            try:
+                barrier.wait(timeout=5)
+                value = fn()
+                results[index] = ("ok", value)
+            except Exception as exc:
+                results[index] = ("error", exc)
+            finally:
+                connection.close()
+
+        threads = [threading.Thread(target=_wrap, args=(i, fn)) for i, fn in enumerate(callables)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=15)
+        return results
+
+    def test_concurrent_selection_produces_exactly_one_winner(self):
+        """Two threads each try to select a different offer for the same order.
+        Exactly one must succeed; the other must receive OrderOfferError."""
+
+        def select_a():
+            return OrderOfferService.select_offer(
+                offer_id=self.offer_a.id, actor=self.customer, tenant_id=self.tenant.id,
+            )
+
+        def select_b():
+            return OrderOfferService.select_offer(
+                offer_id=self.offer_b.id, actor=self.customer, tenant_id=self.tenant.id,
+            )
+
+        results = self._run_concurrently([select_a, select_b])
+
+        # Exactly one OK, one error
+        ok_count = sum(1 for r in results if r[0] == "ok")
+        error_count = sum(1 for r in results if r[0] == "error")
+        self.assertEqual(ok_count, 1, f"Expected exactly 1 success, got {ok_count}: {results}")
+        self.assertEqual(error_count, 1, f"Expected exactly 1 error, got {error_count}: {results}")
+
+        # The error must be OrderOfferError (not raw IntegrityError)
+        error_result = next(r for r in results if r[0] == "error")
+        self.assertIsInstance(error_result[1], OrderOfferError)
+
+        # Database state: exactly one SELECTED offer
+        selected_count = OrderOffer.objects.filter(
+            order=self.order, status=OrderOfferStatus.SELECTED
+        ).count()
+        self.assertEqual(selected_count, 1)
+
+        # The losing offer is either REJECTED (if the winner's bulk-reject ran)
+        # or still SUBMITTED (if the loser's transaction rolled back before
+        # the winner's competing-offer rejection committed). Both are acceptable
+        # final states — the invariant is: at most one SELECTED.
+        non_selected = OrderOffer.objects.filter(order=self.order).exclude(
+            status=OrderOfferStatus.SELECTED
+        )
+        for offer in non_selected:
+            self.assertIn(
+                offer.status,
+                [OrderOfferStatus.SUBMITTED, OrderOfferStatus.REJECTED],
+            )
+
+        # Parent order unchanged
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, OrderStatus.NEW)
+
+        # No assignment/booking created
+        from apps.booking.models import SupplierAssignment
+        self.assertEqual(SupplierAssignment.objects.count(), 0)
+
+        # Audit: exactly one "selected" entry
+        from apps.kernel.models.audit import AuditLog
+        selected_audits = AuditLog.objects.filter(action="orders.offer.selected").count()
+        self.assertEqual(selected_audits, 1)
+
+
+# --- Remediation: CustomerProfile ownership-path test (PR #44 review finding F2) ---
+
+
+from apps.accounts.models.profiles import CustomerProfile
+
+
+class SelectOfferCustomerProfileOwnershipTest(TestCase):
+    """Prove that order ownership works through the customer_profile.person path,
+    not just the created_by fallback."""
+
+    def setUp(self):
+        self.tenant = make_tenant()
+        # Create customer with a real CustomerProfile
+        self.customer = make_user(self.tenant)
+        self.customer_profile = CustomerProfile.objects.create(
+            user=self.customer,
+            person=self.customer.person,
+            phone=self.customer.phone,
+        )
+        # Create a DIFFERENT user as created_by (operator who placed the order)
+        self.operator = make_user(self.tenant)
+        # Order has customer_profile set, but created_by is the OPERATOR
+        self.order = make_order(self.tenant, status=OrderStatus.NEW, customer_user=self.operator)
+        self.order.customer_profile = self.customer_profile
+        self.order.save(update_fields=["customer_profile"])
+
+        self.supplier = make_supplier(self.tenant)
+        self.supplier_actor = make_user(self.tenant)
+        self.offer = _create_submitted_offer(self.tenant, self.order, self.supplier, self.supplier_actor)
+
+    def test_customer_profile_owner_can_select(self):
+        """The customer associated via customer_profile.person can select,
+        even though created_by is a different user."""
+        result = OrderOfferService.select_offer(
+            offer_id=self.offer.id,
+            actor=self.customer,
+            tenant_id=self.tenant.id,
+        )
+        self.assertEqual(result.status, OrderOfferStatus.SELECTED)
+        self.assertEqual(result.selected_by_id, self.customer.id)
+
+    def test_operator_created_by_can_also_select(self):
+        """The created_by user (operator) can also select — both paths work."""
+        result = OrderOfferService.select_offer(
+            offer_id=self.offer.id,
+            actor=self.operator,
+            tenant_id=self.tenant.id,
+        )
+        self.assertEqual(result.status, OrderOfferStatus.SELECTED)
+
+    def test_unrelated_user_cannot_select_via_customer_profile(self):
+        """A user who is neither customer_profile owner nor created_by is rejected."""
+        unrelated = make_user(self.tenant)
+        with self.assertRaises(OrderOfferError) as ctx:
+            OrderOfferService.select_offer(
+                offer_id=self.offer.id,
+                actor=unrelated,
+                tenant_id=self.tenant.id,
+            )
+        self.assertIn("owner", str(ctx.exception).lower())
