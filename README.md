@@ -19,16 +19,16 @@ All active documentation lives under **[`project docs/`](project%20docs/)**.
 
 | Document | Answers |
 |---|---|
-| [`project docs/00_START_HERE.md`](project%20docs/00_START_HERE.md) | Where do I start, and in what order? |
-| [`project docs/02_PROJECT_CONTINUATION.md`](project%20docs/02_PROJECT_CONTINUATION.md) | Where are we right now? |
-| [`project docs/03_NEXT_TASK.md`](project%20docs/03_NEXT_TASK.md) | What is the immediate next objective? |
-| [`project docs/IMPLEMENTATION_ROADMAP.md`](project%20docs/IMPLEMENTATION_ROADMAP.md) | What should we build next, and in what order? |
-| [`project docs/current/`](project%20docs/current/) | The current implemented system |
-| [`project docs/quality/`](project%20docs/quality/) | Risks, gaps, duplication, backlog |
-| [`project docs/audit/`](project%20docs/audit/) | Deep forensic findings |
-| [`project docs/traceability/`](project%20docs/traceability/) | Implementation and test history |
-| [`project docs/registry/`](project%20docs/registry/) | Documentation ownership and evidence |
+| [`00_START_HERE.md`](project%20docs/00_START_HERE.md) | Entry point, reading order, documentation map |
+| [`01_PRODUCT_SPECIFICATION.md`](project%20docs/01_PRODUCT_SPECIFICATION.md) | What the platform does (business/product) |
+| [`02_SYSTEM_ARCHITECTURE.md`](project%20docs/02_SYSTEM_ARCHITECTURE.md) | How it's built (engineering) |
+| [`03_DOMAIN_WORKFLOWS.md`](project%20docs/03_DOMAIN_WORKFLOWS.md) | How it works at runtime |
+| [`04_IMPLEMENTATION_STATUS.md`](project%20docs/04_IMPLEMENTATION_STATUS.md) | Current state (volatile) |
+| [`05_REPOSITORY_GOVERNANCE.md`](project%20docs/05_REPOSITORY_GOVERNANCE.md) | Rules and process |
+| [`06_DEVELOPMENT_AND_VERIFICATION.md`](project%20docs/06_DEVELOPMENT_AND_VERIFICATION.md) | Developer setup and testing |
+| [`07_DEPLOYMENT_AND_OPERATIONS.md`](project%20docs/07_DEPLOYMENT_AND_OPERATIONS.md) | Production operations |
+| [`08_TESTING_AND_QUALITY.md`](project%20docs/08_TESTING_AND_QUALITY.md) | Quality gates and CI |
+| [`09_IMPLEMENTATION_ROADMAP.md`](project%20docs/09_IMPLEMENTATION_ROADMAP.md) | Delivery phases and acceptance criteria |
 
-Documents under `_archive/` are historical only and must not be used as
-current authority. The repository code, migrations, and tests remain the
-ultimate source of truth.
+Repository source code, migrations, and tests remain the ultimate source of truth.
+Documents under `_archive/` are historical only.
