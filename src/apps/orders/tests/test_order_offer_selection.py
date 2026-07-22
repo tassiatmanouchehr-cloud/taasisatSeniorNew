@@ -9,7 +9,6 @@ concurrency, audit.
 import uuid
 from datetime import timedelta
 from decimal import Decimal
-from unittest.mock import patch
 
 from django.test import TestCase
 from django.utils import timezone
@@ -222,33 +221,47 @@ class SelectOfferStateValidationTest(TestCase):
         self.assertIn("new status", str(ctx.exception).lower())
 
     def test_already_selected_offer_on_order_rejected(self):
+        # Create the second offer BEFORE the first selection, so it is present
+        # when select_offer() bulk-rejects competing SUBMITTED offers.
+        supplier2 = make_supplier(self.tenant)
+        supplier2_actor = make_user(self.tenant)
+        offer2 = _create_submitted_offer(self.tenant, self.order, supplier2, supplier2_actor)
+
         # Select the first offer
         OrderOfferService.select_offer(
             offer_id=self.offer.id,
             actor=self.customer,
             tenant_id=self.tenant.id,
         )
-        # Create another offer and try to select it
-        supplier2 = make_supplier(self.tenant)
-        supplier2_actor = make_user(self.tenant)
-        offer2 = _create_submitted_offer(self.tenant, self.order, supplier2, supplier2_actor)
 
-        # offer2 should already be REJECTED by the first selection
+        # offer2 should now be REJECTED by the first selection's bulk-reject step
         offer2.refresh_from_db()
         self.assertEqual(offer2.status, OrderOfferStatus.REJECTED)
 
-        # Even if we manually force it back to SUBMITTED (simulating a race),
-        # the DB constraint would block it
-        offer2.status = OrderOfferStatus.SUBMITTED
-        offer2.save(update_fields=["status"])
-
+        # Attempting to select the now-REJECTED offer must raise a domain error,
+        # not a raw IntegrityError.
         with self.assertRaises(OrderOfferError) as ctx:
             OrderOfferService.select_offer(
                 offer_id=offer2.id,
                 actor=self.customer,
                 tenant_id=self.tenant.id,
             )
-        self.assertIn("already been selected", str(ctx.exception).lower())
+        self.assertIn("cannot be selected", str(ctx.exception).lower())
+
+        # Exactly one offer remains SELECTED.
+        selected_count = OrderOffer.objects.filter(
+            order=self.order, status=OrderOfferStatus.SELECTED
+        ).count()
+        self.assertEqual(selected_count, 1)
+
+        # Parent order status remains unchanged.
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, OrderStatus.NEW)
+
+        # No assignment or downstream artifact was created.
+        from apps.booking.models import SupplierAssignment
+
+        self.assertEqual(SupplierAssignment.objects.count(), 0)
 
     def test_nonexistent_offer_rejected(self):
         with self.assertRaises(OrderOfferError):
@@ -350,7 +363,7 @@ class ExpireHeldOffersTest(TestCase):
     def test_batch_size_honored(self):
         past = timezone.now() - timedelta(minutes=5)
         # Create 3 expired offers on different orders
-        for i in range(3):
+        for _i in range(3):
             order = make_order(self.tenant, status=OrderStatus.NEW, customer_user=self.customer)
             supplier = make_supplier(self.tenant)
             OrderOffer.objects.create(
