@@ -249,9 +249,7 @@ class SelectOfferStateValidationTest(TestCase):
         self.assertIn("cannot be selected", str(ctx.exception).lower())
 
         # Exactly one offer remains SELECTED.
-        selected_count = OrderOffer.objects.filter(
-            order=self.order, status=OrderOfferStatus.SELECTED
-        ).count()
+        selected_count = OrderOffer.objects.filter(order=self.order, status=OrderOfferStatus.SELECTED).count()
         self.assertEqual(selected_count, 1)
 
         # Parent order status remains unchanged.
@@ -351,10 +349,15 @@ class ExpireHeldOffersTest(TestCase):
 
         offer1 = self._make_selected_offer(hold_expires_at=past)
         offer2 = OrderOffer.objects.create(
-            tenant=self.tenant, order=order2, supplier=supplier2,
-            price_amount=Decimal("100000"), status=OrderOfferStatus.SELECTED,
-            submitted_by=self.supplier_actor, selected_by=self.customer,
-            selected_at=timezone.now(), hold_expires_at=past,
+            tenant=self.tenant,
+            order=order2,
+            supplier=supplier2,
+            price_amount=Decimal("100000"),
+            status=OrderOfferStatus.SELECTED,
+            submitted_by=self.supplier_actor,
+            selected_by=self.customer,
+            selected_at=timezone.now(),
+            hold_expires_at=past,
         )
 
         result = OrderOfferService.expire_held_offers(tenant_id=self.tenant.id, now=timezone.now())
@@ -367,15 +370,18 @@ class ExpireHeldOffersTest(TestCase):
             order = make_order(self.tenant, status=OrderStatus.NEW, customer_user=self.customer)
             supplier = make_supplier(self.tenant)
             OrderOffer.objects.create(
-                tenant=self.tenant, order=order, supplier=supplier,
-                price_amount=Decimal("100000"), status=OrderOfferStatus.SELECTED,
-                submitted_by=self.supplier_actor, selected_by=self.customer,
-                selected_at=timezone.now(), hold_expires_at=past,
+                tenant=self.tenant,
+                order=order,
+                supplier=supplier,
+                price_amount=Decimal("100000"),
+                status=OrderOfferStatus.SELECTED,
+                submitted_by=self.supplier_actor,
+                selected_by=self.customer,
+                selected_at=timezone.now(),
+                hold_expires_at=past,
             )
 
-        result = OrderOfferService.expire_held_offers(
-            tenant_id=self.tenant.id, now=timezone.now(), batch_size=2
-        )
+        result = OrderOfferService.expire_held_offers(tenant_id=self.tenant.id, now=timezone.now(), batch_size=2)
         self.assertEqual(len(result), 2)  # Only 2 processed
 
     def test_idempotent_repeated_execution(self):
@@ -406,10 +412,15 @@ class ExpireHeldOffersTest(TestCase):
         other_supplier = make_supplier(other_tenant)
         past = timezone.now() - timedelta(minutes=1)
         OrderOffer.objects.create(
-            tenant=other_tenant, order=other_order, supplier=other_supplier,
-            price_amount=Decimal("100000"), status=OrderOfferStatus.SELECTED,
-            submitted_by=make_user(other_tenant), selected_by=other_customer,
-            selected_at=timezone.now(), hold_expires_at=past,
+            tenant=other_tenant,
+            order=other_order,
+            supplier=other_supplier,
+            price_amount=Decimal("100000"),
+            status=OrderOfferStatus.SELECTED,
+            submitted_by=make_user(other_tenant),
+            selected_by=other_customer,
+            selected_at=timezone.now(),
+            hold_expires_at=past,
         )
 
         # Only process self.tenant — other tenant's expired offer should be untouched
@@ -440,7 +451,6 @@ class ExpireHeldOffersTest(TestCase):
 
         OrderOfferService.expire_held_offers(tenant_id=self.tenant.id, now=timezone.now())
         self.assertEqual(SupplierAssignment.objects.count(), 0)
-
 
 
 # --- Remediation: Real Concurrency Test (PR #44 review finding F3) ----------
@@ -482,30 +492,45 @@ class ConcurrentSelectionTest(RealTransactionTestCase):
         )
         person = Person.objects.create(tenant=self.tenant, full_name="Customer")
         self.customer = UserAccount.objects.create_user(
-            phone="09121111111", person=person, tenant=self.tenant,
+            phone="09121111111",
+            person=person,
+            tenant=self.tenant,
         )
         category = ServiceCategory.objects.create(
-            tenant=self.tenant, name="Care", slug="care-race",
+            tenant=self.tenant,
+            name="Care",
+            slug="care-race",
             status=CatalogStatus.ACTIVE,
         )
         self.order = Order.objects.create(
-            tenant=self.tenant, source=OrderSource.OPERATOR, status=OrderStatus.NEW,
-            service_category=category, description="Race order",
-            city="tehran", address="Addr", phone="09120000000",
+            tenant=self.tenant,
+            source=OrderSource.OPERATOR,
+            status=OrderStatus.NEW,
+            service_category=category,
+            description="Race order",
+            city="tehran",
+            address="Addr",
+            phone="09120000000",
             created_by=self.customer,
         )
         # Two SUBMITTED offers from different suppliers
         self.supplier_a = ServiceSupplier.objects.create(
-            tenant=self.tenant, supplier_type=SupplierType.INDEPENDENT_PROVIDER,
-            linked_entity_id=uuid.uuid4(), linked_entity_type="TestProfile",
-            display_name="A", status=SupplierStatus.ACTIVE,
+            tenant=self.tenant,
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+            linked_entity_id=uuid.uuid4(),
+            linked_entity_type="TestProfile",
+            display_name="A",
+            status=SupplierStatus.ACTIVE,
             availability_status=AvailabilityStatus.AVAILABLE,
             verification_level=VerificationLevel.BASIC,
         )
         self.supplier_b = ServiceSupplier.objects.create(
-            tenant=self.tenant, supplier_type=SupplierType.INDEPENDENT_PROVIDER,
-            linked_entity_id=uuid.uuid4(), linked_entity_type="TestProfile",
-            display_name="B", status=SupplierStatus.ACTIVE,
+            tenant=self.tenant,
+            supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+            linked_entity_id=uuid.uuid4(),
+            linked_entity_type="TestProfile",
+            display_name="B",
+            status=SupplierStatus.ACTIVE,
             availability_status=AvailabilityStatus.AVAILABLE,
             verification_level=VerificationLevel.BASIC,
         )
@@ -515,13 +540,19 @@ class ConcurrentSelectionTest(RealTransactionTestCase):
             tenant=self.tenant,
         )
         self.offer_a = OrderOffer.objects.create(
-            tenant=self.tenant, order=self.order, supplier=self.supplier_a,
-            price_amount=Decimal("500000"), status=OrderOfferStatus.SUBMITTED,
+            tenant=self.tenant,
+            order=self.order,
+            supplier=self.supplier_a,
+            price_amount=Decimal("500000"),
+            status=OrderOfferStatus.SUBMITTED,
             submitted_by=submitter,
         )
         self.offer_b = OrderOffer.objects.create(
-            tenant=self.tenant, order=self.order, supplier=self.supplier_b,
-            price_amount=Decimal("600000"), status=OrderOfferStatus.SUBMITTED,
+            tenant=self.tenant,
+            order=self.order,
+            supplier=self.supplier_b,
+            price_amount=Decimal("600000"),
+            status=OrderOfferStatus.SUBMITTED,
             submitted_by=submitter,
         )
 
@@ -553,12 +584,16 @@ class ConcurrentSelectionTest(RealTransactionTestCase):
 
         def select_a():
             return OrderOfferService.select_offer(
-                offer_id=self.offer_a.id, actor=self.customer, tenant_id=self.tenant.id,
+                offer_id=self.offer_a.id,
+                actor=self.customer,
+                tenant_id=self.tenant.id,
             )
 
         def select_b():
             return OrderOfferService.select_offer(
-                offer_id=self.offer_b.id, actor=self.customer, tenant_id=self.tenant.id,
+                offer_id=self.offer_b.id,
+                actor=self.customer,
+                tenant_id=self.tenant.id,
             )
 
         results = self._run_concurrently([select_a, select_b])
@@ -574,18 +609,14 @@ class ConcurrentSelectionTest(RealTransactionTestCase):
         self.assertIsInstance(error_result[1], OrderOfferError)
 
         # Database state: exactly one SELECTED offer
-        selected_count = OrderOffer.objects.filter(
-            order=self.order, status=OrderOfferStatus.SELECTED
-        ).count()
+        selected_count = OrderOffer.objects.filter(order=self.order, status=OrderOfferStatus.SELECTED).count()
         self.assertEqual(selected_count, 1)
 
         # The losing offer is either REJECTED (if the winner's bulk-reject ran)
         # or still SUBMITTED (if the loser's transaction rolled back before
         # the winner's competing-offer rejection committed). Both are acceptable
         # final states — the invariant is: at most one SELECTED.
-        non_selected = OrderOffer.objects.filter(order=self.order).exclude(
-            status=OrderOfferStatus.SELECTED
-        )
+        non_selected = OrderOffer.objects.filter(order=self.order).exclude(status=OrderOfferStatus.SELECTED)
         for offer in non_selected:
             self.assertIn(
                 offer.status,
@@ -598,10 +629,12 @@ class ConcurrentSelectionTest(RealTransactionTestCase):
 
         # No assignment/booking created
         from apps.booking.models import SupplierAssignment
+
         self.assertEqual(SupplierAssignment.objects.count(), 0)
 
         # Audit: exactly one "selected" entry
         from apps.kernel.models.audit import AuditLog
+
         selected_audits = AuditLog.objects.filter(action="orders.offer.selected").count()
         self.assertEqual(selected_audits, 1)
 
