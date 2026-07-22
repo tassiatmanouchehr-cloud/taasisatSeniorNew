@@ -1,31 +1,20 @@
 """
 Tests for order cancellation authorization enforcement (Sprint 5.3A).
 
-Verifies that request_cancellation() and approve_cancellation() now call
-PermissionService.require() with the newly registered permission keys:
-- orders.cancellation.request
-- orders.cancellation.approve
+Verifies STRICT RBAC enforcement:
+- orders.cancellation.request: actor without permission → PermissionDenied
+- orders.cancellation.approve: actor without permission → PermissionDenied
+- actor=None (system context): audited and allowed (legitimate internal path)
+- Denied operations produce no state mutation or side effects
 
-The ownership_authorized_by pattern means any real actor is permitted via
-the audited ownership-fallback path (matching AssignmentService.assign()'s
-exact shape). The enforcement provides:
-1. Explicit audit trail of every cancellation action
-2. RBAC-path authorization for actors who DO have the role
-3. Documented, audited ownership-fallback for actors who don't yet
-4. System-context handling when no actor is supplied
-5. Tenant-scoped permission evaluation
-
-The HARD deny (PermissionDenied) activates the moment enforcement is enabled
-AND the ownership_authorized_by parameter is removed from the call — which
-will happen when all production callers have been verified to only pass
-properly-authorized actors. This matches the repository's established
-progressive-hardening approach (see permission_service.py module docstring).
+Uses real roles and permission assignments — does not mock authorization.
 """
 
 from django.test import TestCase
 
 from apps.kernel.models import Person, Tenant, UserAccount
 from apps.kernel.models.rbac import Role, RoleAssignment
+from apps.kernel.services.errors import PermissionDenied
 from apps.orders.models import CatalogStatus, OrderStatus, ServiceCategory
 from apps.orders.services.order_creation import create_operator_order
 from apps.orders.services.status_machine import (
@@ -56,7 +45,7 @@ def _assign_role(tenant, user, role):
 
 
 class RequestCancellationAuthorizationTest(TestCase):
-    """Tests for request_cancellation() permission enforcement."""
+    """STRICT enforcement tests for request_cancellation()."""
 
     def setUp(self):
         self.tenant = Tenant.objects.create(slug="cancel-auth-req", name="Cancel Auth Req")
@@ -73,62 +62,68 @@ class RequestCancellationAuthorizationTest(TestCase):
             city="tehran",
         )
 
-    def test_authorized_customer_can_request_cancellation(self):
-        """A user with orders.cancellation.request RBAC role succeeds via RBAC path."""
+    def test_actor_with_request_permission_can_request(self):
+        """Actor with orders.cancellation.request succeeds."""
         role = _create_role_with_permissions(self.tenant, "customer-cancel-req", ["orders.cancellation.request"])
         _assign_role(self.tenant, self.customer, role)
 
-        order = request_cancellation(
-            order_id=self.order.id,
-            requested_by=self.customer,
-            tenant_id=self.tenant.id,
-        )
+        order = request_cancellation(order_id=self.order.id, requested_by=self.customer)
         self.assertEqual(order.status, OrderStatus.CANCELLATION_REQUESTED)
         self.assertEqual(order.cancellation_requested_by, self.customer)
 
-    def test_customer_without_role_succeeds_via_ownership_fallback(self):
-        """A user without RBAC role still succeeds (ownership-authorized fallback).
+    def test_actor_without_permission_receives_permission_denied(self):
+        """Actor WITHOUT orders.cancellation.request receives PermissionDenied."""
+        # No role assigned — strict RBAC denies
+        with self.assertRaises(PermissionDenied):
+            request_cancellation(order_id=self.order.id, requested_by=self.customer)
 
-        This matches AssignmentService.assign()'s pattern: the ownership-authorized
-        path audits and permits until RBAC roles are fully seeded.
-        """
-        order = request_cancellation(
-            order_id=self.order.id,
-            requested_by=self.customer,
-            tenant_id=self.tenant.id,
+    def test_actor_with_wrong_permission_is_denied(self):
+        """Actor with a different permission but NOT cancellation.request is denied."""
+        role = _create_role_with_permissions(
+            self.tenant,
+            "other-perm",
+            ["orders.cancellation.approve"],  # wrong key
         )
-        self.assertEqual(order.status, OrderStatus.CANCELLATION_REQUESTED)
+        _assign_role(self.tenant, self.customer, role)
 
-    def test_request_with_explicit_tenant_id_uses_that_tenant(self):
-        """When tenant_id is provided, it is used for permission evaluation."""
-        order = request_cancellation(
-            order_id=self.order.id,
-            requested_by=self.customer,
-            tenant_id=self.tenant.id,
-        )
-        self.assertEqual(order.status, OrderStatus.CANCELLATION_REQUESTED)
+        with self.assertRaises(PermissionDenied):
+            request_cancellation(order_id=self.order.id, requested_by=self.customer)
 
-    def test_request_without_tenant_id_derives_from_order(self):
-        """When tenant_id is not provided, it is derived from the order."""
-        order = request_cancellation(
-            order_id=self.order.id,
-            requested_by=self.customer,
-        )
-        self.assertEqual(order.status, OrderStatus.CANCELLATION_REQUESTED)
+    def test_cross_tenant_actor_is_denied(self):
+        """Actor with permission in ANOTHER tenant cannot request on THIS order."""
+        other_tenant = Tenant.objects.create(slug="other-tenant-req", name="Other Req")
+        other_person = Person.objects.create(tenant=other_tenant, full_name="Other")
+        other_user = UserAccount.objects.create_user(phone="09120000031", person=other_person, tenant=other_tenant)
+        # Permission in other_tenant, not in self.tenant
+        role = _create_role_with_permissions(other_tenant, "other-cancel", ["orders.cancellation.request"])
+        _assign_role(other_tenant, other_user, role)
 
-    def test_existing_business_rules_still_enforced_after_auth(self):
-        """Existing state-machine rules remain enforced after authorization passes."""
-        request_cancellation(
-            order_id=self.order.id,
-            requested_by=self.customer,
-            tenant_id=self.tenant.id,
-        )
+        with self.assertRaises(PermissionDenied):
+            request_cancellation(order_id=self.order.id, requested_by=other_user)
+
+    def test_denial_leaves_status_unchanged(self):
+        """When denied, order status and timestamps remain unchanged."""
+        original_status = self.order.status
+        original_updated_at = self.order.updated_at
+
+        try:
+            request_cancellation(order_id=self.order.id, requested_by=self.customer)
+        except PermissionDenied:
+            pass
+
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, original_status)
+        self.assertIsNone(self.order.cancellation_requested_by_id)
+        self.assertEqual(self.order.cancellation_reason, "")
+
+    def test_existing_state_machine_rules_enforced_after_permission(self):
+        """State-machine validation (already-requested) remains enforced."""
+        role = _create_role_with_permissions(self.tenant, "cancel-role-dup", ["orders.cancellation.request"])
+        _assign_role(self.tenant, self.customer, role)
+
+        request_cancellation(order_id=self.order.id, requested_by=self.customer)
         with self.assertRaises(OrderStateError):
-            request_cancellation(
-                order_id=self.order.id,
-                requested_by=self.customer,
-                tenant_id=self.tenant.id,
-            )
+            request_cancellation(order_id=self.order.id, requested_by=self.customer)
 
     def test_permission_key_is_registered(self):
         """The orders.cancellation.request key exists in the permission registry."""
@@ -138,7 +133,7 @@ class RequestCancellationAuthorizationTest(TestCase):
 
 
 class ApproveCancellationAuthorizationTest(TestCase):
-    """Tests for approve_cancellation() permission enforcement."""
+    """STRICT enforcement tests for approve_cancellation()."""
 
     def setUp(self):
         self.tenant = Tenant.objects.create(slug="cancel-auth-app", name="Cancel Auth App")
@@ -156,64 +151,68 @@ class ApproveCancellationAuthorizationTest(TestCase):
             address="Test address",
             city="tehran",
         )
-        # Put order into CANCELLATION_REQUESTED state
-        request_cancellation(
-            order_id=self.order.id,
-            requested_by=self.customer,
-            tenant_id=self.tenant.id,
-        )
+        # Grant request permission to customer for setUp
+        req_role = _create_role_with_permissions(self.tenant, "customer-req-app", ["orders.cancellation.request"])
+        _assign_role(self.tenant, self.customer, req_role)
 
-    def test_authorized_admin_can_approve_cancellation(self):
-        """A user with orders.cancellation.approve RBAC role succeeds."""
-        role = _create_role_with_permissions(self.tenant, "admin-approve-cancel", ["orders.cancellation.approve"])
+        # Put order into CANCELLATION_REQUESTED state
+        request_cancellation(order_id=self.order.id, requested_by=self.customer)
+
+    def test_actor_with_approve_permission_can_approve(self):
+        """Actor with orders.cancellation.approve succeeds."""
+        role = _create_role_with_permissions(self.tenant, "admin-approve", ["orders.cancellation.approve"])
         _assign_role(self.tenant, self.admin, role)
 
-        order = approve_cancellation(
-            order_id=self.order.id,
-            changed_by=self.admin,
-            tenant_id=self.tenant.id,
-        )
+        order = approve_cancellation(order_id=self.order.id, changed_by=self.admin)
         self.assertEqual(order.status, OrderStatus.CANCELLED)
 
-    def test_admin_without_role_succeeds_via_ownership_fallback(self):
-        """A user without RBAC role still succeeds (ownership-authorized fallback)."""
-        order = approve_cancellation(
-            order_id=self.order.id,
-            changed_by=self.admin,
-            tenant_id=self.tenant.id,
-        )
+    def test_actor_without_approve_permission_is_denied(self):
+        """Actor WITHOUT orders.cancellation.approve receives PermissionDenied."""
+        # Customer has request permission but NOT approve
+        with self.assertRaises(PermissionDenied):
+            approve_cancellation(order_id=self.order.id, changed_by=self.customer)
+
+    def test_cross_tenant_actor_is_denied(self):
+        """Actor with approve permission in another tenant is denied."""
+        other_tenant = Tenant.objects.create(slug="other-tenant-app", name="Other App")
+        other_person = Person.objects.create(tenant=other_tenant, full_name="OtherAdmin")
+        other_admin = UserAccount.objects.create_user(phone="09120000042", person=other_person, tenant=other_tenant)
+        role = _create_role_with_permissions(other_tenant, "other-approve", ["orders.cancellation.approve"])
+        _assign_role(other_tenant, other_admin, role)
+
+        with self.assertRaises(PermissionDenied):
+            approve_cancellation(order_id=self.order.id, changed_by=other_admin)
+
+    def test_denial_leaves_status_unchanged(self):
+        """When denied, order remains in CANCELLATION_REQUESTED."""
+        try:
+            approve_cancellation(order_id=self.order.id, changed_by=self.customer)
+        except PermissionDenied:
+            pass
+
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, OrderStatus.CANCELLATION_REQUESTED)
+        self.assertIsNone(self.order.cancelled_at)
+
+    def test_system_context_approve_is_allowed(self):
+        """changed_by=None (system/internal context) is deliberately allowed.
+
+        This is the documented system-context path in PermissionService:
+        actor=None, ownership_authorized_by=None → audited, allowed.
+        Legitimate for background jobs and cascading internal operations.
+        """
+        order = approve_cancellation(order_id=self.order.id, changed_by=None)
         self.assertEqual(order.status, OrderStatus.CANCELLED)
 
-    def test_system_context_approve_with_no_actor(self):
-        """When changed_by=None (system/background context), authorization passes."""
-        order = approve_cancellation(
-            order_id=self.order.id,
-            changed_by=None,
-            tenant_id=self.tenant.id,
-        )
-        self.assertEqual(order.status, OrderStatus.CANCELLED)
+    def test_existing_state_machine_rules_enforced_after_permission(self):
+        """State-machine validation (wrong status) remains enforced."""
+        role = _create_role_with_permissions(self.tenant, "admin-approve-dup", ["orders.cancellation.approve"])
+        _assign_role(self.tenant, self.admin, role)
 
-    def test_approve_without_tenant_id_derives_from_order(self):
-        """When tenant_id is not provided, it is derived from the order."""
-        order = approve_cancellation(
-            order_id=self.order.id,
-            changed_by=self.admin,
-        )
-        self.assertEqual(order.status, OrderStatus.CANCELLED)
-
-    def test_existing_business_rules_still_enforced_after_auth(self):
-        """Existing state-machine rules remain enforced after authorization."""
-        approve_cancellation(
-            order_id=self.order.id,
-            changed_by=self.admin,
-            tenant_id=self.tenant.id,
-        )
+        approve_cancellation(order_id=self.order.id, changed_by=self.admin)
+        # Order is now CANCELLED (final) — re-approve should fail
         with self.assertRaises(OrderStateError):
-            approve_cancellation(
-                order_id=self.order.id,
-                changed_by=self.admin,
-                tenant_id=self.tenant.id,
-            )
+            approve_cancellation(order_id=self.order.id, changed_by=self.admin)
 
     def test_permission_key_is_registered(self):
         """The orders.cancellation.approve key exists in the permission registry."""

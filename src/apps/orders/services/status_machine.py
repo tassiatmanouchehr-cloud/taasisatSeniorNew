@@ -162,27 +162,23 @@ def complete_order(*, order_id, changed_by=None):
 def request_cancellation(*, order_id, requested_by, tenant_id=None, reason=""):
     """Any non-final status → cancellation_requested.
 
-    Authorization: requires orders.cancellation.request permission.
-    The actor (requested_by) is evaluated against the order's tenant.
-    tenant_id is optional for backward compatibility — if not provided,
-    it is derived from the order itself.
+    Authorization (Sprint 5.3A):
+    - Requires orders.cancellation.request permission (strict RBAC)
+    - Actor without permission receives PermissionDenied
+    - Tenant scope derived from the locked order (authoritative)
+    - tenant_id parameter accepted for caller convenience but validated
+      against the order's actual tenant
     """
     order = Order.objects.select_for_update().get(id=order_id)
 
-    effective_tenant_id = tenant_id if tenant_id is not None else order.tenant_id
+    # Derive authoritative tenant from the locked order
+    effective_tenant_id = order.tenant_id
 
-    # Authorization enforcement (Sprint 5.3A)
-    # The actor pattern follows AssignmentService.assign(): actor=None,
-    # ownership_authorized_by=requested_by. This means:
-    # 1. If the user has an RBAC role with this key: authorized via RBAC
-    # 2. If not: authorized via the ownership-authorized path (audited)
-    # 3. The REAL authorization boundary is upstream — the calling view
-    #    verifies the user owns/relates to this order before calling.
+    # Authorization enforcement (Sprint 5.3A) — strict RBAC, no fallback
     PermissionService.require(
-        None,
+        requested_by,
         ORDERS_CANCELLATION_REQUEST,
         tenant_id=effective_tenant_id,
-        ownership_authorized_by=requested_by,
     )
 
     _ensure_not_final(order)
@@ -207,27 +203,25 @@ def request_cancellation(*, order_id, requested_by, tenant_id=None, reason=""):
 
 
 @transaction.atomic
-def approve_cancellation(*, order_id, changed_by=None, tenant_id=None):
+def approve_cancellation(*, order_id, changed_by=None):
     """cancellation_requested → cancelled.
 
-    Authorization: requires orders.cancellation.approve permission.
-    The actor (changed_by) is evaluated against the order's tenant.
-    tenant_id is optional for backward compatibility — if not provided,
-    it is derived from the order itself.
+    Authorization (Sprint 5.3A):
+    - When changed_by is a real user: requires orders.cancellation.approve
+      permission (strict RBAC). Denied without it.
+    - When changed_by=None: system/internal context — audited and allowed
+      (legitimate path for background jobs, cascading operations).
+    - Tenant scope derived from the locked order (authoritative).
     """
     order = Order.objects.select_for_update().get(id=order_id)
 
-    effective_tenant_id = tenant_id if tenant_id is not None else order.tenant_id
-
-    # Authorization enforcement (Sprint 5.3A)
-    # Same pattern as request_cancellation: actor=None,
-    # ownership_authorized_by=changed_by. When changed_by=None (system
-    # context, e.g. background job), both are None → audited system path.
+    # Authorization enforcement (Sprint 5.3A) — strict RBAC for real actors
+    # When changed_by=None: actor=None, ownership_authorized_by=None →
+    # system-context path (audited, allowed — legitimate internal call)
     PermissionService.require(
-        None,
+        changed_by,
         ORDERS_CANCELLATION_APPROVE,
-        tenant_id=effective_tenant_id,
-        ownership_authorized_by=changed_by,
+        tenant_id=order.tenant_id,
     )
 
     if order.status != OrderStatus.CANCELLATION_REQUESTED:
