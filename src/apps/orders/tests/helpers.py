@@ -29,11 +29,13 @@ def make_user(tenant: Tenant, *, phone=None) -> UserAccount:
 def make_supplier(tenant: Tenant, *, status=SupplierStatus.ACTIVE) -> ServiceSupplier:
     return ServiceSupplier.objects.create(
         tenant=tenant,
-        supplier_type=SupplierType.INDEPENDENT_CAREGIVER,
+        supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+        linked_entity_id=uuid.uuid4(),
+        linked_entity_type="TestProfile",
         status=status,
         availability_status=AvailabilityStatus.AVAILABLE,
-        verification_level=VerificationLevel.VERIFIED,
-        display_name="Test Supplier",
+        verification_level=VerificationLevel.BASIC,
+        display_name=f"Test Supplier {uuid.uuid4().hex[:6]}",
     )
 
 
