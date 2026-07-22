@@ -327,9 +327,7 @@ class OrderOfferService:
 
         # Lock the parent order first (consistent lock ordering)
         try:
-            order = Order.objects.select_for_update().get(
-                id=offer_peek.order_id, tenant_id=tenant_id
-            )
+            order = Order.objects.select_for_update().get(id=offer_peek.order_id, tenant_id=tenant_id)
         except Order.DoesNotExist:
             raise OrderOfferError("Order not found.") from None
 
@@ -339,8 +337,7 @@ class OrderOfferService:
         # Validate order state
         if order.status != OrderStatus.NEW:
             raise OrderOfferError(
-                "Offers can only be selected on orders in NEW status "
-                f"(current: {order.get_status_display()})."
+                f"Offers can only be selected on orders in NEW status (current: {order.get_status_display()})."
             )
 
         # Lock the target offer row
@@ -348,9 +345,7 @@ class OrderOfferService:
 
         # Validate offer state
         if not offer.can_select:
-            raise OrderOfferError(
-                f"Offer cannot be selected in {offer.get_status_display()} status."
-            )
+            raise OrderOfferError(f"Offer cannot be selected in {offer.get_status_display()} status.")
 
         # Transition target offer to SELECTED
         now = timezone.now()
@@ -360,22 +355,23 @@ class OrderOfferService:
         offer.hold_expires_at = now + SELECTION_HOLD_DURATION
 
         try:
-            offer.save(update_fields=[
-                "status", "selected_by", "selected_at", "hold_expires_at", "updated_at",
-            ])
+            offer.save(
+                update_fields=[
+                    "status",
+                    "selected_by",
+                    "selected_at",
+                    "hold_expires_at",
+                    "updated_at",
+                ]
+            )
         except IntegrityError as exc:
-            if _ONE_SELECTED_CONSTRAINT in str(exc) or (
-                "order" in str(exc).lower() and "selected" in str(exc).lower()
-            ):
-                raise OrderOfferError(
-                    "Another offer has already been selected for this order."
-                ) from None
+            if _ONE_SELECTED_CONSTRAINT in str(exc) or ("order" in str(exc).lower() and "selected" in str(exc).lower()):
+                raise OrderOfferError("Another offer has already been selected for this order.") from None
             raise
 
         # Bulk-reject all other SUBMITTED offers for this order
         competing = (
-            OrderOffer.objects
-            .select_for_update()
+            OrderOffer.objects.select_for_update()
             .filter(order=order, status=OrderOfferStatus.SUBMITTED)
             .exclude(id=offer.id)
         )
@@ -473,10 +469,8 @@ class OrderOfferService:
     def _expire_single_offer(cls, *, offer_id: uuid.UUID, now) -> bool:
         """Expire a single offer under row lock. Returns True if expired."""
         try:
-            offer = (
-                OrderOffer.objects
-                .select_for_update(skip_locked=True)
-                .get(id=offer_id, status=OrderOfferStatus.SELECTED)
+            offer = OrderOffer.objects.select_for_update(skip_locked=True).get(
+                id=offer_id, status=OrderOfferStatus.SELECTED
             )
         except OrderOffer.DoesNotExist:
             # Already transitioned (accepted, cancelled, or processed by another worker)
@@ -520,6 +514,7 @@ class OrderOfferService:
         if order.customer_profile_id and hasattr(actor, "person"):
             # Check if actor's person owns the customer_profile
             from apps.accounts.models.profiles import CustomerProfile
+
             try:
                 cp = CustomerProfile.objects.get(id=order.customer_profile_id)
                 if cp.person_id == actor.person_id:
