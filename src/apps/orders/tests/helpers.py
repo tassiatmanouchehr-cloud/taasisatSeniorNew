@@ -39,7 +39,7 @@ def make_supplier(tenant: Tenant, *, status=SupplierStatus.ACTIVE) -> ServiceSup
     )
 
 
-def make_order(tenant: Tenant, *, status=OrderStatus.NEW) -> Order:
+def make_order(tenant: Tenant, *, status=OrderStatus.NEW, customer_user=None) -> Order:
     category = ServiceCategory.objects.create(
         tenant=tenant,
         name="Care",
@@ -55,6 +55,7 @@ def make_order(tenant: Tenant, *, status=OrderStatus.NEW) -> Order:
         city="tehran",
         address="Test address",
         phone="09120000000",
+        created_by=customer_user,
     )
 
 
