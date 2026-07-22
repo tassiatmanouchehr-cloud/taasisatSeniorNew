@@ -3,6 +3,9 @@
 from django.db import transaction
 from django.utils import timezone
 
+from apps.kernel.permissions.keys import ORDERS_CANCELLATION_APPROVE, ORDERS_CANCELLATION_REQUEST
+from apps.kernel.services.permission_service import PermissionService
+
 from ..models import FINAL_STATUSES, Order, OrderStatus, OrderStatusHistory
 
 
@@ -156,9 +159,32 @@ def complete_order(*, order_id, changed_by=None):
 
 
 @transaction.atomic
-def request_cancellation(*, order_id, requested_by, reason=""):
-    """Any non-final status → cancellation_requested."""
+def request_cancellation(*, order_id, requested_by, tenant_id=None, reason=""):
+    """Any non-final status → cancellation_requested.
+
+    Authorization: requires orders.cancellation.request permission.
+    The actor (requested_by) is evaluated against the order's tenant.
+    tenant_id is optional for backward compatibility — if not provided,
+    it is derived from the order itself.
+    """
     order = Order.objects.select_for_update().get(id=order_id)
+
+    effective_tenant_id = tenant_id if tenant_id is not None else order.tenant_id
+
+    # Authorization enforcement (Sprint 5.3A)
+    # The actor pattern follows AssignmentService.assign(): actor=None,
+    # ownership_authorized_by=requested_by. This means:
+    # 1. If the user has an RBAC role with this key: authorized via RBAC
+    # 2. If not: authorized via the ownership-authorized path (audited)
+    # 3. The REAL authorization boundary is upstream — the calling view
+    #    verifies the user owns/relates to this order before calling.
+    PermissionService.require(
+        None,
+        ORDERS_CANCELLATION_REQUEST,
+        tenant_id=effective_tenant_id,
+        ownership_authorized_by=requested_by,
+    )
+
     _ensure_not_final(order)
     if order.status == OrderStatus.CANCELLATION_REQUESTED:
         raise OrderStateError("درخواست لغو قبلاً ثبت شده است.")
@@ -181,9 +207,29 @@ def request_cancellation(*, order_id, requested_by, reason=""):
 
 
 @transaction.atomic
-def approve_cancellation(*, order_id, changed_by=None):
-    """cancellation_requested → cancelled."""
+def approve_cancellation(*, order_id, changed_by=None, tenant_id=None):
+    """cancellation_requested → cancelled.
+
+    Authorization: requires orders.cancellation.approve permission.
+    The actor (changed_by) is evaluated against the order's tenant.
+    tenant_id is optional for backward compatibility — if not provided,
+    it is derived from the order itself.
+    """
     order = Order.objects.select_for_update().get(id=order_id)
+
+    effective_tenant_id = tenant_id if tenant_id is not None else order.tenant_id
+
+    # Authorization enforcement (Sprint 5.3A)
+    # Same pattern as request_cancellation: actor=None,
+    # ownership_authorized_by=changed_by. When changed_by=None (system
+    # context, e.g. background job), both are None → audited system path.
+    PermissionService.require(
+        None,
+        ORDERS_CANCELLATION_APPROVE,
+        tenant_id=effective_tenant_id,
+        ownership_authorized_by=changed_by,
+    )
+
     if order.status != OrderStatus.CANCELLATION_REQUESTED:
         raise OrderStateError("فقط سفارش‌های با درخواست لغو قابل تایید لغو هستند.")
 
