@@ -5029,3 +5029,73 @@ to any Sprint 5.1 model change. Sprint 5.1 introduced no new migration.
 - `project docs/current/PROJECT_BASELINE.md`: §11 test baseline updated, §14/§15
   updated to reflect Sprint 5.1 implemented
 - `project docs/traceability/IMPLEMENTATION_JOURNAL.md`: this entry
+
+
+
+---
+
+## Sprint 5.2 — Offer Selection and Hold Expiration
+
+**Date:** 2026-07-22
+**PR:** #44
+**Branch:** `feature/order-offer-selection-expiry`
+**Status:** COMPLETE
+
+### Commits
+
+| Hash | Message |
+|---|---|
+| `7c9dfb0` | feat(orders): implement offer selection and hold expiration (Sprint 5.2) |
+| `a13fe1f` | test(orders): cover offer selection concurrency and customer ownership |
+| `5870526` | test(orders): fix offer selection CI failures |
+| `517944e` | style(orders): apply ruff format to test_order_offer_selection.py |
+| `1e8d5c8` | style(orders): satisfy CI formatting |
+
+### Affected Modules
+
+| File | Change |
+|---|---|
+| `src/apps/orders/services/order_offer_service.py` | Added `select_offer()`, `expire_held_offers()`, `_expire_single_offer()`, `_verify_order_ownership()`, `SELECTION_HOLD_DURATION` |
+| `src/apps/orders/tests/test_order_offer_selection.py` | 32 new tests (selection, expiration, authorization, concurrency) |
+| `src/apps/orders/tests/helpers.py` | Added `customer_user` parameter to `make_order()` |
+
+### Implementation Summary
+
+- `select_offer(*, offer_id, actor, tenant_id)` — transitions SUBMITTED → SELECTED, sets 30-minute hold, bulk-rejects competing offers
+- `expire_held_offers(*, tenant_id=None, now=None, batch_size=100)` — transitions expired SELECTED → EXPIRED using `select_for_update(skip_locked=True)`
+- Customer ownership verified via dual-path: `customer_profile.person_id == actor.person_id` OR `order.created_by == actor`
+- Lock ordering: Order row → target offer row → competing offer rows (consistent with Sprint 5.1 patterns)
+- DB invariant: `uq_order_offer_one_selected_per_order` exercised under real concurrency
+
+### Verification Summary
+
+| Check | Result |
+|---|---|
+| `ruff check .` | PASS |
+| `ruff format --check .` | PASS |
+| `python manage.py check` | 0 issues |
+| `makemigrations orders --check --dry-run` | No changes detected |
+| `git diff --check` | Clean |
+| Focused suite (32 tests) | PASS (PostgreSQL) |
+| Service suite (29 tests) | PASS (PostgreSQL) |
+| Full regression (2,578 tests) | PASS (PostgreSQL) |
+
+### CI Summary (GitHub Actions, commit `1e8d5c8`)
+
+| Check | Conclusion |
+|---|---|
+| Lint & Format Check | success |
+| UI Quality Gates | success |
+| Tailwind CSS Build | success |
+| Django Test Suite (PostgreSQL 16 + PostGIS) | success |
+| Visual & Accessibility Tests (Playwright) | success |
+
+### Architecture Decisions
+
+- No new architecture decision required — Sprint 5.2 follows patterns established in Sprint 5.1
+- `TransactionTestCase` + `threading.Barrier` for concurrency tests (mirrors `apps/booking/tests/test_concurrency.py`)
+- Cancellation authorization remediation confirmed NOT blocking for select/expire (blocks accept only — Sprint 5.3)
+
+### Migration Status
+
+No migration created. All fields (`selected_by`, `selected_at`, `hold_expires_at`) and constraints (`uq_order_offer_one_selected_per_order`) pre-existed in migration `0008_orderoffer.py`.

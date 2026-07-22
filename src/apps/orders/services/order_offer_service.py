@@ -1,11 +1,12 @@
 """
-OrderOfferService -- Sprint 5.1: Submission Lifecycle Foundation.
+OrderOfferService -- Sprint 5.1 + 5.2: Submission Lifecycle + Selection/Expiration.
 
-The sole writer for OrderOffer state transitions (submit/edit/withdraw).
+The sole writer for OrderOffer state transitions.
 No other caller may construct or mutate OrderOffer rows directly.
 
 Sprint 5.1 scope: submit_offer(), edit_offer(), withdraw_offer().
-Future sprints: select, accept, expire, cancel.
+Sprint 5.2 scope: select_offer(), expire_held_offers().
+Future sprints: accept, cancel.
 
 Authorization model:
 - submit_offer(): PermissionService.require() with orders.offer.submit,
@@ -32,9 +33,11 @@ Actor-to-supplier authorization rule:
 """
 
 import uuid
+from datetime import timedelta
 from decimal import Decimal
 
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 
 from apps.accounts.services.provider_identity import resolve_supplier_for_user
 from apps.kernel.models.supplier import ServiceSupplier
@@ -48,6 +51,14 @@ SOURCE_MODULE = "M05"
 
 # The database constraint name used for one-offer-per-supplier detection.
 _DUPLICATE_OFFER_CONSTRAINT = "uq_order_offer_one_per_supplier"
+
+# The database constraint name for one-selected-per-order detection.
+_ONE_SELECTED_CONSTRAINT = "uq_order_offer_one_selected_per_order"
+
+# Hold duration for a selected offer. 30 minutes per the approved state
+# machine design. Not currently tenant-configurable — documented known
+# limitation (Sprint 5.2).
+SELECTION_HOLD_DURATION = timedelta(minutes=30)
 
 
 class OrderOfferError(Exception):
@@ -277,7 +288,243 @@ class OrderOfferService:
 
         return offer
 
+    # --- Sprint 5.2: Selection and Hold Expiration -------------------------
+
+    @classmethod
+    @transaction.atomic
+    def select_offer(
+        cls,
+        *,
+        offer_id: uuid.UUID,
+        actor,
+        tenant_id: uuid.UUID,
+    ) -> OrderOffer:
+        """Select an offer for a time-limited hold (30 minutes).
+
+        Only the order owner (customer) may select. The offer must be SUBMITTED
+        and the parent order must be in NEW status. All other SUBMITTED offers
+        for the same order are bulk-rejected (terminal, irreversible).
+
+        Authorization: order ownership (order.customer_profile.user == actor
+        OR order.created_by == actor). No RBAC permission key — ownership is
+        the boundary, consistent with edit_offer/withdraw_offer's pattern.
+
+        Lock order: Order row first, then target offer row.
+        DB invariant: uq_order_offer_one_selected_per_order ensures at most
+        one SELECTED offer per order. IntegrityError caught as race backstop.
+
+        Idempotency: selecting an already-SELECTED offer (same offer, same
+        actor) is an error — the caller must check state before retrying.
+        """
+        if actor is None:
+            raise OrderOfferError("An authenticated actor is required to select an offer.")
+
+        # Resolve offer (peek without lock to get order_id and tenant check)
+        try:
+            offer_peek = OrderOffer.objects.get(id=offer_id, tenant_id=tenant_id)
+        except OrderOffer.DoesNotExist:
+            raise OrderOfferError("Offer not found.") from None
+
+        # Lock the parent order first (consistent lock ordering)
+        try:
+            order = Order.objects.select_for_update().get(id=offer_peek.order_id, tenant_id=tenant_id)
+        except Order.DoesNotExist:
+            raise OrderOfferError("Order not found.") from None
+
+        # Authorization: order ownership check
+        cls._verify_order_ownership(order=order, actor=actor)
+
+        # Validate order state
+        if order.status != OrderStatus.NEW:
+            raise OrderOfferError(
+                f"Offers can only be selected on orders in NEW status (current: {order.get_status_display()})."
+            )
+
+        # Lock the target offer row
+        offer = OrderOffer.objects.select_for_update().get(id=offer_id)
+
+        # Validate offer state
+        if not offer.can_select:
+            raise OrderOfferError(f"Offer cannot be selected in {offer.get_status_display()} status.")
+
+        # Transition target offer to SELECTED
+        now = timezone.now()
+        offer.status = OrderOfferStatus.SELECTED
+        offer.selected_by = actor
+        offer.selected_at = now
+        offer.hold_expires_at = now + SELECTION_HOLD_DURATION
+
+        try:
+            offer.save(
+                update_fields=[
+                    "status",
+                    "selected_by",
+                    "selected_at",
+                    "hold_expires_at",
+                    "updated_at",
+                ]
+            )
+        except IntegrityError as exc:
+            if _ONE_SELECTED_CONSTRAINT in str(exc) or ("order" in str(exc).lower() and "selected" in str(exc).lower()):
+                raise OrderOfferError("Another offer has already been selected for this order.") from None
+            raise
+
+        # Bulk-reject all other SUBMITTED offers for this order
+        competing = (
+            OrderOffer.objects.select_for_update()
+            .filter(order=order, status=OrderOfferStatus.SUBMITTED)
+            .exclude(id=offer.id)
+        )
+        rejected_ids = list(competing.values_list("id", flat=True))
+        if rejected_ids:
+            competing.update(status=OrderOfferStatus.REJECTED, updated_at=now)
+
+        # Audit — selection
+        AuditService.log(
+            tenant_id=tenant_id,
+            action="orders.offer.selected",
+            resource_type="OrderOffer",
+            module_id=SOURCE_MODULE,
+            resource_id=offer.id,
+            actor_id=cls._actor_id(actor),
+            actor_type="user",
+            after={
+                "order_id": str(order.id),
+                "supplier_id": str(offer.supplier_id),
+                "status": OrderOfferStatus.SELECTED,
+                "hold_expires_at": offer.hold_expires_at.isoformat(),
+                "rejected_offer_count": len(rejected_ids),
+            },
+        )
+
+        # Audit — per rejected offer (batch — one entry summarizing all)
+        if rejected_ids:
+            AuditService.log(
+                tenant_id=tenant_id,
+                action="orders.offer.rejected",
+                resource_type="OrderOffer",
+                module_id=SOURCE_MODULE,
+                resource_id=order.id,
+                actor_id=cls._actor_id(actor),
+                actor_type="user",
+                after={
+                    "order_id": str(order.id),
+                    "rejected_offer_ids": [str(rid) for rid in rejected_ids],
+                    "reason": "competing_offer_selection",
+                },
+            )
+
+        return offer
+
+    @classmethod
+    def expire_held_offers(
+        cls,
+        *,
+        tenant_id: uuid.UUID | None = None,
+        now: "timezone.datetime | None" = None,
+        batch_size: int = 100,
+    ) -> list[uuid.UUID]:
+        """Expire SELECTED offers whose hold has timed out.
+
+        This method is independently callable by any future scheduler
+        (management command, Celery task, cron). It is:
+        - idempotent (re-running with no time change is a no-op),
+        - safe for concurrent execution (skip_locked),
+        - bounded by batch_size.
+
+        Args:
+            tenant_id: If provided, scope to this tenant only. If None, process all.
+            now: Injection point for testability. Defaults to timezone.now().
+            batch_size: Maximum offers to process per invocation.
+
+        Returns:
+            List of offer IDs that were expired.
+        """
+        if now is None:
+            now = timezone.now()
+
+        # Build the queryset for expired holds
+        qs = OrderOffer.objects.filter(
+            status=OrderOfferStatus.SELECTED,
+            hold_expires_at__isnull=False,
+            hold_expires_at__lte=now,
+        )
+        if tenant_id is not None:
+            qs = qs.filter(tenant_id=tenant_id)
+
+        # Limit batch size
+        qs = qs[:batch_size]
+
+        expired_ids = []
+
+        for offer_id in qs.values_list("id", flat=True):
+            expired = cls._expire_single_offer(offer_id=offer_id, now=now)
+            if expired:
+                expired_ids.append(offer_id)
+
+        return expired_ids
+
+    @classmethod
+    @transaction.atomic
+    def _expire_single_offer(cls, *, offer_id: uuid.UUID, now) -> bool:
+        """Expire a single offer under row lock. Returns True if expired."""
+        try:
+            offer = OrderOffer.objects.select_for_update(skip_locked=True).get(
+                id=offer_id, status=OrderOfferStatus.SELECTED
+            )
+        except OrderOffer.DoesNotExist:
+            # Already transitioned (accepted, cancelled, or processed by another worker)
+            return False
+
+        # Re-verify expiry under lock
+        if offer.hold_expires_at is None or offer.hold_expires_at > now:
+            return False
+
+        offer.status = OrderOfferStatus.EXPIRED
+        offer.save(update_fields=["status", "updated_at"])
+
+        AuditService.log(
+            tenant_id=offer.tenant_id,
+            action="orders.offer.expired",
+            resource_type="OrderOffer",
+            module_id=SOURCE_MODULE,
+            resource_id=offer.id,
+            actor_id=None,
+            actor_type="system",
+            after={
+                "order_id": str(offer.order_id),
+                "status": OrderOfferStatus.EXPIRED,
+                "hold_expires_at": offer.hold_expires_at.isoformat(),
+            },
+        )
+
+        return True
+
     # --- internal helpers --------------------------------------------------
+
+    @classmethod
+    def _verify_order_ownership(cls, *, order: Order, actor) -> None:
+        """Verify the actor owns (or is authorized for) the parent order.
+
+        Uses the same customer-ownership pattern as the portal layer:
+        the actor must be either the customer_profile's user or the
+        order's created_by user.
+        """
+        is_owner = False
+        if order.customer_profile_id and hasattr(actor, "person"):
+            # Check if actor's person owns the customer_profile
+            from apps.accounts.models.profiles import CustomerProfile
+
+            try:
+                cp = CustomerProfile.objects.get(id=order.customer_profile_id)
+                if cp.person_id == actor.person_id:
+                    is_owner = True
+            except CustomerProfile.DoesNotExist:
+                pass
+        if not is_owner and order.created_by_id == actor.id:
+            is_owner = True
+        if not is_owner:
+            raise OrderOfferError("Only the order owner may select an offer.")
 
     @classmethod
     def _verify_actor_supplier_identity(cls, *, actor, supplier_id: uuid.UUID, tenant_id: uuid.UUID) -> ServiceSupplier:

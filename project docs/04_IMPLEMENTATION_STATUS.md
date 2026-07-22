@@ -1,9 +1,9 @@
 # IMPLEMENTATION STATUS
 
 **Last Verified:** 2026-07-22
-**Branch:** `feat/order-offer-submission-lifecycle`
-**HEAD:** `926b4e2`
-**Verification Method:** Direct source code inspection
+**Branch:** `feature/order-offer-selection-expiry`
+**HEAD:** `1e8d5c8`
+**Verification Method:** GitHub Actions CI (PostgreSQL 16 + PostGIS, full regression) + local PostgreSQL 16 verification
 
 ---
 
@@ -12,23 +12,24 @@
 | Field | Value |
 |---|---|
 | Repository | `tassiatmanouchehr-cloud/taasisatSeniorNew` |
-| Main branch HEAD | `7ef39ce` (PR #38 merge) |
-| Active feature branch | `feat/order-offer-submission-lifecycle` @ `926b4e2` |
-| Active PR | #41 (Sprint 5.1 — OrderOffer submission lifecycle) |
+| Main branch HEAD | `8910a7c` (PR #43 merge — canonical docs) |
+| Active feature branch | `feature/order-offer-selection-expiry` @ `1e8d5c8` |
+| Active PR | #44 (Sprint 5.2 — offer selection and hold expiration) |
 | Python | 3.12+ |
 | Django | 5.2 |
 | PostgreSQL | 16 |
 
 ## Current Baseline
 
-Full regression: **2,546 / 2,546 tests passing**
+Full regression: **2,578 / 2,578 tests passing**
 
 | Suite | Count | Status |
 |---|---|---|
-| OrderOffer service tests | 29 | PASS |
+| OrderOffer selection tests (Sprint 5.2) | 32 | PASS |
+| OrderOffer service tests (Sprint 5.1) | 29 | PASS |
 | OrderOffer model tests | 40 | PASS |
 | Architecture guardrail tests | 28 | PASS |
-| Full regression | 2,546 | PASS |
+| Full regression | 2,578 | PASS |
 | `manage.py check` | 0 issues | PASS |
 | Visual & Accessibility (Playwright) | All | PASS |
 | `git diff --check` | Clean | PASS |
@@ -68,7 +69,7 @@ Full regression: **2,546 / 2,546 tests passing**
 
 | Module | Implemented | Missing |
 |---|---|---|
-| OrderOffer lifecycle | submit, edit, withdraw (Sprint 5.1) | select, accept, expire, cancel (Sprint 5.2+) |
+| OrderOffer lifecycle | submit, edit, withdraw (Sprint 5.1); select, expire (Sprint 5.2) | accept, cancel (Sprint 5.3) |
 | Payment collection | Intent/attempt/callback infrastructure | Real PSP adapter (only FakePaymentProvider) |
 | SMS/notification delivery | Notification model + dispatch | Real SMS provider (`_send_sms()` undefined) |
 | Escrow→wallet settlement | ReleaseInstruction created | No consumer wires instruction to wallet credit |
@@ -149,12 +150,12 @@ Full regression: **2,546 / 2,546 tests passing**
 
 | Metric | Value |
 |---|---|
-| Total test files | 262 |
-| Total tests passing | 2,546 |
-| Test lines of code | ~40,104 |
+| Total test files | 263 |
+| Total tests passing | 2,578 |
+| Test lines of code | ~41,000 |
 | Playwright visual specs | 7 |
 | Visual baseline images | 525 |
-| Concurrency test files (TransactionTestCase) | 12 |
+| Concurrency test files (TransactionTestCase) | 13 |
 
 ## Migration Status
 
@@ -171,13 +172,13 @@ Full regression: **2,546 / 2,546 tests passing**
 | Lint & Format Check | PASS |
 | UI Quality Gates | PASS |
 | Tailwind CSS Build | PASS |
-| Django Test Suite | PASS (2,546/2,546) |
+| Django Test Suite | PASS (2,578/2,578) |
 | Visual & Accessibility Tests | PASS |
 
 ## Next Recommended Priority
 
 1. **Fix order cancellation permission gap** — add `PermissionService.require()` to `request_cancellation()` and `approve_cancellation()`
-2. **Complete Sprint 5.2** — implement `select_offer`, `accept_offer`, `expire_held_offers`, `cancel_offers_for_order`
+2. **Complete Sprint 5.3** — implement `accept_offer` (crosses into booking/assignment/financial), `cancel_offers_for_order`
 3. **Integrate real SMS provider** — enable OTP delivery and notification dispatch
 4. **Integrate real payment gateway** — replace FakePaymentProvider
 5. **Wire escrow release consumer** — connect ReleaseInstruction to wallet credit

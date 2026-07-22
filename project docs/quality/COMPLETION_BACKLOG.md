@@ -601,16 +601,15 @@ render them).
 rather than introducing flash messaging as a one-off. See `quality/DEFECT_AND_RISK_REGISTER.md`
 KL-022.
 
-### BG-003: OrderOfferService (Phase 2)
+### BG-003: OrderOfferService (Phase 2) — **PARTIALLY COMPLETE**
 
-**Current evidence:** Phase 1 model exists. No service layer.
-**Why needed:** Offer Marketplace cannot function without services to submit/edit/withdraw/select offers.
-**Dependencies:** BG-001 (commit Phase 1)
+**Current evidence:** Sprint 5.1 (PR #41) delivered submit/edit/withdraw. Sprint 5.2 (PR #44) delivered select/expire.
+**Remaining:** `accept_offer` (Sprint 5.3 — crosses into booking/assignment/financial), `cancel_offers_for_order` (Sprint 5.3 — depends on cancellation authorization fix).
+**Dependencies:** BG-001 (COMPLETE), cancellation authorization fix (for accept/cancel only)
 **Affected modules:** orders
-**Suggested implementation size:** Medium (1 service class + tests)
-**Required tests:** Unit tests with PostgreSQL, concurrency tests
-**Risk:** Medium — must not break existing assignment flow
-**Not in scope:** Discovery, views, templates, APIs, payment integration
+**Sprint 5.2 resolution (2026-07-22):** `select_offer()` + `expire_held_offers()` implemented, 32 tests, concurrency validated on PostgreSQL, CI fully green. PR #44.
+**Risk:** Remaining operations (`accept_offer`) cross domain boundaries — higher blast radius than select/expire.
+**Not in scope for Sprint 5.2:** Discovery, views, templates, APIs, payment integration, accept, cancel
 
 ### BG-004: Implement Real PSP Adapter
 
@@ -724,3 +723,23 @@ KL-022.
 **Suggested implementation size:** Medium
 **Risk:** Low
 **Not in scope:** Middleware redesign
+
+
+
+---
+
+## Repository Maintenance Items
+
+### RM-001: Pre-Existing Kernel App Migration Drift (RISK-009)
+
+**Identified:** 2026-07-22 (during Sprint 5.2 CI verification)
+**Classification:** Repository maintenance — unrelated to PR #44
+**Status:** Deferred
+
+**Description:** `python manage.py makemigrations --check --dry-run` (repo-wide) reports pending cosmetic model changes in the `kernel` app: renamed indexes on `RoleAssignment`, and field-alteration drift across `AuditLog`, `ConfigurationKey`, `ConfigurationValue`, `EventOutbox`, `FeatureFlag`, `PolicyDefinition`, `PolicyVersion`, `ServiceSupplier`, and `UserAccount` (manager/permission `help_text`/`verbose_name` changes).
+
+**Impact:** No schema change. No runtime behavior change. CI does not gate on `makemigrations --check` (not present in `ci.yml`). Only affects developers running the check manually.
+
+**Confirmed independent of PR #44:** Reproduced identically with all PR #44 changes reverted (stashed). Present on `main` at `8910a7c`.
+
+**Recommended action:** Generate the cosmetic migration in a separate, focused PR. No urgency — does not affect any CI gate, runtime behavior, or deployment.
