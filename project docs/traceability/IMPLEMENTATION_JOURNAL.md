@@ -4944,3 +4944,88 @@ error in the assessment's own methodology.
 6. Invoice Workflow — not started
 7. Financial Engine Review — not started
 8. Payment & Settlement Review — not started
+
+
+
+---
+
+## Sprint 5.1 — OrderOffer Submission Lifecycle (2026-07-21)
+
+**Branch:** `feat/order-offer-submission-lifecycle`
+**PR:** #41
+**Architecture Assessment:** `project docs/assessments/2026-07-21_MARKETPLACE_ORDER_WORKFLOW_ARCHITECTURE_ASSESSMENT.md` (merged via PR #40)
+**Status:** IMPLEMENTED — all CI checks passing, documentation synchronized
+
+### Scope
+
+The bounded first-sprint scope defined by the architecture assessment:
+`OrderOfferService.submit_offer()` — the first service-layer method for the
+Offer Marketplace, implementing the caregiver-initiated submission path.
+
+### Implementation (commit `50b2ee8`)
+
+- `OrderOfferService` (`apps/orders/services/offer_service.py`): `submit_offer()`
+  with full authorization (`PermissionService.require()` for `orders.offer.submit`),
+  row-level locking (`select_for_update()` on the Order row), audit trail
+  (`AuditService.log()`), and the `submitted`/`submitted_at` lifecycle fields.
+- Validates: order is in an eligible status for receiving offers, the supplier is
+  ACTIVE with the correct type and tenant, no duplicate offer exists for the same
+  supplier on the same order.
+- Architecture guardrails: 28 tests enforcing ORM discipline, service-layer
+  boundaries, and the established sole-writer patterns.
+
+### PR #41 Review Remediation (commit `80899e4`)
+
+Addressed code-review feedback on authorization, locking scope, and audit
+granularity — no architectural change, refinements to the implementation.
+
+### Test Fixes (commits `983d92b`, `4b93004`)
+
+- `983d92b`: corrected fixture enum values for OrderOffer service tests (test-only)
+- `4b93004`: granted `orders.offer.submit` permission in happy-path tests (test-only)
+
+### Accessibility Fix (commit `07d7aff`, unrelated to OrderOffer domain)
+
+Fixed a pre-existing WebKit dark-mode background issue in
+`src/templates/showcase/base.html` — the showcase layout's `<main>` element
+was not inheriting the theme background color in WebKit. This is a
+cross-cutting accessibility fix unrelated to OrderOffer or any production
+route; it resolves a Visual & Accessibility CI check that was failing on the
+showcase pages.
+
+### Test Results (after commit `07d7aff`)
+
+| Suite | Count | Status |
+|-------|-------|--------|
+| OrderOffer service tests | 29 | PASS |
+| OrderOffer model tests | 40 | PASS |
+| Architecture guardrail tests | 28 | PASS |
+| Full regression | 2,546/2,546 | PASS |
+| Visual & Accessibility | All passing | PASS |
+| CI checks | 5/5 | PASS |
+
+### Migration Drift Note
+
+`makemigrations --check --dry-run` exits 1 due to the documented pre-existing
+RISK-009: cosmetic field metadata drift in the `kernel` app (`help_text`,
+`verbose_name`, `choices` alterations — no schema change). This drift has been
+present since the Enterprise Baseline assessment (2026-07-20) and is unrelated
+to any Sprint 5.1 model change. Sprint 5.1 introduced no new migration.
+
+### Deferred (explicitly, per architecture assessment scope)
+
+1. `OrderOfferService.edit_offer()` — Sprint 5.2 candidate
+2. `OrderOfferService.withdraw_offer()` — Sprint 5.2 candidate
+3. `OrderOfferService.select_offer()` — Sprint 5.2 candidate (triggers assignment)
+4. `OrderOfferService.hold_offer()` — Sprint 5.2 candidate
+5. `OrderOfferService.accept_offer()` — Sprint 5.2 candidate
+6. View/URL/API endpoints for offer management — deferred until service layer complete
+7. Commission/escrow integration — Phase 5 later sprints
+8. Order cancellation permission remediation — separate, tracked in PROJECT_BASELINE §8
+
+### Documentation Synchronization
+
+- `project docs/03_NEXT_TASK.md`: updated to reflect Sprint 5.1 complete, PR #41 ready
+- `project docs/current/PROJECT_BASELINE.md`: §11 test baseline updated, §14/§15
+  updated to reflect Sprint 5.1 implemented
+- `project docs/traceability/IMPLEMENTATION_JOURNAL.md`: this entry
