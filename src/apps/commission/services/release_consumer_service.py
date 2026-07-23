@@ -207,7 +207,7 @@ class ReleaseConsumerService:
         # --- Step 3: Mark consumed ---
         instruction.status = ReleaseInstructionStatus.CONSUMED
         instruction.consumed_at = timezone.now()
-        instruction.save(update_fields=["status", "consumed_at", "updated_at"])
+        instruction.save(update_fields=["status", "consumed_at"])
 
         # --- Step 4: Audit ---
         platform_amount_irr = allocation.platform_amount_irr if allocation else 0
