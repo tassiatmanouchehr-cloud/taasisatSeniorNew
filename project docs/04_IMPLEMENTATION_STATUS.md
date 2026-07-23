@@ -1,9 +1,9 @@
 # IMPLEMENTATION STATUS
 
-**Last Verified:** 2026-07-22
-**Branch:** `feature/order-offer-selection-expiry`
-**HEAD:** `1e8d5c8`
-**Verification Method:** GitHub Actions CI (PostgreSQL 16 + PostGIS, full regression) + local PostgreSQL 16 verification
+**Last Verified:** 2026-07-23
+**Branch:** `main`
+**HEAD:** `9ce868b` (PR #45 merge — Sprint 5.3A cancellation authorization)
+**Verification Method:** GitHub Actions CI (PostgreSQL 16 + PostGIS, full regression)
 
 ---
 
@@ -12,19 +12,20 @@
 | Field | Value |
 |---|---|
 | Repository | `tassiatmanouchehr-cloud/taasisatSeniorNew` |
-| Main branch HEAD | `8910a7c` (PR #43 merge — canonical docs) |
-| Active feature branch | `feature/order-offer-selection-expiry` @ `1e8d5c8` |
-| Active PR | #44 (Sprint 5.2 — offer selection and hold expiration) |
+| Main branch HEAD | `9ce868b` (PR #45 merge — Sprint 5.3A) |
+| Active feature branch | None |
+| Active PR | None |
 | Python | 3.12+ |
 | Django | 5.2 |
 | PostgreSQL | 16 |
 
 ## Current Baseline
 
-Full regression: **2,578 / 2,578 tests passing**
+Full regression: **2,543 / 2,543 tests passing**
 
 | Suite | Count | Status |
 |---|---|---|
+| Cancellation authorization tests (Sprint 5.3A) | 14 | PASS |
 | OrderOffer selection tests (Sprint 5.2) | 32 | PASS |
 | OrderOffer service tests (Sprint 5.1) | 29 | PASS |
 | OrderOffer model tests | 40 | PASS |
@@ -69,7 +70,7 @@ Full regression: **2,578 / 2,578 tests passing**
 
 | Module | Implemented | Missing |
 |---|---|---|
-| OrderOffer lifecycle | submit, edit, withdraw (Sprint 5.1); select, expire (Sprint 5.2) | accept, cancel (Sprint 5.3) |
+| OrderOffer lifecycle | submit, edit, withdraw (Sprint 5.1); select, expire (Sprint 5.2); cancellation authorization (Sprint 5.3A) | accept, cancel_offers_for_order (Sprint 5.3B) |
 | Payment collection | Intent/attempt/callback infrastructure | Real PSP adapter (only FakePaymentProvider) |
 | SMS/notification delivery | Notification model + dispatch | Real SMS provider (`_send_sms()` undefined) |
 | Escrow→wallet settlement | ReleaseInstruction created | No consumer wires instruction to wallet credit |
@@ -83,7 +84,7 @@ Full regression: **2,578 / 2,578 tests passing**
 | Real SMS provider integration | None |
 | Real payment gateway integration | None |
 | Escrow release consumer (ReleaseInstruction→wallet) | Commission allocation |
-| Order cancellation permission enforcement | None |
+| Order cancellation permission enforcement | **COMPLETE** (Sprint 5.3A, PR #45) |
 | Invoice generation workflow (Phase 6) | Offer acceptance (Phase 5 completion) |
 | Financial engine review (Phase 7) | Invoice workflow |
 | Payment & settlement review (Phase 8) | Financial engine |
@@ -129,7 +130,7 @@ Full regression: **2,578 / 2,578 tests passing**
 | Ownership-scoped access on customer/provider/org portals | PASS |
 | Cross-tenant access returns 404 (non-disclosing) | PASS |
 | IDOR prevention (resolve_*_profile pattern) | PASS |
-| Order cancellation permission check | **FAIL** — no PermissionService.require() call |
+| Order cancellation permission check | **PASS** — `PermissionService.require()` enforced in `request_cancellation()` and `approve_cancellation()` (Sprint 5.3A, PR #45) |
 | RBAC enforcement toggle audit trail | PASS (PR #24) |
 | Immutable audit logging | PASS |
 
@@ -151,7 +152,7 @@ Full regression: **2,578 / 2,578 tests passing**
 | Metric | Value |
 |---|---|
 | Total test files | 263 |
-| Total tests passing | 2,578 |
+| Total tests passing | 2,543 |
 | Test lines of code | ~41,000 |
 | Playwright visual specs | 7 |
 | Visual baseline images | 525 |
@@ -172,14 +173,13 @@ Full regression: **2,578 / 2,578 tests passing**
 | Lint & Format Check | PASS |
 | UI Quality Gates | PASS |
 | Tailwind CSS Build | PASS |
-| Django Test Suite | PASS (2,578/2,578) |
+| Django Test Suite | PASS (2,543/2,543) |
 | Visual & Accessibility Tests | PASS |
 
 ## Next Recommended Priority
 
-1. **Fix order cancellation permission gap** — add `PermissionService.require()` to `request_cancellation()` and `approve_cancellation()`
-2. **Complete Sprint 5.3** — implement `accept_offer` (crosses into booking/assignment/financial), `cancel_offers_for_order`
-3. **Integrate real SMS provider** — enable OTP delivery and notification dispatch
-4. **Integrate real payment gateway** — replace FakePaymentProvider
-5. **Wire escrow release consumer** — connect ReleaseInstruction to wallet credit
-6. **Create production deployment infrastructure** — Dockerfile, CD pipeline, reverse proxy
+1. **Complete Sprint 5.3B** — implement `accept_offer` (crosses into booking/assignment/financial), `cancel_offers_for_order`
+2. **Integrate real SMS provider** — enable OTP delivery and notification dispatch
+3. **Integrate real payment gateway** — replace FakePaymentProvider
+4. **Wire escrow release consumer** — connect ReleaseInstruction to wallet credit
+5. **Create production deployment infrastructure** — Dockerfile, CD pipeline, reverse proxy

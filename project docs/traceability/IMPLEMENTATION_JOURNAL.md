@@ -5099,3 +5099,91 @@ to any Sprint 5.1 model change. Sprint 5.1 introduced no new migration.
 ### Migration Status
 
 No migration created. All fields (`selected_by`, `selected_at`, `hold_expires_at`) and constraints (`uq_order_offer_one_selected_per_order`) pre-existed in migration `0008_orderoffer.py`.
+
+
+
+---
+
+## Sprint 5.3A — Order Cancellation Authorization Enforcement
+
+**Date:** 2026-07-22 / 2026-07-23
+**PR:** #45
+**Branch:** `fix/orders-cancellation-authorization`
+**Merge Commit:** `9ce868bbc24a6cd5da1b3a067742eaf627247858`
+**Status:** COMPLETE (MERGED)
+
+### Commits
+
+| Hash | Message |
+|---|---|
+| `d5a43a5` | fix(orders): enforce cancellation permissions |
+| `b03473e` | fix(orders): enforce strict cancellation permissions |
+| `cbebfae` | test(orders): scope cancellation authorization fixtures to tenant |
+| `14fbc73` | fix(auth): align seed walkthrough with strict cancellation authorization |
+
+### Affected Modules
+
+| File | Change |
+|---|---|
+| `src/apps/orders/services/status_machine.py` | Added `PermissionService.require()` enforcement to `request_cancellation()` and `approve_cancellation()` |
+| `src/apps/kernel/permissions/keys.py` | Registered `orders.cancellation.request` and `orders.cancellation.approve` |
+| `src/apps/orders/tests/test_cancellation_authorization.py` | 14 new authorization tests (7 per function) |
+| `src/apps/orders/tests/test_orders.py` | Granted cancellation roles to `BaseOrderTest.setUp()` user |
+| `src/apps/kernel/management/commands/seed_product_walkthrough.py` | Aligned with strict RBAC (system-context for internal state transitions) |
+
+### Implementation Summary
+
+- **Strict RBAC enforcement:** `PermissionService.require()` called before any state mutation
+- **Authorization model:**
+  - Actor with permission → operation succeeds (normal RBAC path)
+  - Actor without permission → `PermissionDenied` (hard denial, no state mutation)
+  - `actor=None` (system context) → audited via `AuditService.log_security()`, allowed
+- **Tenant scope:** derived authoritatively from the locked order (`order.tenant_id`), not caller-supplied
+- **Permission keys:** `orders.cancellation.request` (guards `request_cancellation()`) and `orders.cancellation.approve` (guards `approve_cancellation()`)
+- **System-context safety:** `actor=None` is a trusted mechanism for internal orchestration (background jobs, cascading operations, seed commands). Public callers MUST supply a real authenticated actor.
+- **Seed walkthrough alignment:** `seed_product_walkthrough.py` changed from `requested_by=primary_user` to `requested_by=None` — architecturally correct because the seed command is developer/demo infrastructure (Classification A), not a business workflow simulator
+- **Registry test fix:** replaced `_REGISTRY` import (non-existent symbol) with `PermissionRegistry.exists()` (the official public API)
+
+### Verification Summary
+
+| Check | Result |
+|---|---|
+| `ruff check .` | PASS |
+| `ruff format --check .` | PASS |
+| `git diff --check` | Clean |
+| `python manage.py check` | 0 issues |
+| Focused suite (14 tests) | PASS |
+| Full regression (2,543 tests) | PASS |
+| CI 5/5 checks | All green |
+
+### CI Summary (GitHub Actions, commit `14fbc73`)
+
+| Check | Conclusion |
+|---|---|
+| Lint & Format Check | success |
+| UI Quality Gates | success |
+| Tailwind CSS Build | success |
+| Django Test Suite (PostgreSQL 16 + PostGIS) | success (2,543/2,543) |
+| Visual & Accessibility Tests (Playwright) | success |
+
+### Architecture Decisions
+
+- **Strict RBAC over permissive fallback:** chosen explicitly — an actor without permission receives `PermissionDenied`, never a silent "ownership-authorized" bypass
+- **Tenant from locked order:** the order's own `tenant_id` is authoritative — never trust a caller-supplied `tenant_id` for authorization scope
+- **System-context deliberately allowed:** `actor=None` with `ownership_authorized_by=None` triggers the audited system-context path in `PermissionService.require()` — this is by design for internal orchestration, not a security gap. Public boundaries (views, APIs) must always supply a real authenticated actor.
+- **Seed as system-context:** `seed_product_walkthrough` is developer/demo infrastructure (refuses to run when `DEBUG=False`, uses dedicated tenant, uses `FakePaymentProviderAdapter`) — system-context is the correct authorization path, not a bypass
+
+### Migration Status
+
+No migration created. No schema change. `makemigrations orders --check --dry-run` reports "No changes detected." Pre-existing RISK-009 kernel drift unchanged.
+
+### Historical Test Count Correction
+
+The previously reported "15 new authorization tests" was inaccurate. The actual count is **14 tests** (7 in `RequestCancellationAuthorizationTest`, 7 in `ApproveCancellationAuthorizationTest`). Corrected in this entry.
+
+### Deferred (explicitly)
+
+1. `accept_offer()` — Sprint 5.3B scope (crosses into booking/assignment/financial domains)
+2. `cancel_offers_for_order()` — Sprint 5.3B scope (bulk-cancel active offers)
+3. Role catalog update (adding cancellation permissions to specific `DEFAULT_TENANT_ROLES` entries) — deferred until a specific role-assignment-at-registration design is approved
+4. View/API-layer enforcement (cancellation button/endpoint with real actor resolution) — deferred until UI work is scoped
