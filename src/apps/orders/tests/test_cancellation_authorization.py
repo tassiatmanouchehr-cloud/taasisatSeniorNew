@@ -60,6 +60,7 @@ class RequestCancellationAuthorizationTest(TestCase):
             phone="09121111111",
             address="Test address",
             city="tehran",
+            tenant_id=self.tenant.id,
         )
 
     def test_actor_with_request_permission_can_request(self):
@@ -150,6 +151,7 @@ class ApproveCancellationAuthorizationTest(TestCase):
             phone="09121111111",
             address="Test address",
             city="tehran",
+            tenant_id=self.tenant.id,
         )
         # Grant request permission to customer for setUp
         req_role = _create_role_with_permissions(self.tenant, "customer-req-app", ["orders.cancellation.request"])
