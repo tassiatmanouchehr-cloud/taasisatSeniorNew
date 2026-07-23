@@ -1114,10 +1114,8 @@ class Command(BaseCommand):
         )
 
         if orders["cancelled"].status not in FINAL_STATUSES:
-            request_cancellation(
-                order_id=orders["cancelled"].id, requested_by=primary_user, reason="نمایش گردش کار لغو سفارش"
-            )
-            approve_cancellation(order_id=orders["cancelled"].id, changed_by=primary_user)
+            request_cancellation(order_id=orders["cancelled"].id, requested_by=None, reason="نمایش گردش کار لغو سفارش")
+            approve_cancellation(order_id=orders["cancelled"].id, changed_by=None)
             self._record("updated")
 
         # Organization-visible eligibility examples — always via the

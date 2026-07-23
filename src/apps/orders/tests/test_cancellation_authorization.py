@@ -128,9 +128,9 @@ class RequestCancellationAuthorizationTest(TestCase):
 
     def test_permission_key_is_registered(self):
         """The orders.cancellation.request key exists in the permission registry."""
-        from apps.kernel.permissions.registry import _REGISTRY
+        from apps.kernel.permissions.registry import PermissionRegistry
 
-        self.assertIn("orders.cancellation.request", _REGISTRY)
+        self.assertTrue(PermissionRegistry.exists("orders.cancellation.request"))
 
 
 class ApproveCancellationAuthorizationTest(TestCase):
@@ -218,6 +218,6 @@ class ApproveCancellationAuthorizationTest(TestCase):
 
     def test_permission_key_is_registered(self):
         """The orders.cancellation.approve key exists in the permission registry."""
-        from apps.kernel.permissions.registry import _REGISTRY
+        from apps.kernel.permissions.registry import PermissionRegistry
 
-        self.assertIn("orders.cancellation.approve", _REGISTRY)
+        self.assertTrue(PermissionRegistry.exists("orders.cancellation.approve"))
