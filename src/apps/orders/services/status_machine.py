@@ -230,4 +230,10 @@ def approve_cancellation(*, order_id, changed_by=None):
     order.cancelled_at = timezone.now()
     _transition(order, to_status=OrderStatus.CANCELLED, changed_by=changed_by, reason="تایید لغو")
     order.save(update_fields=["cancelled_at"])
+
+    # Sprint 5.3B: propagate cancellation to all active offers
+    from .order_offer_service import OrderOfferService
+
+    OrderOfferService.cancel_offers_for_order(order=order)
+
     return order
