@@ -11,6 +11,7 @@ import uuid
 from decimal import Decimal
 from unittest.mock import patch
 
+from django.apps import apps as django_apps
 from django.db import connection
 from django.test import TestCase, TransactionTestCase
 from django.utils import timezone
@@ -555,9 +556,13 @@ class ReleaseConsumerConcurrencyTest(TransactionTestCase):
     Uses TransactionTestCase for real independent transactions and
     threading.Barrier for synchronization — the repository's established
     concurrency-test pattern (see apps.booking.tests.test_concurrency).
+
+    available_apps = all installed apps because TransactionTestCase's
+    post-test flush otherwise runs with allow_cascade=False and Postgres
+    refuses to TRUNCATE tables reachable through auth's FK graph.
     """
 
-    databases = "__all__"
+    available_apps = [app_config.name for app_config in django_apps.get_app_configs()]
 
     def test_concurrent_consumption_produces_exactly_one_credit(self):
         # Set up fixtures inside the test (TransactionTestCase has no

@@ -279,7 +279,7 @@ class ReleaseConsumerService:
         the resolved document as its source_document_id).
 
         LedgerService.post_entries() with actor=None triggers the
-        system-context path in PermissionService.require().
+        system-context path in the permission service.
         """
         platform_party = FinancialPartyService.resolve_platform_party(instruction.order.tenant)
         gross = instruction.gross_releasable_amount_irr
