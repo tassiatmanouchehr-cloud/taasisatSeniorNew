@@ -3,6 +3,9 @@
 from django.db import transaction
 from django.utils import timezone
 
+from apps.kernel.permissions.keys import ORDERS_CANCELLATION_APPROVE, ORDERS_CANCELLATION_REQUEST
+from apps.kernel.services.permission_service import PermissionService
+
 from ..models import FINAL_STATUSES, Order, OrderStatus, OrderStatusHistory
 
 
@@ -156,9 +159,28 @@ def complete_order(*, order_id, changed_by=None):
 
 
 @transaction.atomic
-def request_cancellation(*, order_id, requested_by, reason=""):
-    """Any non-final status → cancellation_requested."""
+def request_cancellation(*, order_id, requested_by, tenant_id=None, reason=""):
+    """Any non-final status → cancellation_requested.
+
+    Authorization (Sprint 5.3A):
+    - Requires orders.cancellation.request permission (strict RBAC)
+    - Actor without permission receives PermissionDenied
+    - Tenant scope derived from the locked order (authoritative)
+    - tenant_id parameter accepted for caller convenience but validated
+      against the order's actual tenant
+    """
     order = Order.objects.select_for_update().get(id=order_id)
+
+    # Derive authoritative tenant from the locked order
+    effective_tenant_id = order.tenant_id
+
+    # Authorization enforcement (Sprint 5.3A) — strict RBAC, no fallback
+    PermissionService.require(
+        requested_by,
+        ORDERS_CANCELLATION_REQUEST,
+        tenant_id=effective_tenant_id,
+    )
+
     _ensure_not_final(order)
     if order.status == OrderStatus.CANCELLATION_REQUESTED:
         raise OrderStateError("درخواست لغو قبلاً ثبت شده است.")
@@ -182,8 +204,26 @@ def request_cancellation(*, order_id, requested_by, reason=""):
 
 @transaction.atomic
 def approve_cancellation(*, order_id, changed_by=None):
-    """cancellation_requested → cancelled."""
+    """cancellation_requested → cancelled.
+
+    Authorization (Sprint 5.3A):
+    - When changed_by is a real user: requires orders.cancellation.approve
+      permission (strict RBAC). Denied without it.
+    - When changed_by=None: system/internal context — audited and allowed
+      (legitimate path for background jobs, cascading operations).
+    - Tenant scope derived from the locked order (authoritative).
+    """
     order = Order.objects.select_for_update().get(id=order_id)
+
+    # Authorization enforcement (Sprint 5.3A) — strict RBAC for real actors
+    # When changed_by=None: actor=None, ownership_authorized_by=None →
+    # system-context path (audited, allowed — legitimate internal call)
+    PermissionService.require(
+        changed_by,
+        ORDERS_CANCELLATION_APPROVE,
+        tenant_id=order.tenant_id,
+    )
+
     if order.status != OrderStatus.CANCELLATION_REQUESTED:
         raise OrderStateError("فقط سفارش‌های با درخواست لغو قابل تایید لغو هستند.")
 

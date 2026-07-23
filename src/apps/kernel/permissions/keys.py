@@ -278,6 +278,27 @@ ORDERS_OFFER_SUBMIT = register(
     ),
 )
 
+ORDERS_CANCELLATION_REQUEST = register(
+    "orders.cancellation.request",
+    domain="orders",
+    resource="cancellation",
+    action="request",
+    description=(
+        "Request cancellation of an order. Guards status_machine.request_cancellation() (Phase 5 Sprint 5.3A)."
+    ),
+)
+
+ORDERS_CANCELLATION_APPROVE = register(
+    "orders.cancellation.approve",
+    domain="orders",
+    resource="cancellation",
+    action="approve",
+    description=(
+        "Approve a pending cancellation request. Guards status_machine.approve_cancellation() (Phase 5 Sprint 5.3A)."
+    ),
+    platform_scope=True,
+)
+
 # --- apps.api (Module 17A/17B) -------------------------------------------
 # Re-registered here (not just left in apps.api.permission_keys) so the
 # central registry is genuinely complete — apps.api.permission_keys

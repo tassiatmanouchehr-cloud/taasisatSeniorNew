@@ -5,6 +5,7 @@ from django.test import TestCase
 from apps.accounts.models import CaregiverProfile
 from apps.accounts.services.supplier_bridge import get_or_create_supplier_for_caregiver
 from apps.kernel.models import Person, Tenant, UserAccount
+from apps.kernel.models.rbac import Role, RoleAssignment
 from apps.orders.models import (
     CatalogStatus,
     OrderSource,
@@ -36,6 +37,19 @@ class BaseOrderTest(TestCase):
         self.tenant, _ = Tenant.objects.get_or_create(slug="salmandyar", defaults={"name": "Test"})
         self.person = Person.objects.create(tenant=self.tenant, full_name="Test Person")
         self.user = UserAccount.objects.create_user(phone="09120000001", person=self.person, tenant=self.tenant)
+        # Grant cancellation permissions (Sprint 5.3A)
+        cancellation_role = Role.objects.create(
+            tenant=self.tenant,
+            slug="test-cancellation-role",
+            name="Test Cancellation Role",
+            permissions=["orders.cancellation.request", "orders.cancellation.approve"],
+        )
+        RoleAssignment.objects.create(
+            tenant=self.tenant,
+            user=self.user,
+            role=cancellation_role,
+            is_active=True,
+        )
         self.category = ServiceCategory.objects.create(
             tenant_id=self.tenant.id, name="Test Category", slug="test-cat", status=CatalogStatus.ACTIVE
         )
