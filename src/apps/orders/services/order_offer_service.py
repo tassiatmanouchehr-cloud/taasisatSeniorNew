@@ -1,12 +1,12 @@
 """
-OrderOfferService -- Sprint 5.1 + 5.2: Submission Lifecycle + Selection/Expiration.
+OrderOfferService -- Sprint 5.1 + 5.2 + 5.3B: Submission Lifecycle + Selection/Expiration + Acceptance/Cancellation.
 
 The sole writer for OrderOffer state transitions.
 No other caller may construct or mutate OrderOffer rows directly.
 
 Sprint 5.1 scope: submit_offer(), edit_offer(), withdraw_offer().
 Sprint 5.2 scope: select_offer(), expire_held_offers().
-Future sprints: accept, cancel.
+Sprint 5.3B scope: accept_offer(), cancel_offers_for_order().
 
 Authorization model:
 - submit_offer(): PermissionService.require() with orders.offer.submit,
@@ -499,6 +499,171 @@ class OrderOfferService:
         )
 
         return True
+
+    # --- Sprint 5.3B: Acceptance and Cancellation Propagation ---------------
+
+    @classmethod
+    @transaction.atomic
+    def accept_offer(
+        cls,
+        *,
+        offer_id: uuid.UUID,
+        actor,
+        tenant_id: uuid.UUID,
+    ) -> OrderOffer:
+        """Accept a SELECTED offer, triggering supplier assignment.
+
+        Only the order owner (customer) may accept. The offer must be SELECTED
+        with an active hold (not expired). Acceptance transitions the offer to
+        ACCEPTED (terminal) and triggers AssignmentService.assign() to create
+        the SupplierAssignment and open the financial core.
+
+        Authorization: order ownership (same dual-path as select_offer).
+        No RBAC permission key — ownership is the boundary.
+
+        Lock order: Order row first (consistent lock ordering), then offer row.
+        The offer's hold_active is re-verified under lock to resolve the
+        accept-vs-expire race: if the hold expired before the lock was
+        acquired, acceptance is refused.
+
+        Idempotency: accepting an already-ACCEPTED offer raises OrderOfferError
+        (consistent with select_offer's error-on-repeat pattern).
+        """
+        if actor is None:
+            raise OrderOfferError("An authenticated actor is required to accept an offer.")
+
+        # Resolve offer (peek without lock to get order_id and tenant check)
+        try:
+            offer_peek = OrderOffer.objects.get(id=offer_id, tenant_id=tenant_id)
+        except OrderOffer.DoesNotExist:
+            raise OrderOfferError("Offer not found.") from None
+
+        # Lock the parent order first (consistent lock ordering: Order → Offer)
+        try:
+            order = Order.objects.select_for_update().get(id=offer_peek.order_id, tenant_id=tenant_id)
+        except Order.DoesNotExist:
+            raise OrderOfferError("Order not found.") from None
+
+        # Authorization: order ownership check (same as select_offer)
+        cls._verify_order_ownership(order=order, actor=actor)
+
+        # Validate order state — must still be in NEW (not cancelled/completed/assigned)
+        if order.status != OrderStatus.NEW:
+            raise OrderOfferError(
+                f"Offers can only be accepted on orders in NEW status (current: {order.get_status_display()})."
+            )
+
+        # Lock the target offer row
+        offer = OrderOffer.objects.select_for_update().get(id=offer_id)
+
+        # Validate offer state — must be SELECTED
+        if offer.status != OrderOfferStatus.SELECTED:
+            raise OrderOfferError(f"Only SELECTED offers can be accepted (current: {offer.get_status_display()}).")
+
+        # Validate hold is still active (resolve accept-vs-expire race)
+        if not offer.hold_active:
+            raise OrderOfferError("The offer hold has expired. This offer can no longer be accepted.")
+
+        # Verify supplier is still ACTIVE
+        supplier = offer.supplier
+        if supplier.status != "active":
+            raise OrderOfferError("The supplier is no longer active.")
+
+        # Transition offer to ACCEPTED
+        offer.status = OrderOfferStatus.ACCEPTED
+        offer.save(update_fields=["status", "updated_at"])
+
+        # Trigger the canonical assignment workflow.
+        # AssignmentService.assign() creates a nested savepoint (its own
+        # @transaction.atomic), re-locks the Order row (safe: same
+        # transaction on PostgreSQL), creates SupplierAssignment, opens
+        # financial core (CommissionSnapshot, PaymentDeadline, etc.).
+        from apps.booking.models import AssignmentSource
+        from apps.booking.services.assignment_service import AssignmentService
+
+        AssignmentService.assign(
+            order_id=order.id,
+            supplier=supplier,
+            assigned_by=None,
+            ownership_authorized_by=actor,
+            assignment_source=AssignmentSource.MANUAL,
+        )
+
+        # Audit
+        AuditService.log(
+            tenant_id=tenant_id,
+            action="orders.offer.accepted",
+            resource_type="OrderOffer",
+            module_id=SOURCE_MODULE,
+            resource_id=offer.id,
+            actor_id=cls._actor_id(actor),
+            actor_type="user",
+            after={
+                "order_id": str(order.id),
+                "supplier_id": str(supplier.id),
+                "status": OrderOfferStatus.ACCEPTED,
+            },
+        )
+
+        return offer
+
+    @classmethod
+    @transaction.atomic
+    def cancel_offers_for_order(cls, *, order: Order) -> list[uuid.UUID]:
+        """Cancel all active offers for an order (internal orchestration).
+
+        Called from approve_cancellation() after the order transitions to
+        CANCELLED. This is system-context — no actor authorization is
+        performed here. The caller (approve_cancellation) has already
+        enforced RBAC authorization and holds the Order row lock.
+
+        Cancels all offers in SUBMITTED or SELECTED status (is_active).
+        Terminal offers (ACCEPTED, EXPIRED, WITHDRAWN, REJECTED, CANCELLED)
+        are left unchanged.
+
+        Idempotent: repeated calls on the same order with no active offers
+        return an empty list.
+
+        Returns:
+            List of offer IDs that were cancelled.
+        """
+        now = timezone.now()
+
+        # Lock all active offers for this order to prevent concurrent
+        # transitions (accept/expire racing with cancellation propagation)
+        active_offers = list(
+            OrderOffer.objects.select_for_update().filter(
+                order=order,
+                status__in=[OrderOfferStatus.SUBMITTED, OrderOfferStatus.SELECTED],
+            )
+        )
+
+        if not active_offers:
+            return []
+
+        cancelled_ids = []
+        for offer in active_offers:
+            offer.status = OrderOfferStatus.CANCELLED
+            offer.save(update_fields=["status", "updated_at"])
+            cancelled_ids.append(offer.id)
+
+        # Audit — one batch entry for all cancelled offers
+        AuditService.log(
+            tenant_id=order.tenant_id,
+            action="orders.offer.cancelled",
+            resource_type="OrderOffer",
+            module_id=SOURCE_MODULE,
+            resource_id=order.id,
+            actor_id=None,
+            actor_type="system",
+            after={
+                "order_id": str(order.id),
+                "cancelled_offer_ids": [str(oid) for oid in cancelled_ids],
+                "reason": "order_cancellation_propagation",
+            },
+        )
+
+        return cancelled_ids
 
     # --- internal helpers --------------------------------------------------
 
