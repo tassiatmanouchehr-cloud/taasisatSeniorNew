@@ -32,6 +32,13 @@ from apps.finance.models import (
 )
 from apps.kernel.models import Tenant
 from apps.kernel.models.audit import AuditLog
+from apps.kernel.models.supplier import (
+    AvailabilityStatus,
+    ServiceSupplier,
+    SupplierStatus,
+    SupplierType,
+    VerificationLevel,
+)
 from apps.orders.models import Order, OrderSource, OrderStatus, ServiceCategory
 from apps.wallet.models import Wallet, WalletTransaction
 from apps.wallet.services import WalletTransactionService
@@ -62,7 +69,26 @@ def _make_order(tenant):
 
 
 def _make_party(tenant, *, party_type="SUPPLIER", display_name="Test Party"):
-    return FinancialParty.objects.create(tenant=tenant, party_type=party_type, display_name=display_name)
+    return FinancialParty.objects.create(
+        tenant=tenant,
+        party_type=party_type,
+        display_name=display_name,
+        linked_entity_type="TestEntity",
+        linked_entity_id=uuid.uuid4(),
+    )
+
+
+def _make_supplier(tenant):
+    return ServiceSupplier.objects.create(
+        tenant=tenant,
+        supplier_type=SupplierType.INDEPENDENT_PROVIDER,
+        linked_entity_id=uuid.uuid4(),
+        linked_entity_type="TestProfile",
+        display_name=f"Test Supplier {uuid.uuid4().hex[:6]}",
+        status=SupplierStatus.ACTIVE,
+        availability_status=AvailabilityStatus.AVAILABLE,
+        verification_level=VerificationLevel.BASIC,
+    )
 
 
 def _make_document(tenant, order, *, payer_party, beneficiary_party):
@@ -96,12 +122,12 @@ def _make_escrow(tenant, order, document, *, payer_party, amount_irr=10000000):
 
 
 def _make_snapshot(
-    tenant, order, *, caregiver_party, company_party=None, platform_pct=15, company_pct=0, caregiver_pct=85
+    tenant, order, supplier, *, caregiver_party, company_party=None, platform_pct=15, company_pct=0, caregiver_pct=85
 ):
     return CommissionSnapshot.objects.create(
         tenant=tenant,
         order=order,
-        supplier_id=uuid.uuid4(),
+        supplier=supplier,
         cooperation_type="INDEPENDENT" if company_party is None else "AFFILIATED",
         policy_source="global_default",
         platform_rate_percent=platform_pct,
@@ -137,6 +163,7 @@ def _setup_standard_fixtures(
     """Create a complete fixture set for a single release instruction."""
     tenant = tenant or _make_tenant()
     order = _make_order(tenant)
+    supplier = _make_supplier(tenant)
     payer = _make_party(tenant, party_type="CUSTOMER", display_name="Customer")
     caregiver = _make_party(tenant, party_type="SUPPLIER", display_name="Caregiver")
     document = _make_document(tenant, order, payer_party=payer, beneficiary_party=caregiver)
@@ -144,6 +171,7 @@ def _setup_standard_fixtures(
     snapshot = _make_snapshot(
         tenant,
         order,
+        supplier,
         caregiver_party=caregiver,
         company_party=company_party,
         platform_pct=platform_pct,
