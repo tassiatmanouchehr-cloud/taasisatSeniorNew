@@ -107,18 +107,36 @@ def _make_document(tenant, order, *, issuer_party, payer_party, beneficiary_part
 
 
 def _make_escrow(tenant, order, document, *, payer_party, amount_irr=10000000):
+    """Create an escrow in post-release state (all funds released).
+
+    This represents the state AFTER EscrowService.apply_release() has been
+    called — which happens inside ReleaseInstructionService.create() before
+    the instruction reaches READY status. At this point:
+      - released_amount_irr = full amount (released to instruction)
+      - remaining_amount_irr = 0 (nothing left)
+      - held_amount_irr = 0 (held = blocked + remaining = 0 + 0)
+      - blocked_amount_irr = 0
+      - refunded_amount_irr = 0
+    Conservation: original = released + refunded + blocked + remaining
+                  amount   = amount   + 0        + 0       + 0  ✓
+    Held derived: held = blocked + remaining = 0 + 0 = 0  ✓
+    Releasable:   releasable(0) <= remaining(0)  ✓
+    """
     return EscrowRecord.objects.create(
         tenant=tenant,
         source_document=document,
         payer_party=payer_party,
         amount=Decimal(str(amount_irr)),
         currency="IRR",
-        status=EscrowStatus.HELD,
+        status=EscrowStatus.FULLY_RELEASED,
         order=order,
         original_amount_irr=amount_irr,
-        held_amount_irr=amount_irr,
+        held_amount_irr=0,
         remaining_amount_irr=0,
         released_amount_irr=amount_irr,
+        blocked_amount_irr=0,
+        refunded_amount_irr=0,
+        releasable_amount_irr=0,
         idempotency_key=f"test-escrow-{uuid.uuid4().hex[:8]}",
     )
 
