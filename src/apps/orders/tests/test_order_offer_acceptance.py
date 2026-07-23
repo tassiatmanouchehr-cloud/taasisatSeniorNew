@@ -300,8 +300,8 @@ class AcceptOfferStateValidationTest(TestCase):
     def test_offer_with_inactive_supplier_rejected(self):
         from apps.kernel.models.supplier import SupplierStatus
 
-        inactive_supplier = make_supplier(self.tenant, status=SupplierStatus.INACTIVE)
-        offer = _create_selected_offer(self.tenant, self.order, inactive_supplier, self.customer)
+        suspended_supplier = make_supplier(self.tenant, status=SupplierStatus.SUSPENDED)
+        offer = _create_selected_offer(self.tenant, self.order, suspended_supplier, self.customer)
         with self.assertRaises(OrderOfferError):
             OrderOfferService.accept_offer(
                 offer_id=offer.id,
