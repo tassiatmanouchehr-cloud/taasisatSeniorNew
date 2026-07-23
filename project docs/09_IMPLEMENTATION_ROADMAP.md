@@ -23,7 +23,7 @@ This document defines the platform delivery phases, their dependencies, acceptan
 | 2 | Caregiver Professional Profile | **COMPLETE** | Phase 1 |
 | 3 | Company Portal | **COMPLETE** | Phases 1–2 |
 | 4 | Customer Portal | **COMPLETE** | Phases 2–3 |
-| 5 | Marketplace Order Workflow | **IN PROGRESS** (Sprint 5.1 merged, Sprint 5.2 complete) | Phase 4 |
+| 5 | Marketplace Order Workflow | **IN PROGRESS** (Sprint 5.1 merged, Sprint 5.2 complete, Sprint 5.3A complete) | Phase 4 |
 | 6 | Invoice Workflow | PLANNED | Phase 5 |
 | 7 | Financial Engine Review (analysis only) | PLANNED | Phases 5–6 |
 | 8 | Payment & Settlement Review (analysis only) | PLANNED | Phase 7 |
@@ -166,6 +166,36 @@ This document defines the platform delivery phases, their dependencies, acceptan
 4. No scheduler infrastructure wired — `expire_held_offers()` is independently callable
 5. Pre-existing `kernel` app migration drift remains (RISK-009, unrelated)
 
+**Sprint 5.3A — Cancellation Authorization Enforcement:**
+
+**Sprint 5.3A Acceptance Criteria:**
+1. `request_cancellation()` enforces `orders.cancellation.request` permission (strict RBAC)
+2. `approve_cancellation()` enforces `orders.cancellation.approve` permission (strict RBAC)
+3. Actor without required permission receives `PermissionDenied` (hard deny)
+4. Actor=None (system context) is audited and allowed (trusted internal orchestration)
+5. Tenant scope derived from the locked order (authoritative)
+6. Denied operations produce no state mutation or side effects
+7. Cross-tenant actors denied regardless of permission in their own tenant
+8. Seed walkthrough aligned with strict authorization (system-context path)
+
+**Sprint 5.3A Status:** COMPLETE (PR #45, 14 cancellation authorization tests, 2,543/2,543 PASS, all 5 CI checks green)
+
+**Sprint 5.3A Delivered:**
+1. `PermissionService.require()` enforcement in `request_cancellation()` — strict RBAC, no fallback
+2. `PermissionService.require()` enforcement in `approve_cancellation()` — strict RBAC, no fallback
+3. Permission keys `orders.cancellation.request` and `orders.cancellation.approve` registered
+4. Authoritative tenant scope derived from the locked order (not caller-supplied)
+5. Deliberate trusted system-context (`actor=None`) audited and allowed for internal orchestration
+6. 14 new authorization tests (7 per function) covering positive, negative, cross-tenant, state-machine, and registry verification
+7. Seed walkthrough command aligned (system-context for internal state transitions)
+8. No migration created, no schema change
+
+**Sprint 5.3A Authorization Model:**
+- Actor with permission → operation succeeds (normal RBAC path)
+- Actor without permission → `PermissionDenied` (hard denial, no state mutation)
+- `actor=None` (system context) → audited via `AuditService.log_security()`, allowed
+- Public callers MUST supply a real authenticated actor — `actor=None` is a trusted system-context mechanism for background jobs, cascading operations, and internal infrastructure only
+
 **Dependencies:** Phases 1–4 complete (all satisfied)
 
 ---
@@ -248,4 +278,4 @@ A phase CANNOT be marked complete based on:
 | Core Profile-ServiceSupplier invariant | COMPLETE | PR #18 |
 | Public site tenant resolution (FR-015–FR-019) | COMPLETE | PRs #19–#23 |
 | Accessibility remediation | COMPLETE | PR #34 |
-| Order cancellation permission gap | **OPEN** | Not started |
+| Order cancellation permission gap | **COMPLETE** | PR #45 (Sprint 5.3A) |
