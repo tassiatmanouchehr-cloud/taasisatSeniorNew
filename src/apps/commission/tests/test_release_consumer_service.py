@@ -92,7 +92,7 @@ def _make_supplier(tenant):
     )
 
 
-def _make_document(tenant, order, *, payer_party, beneficiary_party):
+def _make_document(tenant, order, *, issuer_party, payer_party, beneficiary_party):
     return FinancialDocument.objects.create(
         tenant=tenant,
         order=order,
@@ -100,6 +100,7 @@ def _make_document(tenant, order, *, payer_party, beneficiary_party):
         status=FinancialDocumentStatus.ISSUED,
         total_amount=Decimal("10000000"),
         currency="IRR",
+        issuer_party=issuer_party,
         payer_party=payer_party,
         beneficiary_party=beneficiary_party,
     )
@@ -165,9 +166,12 @@ def _setup_standard_fixtures(
     tenant = tenant or _make_tenant()
     order = _make_order(tenant)
     supplier = _make_supplier(tenant)
+    platform_party = _make_party(tenant, party_type="PLATFORM", display_name="Platform")
     payer = _make_party(tenant, party_type="CUSTOMER", display_name="Customer")
     caregiver = _make_party(tenant, party_type="SUPPLIER", display_name="Caregiver")
-    document = _make_document(tenant, order, payer_party=payer, beneficiary_party=caregiver)
+    document = _make_document(
+        tenant, order, issuer_party=platform_party, payer_party=payer, beneficiary_party=caregiver
+    )
     escrow = _make_escrow(tenant, order, document, payer_party=payer, amount_irr=amount_irr)
     snapshot = _make_snapshot(
         tenant,
