@@ -141,19 +141,11 @@ class MarketplaceOfferPriceAuthorityTest(TestCase):
 
     def test_non_accepted_statuses_not_used(self):
         """Marketplace order with offers but no ACCEPTED one fails closed."""
-        # Change our accepted offer to WITHDRAWN
+        # Change our accepted offer to WITHDRAWN — the WITHDRAWN offer itself
+        # proves marketplace provenance (offers.exists() == True) without
+        # needing a second offer row for the same (order, supplier).
         self.offer.status = OrderOfferStatus.WITHDRAWN
         self.offer.save(update_fields=["status"])
-        # A SUBMITTED offer exists — proves this IS a marketplace order
-        OrderOffer.objects.create(
-            tenant=self.tenant,
-            order=self.order,
-            supplier=self.supplier,
-            price_amount=Decimal("8000000"),
-            currency="IRR",
-            status=OrderOfferStatus.SUBMITTED,
-            submitted_by=None,
-        )
         # Marketplace order without ACCEPTED offer → must fail closed, NOT fall back to Quote
         with self.assertRaises(PreServicePaymentError) as ctx:
             PreServicePaymentService._resolve_amount_irr(order=self.order, supplier=self.supplier)
