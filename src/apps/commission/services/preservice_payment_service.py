@@ -144,14 +144,75 @@ class PreServicePaymentService:
 
     @classmethod
     def _resolve_amount_irr(cls, *, order, supplier) -> int:
-        """Prefers an existing Quote already linked to this order (created
-        earlier in the request/pricing flow); falls back to generating one
-        via QuoteService against the order's service_category/supplier. No
-        price is ever fabricated — QuoteService.generate_quote() itself
-        raises PricingError if no base pricing rule is configured for the
-        tenant/category, and that is allowed to propagate as a clear
-        PreServicePaymentError rather than defaulting to some made-up
-        amount."""
+        """Resolves the authoritative payment amount for this order/supplier.
+
+        Phase 6.2A — Marketplace price authority:
+        For marketplace-originated orders (any OrderOffer exists for the order),
+        the accepted offer's price_amount IS the customer-agreed contract price.
+        The pricing-engine Quote path is only used for non-marketplace orders.
+
+        Marketplace origin detection:
+        If any OrderOffer row exists for this order (regardless of status), the
+        order went through the marketplace offer workflow. This is reliable because
+        OrderOfferService.submit_offer() is the sole creator of OrderOffer rows.
+
+        Fail-closed behavior:
+        - Marketplace order without exactly one ACCEPTED offer → error
+        - Supplier mismatch → error
+        - Invalid price → error
+        - Never silently falls back to Quote for a marketplace order
+        """
+        from apps.orders.models import OrderOffer, OrderOfferStatus
+
+        # --- Marketplace origin detection ---
+        # If any offer was ever submitted for this order, it is marketplace-originated.
+        has_any_offers = OrderOffer.objects.filter(order=order).exists()
+
+        if has_any_offers:
+            # Marketplace path: lock and resolve the authoritative accepted offer.
+            # select_for_update() ensures the offer cannot be concurrently modified
+            # (defense-in-depth — ACCEPTED is terminal, but locking guarantees
+            # read consistency within this transaction).
+            accepted_offers = list(
+                OrderOffer.objects.select_for_update().filter(
+                    order=order,
+                    tenant_id=order.tenant_id,
+                    status=OrderOfferStatus.ACCEPTED,
+                )
+            )
+
+            if len(accepted_offers) == 0:
+                raise PreServicePaymentError(
+                    f"Marketplace order {order.id} has offers but no ACCEPTED offer. "
+                    "Cannot determine authoritative price for pre-service payment."
+                )
+
+            if len(accepted_offers) > 1:
+                raise PreServicePaymentError(
+                    f"Marketplace order {order.id} has {len(accepted_offers)} accepted offers; "
+                    "expected exactly one. Cannot determine authoritative price."
+                )
+
+            offer = accepted_offers[0]
+
+            # Validate supplier matches the assigned supplier
+            if offer.supplier_id != supplier.id:
+                raise PreServicePaymentError(
+                    f"Accepted offer supplier ({offer.supplier_id}) does not match "
+                    f"assigned supplier ({supplier.id}) for order {order.id}."
+                )
+
+            # Validate price
+            if offer.price_amount is None or offer.price_amount <= 0:
+                raise PreServicePaymentError(
+                    f"Accepted offer for order {order.id} has invalid price: {offer.price_amount}."
+                )
+
+            return cls._to_irr(offer.price_amount)
+
+        # --- Non-marketplace path (existing behavior) ---
+        # No offers ever submitted: this is a non-marketplace order
+        # (operator-assigned, manual, etc.). Use the pricing engine.
         from apps.pricing.models import Quote
 
         existing = Quote.objects.filter(tenant_id=order.tenant_id, order=order).order_by("-created_at").first()
@@ -176,10 +237,25 @@ class PreServicePaymentService:
 
         return cls._to_irr(quote.total_amount)
 
-    @staticmethod
-    def _to_irr(decimal_amount) -> int:
-        # IRR has no meaningful fractional subunit in this domain (matches
-        # apps.commission.services.allocation_calculator.AllocationCalculator's
-        # own "deterministic integer-IRR" convention) — truncates any stray
-        # cents rather than rounding up past what the customer was quoted.
+    @classmethod
+    def _to_irr(cls, decimal_amount) -> int:
+        """Convert a Decimal amount to integer IRR.
+
+        IRR has no meaningful fractional subunit in this domain (matches
+        AllocationCalculator's own integer-IRR convention). A fractional
+        value indicates a pricing/offer data inconsistency and must be
+        rejected rather than silently truncated or rounded.
+        """
+        from decimal import Decimal
+
+        if not isinstance(decimal_amount, Decimal):
+            decimal_amount = Decimal(str(decimal_amount))
+
+        # Reject fractional IRR — the integer conversion must be exact
+        if decimal_amount != decimal_amount.to_integral_value():
+            raise PreServicePaymentError(
+                f"Amount {decimal_amount} has a fractional component. "
+                "IRR amounts must be whole numbers — cannot safely truncate or round."
+            )
+
         return int(decimal_amount)
