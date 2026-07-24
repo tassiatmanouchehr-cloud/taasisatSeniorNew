@@ -144,14 +144,59 @@ class PreServicePaymentService:
 
     @classmethod
     def _resolve_amount_irr(cls, *, order, supplier) -> int:
-        """Prefers an existing Quote already linked to this order (created
-        earlier in the request/pricing flow); falls back to generating one
-        via QuoteService against the order's service_category/supplier. No
-        price is ever fabricated — QuoteService.generate_quote() itself
-        raises PricingError if no base pricing rule is configured for the
-        tenant/category, and that is allowed to propagate as a clear
-        PreServicePaymentError rather than defaulting to some made-up
-        amount."""
+        """Resolves the authoritative payment amount for this order/supplier.
+
+        Phase 6.2A — Marketplace price authority:
+        For marketplace-originated orders with an accepted OrderOffer, the
+        offer's price_amount IS the customer-agreed contract price and is
+        the sole authoritative source. The pricing-engine Quote path is
+        only used for non-marketplace orders (operator-assigned, etc.).
+
+        Fail-closed behavior:
+        - If a marketplace order has zero or multiple accepted offers, raise
+          (never silently pick one or fall through to Quote).
+        - If the accepted offer's supplier doesn't match, raise.
+        - If price is null/zero/negative, raise.
+        """
+        # --- Marketplace offer path (Phase 6.2A) ---
+        from apps.orders.models import OrderOffer, OrderOfferStatus
+
+        accepted_offers = list(
+            OrderOffer.objects.filter(
+                order=order,
+                tenant_id=order.tenant_id,
+                status=OrderOfferStatus.ACCEPTED,
+            )
+        )
+
+        if len(accepted_offers) == 1:
+            offer = accepted_offers[0]
+
+            # Validate supplier matches the assigned supplier
+            if offer.supplier_id != supplier.id:
+                raise PreServicePaymentError(
+                    f"Accepted offer supplier ({offer.supplier_id}) does not match "
+                    f"assigned supplier ({supplier.id}) for order {order.id}."
+                )
+
+            # Validate price
+            if offer.price_amount is None or offer.price_amount <= 0:
+                raise PreServicePaymentError(
+                    f"Accepted offer for order {order.id} has invalid price: {offer.price_amount}."
+                )
+
+            return cls._to_irr(offer.price_amount)
+
+        if len(accepted_offers) > 1:
+            # Multiple accepted offers is an invariant violation — fail closed
+            raise PreServicePaymentError(
+                f"Order {order.id} has {len(accepted_offers)} accepted offers; "
+                "expected exactly one. Cannot determine authoritative price."
+            )
+
+        # --- Non-marketplace path (existing behavior) ---
+        # No accepted offer exists: this is a non-marketplace order
+        # (operator-assigned, manual, etc.). Use the pricing engine.
         from apps.pricing.models import Quote
 
         existing = Quote.objects.filter(tenant_id=order.tenant_id, order=order).order_by("-created_at").first()
