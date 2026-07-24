@@ -5187,3 +5187,96 @@ The previously reported "15 new authorization tests" was inaccurate. The actual 
 2. `cancel_offers_for_order()` — Sprint 5.3B scope (bulk-cancel active offers)
 3. Role catalog update (adding cancellation permissions to specific `DEFAULT_TENANT_ROLES` entries) — deferred until a specific role-assignment-at-registration design is approved
 4. View/API-layer enforcement (cancellation button/endpoint with real actor resolution) — deferred until UI work is scoped
+
+
+
+---
+
+## Phase 6.1 — Release Instruction Wallet Consumer (PR-C)
+
+**Date:** 2026-07-23 / 2026-07-24
+**PR:** #48
+**Branch:** `feat/release-instruction-wallet-consumer`
+**Merge Commit:** `dc8351a1ef6638bf9bd588302d6ecdb86f84a8a9`
+**Status:** COMPLETE (MERGED)
+
+### Implementation Summary
+
+The canonical consumer that transforms valid `ReleaseInstruction` (status=READY) rows
+into supplier/company wallet credits with balanced accounting ledger entries. Completes
+the missing "PR-C" link in the escrow-to-supplier-payout pipeline documented throughout
+the financial codebase.
+
+### Financial Flow Completed
+
+```
+ReleaseInstruction (READY, locked via select_for_update)
+    → AllocationCalculator.allocate(gross, platform%, company%, caregiver%)
+    → LedgerService.post_entries() — balanced double-entry
+    → WalletTransactionService.credit(caregiver wallet)
+    → WalletTransactionService.credit(company wallet, if applicable)
+    → instruction.status = CONSUMED, consumed_at = now()
+    → AuditService.log(FINANCIAL classification)
+```
+
+### Accounting Ledger Entries
+
+| Entry | Party | Account Code | Type |
+|-------|-------|-------------|------|
+| Escrow liability release | Platform | `platform.escrow.released` | DEBIT (gross) |
+| Caregiver earnings | Caregiver | `provider.receivable.settled` | CREDIT (net share) |
+| Company earnings | Company | `company.receivable.settled` | CREDIT (if applicable) |
+| Platform commission | Platform | `platform.commission.revenue` | CREDIT (retained) |
+
+Balanced by construction: `AllocationCalculator` guarantees `sum(credits) == debit`.
+
+### Key Properties
+
+- **Exactly-once processing:** `select_for_update()` on ReleaseInstruction + CONSUMED status gate
+- **PostgreSQL row locking:** concurrent workers serialize; second observes CONSUMED
+- **Stable wallet idempotency keys:** `release-consume:{instruction_id}:caregiver` / `:company`
+- **Atomic rollback:** single `@transaction.atomic` — ledger, wallet, instruction state, and audit all roll back together on any failure
+- **Allocation conservation:** integer-IRR arithmetic, `platform + company + caregiver == gross` (verified in AllocationResult.__post_init__)
+- **Tenant isolation:** tenant derived from locked ReleaseInstruction (authoritative), never caller-supplied
+- **Operation order:** ledger FIRST, then wallet credits (matches SettlementOrchestrationService convention)
+
+### Files Added/Modified
+
+| File | Change |
+|------|--------|
+| `src/apps/commission/services/release_consumer_service.py` | New — ReleaseConsumerService (consume, consume_all_ready) |
+| `src/apps/commission/tests/test_release_consumer_service.py` | New — 24 test methods |
+
+### Verification Summary
+
+| Check | Result |
+|-------|--------|
+| `ruff check .` | PASS |
+| `ruff format --check .` | PASS |
+| `git diff --check` | Clean |
+| `python manage.py check` | 0 issues |
+| Full regression (2,647 tests) | PASS |
+| CI 5/5 checks | All green |
+
+### Tests (24 methods across 10 classes)
+
+- Happy path (caregiver-only): wallet credit, balance, ledger, commission, audit, conservation
+- Multi-party (company): both wallets credited, conservation
+- Idempotency: duplicate no-op, no duplicate audit/ledger, retry after rollback
+- Rollback: ledger failure, wallet failure, company partial failure
+- State validation: PENDING_ALLOCATION/CANCELLED rejected, nonexistent
+- Tenant isolation: cross-tenant wallets unaffected
+- Batch processing: consume_all_ready, skips non-ready
+- Settlement unaffected: existing wallets preserved
+- Concurrency (TransactionTestCase + threading.Barrier): exactly one consumer succeeds
+
+### Migration Status
+
+0 migrations created. All model fields pre-existed on ReleaseInstruction.
+
+### Known Limitations (Phase 6.1 scope only)
+
+1. Platform commission is recorded in the ledger but NOT credited to a platform wallet (platform retains commission by not releasing it — no explicit wallet credit needed)
+2. No management command or scheduled job invokes `consume_all_ready()` yet — that is Phase 6.x scope
+3. No customer-facing UI for triggering the pre-service payment flow — Phase 6.2/6.3 scope
+4. Real PSP integration remains deferred (FakePaymentProvider only)
