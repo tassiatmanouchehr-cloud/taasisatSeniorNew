@@ -23,8 +23,8 @@ This document defines the platform delivery phases, their dependencies, acceptan
 | 2 | Caregiver Professional Profile | **COMPLETE** | Phase 1 |
 | 3 | Company Portal | **COMPLETE** | Phases 1–2 |
 | 4 | Customer Portal | **COMPLETE** | Phases 2–3 |
-| 5 | Marketplace Order Workflow | **IN PROGRESS** (Sprint 5.1 merged, Sprint 5.2 complete, Sprint 5.3A complete) | Phase 4 |
-| 6 | Invoice Workflow | PLANNED | Phase 5 |
+| 5 | Marketplace Order Workflow | **COMPLETE** (Sprint 5.1, 5.2, 5.3A, 5.3B all merged) | Phase 4 |
+| 6 | Financial Integration | **IN PROGRESS** (Phase 6.1 complete — release consumer) | Phase 5 |
 | 7 | Financial Engine Review (analysis only) | PLANNED | Phases 5–6 |
 | 8 | Payment & Settlement Review (analysis only) | PLANNED | Phase 7 |
 

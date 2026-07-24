@@ -1,8 +1,8 @@
 # IMPLEMENTATION STATUS
 
-**Last Verified:** 2026-07-23
+**Last Verified:** 2026-07-24
 **Branch:** `main`
-**HEAD:** `9ce868b` (PR #45 merge — Sprint 5.3A cancellation authorization)
+**HEAD:** `dc8351a` (PR #48 merge — Phase 6.1 Release Consumer)
 **Verification Method:** GitHub Actions CI (PostgreSQL 16 + PostGIS, full regression)
 
 ---
@@ -12,7 +12,7 @@
 | Field | Value |
 |---|---|
 | Repository | `tassiatmanouchehr-cloud/taasisatSeniorNew` |
-| Main branch HEAD | `9ce868b` (PR #45 merge — Sprint 5.3A) |
+| Main branch HEAD | `dc8351a` (PR #48 merge — Phase 6.1) |
 | Active feature branch | None |
 | Active PR | None |
 | Python | 3.12+ |
@@ -21,11 +21,13 @@
 
 ## Current Baseline
 
-Full regression: **2,543 / 2,543 tests passing**
+Full regression: **2,647 / 2,647 tests passing**
 
 | Suite | Count | Status |
 |---|---|---|
+| Release consumer tests (Phase 6.1) | 24 | PASS |
 | Cancellation authorization tests (Sprint 5.3A) | 14 | PASS |
+| OrderOffer acceptance tests (Sprint 5.3B) | 25 | PASS |
 | OrderOffer selection tests (Sprint 5.2) | 32 | PASS |
 | OrderOffer service tests (Sprint 5.1) | 29 | PASS |
 | OrderOffer model tests | 40 | PASS |
@@ -152,7 +154,7 @@ Full regression: **2,543 / 2,543 tests passing**
 | Metric | Value |
 |---|---|
 | Total test files | 263 |
-| Total tests passing | 2,543 |
+| Total tests passing | 2,647 |
 | Test lines of code | ~41,000 |
 | Playwright visual specs | 7 |
 | Visual baseline images | 525 |
@@ -173,13 +175,13 @@ Full regression: **2,543 / 2,543 tests passing**
 | Lint & Format Check | PASS |
 | UI Quality Gates | PASS |
 | Tailwind CSS Build | PASS |
-| Django Test Suite | PASS (2,543/2,543) |
+| Django Test Suite | PASS (2,647/2,647) |
 | Visual & Accessibility Tests | PASS |
 
 ## Next Recommended Priority
 
-1. **Complete Sprint 5.3B** — implement `accept_offer` (crosses into booking/assignment/financial), `cancel_offers_for_order`
-2. **Integrate real SMS provider** — enable OTP delivery and notification dispatch
-3. **Integrate real payment gateway** — replace FakePaymentProvider
-4. **Wire escrow release consumer** — connect ReleaseInstruction to wallet credit
-5. **Create production deployment infrastructure** — Dockerfile, CD pipeline, reverse proxy
+1. **Phase 6.2: Enable pre-service payment feature gate** — activate `PRESERVICE_PAYMENT_ENABLED` for marketplace tenants, verify offer-price-to-invoice amount propagation
+2. **Phase 6.3: Customer payment trigger** — minimal "pay now" UI/endpoint directing customer to gateway (FakePaymentProvider for now)
+3. **Phase 6.4: End-to-end integration verification** — one test proving: accept_offer → invoice → payment → escrow → objection → release → wallet credit
+4. **Integrate real SMS provider** — enable OTP delivery and notification dispatch
+5. **Integrate real payment gateway** — replace FakePaymentProvider (Zarinpal or equivalent)
