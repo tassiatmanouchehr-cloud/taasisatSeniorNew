@@ -140,11 +140,11 @@ class MarketplaceOfferPriceAuthorityTest(TestCase):
         self.assertEqual(amount, 9000000)
 
     def test_non_accepted_statuses_not_used(self):
-        """Only ACCEPTED status is authoritative."""
+        """Marketplace order with offers but no ACCEPTED one fails closed."""
         # Change our accepted offer to WITHDRAWN
         self.offer.status = OrderOfferStatus.WITHDRAWN
         self.offer.save(update_fields=["status"])
-        # Create a SUBMITTED offer (not authoritative)
+        # A SUBMITTED offer exists — proves this IS a marketplace order
         OrderOffer.objects.create(
             tenant=self.tenant,
             order=self.order,
@@ -154,10 +154,10 @@ class MarketplaceOfferPriceAuthorityTest(TestCase):
             status=OrderOfferStatus.SUBMITTED,
             submitted_by=None,
         )
-        # No accepted offer → falls through to non-marketplace path
-        # which will fail without pricing rules (expected for this test)
-        with self.assertRaises(PreServicePaymentError):
+        # Marketplace order without ACCEPTED offer → must fail closed, NOT fall back to Quote
+        with self.assertRaises(PreServicePaymentError) as ctx:
             PreServicePaymentService._resolve_amount_irr(order=self.order, supplier=self.supplier)
+        self.assertIn("no ACCEPTED offer", str(ctx.exception))
 
 
 class MultipleAcceptedOffersFailClosedTest(TestCase):

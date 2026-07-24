@@ -147,29 +147,52 @@ class PreServicePaymentService:
         """Resolves the authoritative payment amount for this order/supplier.
 
         Phase 6.2A — Marketplace price authority:
-        For marketplace-originated orders with an accepted OrderOffer, the
-        offer's price_amount IS the customer-agreed contract price and is
-        the sole authoritative source. The pricing-engine Quote path is
-        only used for non-marketplace orders (operator-assigned, etc.).
+        For marketplace-originated orders (any OrderOffer exists for the order),
+        the accepted offer's price_amount IS the customer-agreed contract price.
+        The pricing-engine Quote path is only used for non-marketplace orders.
+
+        Marketplace origin detection:
+        If any OrderOffer row exists for this order (regardless of status), the
+        order went through the marketplace offer workflow. This is reliable because
+        OrderOfferService.submit_offer() is the sole creator of OrderOffer rows.
 
         Fail-closed behavior:
-        - If a marketplace order has zero or multiple accepted offers, raise
-          (never silently pick one or fall through to Quote).
-        - If the accepted offer's supplier doesn't match, raise.
-        - If price is null/zero/negative, raise.
+        - Marketplace order without exactly one ACCEPTED offer → error
+        - Supplier mismatch → error
+        - Invalid price → error
+        - Never silently falls back to Quote for a marketplace order
         """
-        # --- Marketplace offer path (Phase 6.2A) ---
         from apps.orders.models import OrderOffer, OrderOfferStatus
 
-        accepted_offers = list(
-            OrderOffer.objects.filter(
-                order=order,
-                tenant_id=order.tenant_id,
-                status=OrderOfferStatus.ACCEPTED,
-            )
-        )
+        # --- Marketplace origin detection ---
+        # If any offer was ever submitted for this order, it is marketplace-originated.
+        has_any_offers = OrderOffer.objects.filter(order=order).exists()
 
-        if len(accepted_offers) == 1:
+        if has_any_offers:
+            # Marketplace path: lock and resolve the authoritative accepted offer.
+            # select_for_update() ensures the offer cannot be concurrently modified
+            # (defense-in-depth — ACCEPTED is terminal, but locking guarantees
+            # read consistency within this transaction).
+            accepted_offers = list(
+                OrderOffer.objects.select_for_update().filter(
+                    order=order,
+                    tenant_id=order.tenant_id,
+                    status=OrderOfferStatus.ACCEPTED,
+                )
+            )
+
+            if len(accepted_offers) == 0:
+                raise PreServicePaymentError(
+                    f"Marketplace order {order.id} has offers but no ACCEPTED offer. "
+                    "Cannot determine authoritative price for pre-service payment."
+                )
+
+            if len(accepted_offers) > 1:
+                raise PreServicePaymentError(
+                    f"Marketplace order {order.id} has {len(accepted_offers)} accepted offers; "
+                    "expected exactly one. Cannot determine authoritative price."
+                )
+
             offer = accepted_offers[0]
 
             # Validate supplier matches the assigned supplier
@@ -187,15 +210,8 @@ class PreServicePaymentService:
 
             return cls._to_irr(offer.price_amount)
 
-        if len(accepted_offers) > 1:
-            # Multiple accepted offers is an invariant violation — fail closed
-            raise PreServicePaymentError(
-                f"Order {order.id} has {len(accepted_offers)} accepted offers; "
-                "expected exactly one. Cannot determine authoritative price."
-            )
-
         # --- Non-marketplace path (existing behavior) ---
-        # No accepted offer exists: this is a non-marketplace order
+        # No offers ever submitted: this is a non-marketplace order
         # (operator-assigned, manual, etc.). Use the pricing engine.
         from apps.pricing.models import Quote
 
