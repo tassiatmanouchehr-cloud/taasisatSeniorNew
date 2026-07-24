@@ -233,3 +233,64 @@ class PriceImmutabilityTest(TestCase):
         self.assertFalse(offer.can_edit)
         # The is_terminal property
         self.assertTrue(offer.is_terminal)
+
+
+class FractionalIRRRejectionTest(TestCase):
+    """Fractional IRR amounts must be rejected, not silently truncated."""
+
+    def setUp(self):
+        self.tenant = _make_tenant()
+        self.supplier = _make_supplier(self.tenant)
+        self.order = _make_order(self.tenant)
+
+    def test_integral_amount_succeeds(self):
+        _make_accepted_offer(self.tenant, self.order, self.supplier, price_amount=Decimal("9000000.00"))
+        amount = PreServicePaymentService._resolve_amount_irr(order=self.order, supplier=self.supplier)
+        self.assertEqual(amount, 9000000)
+
+    def test_fractional_amount_rejected(self):
+        _make_accepted_offer(self.tenant, self.order, self.supplier, price_amount=Decimal("9000000.50"))
+        with self.assertRaises(PreServicePaymentError) as ctx:
+            PreServicePaymentService._resolve_amount_irr(order=self.order, supplier=self.supplier)
+        self.assertIn("fractional", str(ctx.exception).lower())
+
+    def test_small_fraction_rejected(self):
+        _make_accepted_offer(self.tenant, self.order, self.supplier, price_amount=Decimal("9000000.01"))
+        with self.assertRaises(PreServicePaymentError):
+            PreServicePaymentService._resolve_amount_irr(order=self.order, supplier=self.supplier)
+
+
+class MarketplaceProvenanceTest(TestCase):
+    """The marketplace-origin signal (offers.exists()) is reliable."""
+
+    def test_order_with_any_offer_is_marketplace(self):
+        """Even a WITHDRAWN offer proves marketplace provenance."""
+        tenant = _make_tenant()
+        supplier = _make_supplier(tenant)
+        order = _make_order(tenant)
+        # Only a WITHDRAWN offer exists (no ACCEPTED)
+        OrderOffer.objects.create(
+            tenant=tenant,
+            order=order,
+            supplier=supplier,
+            price_amount=Decimal("5000000"),
+            currency="IRR",
+            status=OrderOfferStatus.WITHDRAWN,
+            submitted_by=None,
+        )
+        # Marketplace order without ACCEPTED → fails closed
+        with self.assertRaises(PreServicePaymentError) as ctx:
+            PreServicePaymentService._resolve_amount_irr(order=order, supplier=supplier)
+        self.assertIn("no ACCEPTED offer", str(ctx.exception))
+
+    def test_order_without_offers_uses_quote_path(self):
+        """No offers at all → non-marketplace → Quote path."""
+        from apps.pricing.models import Quote
+
+        tenant = _make_tenant()
+        supplier = _make_supplier(tenant)
+        order = _make_order(tenant)
+        # No offers, but a Quote exists
+        Quote.objects.create(tenant=tenant, order=order, total_amount=Decimal("7500000"), currency="IRR")
+        amount = PreServicePaymentService._resolve_amount_irr(order=order, supplier=supplier)
+        self.assertEqual(amount, 7500000)

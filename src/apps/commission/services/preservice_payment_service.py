@@ -237,10 +237,25 @@ class PreServicePaymentService:
 
         return cls._to_irr(quote.total_amount)
 
-    @staticmethod
-    def _to_irr(decimal_amount) -> int:
-        # IRR has no meaningful fractional subunit in this domain (matches
-        # apps.commission.services.allocation_calculator.AllocationCalculator's
-        # own "deterministic integer-IRR" convention) — truncates any stray
-        # cents rather than rounding up past what the customer was quoted.
+    @classmethod
+    def _to_irr(cls, decimal_amount) -> int:
+        """Convert a Decimal amount to integer IRR.
+
+        IRR has no meaningful fractional subunit in this domain (matches
+        AllocationCalculator's own integer-IRR convention). A fractional
+        value indicates a pricing/offer data inconsistency and must be
+        rejected rather than silently truncated or rounded.
+        """
+        from decimal import Decimal
+
+        if not isinstance(decimal_amount, Decimal):
+            decimal_amount = Decimal(str(decimal_amount))
+
+        # Reject fractional IRR — the integer conversion must be exact
+        if decimal_amount != decimal_amount.to_integral_value():
+            raise PreServicePaymentError(
+                f"Amount {decimal_amount} has a fractional component. "
+                "IRR amounts must be whole numbers — cannot safely truncate or round."
+            )
+
         return int(decimal_amount)
